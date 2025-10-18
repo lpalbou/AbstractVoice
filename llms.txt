@@ -1,0 +1,239 @@
+# AbstractVoice: AI Integration Quick Reference
+
+## ESSENTIAL SETUP
+```python
+from abstractvoice import VoiceManager
+
+# Best quality (requires espeak-ng, auto-fallback to fast_pitch)
+vm = VoiceManager(tts_model="tts_models/en/ljspeech/vits")
+
+# Guaranteed to work everywhere (default)
+vm = VoiceManager(tts_model="tts_models/en/ljspeech/fast_pitch")
+
+# Simple initialization (uses default fast_pitch)
+vm = VoiceManager()
+```
+
+## CORE OPERATIONS
+
+### Text-to-Speech
+```python
+# Basic speech
+vm.speak("Hello, I am your AI assistant!")
+
+# Speed control (preserves pitch)
+vm.speak("Faster speech", speed=1.5)
+vm.speak("Slower speech", speed=0.7)
+
+# With callback
+vm.speak("Text", callback=lambda: print("Done"))
+```
+
+### Professional Pause/Resume (20ms response)
+```python
+# Immediate pause
+if vm.pause_speaking():
+    print("Paused successfully")
+
+# Resume from exact position
+if vm.resume_speaking():
+    print("Resumed successfully")
+
+# Check states
+if vm.is_speaking(): print("Currently speaking")
+if vm.is_paused(): print("Currently paused")
+
+# Stop completely
+vm.stop_speaking()
+```
+
+### Speech-to-Text
+```python
+def handle_speech(text):
+    print(f"User: {text}")
+    # Replace with your AI processing logic
+    response = f"I heard you say: {text}"
+    vm.speak(response)
+
+def handle_stop():
+    vm.stop_speaking()
+
+# Start listening
+vm.listen(on_transcription=handle_speech, on_stop=handle_stop)
+
+# Control listening
+if vm.is_listening(): print("Listening active")
+vm.stop_listening()
+```
+
+### Dynamic Configuration
+```python
+# Change models at runtime
+vm.set_tts_model("tts_models/en/ljspeech/vits")  # Best quality (needs espeak-ng)
+vm.set_tts_model("tts_models/en/ljspeech/fast_pitch")  # Default (works everywhere)
+vm.set_tts_model("tts_models/en/ljspeech/glow-tts")  # Alternative
+
+# Speed control
+vm.set_speed(1.2)  # 20% faster globally
+current_speed = vm.get_speed()
+
+# Whisper models
+vm.set_whisper("base")  # Better accuracy
+vm.set_whisper("tiny")  # Faster
+current_model = vm.get_whisper()  # Get current model
+
+# VAD (Voice Activity Detection) sensitivity
+vm.change_vad_aggressiveness(2)  # 0-3, higher = more sensitive
+```
+
+## VOICE MODES
+```python
+vm.set_voice_mode("full")  # Continuous listening, can interrupt
+vm.set_voice_mode("wait")  # Listen only when not speaking
+vm.set_voice_mode("stop")  # Stop TTS when user speaks
+vm.set_voice_mode("ptt")   # Push-to-talk
+```
+
+## AI INTEGRATION PATTERNS
+
+### Streaming AI Responses
+```python
+def stream_ai_with_voice(user_input):
+    # Replace with your streaming AI generator
+    def mock_ai_stream(text):
+        words = f"Processing: {text}. This is a response.".split()
+        for word in words:
+            yield word + " "
+    
+    response_chunks = mock_ai_stream(user_input)
+    sentence = ""
+    
+    for chunk in response_chunks:
+        sentence += chunk
+        if chunk.endswith(('.', '!', '?')):
+            vm.speak(sentence.strip())
+            sentence = ""
+    
+    if sentence.strip():
+        vm.speak(sentence.strip())
+```
+
+### Interrupt-Safe Conversations
+```python
+def on_user_input(text):
+    vm.stop_speaking()  # Stop AI speech
+    # Replace with your AI processing
+    ai_response = f"I heard: {text}"
+    vm.speak(ai_response)
+
+vm.listen(on_transcription=on_user_input)
+```
+
+### Thread-Safe Operations
+```python
+import threading
+
+# All VoiceManager methods are thread-safe
+def background_speech():
+    vm.speak("Background message")
+
+threading.Thread(target=background_speech).start()
+
+# Immediate control from any thread
+vm.pause_speaking()  # Works from any thread
+vm.resume_speaking()  # Works from any thread
+```
+
+## ERROR HANDLING
+```python
+# Robust initialization with fallback
+def create_voice_manager():
+    try:
+        return VoiceManager(tts_model="tts_models/en/ljspeech/vits")
+    except:
+        return VoiceManager(tts_model="tts_models/en/ljspeech/fast_pitch")
+
+# Safe operations
+def safe_speak(vm, text):
+    try:
+        return vm.speak(text)
+    except Exception as e:
+        print(f"Speech failed: {e}")
+        return False
+```
+
+## COMPLETE WORKING EXAMPLE
+```python
+from abstractvoice import VoiceManager
+import time
+
+class AIVoiceChat:
+    def __init__(self):
+        self.vm = VoiceManager()
+        self.active = False
+    
+    def start(self):
+        self.active = True
+        self.vm.speak("Hello! How can I help you?")
+        self.vm.listen(
+            on_transcription=self.handle_input,
+            on_stop=self.stop
+        )
+    
+    def handle_input(self, user_text):
+        if not self.active: return
+        
+        self.vm.stop_speaking()  # Stop any current speech
+        
+        # Your AI processing here
+        response = f"I heard: {user_text}"
+        
+        if self.active:
+            self.vm.speak(response)
+    
+    def stop(self):
+        self.active = False
+        self.vm.speak("Goodbye!")
+        self.vm.cleanup()
+
+# Usage
+chat = AIVoiceChat()
+chat.start()
+
+# Keep running
+try:
+    while chat.active:
+        time.sleep(0.1)
+except KeyboardInterrupt:
+    chat.stop()
+```
+
+## KEY FEATURES FOR AI SYSTEMS
+
+✅ **Immediate Pause/Resume**: 20ms response time, exact position resume
+✅ **Cross-Platform**: macOS, Linux, Windows with automatic fallbacks  
+✅ **Thread-Safe**: All operations safe from any thread
+✅ **Interrupt Handling**: Automatic TTS stop when user speaks
+✅ **Quality Control**: VITS (best, needs espeak-ng) → fast_pitch (default) fallback
+✅ **Speed Control**: Pitch-preserving speed adjustment (0.5x-2.0x)
+✅ **Long Text**: Automatic sentence segmentation and chunking
+✅ **Multiple Models**: Whisper tiny/base/small/medium/large
+✅ **Voice Modes**: full/wait/stop/ptt for different interaction styles
+✅ **Professional Audio**: OutputStream callbacks, no terminal interference
+
+## INSTALLATION
+```bash
+pip install abstractvoice
+
+# Optional for best quality (auto-detected)
+# macOS: brew install espeak-ng
+# Linux: sudo apt-get install espeak-ng  
+# Windows: choco install espeak-ng
+```
+
+## TROUBLESHOOTING
+- **TTS fails**: Use fallback model `"tts_models/en/ljspeech/fast_pitch"`
+- **Audio issues**: Check `sounddevice.query_devices()`
+- **Pause not working**: Ensure `is_speaking()` is True before pause
+- **Memory issues**: AbstractVoice auto-chunks long text
+- **Cross-platform**: fast_pitch model works everywhere without dependencies

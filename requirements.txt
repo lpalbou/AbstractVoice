@@ -1,0 +1,13 @@
+numpy>=1.24.0
+sounddevice>=0.4.6
+webrtcvad>=2.0.10
+PyAudio>=0.2.13
+openai-whisper>=20230314
+coqui-tts>=0.27.0
+torch>=2.0.0
+torchaudio>=2.0.0
+soundfile>=0.12.1
+librosa>=0.10.0
+requests>=2.31.0
+flask>=2.0.0
+-e . 
