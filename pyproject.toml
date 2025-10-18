@@ -46,6 +46,24 @@ dev = [
     "flake8>=5.0.0",
 ]
 
+# Language-specific voice support
+# These extras don't add dependencies but enable language-specific functionality
+fr = []  # French voice support via XTTS-v2
+es = []  # Spanish voice support via XTTS-v2
+de = []  # German voice support via XTTS-v2
+it = []  # Italian voice support via XTTS-v2
+ru = []  # Russian voice support via XTTS-v2
+
+# Multi-language support
+multilingual = []  # All supported languages via XTTS-v2
+
+# Optional enhanced language support (if needed for future phoneme improvements)
+fr-enhanced = []  # Future: Enhanced French phoneme support
+es-enhanced = []  # Future: Enhanced Spanish phoneme support
+de-enhanced = []  # Future: Enhanced German phoneme support
+it-enhanced = []  # Future: Enhanced Italian phoneme support
+ru-enhanced = []  # Future: Enhanced Russian phoneme support
+
 [project.urls]
 Repository = "https://github.com/lpalbou/abstractvoice"
 Documentation = "https://github.com/lpalbou/abstractvoice#readme"

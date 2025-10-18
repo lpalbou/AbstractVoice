@@ -37,21 +37,33 @@ class VoiceREPL(cmd.Cmd):
     ruler = ""  # No horizontal rule line
     use_rawinput = True
     
-    def __init__(self, api_url="http://localhost:11434/api/chat", 
-                 model="granite3.3:2b", debug_mode=False):
+    def __init__(self, api_url="http://localhost:11434/api/chat",
+                 model="granite3.3:2b", debug_mode=False, language="en", tts_model=None):
         super().__init__()
-        
+
         # Debug mode
         self.debug_mode = debug_mode
-        
+
         # API settings
         self.api_url = api_url
         self.model = model
         self.temperature = 0.4
         self.max_tokens = 4096
-        
-        # Initialize voice manager
-        self.voice_manager = VoiceManager(debug_mode=debug_mode)
+
+        # Language settings
+        self.current_language = language
+        self.language_names = {
+            'en': 'English', 'fr': 'French', 'es': 'Spanish',
+            'de': 'German', 'it': 'Italian', 'ru': 'Russian',
+            'multilingual': 'Multilingual'
+        }
+
+        # Initialize voice manager with language support
+        self.voice_manager = VoiceManager(
+            language=language,
+            tts_model=tts_model,
+            debug_mode=debug_mode
+        )
         
         # Settings
         self.use_tts = True
@@ -83,10 +95,12 @@ class VoiceREPL(cmd.Cmd):
     def _get_intro(self):
         """Generate intro message with help."""
         intro = f"\n{Colors.BOLD}Welcome to AbstractVoice CLI REPL{Colors.END}\n"
-        intro += f"API: {self.api_url} | Model: {self.model}\n"
+        lang_name = self.language_names.get(self.current_language, self.current_language)
+        intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name}\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
         intro += "  • Type messages to chat with the LLM\n"
         intro += "  • Use /voice <mode> to enable voice input\n"
+        intro += "  • Use /language <lang> to switch voice language\n"
         intro += "  • Type /help for full command list\n"
         intro += "  • Type /exit or /q to quit\n"
         return intro

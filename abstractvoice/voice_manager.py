@@ -5,20 +5,83 @@ from .recognition import VoiceRecognizer
 
 
 class VoiceManager:
-    """Main class for voice interaction capabilities."""
-    
-    def __init__(self, tts_model="tts_models/en/ljspeech/vits",
-                 whisper_model="tiny", debug_mode=False):
-        """Initialize the Voice Manager.
-        
+    """Main class for voice interaction capabilities with multilingual support."""
+
+    # Language-specific model mappings
+    LANGUAGE_MODELS = {
+        'en': {
+            'vits': 'tts_models/en/ljspeech/vits',
+            'fast_pitch': 'tts_models/en/ljspeech/fast_pitch',
+            'glow-tts': 'tts_models/en/ljspeech/glow-tts',
+            'default': 'tts_models/en/ljspeech/vits',
+            'fallback': 'tts_models/en/ljspeech/fast_pitch'
+        },
+        'fr': {
+            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
+            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+        },
+        'es': {
+            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
+            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+        },
+        'de': {
+            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
+            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+        },
+        'it': {
+            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
+            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+        },
+        'ru': {
+            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
+            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+        },
+        'multilingual': {
+            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
+            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+        }
+    }
+
+    # Language display names for user-friendly output
+    LANGUAGE_NAMES = {
+        'en': 'English',
+        'fr': 'French',
+        'es': 'Spanish',
+        'de': 'German',
+        'it': 'Italian',
+        'ru': 'Russian',
+        'multilingual': 'Multilingual'
+    }
+
+    def __init__(self, language='en', tts_model=None, whisper_model="tiny", debug_mode=False):
+        """Initialize the Voice Manager with language support.
+
         Args:
-            tts_model: TTS model name to use
+            language: Language code ('en', 'fr', 'es', 'de', 'it', 'ru', 'multilingual')
+            tts_model: Specific TTS model name or None for language default
             whisper_model: Whisper model name to use
             debug_mode: Enable debug logging
         """
         self.debug_mode = debug_mode
-        self.speed = 1.0  
-        
+        self.language = language.lower()
+        self.speed = 1.0
+
+        # Validate language
+        if self.language not in self.LANGUAGE_MODELS:
+            if debug_mode:
+                print(f"⚠️ Unsupported language '{language}', falling back to English")
+            self.language = 'en'
+
+        # Auto-select model based on language if not specified
+        if tts_model is None:
+            try:
+                tts_model = self.LANGUAGE_MODELS[self.language]['default']
+                if debug_mode:
+                    lang_name = self.LANGUAGE_NAMES.get(self.language, self.language)
+                    print(f"🌍 Using {lang_name} voice: {tts_model}")
+            except KeyError:
+                tts_model = "tts_models/en/ljspeech/vits"  # Ultimate fallback
+
         # Initialize TTS engine
         self.tts_engine = TTSEngine(
             model_name=tts_model,

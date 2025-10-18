@@ -443,105 +443,124 @@ class TTSEngine:
         if self.on_playback_end:
             self.on_playback_end()
     
-    def _speak_with_nonblocking_player(self, text, speed=1.0, callback=None):
-        """Alternative speak method using NonBlockingAudioPlayer for immediate pause/resume."""
+    def _speak_with_nonblocking_player(self, text, speed=1.0, callback=None, language='en'):
+        """Alternative speak method using NonBlockingAudioPlayer for immediate pause/resume with language support."""
         # Stop any existing playback
         self.stop()
-        
+
         if not text:
             return False
-        
+
         try:
             # Preprocess text for better synthesis quality
             processed_text = preprocess_text(text)
-            
+
             if self.debug_mode:
                 print(f" > Speaking (non-blocking): '{processed_text[:100]}{'...' if len(processed_text) > 100 else ''}'")
                 print(f" > Text length: {len(processed_text)} chars")
+                if language != 'en':
+                    print(f" > Language: {language}")
                 if speed != 1.0:
                     print(f" > Using speed multiplier: {speed}x")
-            
+
             # For very long text, chunk it at natural boundaries
             text_chunks = chunk_long_text(processed_text, max_chunk_size=300)
-            
+
             if self.debug_mode and len(text_chunks) > 1:
                 print(f" > Split into {len(text_chunks)} chunks for processing")
-            
+
             # Set playing state
             self.is_playing = True
             self.is_paused_state = False
-            
+
             # Call start callback
             if self.on_playback_start:
                 self.on_playback_start()
-            
+
             # Synthesize and queue audio chunks
             def synthesis_worker():
                 try:
                     for i, chunk in enumerate(text_chunks):
                         if self.stop_flag.is_set():
                             break
-                        
+
                         if self.debug_mode and len(text_chunks) > 1:
                             print(f" > Processing chunk {i+1}/{len(text_chunks)} ({len(chunk)} chars)...")
-                        
-                        # Generate audio for this chunk
-                        chunk_audio = self.tts.tts(chunk, split_sentences=True)
-                        
+
+                        # Generate audio for this chunk with language support
+                        try:
+                            # Check if this is an XTTS model (supports language parameter)
+                            if 'xtts' in self.tts.model_name.lower():
+                                chunk_audio = self.tts.tts(chunk, language=language, split_sentences=True)
+                                if self.debug_mode and language != 'en':
+                                    print(f" > Using XTTS with language: {language}")
+                            else:
+                                # Monolingual model - ignore language parameter
+                                chunk_audio = self.tts.tts(chunk, split_sentences=True)
+                                if self.debug_mode and language != 'en':
+                                    print(f" > Monolingual model - ignoring language parameter")
+                        except Exception as tts_error:
+                            # Fallback: try without language parameter
+                            if self.debug_mode:
+                                print(f" > TTS with language failed, trying without: {tts_error}")
+                            chunk_audio = self.tts.tts(chunk, split_sentences=True)
+
                         if chunk_audio and len(chunk_audio) > 0:
                             # Apply speed adjustment
                             if speed != 1.0:
                                 chunk_audio = apply_speed_without_pitch_change(
                                     np.array(chunk_audio), speed
                                 )
-                            
+
                             # Queue the audio for playback
                             self.audio_player.play_audio(np.array(chunk_audio))
-                            
+
                             if self.debug_mode:
                                 print(f" > Chunk {i+1} queued ({len(chunk_audio)} samples)")
-                        
+
                         # Small delay between chunks to prevent overwhelming the queue
                         time.sleep(0.01)
-                
+
                 except Exception as e:
                     if self.debug_mode:
                         print(f"Error in synthesis worker: {e}")
                 finally:
                     # Synthesis complete - audio player will handle completion callback
                     pass
-            
+
             # Start synthesis in background thread
             synthesis_thread = threading.Thread(target=synthesis_worker, daemon=True)
             synthesis_thread.start()
-            
+
             return True
-            
+
         except Exception as e:
             if self.debug_mode:
                 print(f"Error in _speak_with_nonblocking_player: {e}")
             self.is_playing = False
             return False
     
-    def speak(self, text, speed=1.0, callback=None):
-        """Convert text to speech and play audio.
-        
+    def speak(self, text, speed=1.0, callback=None, language='en'):
+        """Convert text to speech and play audio with language support.
+
         Implements SOTA best practices for long text synthesis:
         - Text preprocessing and normalization
         - Intelligent chunking for very long text (>500 chars)
         - Sentence segmentation to prevent attention degradation
         - Seamless audio concatenation for chunks
-        
+        - Multilingual support via XTTS models
+
         Args:
             text: Text to convert to speech
             speed: Speed multiplier (0.5-2.0)
             callback: Function to call when speech is complete
-        
+            language: Language code for XTTS models ('en', 'fr', 'es', 'de', 'it', 'ru')
+
         Returns:
             True if speech started, False if text was empty
         """
         # Use the new non-blocking audio player for immediate pause/resume
-        return self._speak_with_nonblocking_player(text, speed, callback)
+        return self._speak_with_nonblocking_player(text, speed, callback, language)
         
         if not text:
             return False

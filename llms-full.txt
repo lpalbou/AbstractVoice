@@ -28,21 +28,36 @@ AbstractVoice is a professional-grade Python library for voice interactions with
 ## INSTALLATION COMMANDS FOR AI SYSTEMS
 
 ```bash
-# Basic installation (works everywhere)
+# Basic installation (English only)
 pip install abstractvoice
 
+# Language-specific installation
+pip install "abstractvoice[fr]"    # French
+pip install "abstractvoice[es]"    # Spanish
+pip install "abstractvoice[de]"    # German
+pip install "abstractvoice[it]"    # Italian
+pip install "abstractvoice[ru]"    # Russian
+
+# Multiple languages
+pip install "abstractvoice[fr,es,de,it,ru]"
+
+# All languages (recommended for international AI systems)
+pip install "abstractvoice[multilingual]"
+
 # With development dependencies
-pip install "abstractvoice[dev]"
+pip install "abstractvoice[dev,multilingual]"
 
 # From source
 git clone https://github.com/lpalbou/abstractvoice.git
 cd abstractvoice
-pip install -e .
+pip install -e ".[multilingual]"
 ```
 
 ## ESSENTIAL PROGRAMMATIC USAGE PATTERNS
 
 ### 1. BASIC VOICE MANAGER SETUP
+
+#### English (Traditional)
 ```python
 from abstractvoice import VoiceManager
 
@@ -63,20 +78,92 @@ vm = VoiceManager(
 vm = VoiceManager()
 ```
 
-### 2. TEXT-TO-SPEECH OPERATIONS
+#### Multilingual Setup (Recommended for International AI Systems)
 ```python
-# Basic speech synthesis
-success = vm.speak("Hello, I am your AI assistant!")
+from abstractvoice import VoiceManager
 
+# Language-specific initialization
+vm_en = VoiceManager(language='en')     # English (VITS/FastPitch)
+vm_fr = VoiceManager(language='fr')     # French (XTTS-v2)
+vm_es = VoiceManager(language='es')     # Spanish (XTTS-v2)
+vm_de = VoiceManager(language='de')     # German (XTTS-v2)
+vm_it = VoiceManager(language='it')     # Italian (XTTS-v2)
+vm_ru = VoiceManager(language='ru')     # Russian (XTTS-v2)
+
+# Multilingual instance with dynamic language switching
+vm_multi = VoiceManager(language='multilingual')
+
+# Convenience functions for cleaner code
+from abstractvoice import (
+    VoiceManagerEnglish,
+    VoiceManagerFrench,
+    VoiceManagerSpanish,
+    VoiceManagerGerman,
+    VoiceManagerItalian,
+    VoiceManagerRussian,
+    VoiceManagerMultilingual
+)
+
+vm_fr = VoiceManagerFrench()
+vm_es = VoiceManagerSpanish()
+vm_multi = VoiceManagerMultilingual()
+```
+
+### 2. TEXT-TO-SPEECH OPERATIONS
+
+#### Basic Speech Synthesis
+```python
+# English
+vm_en = VoiceManager(language='en')
+success = vm_en.speak("Hello, I am your AI assistant!")
+
+# Multilingual examples
+vm_fr = VoiceManager(language='fr')
+vm_fr.speak("Bonjour! Je suis votre assistant IA.")
+
+vm_es = VoiceManager(language='es')
+vm_es.speak("¡Hola! Soy tu asistente de IA.")
+
+vm_de = VoiceManager(language='de')
+vm_de.speak("Hallo! Ich bin Ihr KI-Assistent.")
+
+vm_it = VoiceManager(language='it')
+vm_it.speak("Ciao! Sono il tuo assistente IA.")
+
+vm_ru = VoiceManager(language='ru')
+vm_ru.speak("Привет! Я ваш ИИ-помощник.")
+```
+
+#### Dynamic Language Switching
+```python
+# Single instance, multiple languages
+vm = VoiceManager(language='multilingual')
+
+# Speak in different languages
+vm.speak("Hello, welcome!", language='en')
+vm.speak("Bonjour, bienvenue!", language='fr')
+vm.speak("¡Hola, bienvenido!", language='es')
+vm.speak("Hallo, willkommen!", language='de')
+vm.speak("Ciao, benvenuto!", language='it')
+vm.speak("Привет, добро пожаловать!", language='ru')
+
+# Change default language
+vm.set_language('fr')
+vm.speak("Maintenant je parle français par défaut.")
+```
+
+#### Speed Control (Works with All Languages)
+```python
 # Speed control (preserves pitch)
-vm.speak("This is faster speech", speed=1.5)
-vm.speak("This is slower speech", speed=0.7)
+vm_fr.speak("Vitesse normale", speed=1.0)
+vm_fr.speak("Vitesse rapide", speed=1.5)
+vm_fr.speak("Vitesse lente", speed=0.7)
 
 # With completion callback
 def on_speech_done():
     print("Speech completed")
 
-vm.speak("Text with callback", callback=on_speech_done)
+vm_es.speak("Texto con callback", callback=on_speech_done)
 
 # Check if currently speaking
 if vm.is_speaking():
@@ -105,14 +192,39 @@ if vm.is_paused():
 vm.stop_speaking()
 ```
 
-### 4. DYNAMIC MODEL SWITCHING
+### 4. DYNAMIC MODEL AND LANGUAGE SWITCHING
 ```python
-# Change TTS model at runtime
-vm.set_tts_model("tts_models/en/ljspeech/vits")  # Best quality (needs espeak-ng)
-vm.set_tts_model("tts_models/en/ljspeech/fast_pitch")  # Default (works everywhere)
-vm.set_tts_model("tts_models/en/ljspeech/glow-tts")  # Alternative
+# Change language at runtime
+vm = VoiceManager(language='en')
+vm.speak("Starting in English")
 
-# Change Whisper model
+vm.set_language('fr')
+vm.speak("Maintenant en français")
+
+vm.set_language('es')
+vm.speak("Ahora en español")
+
+# Get language information
+info = vm.get_language_info()
+print(f"Current: {info['name']} ({info['code']})")
+print(f"Model: {info['model']}")
+print(f"Available models: {list(info['available_models'].keys())}")
+
+# List all supported languages
+supported = vm.get_supported_languages()
+print(f"Supported languages: {supported}")
+
+# Change TTS model at runtime (for English)
+vm_en = VoiceManager(language='en')
+vm_en.set_tts_model("tts_models/en/ljspeech/vits")  # Best quality (needs espeak-ng)
+vm_en.set_tts_model("tts_models/en/ljspeech/fast_pitch")  # Default (works everywhere)
+vm_en.set_tts_model("tts_models/en/ljspeech/glow-tts")  # Alternative
+
+# For multilingual, use XTTS-v2
+vm_multi = VoiceManager(language='multilingual')
+vm_multi.set_tts_model("tts_models/multilingual/multi-dataset/xtts_v2")
+
+# Change Whisper model (affects all languages)
 vm.set_whisper("base")  # Better accuracy
 vm.set_whisper("tiny")  # Faster processing
 current_model = vm.get_whisper()  # Get current model name
@@ -170,7 +282,61 @@ vm.set_voice_mode("ptt")
 
 ## ADVANCED INTEGRATION PATTERNS
 
-### 1. STREAMING AI RESPONSES WITH VOICE
+### 1. MULTILINGUAL AI ASSISTANT
+```python
+class InternationalAIAssistant:
+    def __init__(self):
+        # Pre-load voice managers for performance
+        self.voices = {
+            'en': VoiceManager(language='en'),
+            'fr': VoiceManager(language='fr'),
+            'es': VoiceManager(language='es'),
+            'de': VoiceManager(language='de'),
+            'it': VoiceManager(language='it'),
+            'ru': VoiceManager(language='ru')
+        }
+        self.current_language = 'en'
+
+    def set_language(self, language):
+        """Switch AI assistant language"""
+        if language in self.voices:
+            self.current_language = language
+            return True
+        return False
+
+    def speak(self, text, language=None):
+        """Speak in specified or current language"""
+        lang = language or self.current_language
+        if lang in self.voices:
+            self.voices[lang].speak(text)
+
+    def get_greeting(self):
+        """Get localized greeting"""
+        greetings = {
+            'en': "Hello! I'm your AI assistant. How can I help you?",
+            'fr': "Bonjour! Je suis votre assistant IA. Comment puis-je vous aider?",
+            'es': "¡Hola! Soy tu asistente de IA. ¿Cómo puedo ayudarte?",
+            'de': "Hallo! Ich bin Ihr KI-Assistent. Wie kann ich Ihnen helfen?",
+            'it': "Ciao! Sono il tuo assistente IA. Come posso aiutarti?",
+            'ru': "Привет! Я ваш ИИ-помощник. Как я могу вам помочь?"
+        }
+        message = greetings.get(self.current_language, greetings['en'])
+        self.speak(message)
+
+    def demonstrate_languages(self):
+        """Demonstrate all supported languages"""
+        for lang in self.voices.keys():
+            self.set_language(lang)
+            self.get_greeting()
+            time.sleep(3)  # Pause between languages
+
+# Usage
+assistant = InternationalAIAssistant()
+assistant.set_language('fr')
+assistant.speak("Bienvenue dans notre assistant multilingue!")
+```
+
+### 2. STREAMING AI RESPONSES WITH VOICE
 ```python
 def stream_ai_response_with_voice(user_input):
     """Stream AI response with immediate TTS feedback"""
@@ -523,29 +689,49 @@ def cleanup_voice_resources(vm):
 
 ```python
 #!/usr/bin/env python3
-"""Complete AbstractVoice integration example for AI systems"""
+"""Complete AbstractVoice multilingual integration example for AI systems"""
 
-from abstractvoice import VoiceManager
+from abstractvoice import VoiceManager, VoiceManagerMultilingual
 import time
 import threading
 
-class AIVoiceAssistant:
-    def __init__(self):
-        # Initialize with automatic fallback
+class MultilingualAIVoiceAssistant:
+    def __init__(self, default_language='en'):
+        self.default_language = default_language
+
+        # Initialize with automatic fallback and multilingual support
         try:
-            self.vm = VoiceManager(
-                tts_model="tts_models/en/ljspeech/vits",
-                whisper_model="tiny"
-            )
-            print("✅ Voice system ready (VITS model)")
-        except:
+            if default_language == 'en':
+                self.vm = VoiceManager(
+                    tts_model="tts_models/en/ljspeech/vits",
+                    whisper_model="tiny"
+                )
+                print("✅ Voice system ready (English VITS model)")
+            else:
+                self.vm = VoiceManager(
+                    language=default_language,
+                    whisper_model="tiny"
+                )
+                language_name = self.vm.LANGUAGE_NAMES.get(default_language, default_language)
+                print(f"✅ Voice system ready ({language_name} XTTS-v2 model)")
+        except Exception as e:
+            print(f"⚠️ Primary model failed: {e}")
             self.vm = VoiceManager(
                 tts_model="tts_models/en/ljspeech/fast_pitch",
                 whisper_model="tiny"
             )
             print("✅ Voice system ready (fallback model)")
-        
+
         self.conversation_active = False
+
+    def set_language(self, language):
+        """Change assistant language"""
+        if self.vm.set_language(language):
+            self.default_language = language
+            lang_name = self.vm.LANGUAGE_NAMES.get(language, language)
+            print(f"🌍 Language changed to: {lang_name}")
+            return True
+        return False
     
     def start_conversation(self):
         """Start voice conversation"""

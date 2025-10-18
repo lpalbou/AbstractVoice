@@ -15,20 +15,25 @@ def print_examples():
     print("  cli       - Command-line REPL example")
     print("  web       - Web API example")
     print("  simple    - Simple usage example")
-    print("\nUsage: python -m abstractvoice <example> [args...]")
+    print("\nUsage: python -m abstractvoice <example> [--language <lang>] [args...]")
+    print("\nSupported languages: en, fr, es, de, it, ru, multilingual")
+    print("\nExamples:")
+    print("  python -m abstractvoice cli --language fr    # French CLI")
+    print("  python -m abstractvoice simple --language ru # Russian simple example")
 
 
 def simple_example():
     """Run a simple example demonstrating basic usage."""
     from abstractvoice import VoiceManager
     import time
-    
+
     print("Simple AbstractVoice Example")
     print("============================")
     print("This example demonstrates basic TTS and STT functionality.")
+    print("(Use --language argument to test different languages)")
     print()
-    
-    # Initialize voice manager
+
+    # Initialize voice manager (can be overridden with --language)
     manager = VoiceManager(debug_mode=True)
     
     try:
@@ -91,17 +96,22 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="AbstractVoice examples")
     parser.add_argument("example", nargs="?", help="Example to run (cli, web, simple)")
-    
-    # Parse just the first argument
+    parser.add_argument("--language", "--lang", default="en",
+                      choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
+                      help="Voice language for examples")
+
+    # Parse just the first argument and language
     args, remaining = parser.parse_known_args()
-    
+
     if not args.example:
         print_examples()
         return
-    
-    # Set remaining args as sys.argv for the examples
+
+    # Set remaining args as sys.argv for the examples, including language
+    if args.language != "en":
+        remaining = ["--language", args.language] + remaining
     sys.argv = [sys.argv[0]] + remaining
-    
+
     if args.example == "cli":
         from abstractvoice.examples.cli_repl import main
         main()
