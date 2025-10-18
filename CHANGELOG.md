@@ -5,7 +5,11 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2025-01-15
+
+## [0.1.1] - 2025-10-18
+- Minor update to README and .toml
+
+## [0.1.0] - 2025-10-15
 
 ### Added
 - **Professional-grade immediate pause/resume functionality**
