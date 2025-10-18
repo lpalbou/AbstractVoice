@@ -1,9 +1,8 @@
 # AbstractVoice
 
-[![PyPI version](https://img.shields.io/pypi/v/abstractvoice.svg)](https://pypi.org/project/abstractvoice/)
-[![Python Version](https://img.shields.io/pypi/pyversions/abstractvoice)](https://pypi.org/project/abstractvoice/)
-[![License](https://img.shields.io/pypi/l/abstractvoice)](https://github.com/lpalbou/abstractvoice/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/lpalbou/abstractvoice?style=social)](https://github.com/lpalbou/abstractvoice/stargazers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/lpalbou/AbstractVoice/blob/main/LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub stars](https://img.shields.io/github/stars/lpalbou/AbstractVoice?style=social)](https://github.com/lpalbou/AbstractVoice/stargazers)
 
 A modular Python library for voice interactions with AI systems, providing text-to-speech (TTS) and speech-to-text (STT) capabilities with interrupt handling.
 
@@ -31,6 +30,32 @@ While we provide CLI and WEB examples, AbstractVoice is designed to be integrate
 - Python 3.8+ (3.11+ recommended)
 - PortAudio for audio input/output
 - **Recommended**: espeak-ng for best voice quality (VITS model)
+
+### Basic Installation
+
+```bash
+# Install from PyPI
+pip install abstractvoice
+
+# Or clone the repository
+git clone https://github.com/lpalbou/abstractvoice.git
+cd abstractvoice
+pip install -e .
+```
+
+### Development Installation
+
+```bash
+# Install with development dependencies
+pip install "abstractvoice[dev]"
+```
+
+### From Requirements File
+
+```bash
+# Install all dependencies including the package
+pip install -r requirements.txt
+```
 
 ### Installing espeak-ng (Recommended for Best Quality)
 
@@ -63,32 +88,6 @@ choco install espeak-ng
 ```
 
 **Without espeak-ng:** AbstractVoice will automatically fall back to a simpler TTS model (fast_pitch) that works everywhere but has lower voice quality.
-
-### Basic Installation
-
-```bash
-# Install from PyPI
-pip install abstractvoice
-
-# Or clone the repository
-git clone https://github.com/lpalbou/abstractvoice.git
-cd abstractvoice
-pip install -e .
-```
-
-### Development Installation
-
-```bash
-# Install with development dependencies
-pip install "abstractvoice[dev]"
-```
-
-### From Requirements File
-
-```bash
-# Install all dependencies including the package
-pip install -r requirements.txt
-```
 
 ## Quick Start
 
