@@ -4,6 +4,7 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/abstractvoice)](https://pypi.org/project/abstractvoice/)
 [![License](https://img.shields.io/pypi/l/abstractvoice)](https://github.com/lpalbou/abstractvoice/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/lpalbou/abstractvoice?style=social)](https://github.com/lpalbou/abstractvoice/stargazers)
+[![license](https://img.shields.io/github/license/lpalbou/AbstractVoice)](https://github.com/lpalbou/abstractvoice/blob/main/LICENSE)
 
 A modular Python library for voice interactions with AI systems, providing text-to-speech (TTS) and speech-to-text (STT) capabilities with interrupt handling.
 
