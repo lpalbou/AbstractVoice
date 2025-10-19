@@ -38,8 +38,8 @@ class VoiceManager:
     # Smart language configuration - high quality stable defaults
     LANGUAGES = {
         'en': {
-            'default': 'tts_models/en/ljspeech/vits',          # High quality premium voice
-            'premium': 'tts_models/en/ljspeech/vits',          # Use same stable model
+            'default': 'tts_models/en/ljspeech/tacotron2-DDC', # Reliable, compatible voice
+            'premium': 'tts_models/en/ljspeech/vits',          # High quality (requires espeak)
             'name': 'English'
         },
         'fr': {

@@ -33,8 +33,8 @@ class ModelManager:
 
     # Essential models for immediate functionality
     ESSENTIAL_MODELS = [
-        "tts_models/en/ljspeech/fast_pitch",     # Lightweight, no espeak dependency
-        "tts_models/en/ljspeech/tacotron2-DDC",  # Reliable fallback
+        "tts_models/en/ljspeech/tacotron2-DDC",  # Reliable, works everywhere (now primary)
+        "tts_models/en/ljspeech/fast_pitch",     # Lightweight alternative (download often fails)
     ]
 
     # Premium models for best quality (downloaded on-demand)
@@ -272,111 +272,90 @@ def download_models_cli():
 
     args = parser.parse_args()
 
-    # Use VoiceManager for consistent programmatic API
-    from abstractvoice.voice_manager import VoiceManager
-
-    vm = VoiceManager(debug_mode=args.debug)
+    # Use ModelManager directly to avoid circular dependency
+    # (VoiceManager requires TTS which needs models, but we're downloading models)
+    manager = ModelManager(debug_mode=args.debug)
 
     if args.status:
-        # Use VoiceManager's model status
-        status = vm.get_cache_status()
-        print("🎭 TTS Model Cache Status")
-        print("=" * 50)
-
-        if status['total_cached'] == 0:
-            print("❌ No models cached - first use will require internet")
-            print("\nTo download essential models for offline use:")
-            print("  abstractvoice download-models --essential")
-            return
-
-        print(f"✅ {status['total_cached']} models cached for offline use")
-        print(f"📦 Essential model cached: {status['essential_model_cached']}")
-        print(f"🌐 Ready for offline: {status['ready_for_offline']}")
-        print(f"💾 Cache location: {status['cache_dir']}")
-        print(f"💽 Total cache size: {status['total_size_mb']} MB")
-
-        # Show cached models
-        cached_models = status['cached_models']
-        essential_model = status['essential_model']
-
-        print(f"\n📦 Essential Model:")
-        if essential_model in cached_models:
-            print(f"  ✅ {essential_model}")
-        else:
-            print(f"  📥 {essential_model} (not cached)")
-
-        print(f"\n📋 All Cached Models ({len(cached_models)}):")
-        for model in sorted(cached_models)[:10]:  # Show first 10
-            print(f"  ✅ {model}")
-        if len(cached_models) > 10:
-            print(f"  ... and {len(cached_models) - 10} more")
+        # Use ModelManager's status method
+        manager.print_status()
         return
 
     if args.clear:
-        # Use ModelManager for low-level cache operations
-        manager = ModelManager(debug_mode=args.debug)
+        # Clear cache using ModelManager
         manager.clear_cache(confirm=True)
         return
 
     if args.model:
-        # Use ModelManager for direct model download
-        manager = ModelManager(debug_mode=args.debug)
+        # Download specific model using ModelManager
         success = manager.download_model(args.model)
         sys.exit(0 if success else 1)
 
     if args.language:
-        # Use simple model download for language-specific models
+        # Language-specific model downloads
         print(f"📦 Downloading models for {args.language}...")
 
-        # Get available models for this language
-        models = vm.list_available_models(args.language)
-        if args.language not in models:
+        # Simple language-to-model mapping to avoid VoiceManager dependency
+        language_models = {
+            'en': ['tts_models/en/ljspeech/fast_pitch', 'tts_models/en/ljspeech/vits'],
+            'fr': ['tts_models/fr/css10/vits', 'tts_models/fr/mai/tacotron2-DDC'],
+            'es': ['tts_models/es/mai/tacotron2-DDC'],
+            'de': ['tts_models/de/thorsten/vits'],
+            'it': ['tts_models/it/mai_male/vits', 'tts_models/it/mai_female/vits']
+        }
+
+        if args.language not in language_models:
             print(f"❌ Language '{args.language}' not supported")
-            print(f"   Available languages: {list(vm.list_available_models().keys())}")
+            print(f"   Available languages: {list(language_models.keys())}")
             sys.exit(1)
 
-        # Download the default model for this language
-        language_models = models[args.language]
-        default_model = None
-        for voice_id, voice_info in language_models.items():
-            if voice_info.get('default', False):
-                default_model = f"{args.language}.{voice_id}"
+        # Download primary model for this language
+        models_to_try = language_models[args.language]
+        success = False
+
+        for model in models_to_try:
+            print(f"  📥 Downloading {model}...")
+            if manager.download_model(model):
+                print(f"✅ Downloaded {model}")
+                print(f"✅ {args.language.upper()} voice is now ready!")
+                success = True
                 break
+            else:
+                print(f"❌ Failed to download {model}, trying next...")
 
-        if not default_model:
-            # Take the first available model
-            first_voice = list(language_models.keys())[0]
-            default_model = f"{args.language}.{first_voice}"
-
-        print(f"  📥 Downloading {default_model}...")
-        success = vm.download_model(default_model)
-
-        if success:
-            print(f"✅ Downloaded {default_model}")
-            print(f"✅ {args.language.upper()} voice is now ready!")
-        else:
-            print(f"❌ Failed to download {default_model}")
+        if not success:
+            print(f"❌ Failed to download any models for {args.language}")
         sys.exit(0 if success else 1)
 
     if args.all:
-        # Use ModelManager for downloading all models
-        manager = ModelManager(debug_mode=args.debug)
+        # Download all available models
         success = manager.download_all_models()
         sys.exit(0 if success else 1)
 
-    # Default to essential models via VoiceManager
+    # Default to essential models using ModelManager
     if args.essential or (not args.all and not args.model and not args.language):
         print("📦 Downloading essential TTS model for offline use...")
 
-        # Use the simple ensure_ready method
-        success = vm.ensure_ready(auto_download=True)
+        # Download essential models directly
+        essential_models = manager.ESSENTIAL_MODELS
+        success = False
+
+        for model in essential_models:
+            print(f"  📥 Downloading {model}...")
+            if manager.download_model(model):
+                print(f"✅ Downloaded {model}")
+                success = True
+                break
+            else:
+                print(f"❌ Failed to download {model}, trying next...")
 
         if success:
             print("✅ Essential model downloaded successfully!")
             print("🎉 AbstractVoice is now ready for offline use!")
         else:
             print("❌ Essential model download failed")
-            print("   Check your internet connection")
+            print("   Check your internet connection and try:")
+            print("   pip install --force-reinstall coqui-tts")
         sys.exit(0 if success else 1)
 
 
