@@ -24,12 +24,43 @@ def _import_tts():
         from TTS.api import TTS
         return TTS
     except ImportError as e:
-        raise ImportError(
-            "TTS functionality requires optional dependencies. Install with:\n"
-            "  pip install abstractvoice[tts]    # For TTS only\n"
-            "  pip install abstractvoice[all]    # For all features\n"
-            f"Original error: {e}"
-        ) from e
+        error_msg = str(e).lower()
+
+        # Check for specific PyTorch/TorchVision conflicts
+        if "torchvision::nms does not exist" in error_msg or "gpt2pretrainedmodel" in error_msg:
+            raise ImportError(
+                "❌ PyTorch/TorchVision version conflict detected!\n\n"
+                "This is a known compatibility issue. To fix:\n\n"
+                "1. Uninstall conflicting packages:\n"
+                "   pip uninstall torch torchvision torchaudio transformers\n\n"
+                "2. Reinstall with compatible versions:\n"
+                "   pip install abstractvoice[all]  # Installs tested compatible versions\n\n"
+                "3. Or use specific PyTorch version:\n"
+                "   pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1\n"
+                "   pip install abstractvoice[voice-full]\n\n"
+                "For conda environments, consider:\n"
+                "   conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia\n\n"
+                f"Original error: {e}"
+            ) from e
+        elif "no module named 'tts'" in error_msg or "coqui" in error_msg:
+            raise ImportError(
+                "TTS functionality requires coqui-tts. Install with:\n"
+                "  pip install abstractvoice[tts]        # For TTS only\n"
+                "  pip install abstractvoice[voice-full] # For complete voice functionality\n"
+                "  pip install abstractvoice[all]        # For all features\n"
+                f"Original error: {e}"
+            ) from e
+        else:
+            # Generic import error
+            raise ImportError(
+                "TTS functionality requires optional dependencies. Install with:\n"
+                "  pip install abstractvoice[tts]        # For TTS only\n"
+                "  pip install abstractvoice[voice-full] # For complete voice functionality\n"
+                "  pip install abstractvoice[all]        # For all features\n\n"
+                "If you're getting PyTorch-related errors, try:\n"
+                "  pip install abstractvoice[core-tts]   # Lightweight TTS without extras\n\n"
+                f"Original error: {e}"
+            ) from e
 
 def _import_audio_deps():
     """Import audio dependencies with helpful error message if missing."""
@@ -38,14 +69,37 @@ def _import_audio_deps():
         import librosa
         return sd, librosa
     except ImportError as e:
-        if "sounddevice" in str(e) or "librosa" in str(e):
+        error_msg = str(e).lower()
+
+        if "sounddevice" in error_msg:
             raise ImportError(
-                "Audio functionality requires optional dependencies. Install with:\n"
-                "  pip install abstractvoice[voice]  # For basic audio\n"
-                "  pip install abstractvoice[all]    # For all features\n"
+                "Audio playback requires sounddevice. Install with:\n"
+                "  pip install abstractvoice[audio-only]  # For audio processing only\n"
+                "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
+                "  pip install abstractvoice[all]         # For all features\n\n"
+                "On some systems, you may need system audio libraries:\n"
+                "  Ubuntu/Debian: sudo apt-get install portaudio19-dev\n"
+                "  macOS: brew install portaudio\n"
+                "  Windows: Usually works out of the box\n\n"
                 f"Original error: {e}"
             ) from e
-        raise
+        elif "librosa" in error_msg:
+            raise ImportError(
+                "Audio processing requires librosa. Install with:\n"
+                "  pip install abstractvoice[tts]         # For TTS functionality\n"
+                "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
+                "  pip install abstractvoice[all]         # For all features\n\n"
+                f"Original error: {e}"
+            ) from e
+        else:
+            # Generic audio import error
+            raise ImportError(
+                "Audio functionality requires optional dependencies. Install with:\n"
+                "  pip install abstractvoice[audio-only]  # For audio processing only\n"
+                "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
+                "  pip install abstractvoice[all]         # For all features\n\n"
+                f"Original error: {e}"
+            ) from e
 
 # Suppress the PyTorch FutureWarning about torch.load
 warnings.filterwarnings(

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abstractvoice"
-version = "0.2.0"
+version = "0.2.1"
 description = "A modular Python library for voice interactions with AI systems"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -39,10 +39,11 @@ voice = [
 
 # Text-to-Speech functionality
 tts = [
-    "coqui-tts>=0.27.0",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "librosa>=0.10.0",
+    "coqui-tts>=0.27.0,<0.30.0",
+    "torch>=2.0.0,<2.4.0",
+    "torchvision>=0.15.0,<0.19.0",
+    "torchaudio>=2.0.0,<2.4.0",
+    "librosa>=0.10.0,<0.11.0",
 ]
 
 # Speech-to-Text functionality
@@ -62,10 +63,11 @@ all = [
     "webrtcvad>=2.0.10",
     "PyAudio>=0.2.13",
     "openai-whisper>=20230314",
-    "coqui-tts>=0.27.0",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "librosa>=0.10.0",
+    "coqui-tts>=0.27.0,<0.30.0",
+    "torch>=2.0.0,<2.4.0",
+    "torchvision>=0.15.0,<0.19.0",
+    "torchaudio>=2.0.0,<2.4.0",
+    "librosa>=0.10.0,<0.11.0",
     "soundfile>=0.12.1",
     "flask>=2.0.0",
     "tiktoken>=0.6.0",
@@ -78,74 +80,42 @@ dev = [
     "flake8>=5.0.0",
 ]
 
-# Simplified language support - all languages require the same dependencies
-# Since TTS models are language-specific but dependencies are the same
-languages = [
+# Complete voice functionality - TTS + STT + Audio I/O (most common use case)
+voice-full = [
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
     "PyAudio>=0.2.13",
     "openai-whisper>=20230314",
-    "coqui-tts>=0.27.0",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "librosa>=0.10.0",
+    "coqui-tts>=0.27.0,<0.30.0",
+    "torch>=2.0.0,<2.4.0",
+    "torchvision>=0.15.0,<0.19.0",
+    "torchaudio>=2.0.0,<2.4.0",
+    "librosa>=0.10.0,<0.11.0",
     "soundfile>=0.12.1",
-    "flask>=2.0.0",
     "tiktoken>=0.6.0",
 ]
 
-# Individual language extras (all identical)
-fr = [
-    "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
-    "PyAudio>=0.2.13",
+# Core TTS-only (lightweight, no STT)
+core-tts = [
+    "coqui-tts>=0.27.0,<0.30.0",
+    "torch>=2.0.0,<2.4.0",
+    "torchvision>=0.15.0,<0.19.0",
+    "torchaudio>=2.0.0,<2.4.0",
+    "librosa>=0.10.0,<0.11.0",
+]
+
+# Core STT-only (lightweight, no TTS)
+core-stt = [
     "openai-whisper>=20230314",
-    "coqui-tts>=0.27.0",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "librosa>=0.10.0",
-    "soundfile>=0.12.1",
-    "flask>=2.0.0",
     "tiktoken>=0.6.0",
 ]
-es = [
+
+# Audio processing only (for custom TTS/STT implementations)
+audio-only = [
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
     "PyAudio>=0.2.13",
-    "openai-whisper>=20230314",
-    "coqui-tts>=0.27.0",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "librosa>=0.10.0",
     "soundfile>=0.12.1",
-    "flask>=2.0.0",
-    "tiktoken>=0.6.0",
-]
-de = [
-    "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
-    "PyAudio>=0.2.13",
-    "openai-whisper>=20230314",
-    "coqui-tts>=0.27.0",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "librosa>=0.10.0",
-    "soundfile>=0.12.1",
-    "flask>=2.0.0",
-    "tiktoken>=0.6.0",
-]
-it = [
-    "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
-    "PyAudio>=0.2.13",
-    "openai-whisper>=20230314",
-    "coqui-tts>=0.27.0",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "librosa>=0.10.0",
-    "soundfile>=0.12.1",
-    "flask>=2.0.0",
-    "tiktoken>=0.6.0",
 ]
 
 [project.urls]

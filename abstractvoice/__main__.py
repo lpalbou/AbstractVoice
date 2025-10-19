@@ -15,11 +15,13 @@ def print_examples():
     print("  cli       - Command-line REPL example")
     print("  web       - Web API example")
     print("  simple    - Simple usage example")
+    print("  check-deps - Check dependency compatibility")
     print("\nUsage: python -m abstractvoice <example> [--language <lang>] [args...]")
     print("\nSupported languages: en, fr, es, de, it, ru, multilingual")
     print("\nExamples:")
     print("  python -m abstractvoice cli --language fr    # French CLI")
     print("  python -m abstractvoice simple --language ru # Russian simple example")
+    print("  python -m abstractvoice check-deps           # Check dependencies")
 
 
 def simple_example():
@@ -95,7 +97,7 @@ def simple_example():
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="AbstractVoice examples")
-    parser.add_argument("example", nargs="?", help="Example to run (cli, web, simple)")
+    parser.add_argument("example", nargs="?", help="Example to run (cli, web, simple, check-deps)")
     parser.add_argument("--language", "--lang", default="en",
                       choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
                       help="Voice language for examples")
@@ -105,6 +107,16 @@ def main():
 
     if not args.example:
         print_examples()
+        return
+
+    # Handle check-deps specially (doesn't need language)
+    if args.example == "check-deps":
+        from abstractvoice.dependency_check import check_dependencies
+        try:
+            check_dependencies(verbose=True)
+        except Exception as e:
+            print(f"❌ Error running dependency check: {e}")
+            print("This might indicate a dependency issue.")
         return
 
     # Set remaining args as sys.argv for the examples, including language

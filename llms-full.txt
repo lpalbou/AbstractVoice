@@ -32,33 +32,42 @@ AbstractVoice is a production-ready Python library for offline voice interaction
 
 ## INSTALLATION
 
-### **Quick Start**
+### **Quick Start (2024-2025 Stable)**
 ```bash
-# Recommended: All features included
-pip install abstractvoice[all]
+# Complete voice functionality (recommended)
+pip install abstractvoice[voice-full]
+
+# Check installation and dependencies
+python -m abstractvoice check-deps
 
 # Minimal core (2 dependencies only)
 pip install abstractvoice
-
-# Add features as needed
-pip install abstractvoice[tts]      # Text-to-speech only
-pip install abstractvoice[stt]      # Speech-to-text only
-pip install abstractvoice[voice]    # Audio I/O
 ```
 
-### **Language-Specific Installation**
+### **Smart Dependency Groups**
 ```bash
-# Single languages (all include the same dependencies)
-pip install abstractvoice[fr]       # French
-pip install abstractvoice[es]       # Spanish
-pip install abstractvoice[de]       # German
-pip install abstractvoice[it]       # Italian
+# Complete voice features (TTS + STT + Audio)
+pip install abstractvoice[voice-full]
 
-# Multiple languages
-pip install abstractvoice[fr,de,it]
+# Lightweight options
+pip install abstractvoice[core-tts]    # TTS only (no audio/STT)
+pip install abstractvoice[core-stt]    # STT only (no TTS/audio)
+pip install abstractvoice[audio-only]  # Audio processing only
 
-# Note: All language extras install identical dependencies
-# Language-specific models are downloaded at runtime
+# Legacy (still available)
+pip install abstractvoice[all]         # Everything
+pip install abstractvoice[tts]         # TTS functionality
+pip install abstractvoice[stt]         # STT functionality
+```
+
+### **Dependency Conflict Resolution**
+```bash
+# If you get PyTorch/TorchVision errors:
+pip uninstall torch torchvision torchaudio transformers
+pip install abstractvoice[all]  # Installs tested compatible versions
+
+# Check for conflicts
+python -m abstractvoice check-deps
 ```
 
 ### **Quality Enhancement (Optional)**
@@ -78,7 +87,23 @@ sudo apt-get install espeak-ng
 ```bash
 git clone https://github.com/lpalbou/abstractvoice.git
 cd abstractvoice
-pip install -e ".[all]"
+pip install -e ".[all,dev]"
+```
+
+### **Dependency Management (2024-2025 Updates)**
+
+**Enhanced Error Handling**: AbstractVoice now detects specific PyTorch conflicts and provides precise fix instructions.
+
+**Version Compatibility**: All PyTorch ecosystem packages are pinned to tested compatible versions:
+- PyTorch: 2.0.0 - 2.3.x
+- TorchVision: 0.15.0 - 0.18.x (now explicitly included)
+- TorchAudio: 2.0.0 - 2.3.x
+- Coqui-TTS: 0.27.0 - 0.29.x
+
+**Dependency Checker**: New utility to diagnose installation issues:
+```python
+from abstractvoice.dependency_check import check_dependencies
+check_dependencies()  # Comprehensive compatibility report
 ```
 
 ## QUICK START EXAMPLES
@@ -566,30 +591,76 @@ flask>=2.0.0          # Web API server
 
 ## TROUBLESHOOTING
 
-### **Common Issues**
-1. **Import Errors**: Install missing optional dependencies
-2. **Audio Issues**: Check `sounddevice.query_devices()`
-3. **espeak-ng Missing**: VITS models fallback to Tacotron2 automatically
-4. **Permission Errors**: Grant microphone access on macOS/Windows
+### **Common Issues & Solutions (2024-2025)**
 
-### **Debug Mode**
-```python
-# Enable debug output to diagnose issues
-vm = VoiceManager(debug_mode=True)
-# Shows:
-# ✨ Using premium quality model: tts_models/en/ljspeech/vits
-# 🌍 Using English voice: tts_models/en/ljspeech/vits
-# > Loading TTS model: tts_models/en/ljspeech/vits
+#### **1. PyTorch/TorchVision Conflicts**
+**Error**: `RuntimeError: operator torchvision::nms does not exist`
 
-# Check current state
-print(f"Current language: {vm.get_language_name()}")
-print(f"Supported languages: {vm.get_supported_languages()}")
-print(f"Current speed: {vm.get_speed()}")
+**Root Cause**: Incompatible PyTorch/TorchVision versions (common in conda environments)
 
-# Test basic functionality
-result = vm.speak("Testing debug mode")
-print(f"Speech result: {result}")
+**Solution**:
+```bash
+# Step 1: Check current state
+python -m abstractvoice check-deps
+
+# Step 2: Clean reinstall
+pip uninstall torch torchvision torchaudio transformers
+pip install abstractvoice[all]
+
+# Step 3: Verify fix
+python -c "from abstractvoice import VoiceManager; print('✅ Fixed!')"
 ```
+
+#### **2. Import Errors After Installation**
+**Error**: `ModuleNotFoundError: Could not import module 'GPT2PreTrainedModel'`
+
+**Enhanced Error Messages**: AbstractVoice now provides specific installation commands:
+```
+❌ PyTorch/TorchVision version conflict detected!
+
+To fix:
+1. pip uninstall torch torchvision torchaudio transformers
+2. pip install abstractvoice[all]  # Installs tested compatible versions
+```
+
+#### **3. Audio Device Issues**
+**Error**: `OSError: PortAudio library not found`
+
+**Solution**:
+```bash
+# macOS: brew install portaudio
+# Linux: sudo apt-get install portaudio19-dev
+# Windows: Usually works, try conda install pyaudio if needed
+
+pip install abstractvoice[audio-only]  # Reinstall audio components
+```
+
+#### **4. Conda/Pip Environment Conflicts**
+**Best Practice**: Use conda for environment, pip for packages
+```bash
+conda create -n abstractvoice python=3.10
+conda activate abstractvoice
+pip install abstractvoice[voice-full]  # Use pip, not conda
+```
+
+### **Debug Mode & Dependency Checking**
+```python
+# Enhanced debug output
+vm = VoiceManager(debug_mode=True)
+# Shows model selection and compatibility info
+
+# Comprehensive dependency check
+from abstractvoice.dependency_check import check_dependencies
+check_dependencies()  # Full compatibility report with fix recommendations
+
+# Quick installation verification
+python -m abstractvoice check-deps
+```
+
+### **Legacy Issues**
+1. **espeak-ng Missing**: VITS models fallback to Tacotron2 automatically
+2. **Permission Errors**: Grant microphone access on macOS/Windows
+3. **Model Download**: ~500MB per language, stored in `~/.cache/huggingface/`
 
 ## LICENSING & COMPLIANCE
 
