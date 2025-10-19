@@ -70,15 +70,39 @@ class VoiceManager:
     # Complete voice catalog with metadata
     VOICE_CATALOG = {
         'en': {
-            'vits_premium': {
-                'model': 'tts_models/en/ljspeech/vits',
-                'quality': 'premium',
+            'tacotron2': {
+                'model': 'tts_models/en/ljspeech/tacotron2-DDC',
+                'quality': 'good',
                 'gender': 'female',
                 'accent': 'US English',
                 'license': 'Open source (LJSpeech)',
+                'requires': 'none'
+            },
+            'jenny': {
+                'model': 'tts_models/en/jenny/jenny',
+                'quality': 'excellent',
+                'gender': 'female',
+                'accent': 'US English',
+                'license': 'Open source (Jenny)',
+                'requires': 'none'
+            },
+            'ek1': {
+                'model': 'tts_models/en/ek1/tacotron2',
+                'quality': 'excellent',
+                'gender': 'male',
+                'accent': 'British English',
+                'license': 'Open source (EK1)',
+                'requires': 'none'
+            },
+            'vctk': {
+                'model': 'tts_models/en/vctk/vits',
+                'quality': 'premium',
+                'gender': 'multiple',
+                'accent': 'British English',
+                'license': 'Open source (VCTK)',
                 'requires': 'espeak-ng'
             },
-            'fast_pitch_reliable': {
+            'fast_pitch': {
                 'model': 'tts_models/en/ljspeech/fast_pitch',
                 'quality': 'good',
                 'gender': 'female',
@@ -86,12 +110,12 @@ class VoiceManager:
                 'license': 'Open source (LJSpeech)',
                 'requires': 'none'
             },
-            'vctk_multi': {
-                'model': 'tts_models/en/vctk/vits',
+            'vits': {
+                'model': 'tts_models/en/ljspeech/vits',
                 'quality': 'premium',
-                'gender': 'multiple',
-                'accent': 'British English',
-                'license': 'Open source (VCTK)',
+                'gender': 'female',
+                'accent': 'US English',
+                'license': 'Open source (LJSpeech)',
                 'requires': 'espeak-ng'
             }
         },
@@ -391,32 +415,45 @@ class VoiceManager:
         return self.speed
 
     def set_tts_model(self, model_name):
-        """Change the TTS model.
-        
+        """Change the TTS model safely without memory conflicts.
+
         Available models (all pure Python, cross-platform):
         - "tts_models/en/ljspeech/fast_pitch" (default, recommended)
         - "tts_models/en/ljspeech/glow-tts" (alternative)
         - "tts_models/en/ljspeech/tacotron2-DDC" (legacy)
-        
+
         Args:
             model_name: TTS model name to use
-            
+
         Returns:
             True if successful
-            
+
         Example:
             vm.set_tts_model("tts_models/en/ljspeech/glow-tts")
         """
         # Stop any current speech
         self.stop_speaking()
-        
+
+        # Properly cleanup old TTS engine to prevent memory conflicts
+        if hasattr(self, 'tts_engine') and self.tts_engine:
+            try:
+                # Cleanup audio player if it exists
+                if hasattr(self.tts_engine, 'audio_player') and self.tts_engine.audio_player:
+                    self.tts_engine.audio_player.cleanup()
+                # Clear the TTS object
+                del self.tts_engine.tts
+                del self.tts_engine
+            except Exception as e:
+                if self.debug_mode:
+                    print(f"Warning: TTS cleanup issue: {e}")
+
         # Reinitialize TTS engine with new model using lazy import
         TTSEngine = _import_tts_engine()
         self.tts_engine = TTSEngine(
             model_name=model_name,
             debug_mode=self.debug_mode
         )
-        
+
         # Restore callbacks
         self.tts_engine.on_playback_start = self._on_tts_start
         self.tts_engine.on_playback_end = self._on_tts_end
