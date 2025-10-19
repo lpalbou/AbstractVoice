@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abstractvoice"
-version = "0.1.1"
+version = "0.2.0"
 description = "A modular Python library for voice interactions with AI systems"
 readme = "README.md"
 requires-python = ">=3.8"

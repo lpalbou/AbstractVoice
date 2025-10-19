@@ -4,14 +4,16 @@
 ```python
 from abstractvoice import VoiceManager
 
-# Best quality (requires espeak-ng, auto-fallback to fast_pitch)
-vm = VoiceManager(tts_model="tts_models/en/ljspeech/vits")
+# Smart initialization (auto-selects best model for your system)
+vm = VoiceManager()                    # Automatic VITS → Tacotron2 fallback
 
-# Guaranteed to work everywhere (default)
-vm = VoiceManager(tts_model="tts_models/en/ljspeech/fast_pitch")
+# Language-specific setup
+vm = VoiceManager(language='fr')       # French with optimal defaults
+vm = VoiceManager(language='it')       # Italian with speed optimization (0.8x)
+vm = VoiceManager(language='de')       # German with premium quality
 
-# Simple initialization (uses default fast_pitch)
-vm = VoiceManager()
+# With debug information
+vm = VoiceManager(debug_mode=True)     # Shows model selection process
 ```
 
 ## CORE OPERATIONS
@@ -27,11 +29,15 @@ vm.speak("Slower speech", speed=0.7)
 
 # With callback
 vm.speak("Text", callback=lambda: print("Done"))
+
+# Check state
+if vm.is_speaking():
+    print("Currently speaking")
 ```
 
-### Professional Pause/Resume (20ms response)
+### Professional Audio Control
 ```python
-# Immediate pause
+# Immediate pause/resume (20ms response)
 if vm.pause_speaking():
     print("Paused successfully")
 
@@ -47,18 +53,20 @@ if vm.is_paused(): print("Currently paused")
 vm.stop_speaking()
 ```
 
-### Speech-to-Text
+### Speech-to-Text & Voice Recognition
 ```python
 def handle_speech(text):
     print(f"User: {text}")
+    vm.stop_speaking()  # Stop current speech
     # Replace with your AI processing logic
     response = f"I heard you say: {text}"
     vm.speak(response)
 
 def handle_stop():
+    print("User said 'stop'")
     vm.stop_speaking()
 
-# Start listening
+# Start listening (blocks until stop command)
 vm.listen(on_transcription=handle_speech, on_stop=handle_stop)
 
 # Control listening
@@ -66,174 +74,185 @@ if vm.is_listening(): print("Listening active")
 vm.stop_listening()
 ```
 
-### Dynamic Configuration
+### Language & Voice Management
 ```python
-# Change models at runtime
-vm.set_tts_model("tts_models/en/ljspeech/vits")  # Best quality (needs espeak-ng)
-vm.set_tts_model("tts_models/en/ljspeech/fast_pitch")  # Default (works everywhere)
-vm.set_tts_model("tts_models/en/ljspeech/glow-tts")  # Alternative
+# Language switching
+vm.set_language('fr')              # Switch to French
+vm.set_language('de')              # Switch to German
+current = vm.get_language_name()   # Get current language
+
+# Voice selection
+vm.list_voices()                   # List all available voices
+vm.list_voices('fr')               # List French voices only
+vm.set_voice('fr', 'css10_vits')   # Set specific French voice
+vm.set_voice('it', 'mai_male_vits')# Set Italian male voice (0.8x speed)
 
 # Speed control
-vm.set_speed(1.2)  # 20% faster globally
+vm.set_speed(1.2)                  # 20% faster globally
 current_speed = vm.get_speed()
 
-# Whisper models
-vm.set_whisper("base")  # Better accuracy
-vm.set_whisper("tiny")  # Faster
-current_model = vm.get_whisper()  # Get current model
-
-# VAD (Voice Activity Detection) sensitivity
-vm.change_vad_aggressiveness(2)  # 0-3, higher = more sensitive
+# Voice activity detection
+vm.change_vad_aggressiveness(2)    # 0-3, higher = more sensitive
 ```
 
-## VOICE MODES
+## VOICE MODES & CLI
 ```python
+# Voice interaction modes
 vm.set_voice_mode("full")  # Continuous listening, can interrupt
 vm.set_voice_mode("wait")  # Listen only when not speaking
 vm.set_voice_mode("stop")  # Stop TTS when user speaks
 vm.set_voice_mode("ptt")   # Push-to-talk
 ```
 
+```bash
+# CLI usage
+abstractvoice                      # Voice mode (interactive AI chat)
+abstractvoice-cli cli              # CLI REPL example
+abstractvoice --language fr        # French voice mode
+abstractvoice --help               # See all options
+```
+
 ## AI INTEGRATION PATTERNS
 
 ### Streaming AI Responses
 ```python
-def stream_ai_with_voice(user_input):
-    # Replace with your streaming AI generator
+def stream_ai_with_voice(user_input, vm):
+    # Replace with your streaming AI (OpenAI, Ollama, etc.)
     def mock_ai_stream(text):
-        words = f"Processing: {text}. This is a response.".split()
-        for word in words:
-            yield word + " "
-    
-    response_chunks = mock_ai_stream(user_input)
-    sentence = ""
-    
-    for chunk in response_chunks:
-        sentence += chunk
+        responses = [f"Processing: {text}. ", "Here's my response. ", "Thank you!"]
+        for response in responses:
+            yield response
+
+    current_sentence = ""
+    for chunk in mock_ai_stream(user_input):
+        current_sentence += chunk
+        # Speak complete sentences immediately
         if chunk.endswith(('.', '!', '?')):
-            vm.speak(sentence.strip())
-            sentence = ""
-    
-    if sentence.strip():
-        vm.speak(sentence.strip())
+            vm.speak(current_sentence.strip())
+            current_sentence = ""
+
+    # Speak any remaining text
+    if current_sentence.strip():
+        vm.speak(current_sentence.strip())
 ```
 
-### Interrupt-Safe Conversations
-```python
-def on_user_input(text):
-    vm.stop_speaking()  # Stop AI speech
-    # Replace with your AI processing
-    ai_response = f"I heard: {text}"
-    vm.speak(ai_response)
-
-vm.listen(on_transcription=on_user_input)
-```
-
-### Thread-Safe Operations
-```python
-import threading
-
-# All VoiceManager methods are thread-safe
-def background_speech():
-    vm.speak("Background message")
-
-threading.Thread(target=background_speech).start()
-
-# Immediate control from any thread
-vm.pause_speaking()  # Works from any thread
-vm.resume_speaking()  # Works from any thread
-```
-
-## ERROR HANDLING
-```python
-# Robust initialization with fallback
-def create_voice_manager():
-    try:
-        return VoiceManager(tts_model="tts_models/en/ljspeech/vits")
-    except:
-        return VoiceManager(tts_model="tts_models/en/ljspeech/fast_pitch")
-
-# Safe operations
-def safe_speak(vm, text):
-    try:
-        return vm.speak(text)
-    except Exception as e:
-        print(f"Speech failed: {e}")
-        return False
-```
-
-## COMPLETE WORKING EXAMPLE
+### Complete AI Assistant
 ```python
 from abstractvoice import VoiceManager
-import time
 
-class AIVoiceChat:
+class VoiceAI:
     def __init__(self):
-        self.vm = VoiceManager()
+        self.vm = VoiceManager(debug_mode=False)
         self.active = False
-    
-    def start(self):
+
+    def start_conversation(self):
         self.active = True
         self.vm.speak("Hello! How can I help you?")
         self.vm.listen(
             on_transcription=self.handle_input,
-            on_stop=self.stop
+            on_stop=self.end_conversation
         )
-    
-    def handle_input(self, user_text):
+
+    def handle_input(self, text):
         if not self.active: return
-        
-        self.vm.stop_speaking()  # Stop any current speech
-        
+        self.vm.stop_speaking()  # Stop current speech
+
         # Your AI processing here
-        response = f"I heard: {user_text}"
-        
+        if "french" in text.lower():
+            self.vm.set_language('fr')
+            response = "Bonjour! Je parle français maintenant."
+        else:
+            response = f"I heard: {text}. How can I help?"
+
         if self.active:
             self.vm.speak(response)
-    
-    def stop(self):
+
+    def end_conversation(self):
         self.active = False
         self.vm.speak("Goodbye!")
         self.vm.cleanup()
 
 # Usage
-chat = AIVoiceChat()
-chat.start()
+ai = VoiceAI()
+ai.start_conversation()
+```
 
-# Keep running
+## ERROR HANDLING & CLEANUP
+```python
+# Robust initialization (automatic fallback built-in)
 try:
-    while chat.active:
-        time.sleep(0.1)
-except KeyboardInterrupt:
-    chat.stop()
+    vm = VoiceManager(debug_mode=False)
+    print("✅ Voice system ready")
+except Exception as e:
+    print(f"⚠️ Voice initialization failed: {e}")
+    vm = None
+
+# Safe operations
+def safe_speak(vm, text):
+    if vm is None:
+        return False
+    try:
+        return vm.speak(text)
+    except Exception as e:
+        print(f"Speech failed: {e}")
+        return False
+
+# Proper cleanup
+def cleanup_voice(vm):
+    if vm:
+        vm.stop_speaking()
+        vm.stop_listening()
+        vm.cleanup()
+```
+
+## QUICK VERIFICATION
+```python
+# Test your installation
+from abstractvoice import VoiceManager
+
+vm = VoiceManager(debug_mode=True)
+print(f"✅ Language: {vm.get_language_name()}")
+print(f"✅ Supported: {vm.get_supported_languages()}")
+
+# Test basic functionality
+vm.speak("Hello! AbstractVoice is working correctly.")
+vm.cleanup()
 ```
 
 ## KEY FEATURES FOR AI SYSTEMS
 
-✅ **Immediate Pause/Resume**: 20ms response time, exact position resume
-✅ **Cross-Platform**: macOS, Linux, Windows with automatic fallbacks  
-✅ **Thread-Safe**: All operations safe from any thread
+✅ **100% Offline**: Works completely offline after model download (~6GB cache)
+✅ **Smart Model Selection**: Automatic VITS → Tacotron2 fallback based on system
+✅ **Multilingual**: English, French, Spanish, German, Italian (5 languages)
+✅ **Voice Selection**: Multiple voices per language with `/setvoice` CLI command
+✅ **Professional Audio**: 20ms pause/resume, exact position resume
 ✅ **Interrupt Handling**: Automatic TTS stop when user speaks
-✅ **Quality Control**: VITS (best, needs espeak-ng) → fast_pitch (default) fallback
-✅ **Speed Control**: Pitch-preserving speed adjustment (0.5x-2.0x)
-✅ **Long Text**: Automatic sentence segmentation and chunking
-✅ **Multiple Models**: Whisper tiny/base/small/medium/large
+✅ **Speed Control**: Pitch-preserving adjustment (0.5x-2.0x, auto-optimized for Italian)
+✅ **Cross-Platform**: macOS, Linux, Windows with universal compatibility
 ✅ **Voice Modes**: full/wait/stop/ptt for different interaction styles
-✅ **Professional Audio**: OutputStream callbacks, no terminal interference
+✅ **Privacy-First**: Zero data transmission, all processing local
 
 ## INSTALLATION
 ```bash
-pip install abstractvoice
+# Recommended: All features
+pip install abstractvoice[all]
 
-# Optional for best quality (auto-detected)
+# Language-specific
+pip install abstractvoice[fr]      # French
+pip install abstractvoice[de]      # German
+pip install abstractvoice[it]      # Italian
+
+# For premium voice quality (optional)
 # macOS: brew install espeak-ng
-# Linux: sudo apt-get install espeak-ng  
-# Windows: choco install espeak-ng
+# Linux: sudo apt-get install espeak-ng
+# Windows: Download espeak-ng-X64.msi
 ```
 
 ## TROUBLESHOOTING
-- **TTS fails**: Use fallback model `"tts_models/en/ljspeech/fast_pitch"`
-- **Audio issues**: Check `sounddevice.query_devices()`
-- **Pause not working**: Ensure `is_speaking()` is True before pause
-- **Memory issues**: AbstractVoice auto-chunks long text
-- **Cross-platform**: fast_pitch model works everywhere without dependencies
+- **Import errors**: Install missing dependencies with `pip install abstractvoice[all]`
+- **Audio issues**: Check `sounddevice.query_devices()` for available devices
+- **espeak-ng missing**: VITS models automatically fallback to Tacotron2
+- **Voice quality**: Use `vm.list_voices()` to see all available options
+- **Debug mode**: Use `VoiceManager(debug_mode=True)` to see model selection
+
+**Quick test**: `python -c "from abstractvoice import VoiceManager; VoiceManager().speak('Test')"`

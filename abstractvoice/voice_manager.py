@@ -35,31 +35,31 @@ def _import_voice_recognizer():
 class VoiceManager:
     """Main class for voice interaction capabilities with multilingual support."""
 
-    # Smart language configuration - reliable defaults with auto-upgrade to better models
+    # Smart language configuration - high quality stable defaults
     LANGUAGES = {
         'en': {
-            'default': 'tts_models/en/ljspeech/fast_pitch',    # Always works
-            'premium': 'tts_models/en/ljspeech/vits',          # Better quality if espeak-ng available
+            'default': 'tts_models/en/ljspeech/vits',          # High quality premium voice
+            'premium': 'tts_models/en/ljspeech/vits',          # Use same stable model
             'name': 'English'
         },
         'fr': {
-            'default': 'tts_models/fr/mai/tacotron2-DDC',      # Always works
-            'premium': 'tts_models/fr/css10/vits',             # Better quality, cleaner audio
+            'default': 'tts_models/fr/css10/vits',             # High quality cleaner audio
+            'premium': 'tts_models/fr/css10/vits',             # Use same stable model
             'name': 'French'
         },
         'es': {
-            'default': 'tts_models/es/mai/tacotron2-DDC',      # Always works
-            'premium': 'tts_models/es/mai/tacotron2-DDC',      # Same model (already good)
+            'default': 'tts_models/es/mai/tacotron2-DDC',      # Keep stable Spanish model
+            'premium': 'tts_models/es/mai/tacotron2-DDC',      # Same model (reliable)
             'name': 'Spanish'
         },
         'de': {
-            'default': 'tts_models/en/ljspeech/fast_pitch',    # Fallback to English if German fails
-            'premium': 'tts_models/de/thorsten/vits',          # Better quality German
+            'default': 'tts_models/de/thorsten/vits',          # High quality German
+            'premium': 'tts_models/de/thorsten/vits',          # Use same stable model
             'name': 'German'
         },
         'it': {
-            'default': 'tts_models/it/mai_female/glow-tts',    # Reliable female voice
-            'premium': 'tts_models/it/mai_male/vits',          # Better pace male voice
+            'default': 'tts_models/it/mai_male/vits',          # Use slower male voice as default
+            'premium': 'tts_models/it/mai_male/vits',          # Same stable model
             'name': 'Italian'
         }
     }
@@ -121,14 +121,6 @@ class VoiceManager:
                 'accent': 'Spain Spanish',
                 'license': 'Permissive (M-AILABS)',
                 'requires': 'none'
-            },
-            'css10_vits': {
-                'model': 'tts_models/es/css10/vits',
-                'quality': 'premium',
-                'gender': 'female',
-                'accent': 'Spain Spanish',
-                'license': 'Apache 2.0 (CSS10)',
-                'requires': 'espeak-ng'
             }
         },
         'de': {
@@ -156,7 +148,8 @@ class VoiceManager:
                 'gender': 'male',
                 'accent': 'Standard Italian',
                 'license': 'Permissive (M-AILABS)',
-                'requires': 'espeak-ng'
+                'requires': 'espeak-ng',
+                'speed': 0.8  # Slow down to fix pace issues
             },
             'mai_female_vits': {
                 'model': 'tts_models/it/mai_female/vits',
@@ -164,15 +157,8 @@ class VoiceManager:
                 'gender': 'female',
                 'accent': 'Standard Italian',
                 'license': 'Permissive (M-AILABS)',
-                'requires': 'espeak-ng'
-            },
-            'mai_female_glow': {
-                'model': 'tts_models/it/mai_female/glow-tts',
-                'quality': 'good',
-                'gender': 'female',
-                'accent': 'Standard Italian',
-                'license': 'Permissive (M-AILABS)',
-                'requires': 'none'
+                'requires': 'espeak-ng',
+                'speed': 0.8  # Slow down to fix pace issues
             }
         }
     }
@@ -504,8 +490,17 @@ class VoiceManager:
                 self.tts_engine.on_playback_start = self._on_tts_start
                 self.tts_engine.on_playback_end = self._on_tts_end
 
-                # Update language and return success
+                # Update language and set appropriate speed for Italian voices
                 self.language = language
+
+                # Set language-specific speed adjustments
+                if language == 'it':
+                    self.speed = 0.8  # Slow down Italian voices to fix pace issues
+                    if self.debug_mode:
+                        print(f"   Speed: {self.speed} (adjusted for optimal Italian pace)")
+                else:
+                    self.speed = 1.0  # Default speed for other languages
+
                 return True
 
             except Exception as e:
@@ -726,6 +721,15 @@ class VoiceManager:
             print("No voices found matching criteria.")
             return
 
+        # License links mapping
+        license_links = {
+            'CSS10': 'https://github.com/Kyubyong/CSS10',
+            'M-AILABS': 'https://www.caito.de/2019/01/03/the-m-ailabs-speech-dataset/',
+            'LJSpeech': 'https://keithito.com/LJ-Speech-Dataset/',
+            'VCTK': 'https://datashare.ed.ac.uk/handle/10283/3443',
+            'Thorsten': 'https://www.thorsten-voice.de/en/'
+        }
+
         for lang, lang_voices in voices.items():
             lang_name = self.LANGUAGES.get(lang, {}).get('name', lang)
             print(f"\n🌍 {lang_name} ({lang}) - {len(lang_voices)} voices available:")
@@ -735,9 +739,20 @@ class VoiceManager:
                 compat_icon = "✅" if voice_info['compatible'] else "⚠️"
                 gender_icon = {"male": "👨", "female": "👩", "multiple": "👥"}.get(voice_info['gender'], "🗣️")
 
-                print(f"  {compat_icon} {quality_icon} {gender_icon} {voice_id}")
+                # Show full format: language.voice_id
+                full_voice_id = f"{lang}.{voice_id}"
+                print(f"  {compat_icon} {quality_icon} {gender_icon} {full_voice_id}")
                 print(f"      {voice_info['accent']} - {voice_info['gender']} voice")
-                print(f"      License: {voice_info['license']}")
+
+                # Extract license name and add link if available
+                license_text = voice_info['license']
+                license_with_link = license_text
+                for dataset_name, link in license_links.items():
+                    if dataset_name in license_text:
+                        license_with_link = f"{license_text} - {link}"
+                        break
+
+                print(f"      License: {license_with_link}")
                 if not voice_info['compatible'] and voice_info['requires'] == 'espeak-ng':
                     print(f"      ⚠️ Requires: espeak-ng (install for premium quality)")
 
@@ -784,6 +799,15 @@ class VoiceManager:
 
         # Switch to the language and specific model
         self.language = language
+
+        # Set voice-specific speed if available
+        if 'speed' in voice_info:
+            self.speed = voice_info['speed']
+            if self.debug_mode:
+                print(f"   Speed: {voice_info['speed']} (adjusted for optimal pace)")
+        else:
+            self.speed = 1.0  # Default speed
+
         return self.set_tts_model(model_name)
     
     def change_vad_aggressiveness(self, aggressiveness):

@@ -1,6 +1,12 @@
 # Voice Models and Licensing Information
 
-AbstractVoice provides access to multiple TTS models with different characteristics. **All models used have permissive licenses** that allow commercial use.
+AbstractVoice provides access to multiple TTS models with different characteristics. This document provides **verified licensing information** for each model based on official sources.
+
+## ⚠️ IMPORTANT LEGAL DISCLAIMER
+
+**License Verification Responsibility**: While this documentation provides detailed licensing information based on official sources, **users are responsible for verifying current license terms** before commercial use. Licenses may change, and this documentation may not reflect the most recent terms.
+
+**Recommendation**: For commercial applications, always verify licensing directly with the original dataset sources listed below.
 
 ## 🔍 Testing Voices Online
 
@@ -125,16 +131,59 @@ female_voices = vm.browse_voices(gender='female')
 compatible_voices = vm.browse_voices()  # Shows compatibility status
 ```
 
-## ⚖️ Legal Compliance
+## 📋 Verified License Information by Dataset
 
-AbstractVoice is designed for legal compliance:
+### ✅ CSS10 Dataset
+- **Official License**: Apache License 2.0
+- **Source**: [GitHub.com/Kyubyong/CSS10](https://github.com/Kyubyong/CSS10)
+- **Commercial Use**: ✅ Explicitly permitted
+- **Requirements**: Attribution required, license notice must be included
+- **Based on**: LibriVox audiobooks (public domain)
 
-- ✅ **All models**: Permissive licenses allowing commercial use
-- ✅ **Source data**: Public domain or openly licensed
-- ✅ **No restrictions**: Safe for commercial and research applications
-- ✅ **Attribution**: Model sources documented for transparency
+### ✅ M-AILABS Dataset
+- **Official License**: Custom permissive license (BSD 3-Clause variant)
+- **Source**: [caito.de M-AILABS dataset](https://www.caito.de/2019/01/03/the-m-ailabs-speech-dataset/)
+- **Commercial Use**: ✅ Explicitly stated "including any commercial use"
+- **Requirements**: Attribution required, disclaimer must be retained
+- **Based on**: LibriVox + Project Gutenberg (public domain texts 1884-1964)
 
-For the most current licensing information, consult the original dataset documentation:
-- CSS10: [GitHub repository](https://github.com/Kyubyong/CSS10)
-- M-AILABS: [Official website](https://www.caito.de/2019/01/03/the-m-ailabs-speech-dataset/)
-- Coqui TTS: [GitHub repository](https://github.com/coqui-ai/TTS)
+### ✅ LJSpeech Dataset
+- **Official License**: Public Domain
+- **Source**: [keithito.com/LJ-Speech-Dataset](https://keithito.com/LJ-Speech-Dataset/)
+- **Commercial Use**: ✅ Public domain - no restrictions
+- **Requirements**: None (attribution appreciated but not required)
+- **Creator**: Keith Ito and Linda Johnson
+
+### ⚠️ VCTK Corpus
+- **Official License**: CC-BY-4.0 or ODC-By v1.0 (sources vary)
+- **Source**: [Edinburgh DataShare](https://datashare.ed.ac.uk/handle/10283/3443)
+- **Commercial Use**: ✅ Both licenses permit commercial use
+- **Requirements**: Attribution required
+- **Recommendation**: **Verify directly with University of Edinburgh** for definitive terms
+
+### ✅ Thorsten Dataset (German)
+- **Official License**: CC0 (Public Domain Dedication)
+- **Source**: [thorsten-voice.de](https://www.thorsten-voice.de/en/) + [GitHub](https://github.com/thorstenMueller/Thorsten-Voice)
+- **Commercial Use**: ✅ CC0 - no restrictions whatsoever
+- **Requirements**: None (can be used without attribution)
+- **Creator**: Thorsten Müller (voice) and Dominik Kreutz (audio optimization)
+
+## ⚖️ License Summary for Commercial Use
+
+| Dataset | License | Commercial Use | Attribution Required | Verification Status |
+|---------|---------|----------------|---------------------|-------------------|
+| CSS10 | Apache 2.0 | ✅ Yes | ✅ Required | ✅ Verified from official source |
+| M-AILABS | Custom Permissive | ✅ Yes (explicit) | ✅ Required | ✅ Verified from official source |
+| LJSpeech | Public Domain | ✅ Yes | ❌ Optional | ✅ Verified from official source |
+| VCTK | CC-BY-4.0 or ODC-By | ✅ Yes | ✅ Required | ⚠️ Multiple sources, verify directly |
+| Thorsten | CC0 | ✅ Yes | ❌ Not required | ✅ Verified from official source |
+
+## 🔗 Official Sources for License Verification
+
+Always verify licensing from these official sources:
+
+1. **CSS10**: https://github.com/Kyubyong/CSS10
+2. **M-AILABS**: https://www.caito.de/2019/01/03/the-m-ailabs-speech-dataset/
+3. **LJSpeech**: https://keithito.com/LJ-Speech-Dataset/
+4. **VCTK**: https://datashare.ed.ac.uk/handle/10283/3443 (University of Edinburgh)
+5. **Thorsten**: https://www.thorsten-voice.de/en/ and https://github.com/thorstenMueller/Thorsten-Voice

@@ -344,6 +344,93 @@ class VoiceREPL(cmd.Cmd):
                 import traceback
                 traceback.print_exc()
 
+    def do_setvoice(self, args):
+        """Set a specific voice model.
+
+        Usage:
+          /setvoice                    # Show all available voices
+          /setvoice <voice_id>         # Set voice (format: language.voice_id)
+
+        Examples:
+          /setvoice                    # List all voices
+          /setvoice fr.css10_vits      # Set French CSS10 VITS voice
+          /setvoice it.mai_male_vits   # Set Italian male VITS voice
+        """
+        if not args:
+            # Show all available voices organized by language
+            print(f"\n{Colors.CYAN}Available Voice Models:{Colors.END}")
+            self.voice_manager.list_voices()
+
+            print(f"\n{Colors.YELLOW}Usage:{Colors.END}")
+            print("  /setvoice <language>.<voice_id>")
+            print("  Example: /setvoice fr.css10_vits")
+            return
+
+        voice_spec = args.strip()
+
+        # Parse language.voice_id format
+        if '.' not in voice_spec:
+            print(f"❌ Invalid format. Use: language.voice_id")
+            print(f"   Example: /setvoice fr.css10_vits")
+            print(f"   Run '/setvoice' to see available voices")
+            return
+
+        try:
+            language, voice_id = voice_spec.split('.', 1)
+        except ValueError:
+            print(f"❌ Invalid format. Use: language.voice_id")
+            return
+
+        # Stop any current voice activity
+        if self.voice_mode_active:
+            self._voice_stop_callback()
+            was_active = True
+        else:
+            was_active = False
+
+        # Set the specific voice
+        try:
+            success = self.voice_manager.set_voice(language, voice_id)
+            if success:
+                # Update current language to match the voice
+                self.current_language = language
+
+                # Get voice info for confirmation
+                voice_info = self.voice_manager.VOICE_CATALOG.get(language, {}).get(voice_id, {})
+                lang_name = self.voice_manager.get_language_name(language)
+
+                print(f"✅ Voice changed successfully!")
+                print(f"   Language: {lang_name} ({language})")
+                print(f"   Voice: {voice_id}")
+                if voice_info:
+                    quality_icon = "✨" if voice_info.get('quality') == 'premium' else "🔧"
+                    gender_icon = {"male": "👨", "female": "👩", "multiple": "👥"}.get(voice_info.get('gender'), "🗣️")
+                    print(f"   Details: {quality_icon} {gender_icon} {voice_info.get('accent', 'Unknown accent')}")
+
+                # Test the new voice
+                test_messages = {
+                    'en': "Voice changed to English.",
+                    'fr': "Voix changée en français.",
+                    'es': "Voz cambiada al español.",
+                    'de': "Stimme auf Deutsch geändert.",
+                    'it': "Voce cambiata in italiano."
+                }
+                test_msg = test_messages.get(language, "Voice changed successfully.")
+                self.voice_manager.speak(test_msg)
+
+                # Restart voice mode if it was active
+                if was_active:
+                    self.do_voice(self.voice_mode)
+            else:
+                print(f"❌ Failed to set voice: {voice_spec}")
+                print(f"   Run '/setvoice' to see available voices")
+
+        except Exception as e:
+            print(f"❌ Error setting voice: {e}")
+            if self.debug_mode:
+                import traceback
+                traceback.print_exc()
+
     def do_lang_info(self, args):
         """Show current language information."""
         info = self.voice_manager.get_language_info()
@@ -641,7 +728,8 @@ class VoiceREPL(cmd.Cmd):
         print("  /clear              Clear history")
         print("  /tts on|off         Toggle TTS")
         print("  /voice <mode>       Voice input: off|full|wait|stop|ptt")
-        print("  /language <lang>    Switch voice language (en, fr, es, de, it, ru)")
+        print("  /language <lang>    Switch voice language (en, fr, es, de, it)")
+        print("  /setvoice [id]      List voices or set specific voice (lang.voice_id)")
         print("  /lang_info          Show current language information")
         print("  /list_languages     List all supported languages")
         print("  /speed <number>     Set TTS speed (0.5-2.0, default: 1.0, pitch preserved)")
