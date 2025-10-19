@@ -2,9 +2,50 @@
 
 import threading
 import time
-import pyaudio
-from .vad import VoiceDetector
-from .stt import Transcriber
+
+# Lazy imports for heavy dependencies
+def _import_audio_deps():
+    """Import audio dependencies with helpful error message if missing."""
+    try:
+        import pyaudio
+        return pyaudio
+    except ImportError as e:
+        raise ImportError(
+            "Audio functionality requires optional dependencies. Install with:\n"
+            "  pip install abstractvoice[voice]  # For basic audio\n"
+            "  pip install abstractvoice[all]    # For all features\n"
+            f"Original error: {e}"
+        ) from e
+
+def _import_vad():
+    """Import VoiceDetector with helpful error message if dependencies missing."""
+    try:
+        from .vad import VoiceDetector
+        return VoiceDetector
+    except ImportError as e:
+        if "webrtcvad" in str(e):
+            raise ImportError(
+                "Voice activity detection requires optional dependencies. Install with:\n"
+                "  pip install abstractvoice[voice]  # For basic audio\n"
+                "  pip install abstractvoice[all]    # For all features\n"
+                f"Original error: {e}"
+            ) from e
+        raise
+
+def _import_transcriber():
+    """Import Transcriber with helpful error message if dependencies missing."""
+    try:
+        from .stt import Transcriber
+        return Transcriber
+    except ImportError as e:
+        if "whisper" in str(e) or "tiktoken" in str(e):
+            raise ImportError(
+                "Speech recognition functionality requires optional dependencies. Install with:\n"
+                "  pip install abstractvoice[stt]    # For speech recognition only\n"
+                "  pip install abstractvoice[all]    # For all features\n"
+                f"Original error: {e}"
+            ) from e
+        raise
 
 
 class VoiceRecognizer:
@@ -40,13 +81,15 @@ class VoiceRecognizer:
         self.min_speech_chunks = int(min_speech_duration / chunk_duration)
         self.silence_timeout_chunks = int(silence_timeout / chunk_duration)
         
-        # Initialize components
+        # Initialize components using lazy imports
+        VoiceDetector = _import_vad()
         self.voice_detector = VoiceDetector(
             aggressiveness=vad_aggressiveness,
             sample_rate=sample_rate,
             debug_mode=debug_mode
         )
-        
+
+        Transcriber = _import_transcriber()
         self.transcriber = Transcriber(
             model_name=whisper_model,
             min_transcription_length=min_transcription_length,
@@ -109,8 +152,8 @@ class VoiceRecognizer:
     
     def _recognition_loop(self):
         """Main recognition loop."""
-        import pyaudio
-        
+        pyaudio = _import_audio_deps()
+
         self.pyaudio = pyaudio.PyAudio()
         self.stream = self.pyaudio.open(
             format=pyaudio.paInt16,

@@ -10,15 +10,42 @@ This module implements best practices for TTS synthesis including:
 import threading
 import time
 import numpy as np
-import sounddevice as sd
 import os
 import sys
 import logging
 import warnings
 import re
-from TTS.api import TTS
-import librosa
 import queue
+
+# Lazy imports for heavy dependencies
+def _import_tts():
+    """Import TTS with helpful error message if dependencies missing."""
+    try:
+        from TTS.api import TTS
+        return TTS
+    except ImportError as e:
+        raise ImportError(
+            "TTS functionality requires optional dependencies. Install with:\n"
+            "  pip install abstractvoice[tts]    # For TTS only\n"
+            "  pip install abstractvoice[all]    # For all features\n"
+            f"Original error: {e}"
+        ) from e
+
+def _import_audio_deps():
+    """Import audio dependencies with helpful error message if missing."""
+    try:
+        import sounddevice as sd
+        import librosa
+        return sd, librosa
+    except ImportError as e:
+        if "sounddevice" in str(e) or "librosa" in str(e):
+            raise ImportError(
+                "Audio functionality requires optional dependencies. Install with:\n"
+                "  pip install abstractvoice[voice]  # For basic audio\n"
+                "  pip install abstractvoice[all]    # For all features\n"
+                f"Original error: {e}"
+            ) from e
+        raise
 
 # Suppress the PyTorch FutureWarning about torch.load
 warnings.filterwarnings(
@@ -103,6 +130,7 @@ def apply_speed_without_pitch_change(audio, speed, sr=22050):
     # rate < 1.0 makes audio slower (longer)
     # This matches our speed semantics
     try:
+        _, librosa = _import_audio_deps()
         stretched_audio = librosa.effects.time_stretch(audio, rate=speed)
         return stretched_audio
     except Exception as e:
@@ -189,6 +217,7 @@ class NonBlockingAudioPlayer:
         """Start the audio stream."""
         if self.stream is None:
             try:
+                sd, _ = _import_audio_deps()
                 self.stream = sd.OutputStream(
                     samplerate=self.sample_rate,
                     channels=1,  # Mono output
@@ -384,8 +413,9 @@ class TTSEngine:
             if self.debug_mode:
                 print(f" > Loading TTS model: {model_name}")
             
-            # Try to initialize TTS
+            # Try to initialize TTS using lazy import
             try:
+                TTS = _import_tts()
                 self.tts = TTS(model_name=model_name, progress_bar=self.debug_mode)
             except Exception as e:
                 error_msg = str(e).lower()
@@ -693,6 +723,9 @@ class TTSEngine:
                         null_out.close()
             
             def _audio_playback():
+                # Import sounddevice at runtime to avoid loading heavy dependencies
+                sd, _ = _import_audio_deps()
+
                 try:
                     self.is_playing = True
                     self.start_time = time.time()

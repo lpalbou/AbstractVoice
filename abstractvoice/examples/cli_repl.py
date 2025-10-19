@@ -52,11 +52,6 @@ class VoiceREPL(cmd.Cmd):
 
         # Language settings
         self.current_language = language
-        self.language_names = {
-            'en': 'English', 'fr': 'French', 'es': 'Spanish',
-            'de': 'German', 'it': 'Italian', 'ru': 'Russian',
-            'multilingual': 'Multilingual'
-        }
 
         # Initialize voice manager with language support
         self.voice_manager = VoiceManager(
@@ -95,7 +90,7 @@ class VoiceREPL(cmd.Cmd):
     def _get_intro(self):
         """Generate intro message with help."""
         intro = f"\n{Colors.BOLD}Welcome to AbstractVoice CLI REPL{Colors.END}\n"
-        lang_name = self.language_names.get(self.current_language, self.current_language)
+        lang_name = self.voice_manager.get_language_name()
         intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name}\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
         intro += "  • Type messages to chat with the LLM\n"
@@ -292,7 +287,85 @@ class VoiceREPL(cmd.Cmd):
             text = re.sub(pattern, "", text, flags=re.DOTALL)
             
         return text.strip()
-    
+
+    def do_language(self, args):
+        """Switch voice language.
+
+        Usage: /language <lang>
+        Available languages: en, fr, es, de, it
+        """
+        if not args:
+            current_name = self.voice_manager.get_language_name()
+            current_code = self.voice_manager.get_language()
+            print(f"Current language: {current_name} ({current_code})")
+
+            print("Available languages:")
+            for code in self.voice_manager.get_supported_languages():
+                name = self.voice_manager.get_language_name(code)
+                print(f"  {code} - {name}")
+            return
+
+        language = args.strip().lower()
+
+        # Stop any current voice activity
+        if self.voice_mode_active:
+            self._voice_stop_callback()
+            was_active = True
+        else:
+            was_active = False
+
+        # Switch language
+        old_lang = self.current_language
+        if self.voice_manager.set_language(language):
+            self.current_language = language
+            old_name = self.voice_manager.get_language_name(old_lang)
+            new_name = self.voice_manager.get_language_name(language)
+            print(f"🌍 Language changed: {old_name} → {new_name}")
+
+            # Test the new language with localized message
+            test_messages = {
+                'en': "Language switched to English.",
+                'fr': "Langue changée en français.",
+                'es': "Idioma cambiado a español.",
+                'de': "Sprache auf Deutsch umgestellt.",
+                'it': "Lingua cambiata in italiano."
+            }
+            test_msg = test_messages.get(language, "Language switched.")
+            self.voice_manager.speak(test_msg)
+
+            # Restart voice mode if it was active
+            if was_active:
+                self.do_voice(self.voice_mode)
+        else:
+            supported = ', '.join(self.voice_manager.get_supported_languages())
+            print(f"Failed to switch to language: {language}")
+            print(f"Supported languages: {supported}")
+            if self.debug_mode:
+                import traceback
+                traceback.print_exc()
+
+    def do_lang_info(self, args):
+        """Show current language information."""
+        info = self.voice_manager.get_language_info()
+        print(f"\n{Colors.CYAN}Current Language Information:{Colors.END}")
+        print(f"  Language: {info['name']} ({info['code']})")
+        print(f"  Model: {info['model']}")
+        print(f"  Available models: {list(info['available_models'].keys())}")
+
+        # Check if XTTS supports multiple languages
+        if 'xtts' in (info['model'] or '').lower():
+            print(f"  ✅ Supports multilingual synthesis")
+        else:
+            print(f"  ℹ️ Monolingual model")
+
+    def do_list_languages(self, args):
+        """List all supported languages."""
+        print(f"\n{Colors.CYAN}Supported Languages:{Colors.END}")
+        for lang in self.voice_manager.get_supported_languages():
+            name = self.voice_manager.get_language_name(lang)
+            current = " (current)" if lang == self.current_language else ""
+            print(f"  {lang} - {name}{current}")
+
     def do_voice(self, arg):
         """Control voice input mode.
         
@@ -568,6 +641,9 @@ class VoiceREPL(cmd.Cmd):
         print("  /clear              Clear history")
         print("  /tts on|off         Toggle TTS")
         print("  /voice <mode>       Voice input: off|full|wait|stop|ptt")
+        print("  /language <lang>    Switch voice language (en, fr, es, de, it, ru)")
+        print("  /lang_info          Show current language information")
+        print("  /list_languages     List all supported languages")
         print("  /speed <number>     Set TTS speed (0.5-2.0, default: 1.0, pitch preserved)")
         print("  /tts_model <model>  Switch TTS model: vits(best)|fast_pitch|glow-tts|tacotron2-DDC")
         print("  /whisper <model>    Switch Whisper model: tiny|base|small|medium|large")
@@ -845,10 +921,15 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="AbstractVoice CLI Example")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--api", default="http://localhost:11434/api/chat", 
+    parser.add_argument("--api", default="http://localhost:11434/api/chat",
                       help="LLM API URL")
-    parser.add_argument("--model", default="granite3.3:2b", 
+    parser.add_argument("--model", default="granite3.3:2b",
                       help="LLM model name")
+    parser.add_argument("--language", "--lang", default="en",
+                      choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
+                      help="Voice language (en=English, fr=French, es=Spanish, de=German, it=Italian, ru=Russian, multilingual=All)")
+    parser.add_argument("--tts-model",
+                      help="Specific TTS model to use (overrides language default)")
     return parser.parse_args()
 
 
@@ -858,11 +939,13 @@ def main():
         # Parse command line arguments
         args = parse_args()
         
-        # Initialize and run REPL
+        # Initialize and run REPL with language support
         repl = VoiceREPL(
             api_url=args.api,
             model=args.model,
-            debug_mode=args.debug
+            debug_mode=args.debug,
+            language=args.language,
+            tts_model=args.tts_model
         )
         repl.cmdloop()
     except KeyboardInterrupt:

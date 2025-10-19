@@ -1,7 +1,20 @@
 """Voice activity detection using WebRTC VAD."""
 
-import webrtcvad
 import logging
+
+# Lazy import for heavy dependencies
+def _import_webrtcvad():
+    """Import webrtcvad with helpful error message if dependencies missing."""
+    try:
+        import webrtcvad
+        return webrtcvad
+    except ImportError as e:
+        raise ImportError(
+            "Voice activity detection requires optional dependencies. Install with:\n"
+            "  pip install abstractvoice[voice]  # For basic audio\n"
+            "  pip install abstractvoice[all]    # For all features\n"
+            f"Original error: {e}"
+        ) from e
 
 
 class VoiceDetector:
@@ -23,8 +36,9 @@ class VoiceDetector:
         if sample_rate not in [8000, 16000, 32000, 48000]:
             raise ValueError("Sample rate must be 8000, 16000, 32000, or 48000 Hz")
         
-        # Initialize WebRTC VAD
+        # Initialize WebRTC VAD using lazy import
         try:
+            webrtcvad = _import_webrtcvad()
             self.vad = webrtcvad.Vad(aggressiveness)
             if self.debug_mode:
                 print(f" > VAD initialized with aggressiveness {aggressiveness}")

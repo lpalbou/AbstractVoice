@@ -1,10 +1,23 @@
 """Speech-to-text transcription using OpenAI's Whisper."""
 
-import whisper
 import numpy as np
 import os
 import sys
 import logging
+
+# Lazy import for heavy dependencies
+def _import_whisper():
+    """Import whisper with helpful error message if dependencies missing."""
+    try:
+        import whisper
+        return whisper
+    except ImportError as e:
+        raise ImportError(
+            "Speech recognition functionality requires optional dependencies. Install with:\n"
+            "  pip install abstractvoice[stt]    # For speech recognition only\n"
+            "  pip install abstractvoice[all]    # For all features\n"
+            f"Original error: {e}"
+        ) from e
 
 
 class Transcriber:
@@ -38,7 +51,8 @@ class Transcriber:
                 null_out = open(os.devnull, 'w')
                 sys.stdout = null_out
                 
-            # Load the Whisper model
+            # Load the Whisper model using lazy import
+            whisper = _import_whisper()
             self.model = whisper.load_model(model_name)
         finally:
             # Restore stdout if we redirected it
@@ -120,6 +134,7 @@ class Transcriber:
                 sys.stdout = null_out
                 
             try:
+                whisper = _import_whisper()
                 self.model = whisper.load_model(model_name)
                 self.model_name = model_name
             finally:

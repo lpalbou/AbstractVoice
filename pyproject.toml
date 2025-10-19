@@ -25,6 +25,39 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=1.24.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+# Core voice functionality - install this for basic TTS/STT features
+voice = [
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "PyAudio>=0.2.13",
+    "soundfile>=0.12.1",
+]
+
+# Text-to-Speech functionality
+tts = [
+    "coqui-tts>=0.27.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "librosa>=0.10.0",
+]
+
+# Speech-to-Text functionality
+stt = [
+    "openai-whisper>=20230314",
+    "tiktoken>=0.6.0",
+]
+
+# Web API functionality
+web = [
+    "flask>=2.0.0",
+]
+
+# All features combined
+all = [
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
     "PyAudio>=0.2.13",
@@ -34,35 +67,86 @@ dependencies = [
     "torchaudio>=2.0.0",
     "librosa>=0.10.0",
     "soundfile>=0.12.1",
-    "requests>=2.31.0",
     "flask>=2.0.0",
     "tiktoken>=0.6.0",
 ]
 
-[project.optional-dependencies]
+# Development dependencies
 dev = [
     "pytest>=7.0.0",
     "black>=22.0.0",
     "flake8>=5.0.0",
 ]
 
-# Language-specific voice support
-# These extras don't add dependencies but enable language-specific functionality
-fr = []  # French voice support via XTTS-v2
-es = []  # Spanish voice support via XTTS-v2
-de = []  # German voice support via XTTS-v2
-it = []  # Italian voice support via XTTS-v2
-ru = []  # Russian voice support via XTTS-v2
+# Simplified language support - all languages require the same dependencies
+# Since TTS models are language-specific but dependencies are the same
+languages = [
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "PyAudio>=0.2.13",
+    "openai-whisper>=20230314",
+    "coqui-tts>=0.27.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "librosa>=0.10.0",
+    "soundfile>=0.12.1",
+    "flask>=2.0.0",
+    "tiktoken>=0.6.0",
+]
 
-# Multi-language support
-multilingual = []  # All supported languages via XTTS-v2
-
-# Optional enhanced language support (if needed for future phoneme improvements)
-fr-enhanced = []  # Future: Enhanced French phoneme support
-es-enhanced = []  # Future: Enhanced Spanish phoneme support
-de-enhanced = []  # Future: Enhanced German phoneme support
-it-enhanced = []  # Future: Enhanced Italian phoneme support
-ru-enhanced = []  # Future: Enhanced Russian phoneme support
+# Individual language extras (all identical)
+fr = [
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "PyAudio>=0.2.13",
+    "openai-whisper>=20230314",
+    "coqui-tts>=0.27.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "librosa>=0.10.0",
+    "soundfile>=0.12.1",
+    "flask>=2.0.0",
+    "tiktoken>=0.6.0",
+]
+es = [
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "PyAudio>=0.2.13",
+    "openai-whisper>=20230314",
+    "coqui-tts>=0.27.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "librosa>=0.10.0",
+    "soundfile>=0.12.1",
+    "flask>=2.0.0",
+    "tiktoken>=0.6.0",
+]
+de = [
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "PyAudio>=0.2.13",
+    "openai-whisper>=20230314",
+    "coqui-tts>=0.27.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "librosa>=0.10.0",
+    "soundfile>=0.12.1",
+    "flask>=2.0.0",
+    "tiktoken>=0.6.0",
+]
+it = [
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "PyAudio>=0.2.13",
+    "openai-whisper>=20230314",
+    "coqui-tts>=0.27.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "librosa>=0.10.0",
+    "soundfile>=0.12.1",
+    "flask>=2.0.0",
+    "tiktoken>=0.6.0",
+]
 
 [project.urls]
 Repository = "https://github.com/lpalbou/abstractvoice"

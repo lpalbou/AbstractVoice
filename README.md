@@ -27,71 +27,170 @@ While we provide CLI and WEB examples, AbstractVoice is designed to be integrate
 
 ## Installation
 
-### Prerequisites
+AbstractVoice is designed to **work everywhere, out of the box** with automatic quality upgrades.
 
-- Python 3.8+ (3.11+ recommended)
-- PortAudio for audio input/output
-- **Recommended**: espeak-ng for best voice quality (VITS model)
-
-### Basic Installation
+### 🚀 Quick Start (Recommended)
 
 ```bash
-# Install from PyPI
+# One command installation - works on all systems
+pip install abstractvoice[all]
+
+# Verify it works
+python -c "from abstractvoice import VoiceManager; print('✅ Ready to go!')"
+```
+
+**That's it!** AbstractVoice automatically:
+- ✅ **Works everywhere** - Uses reliable models that run on any system
+- ✅ **Auto-upgrades quality** - Detects when better models are available
+- ✅ **No system dependencies required** - Pure Python installation
+- ✅ **Optional quality boost** - Install `espeak-ng` for premium voices
+
+### Installation Options
+
+```bash
+# Minimal (just 2 dependencies)
 pip install abstractvoice
 
-# Or clone the repository
-git clone https://github.com/lpalbou/abstractvoice.git
-cd abstractvoice
-pip install -e .
+# Add features as needed
+pip install abstractvoice[tts]      # Text-to-speech
+pip install abstractvoice[stt]      # Speech-to-text
+pip install abstractvoice[all]      # Everything (recommended)
+
+# Language-specific
+pip install abstractvoice[fr]       # French with all features
+pip install abstractvoice[de]       # German with all features
 ```
 
-### Development Installation
+### Optional Quality Upgrade
+
+For the **absolute best voice quality**, install espeak-ng:
 
 ```bash
-# Install with development dependencies
-pip install "abstractvoice[dev]"
-```
-
-### From Requirements File
-
-```bash
-# Install all dependencies including the package
-pip install -r requirements.txt
-```
-
-### Installing espeak-ng (Recommended for Best Quality)
-
-AbstractVoice will work without espeak-ng, but voice quality will be significantly better with it:
-
-**macOS:**
-```bash
+# macOS
 brew install espeak-ng
-```
 
-**Linux (Ubuntu/Debian):**
-```bash
+# Linux
 sudo apt-get install espeak-ng
+
+# Windows
+conda install espeak-ng
 ```
 
-**Linux (Fedora/RHEL):**
-```bash
-sudo yum install espeak-ng
-```
-
-**Windows:**
-```bash
-# Option 1: Using Conda
-conda install -c conda-forge espeak-ng
-
-# Option 2: Using Chocolatey
-choco install espeak-ng
-
-# Option 3: Download installer from https://github.com/espeak-ng/espeak-ng/releases
-```
-
-**Without espeak-ng:** AbstractVoice will automatically fall back to a simpler TTS model (fast_pitch) that works everywhere but has lower voice quality.
+AbstractVoice automatically detects espeak-ng and upgrades to premium quality voices when available.
 
 ## Quick Start
+
+### Basic Usage (Minimal Installation)
+
+```python
+# First install with minimal dependencies
+# pip install abstractvoice
+
+from abstractvoice import VoiceManager
+
+# This will show a helpful error message with installation instructions
+try:
+    vm = VoiceManager()
+except ImportError as e:
+    print(e)  # Shows: "TTS functionality requires optional dependencies..."
+    # Follow the instructions to install: pip install abstractvoice[all]
+```
+
+### Full Usage Example
+
+```python
+# After installing with: pip install abstractvoice[all]
+
+from abstractvoice import VoiceManager
+
+# Initialize voice manager
+vm = VoiceManager(language='en', debug_mode=True)
+
+# Text-to-speech
+vm.speak("Hello! I can speak text and listen for responses.")
+
+# Speech-to-text with callbacks
+def on_transcription(text):
+    print(f"You said: {text}")
+    # Process the transcription
+    vm.speak(f"I heard you say: {text}")
+
+def on_stop():
+    print("Stopping voice interaction")
+
+# Start listening
+vm.listen(on_transcription, on_stop)
+
+# The voice manager will automatically pause listening when speaking
+# and resume when done to prevent feedback loops
+```
+
+## Additional Examples
+
+### Language-Specific Usage
+
+```python
+# French voice
+vm_fr = VoiceManager(language='fr')
+vm_fr.speak("Bonjour! Je peux parler français.")
+
+# Spanish voice
+vm_es = VoiceManager(language='es')
+vm_es.speak("¡Hola! Puedo hablar español.")
+
+# Dynamic language switching
+vm.set_language('fr')  # Switch to French
+vm.set_language('en')  # Switch back to English
+```
+
+### Advanced Configuration
+
+```python
+from abstractvoice import VoiceManager
+
+# Custom TTS model selection
+vm = VoiceManager(
+    language='en',
+    tts_model='tts_models/en/ljspeech/fast_pitch',  # Specific model
+    whisper_model='base',  # Larger Whisper model for better accuracy
+    debug_mode=True
+)
+
+# Speed control
+vm.set_speed(1.5)  # 1.5x speed
+vm.speak("This text will be spoken faster.")
+
+# Model switching at runtime
+vm.set_tts_model('tts_models/en/ljspeech/vits')  # Switch to VITS
+vm.set_whisper('small')  # Switch to larger Whisper model
+```
+
+### Error Handling and Graceful Degradation
+
+AbstractVoice is designed to provide helpful error messages and fallback gracefully:
+
+```python
+# If you install just the basic package
+# pip install abstractvoice
+
+from abstractvoice import VoiceManager  # This works fine
+
+try:
+    vm = VoiceManager()  # This will fail with helpful message
+except ImportError as e:
+    print(e)
+    # Output: "TTS functionality requires optional dependencies. Install with:
+    #          pip install abstractvoice[tts]    # For TTS only
+    #          pip install abstractvoice[all]    # For all features"
+
+# Missing espeak-ng automatically falls back to compatible models
+# Missing dependencies show clear installation instructions
+# All errors are graceful with helpful guidance
+```
+
+## CLI and Web Examples
+
+AbstractVoice includes example applications to demonstrate its capabilities:
 
 ### Using AbstractVoice from the Command Line
 

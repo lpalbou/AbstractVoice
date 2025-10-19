@@ -1,88 +1,102 @@
 """Main Voice Manager class for coordinating TTS and STT components."""
 
-from .tts import TTSEngine
-from .recognition import VoiceRecognizer
+# Lazy imports - heavy dependencies are only imported when needed
+def _import_tts_engine():
+    """Import TTSEngine with helpful error message if dependencies missing."""
+    try:
+        from .tts import TTSEngine
+        return TTSEngine
+    except ImportError as e:
+        if "TTS" in str(e) or "torch" in str(e) or "librosa" in str(e):
+            raise ImportError(
+                "TTS functionality requires optional dependencies. Install with:\n"
+                "  pip install abstractvoice[tts]    # For TTS only\n"
+                "  pip install abstractvoice[all]    # For all features\n"
+                f"Original error: {e}"
+            ) from e
+        raise
+
+def _import_voice_recognizer():
+    """Import VoiceRecognizer with helpful error message if dependencies missing."""
+    try:
+        from .recognition import VoiceRecognizer
+        return VoiceRecognizer
+    except ImportError as e:
+        if "whisper" in str(e) or "tiktoken" in str(e):
+            raise ImportError(
+                "Speech recognition functionality requires optional dependencies. Install with:\n"
+                "  pip install abstractvoice[stt]    # For speech recognition only\n"
+                "  pip install abstractvoice[all]    # For all features\n"
+                f"Original error: {e}"
+            ) from e
+        raise
 
 
 class VoiceManager:
     """Main class for voice interaction capabilities with multilingual support."""
 
-    # Language-specific model mappings
-    LANGUAGE_MODELS = {
+    # Smart language configuration - reliable defaults with auto-upgrade to better models
+    LANGUAGES = {
         'en': {
-            'vits': 'tts_models/en/ljspeech/vits',
-            'fast_pitch': 'tts_models/en/ljspeech/fast_pitch',
-            'glow-tts': 'tts_models/en/ljspeech/glow-tts',
-            'default': 'tts_models/en/ljspeech/vits',
-            'fallback': 'tts_models/en/ljspeech/fast_pitch'
+            'default': 'tts_models/en/ljspeech/fast_pitch',    # Always works
+            'premium': 'tts_models/en/ljspeech/vits',          # Better quality if espeak-ng available
+            'name': 'English'
         },
         'fr': {
-            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
-            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+            'default': 'tts_models/fr/mai/tacotron2-DDC',      # Always works
+            'premium': 'tts_models/fr/css10/vits',             # Better quality, cleaner audio
+            'name': 'French'
         },
         'es': {
-            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
-            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+            'default': 'tts_models/es/mai/tacotron2-DDC',      # Always works
+            'premium': 'tts_models/es/mai/tacotron2-DDC',      # Same model (already good)
+            'name': 'Spanish'
         },
         'de': {
-            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
-            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+            'default': 'tts_models/en/ljspeech/fast_pitch',    # Fallback to English if German fails
+            'premium': 'tts_models/de/thorsten/vits',          # Better quality German
+            'name': 'German'
         },
         'it': {
-            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
-            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
-        },
-        'ru': {
-            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
-            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
-        },
-        'multilingual': {
-            'xtts': 'tts_models/multilingual/multi-dataset/xtts_v2',
-            'default': 'tts_models/multilingual/multi-dataset/xtts_v2'
+            'default': 'tts_models/it/mai_female/glow-tts',    # Reliable female voice
+            'premium': 'tts_models/it/mai_male/vits',          # Better pace male voice
+            'name': 'Italian'
         }
     }
 
-    # Language display names for user-friendly output
-    LANGUAGE_NAMES = {
-        'en': 'English',
-        'fr': 'French',
-        'es': 'Spanish',
-        'de': 'German',
-        'it': 'Italian',
-        'ru': 'Russian',
-        'multilingual': 'Multilingual'
-    }
+    # Universal safe fallback
+    SAFE_FALLBACK = 'tts_models/en/ljspeech/fast_pitch'
 
     def __init__(self, language='en', tts_model=None, whisper_model="tiny", debug_mode=False):
         """Initialize the Voice Manager with language support.
 
         Args:
-            language: Language code ('en', 'fr', 'es', 'de', 'it', 'ru', 'multilingual')
+            language: Language code ('en', 'fr', 'es', 'de', 'it')
             tts_model: Specific TTS model name or None for language default
             whisper_model: Whisper model name to use
             debug_mode: Enable debug logging
         """
         self.debug_mode = debug_mode
-        self.language = language.lower()
         self.speed = 1.0
 
-        # Validate language
-        if self.language not in self.LANGUAGE_MODELS:
+        # Validate and set language
+        language = language.lower()
+        if language not in self.LANGUAGES:
             if debug_mode:
-                print(f"⚠️ Unsupported language '{language}', falling back to English")
-            self.language = 'en'
+                available = ', '.join(self.LANGUAGES.keys())
+                print(f"⚠️ Unsupported language '{language}', using English. Available: {available}")
+            language = 'en'
+        self.language = language
 
-        # Auto-select model based on language if not specified
+        # Select TTS model with smart detection
         if tts_model is None:
-            try:
-                tts_model = self.LANGUAGE_MODELS[self.language]['default']
-                if debug_mode:
-                    lang_name = self.LANGUAGE_NAMES.get(self.language, self.language)
-                    print(f"🌍 Using {lang_name} voice: {tts_model}")
-            except KeyError:
-                tts_model = "tts_models/en/ljspeech/vits"  # Ultimate fallback
+            tts_model = self._select_best_model(self.language)
+            if debug_mode:
+                lang_name = self.LANGUAGES[self.language]['name']
+                print(f"🌍 Using {lang_name} voice: {tts_model}")
 
-        # Initialize TTS engine
+        # Initialize TTS engine using lazy import
+        TTSEngine = _import_tts_engine()
         self.tts_engine = TTSEngine(
             model_name=tts_model,
             debug_mode=debug_mode
@@ -206,14 +220,16 @@ class VoiceManager:
             def _transcription_handler(text):
                 if self._transcription_callback:
                     self._transcription_callback(text)
-            
+
             def _stop_handler():
                 # Stop listening
                 self.stop_listening()
                 # Call user's stop callback if provided
                 if self._stop_callback:
                     self._stop_callback()
-            
+
+            # Use lazy import for VoiceRecognizer
+            VoiceRecognizer = _import_voice_recognizer()
             self.voice_recognizer = VoiceRecognizer(
                 transcription_callback=_transcription_handler,
                 stop_callback=_stop_handler,
@@ -298,7 +314,8 @@ class VoiceManager:
         # Stop any current speech
         self.stop_speaking()
         
-        # Reinitialize TTS engine with new model
+        # Reinitialize TTS engine with new model using lazy import
+        TTSEngine = _import_tts_engine()
         self.tts_engine = TTSEngine(
             model_name=model_name,
             debug_mode=self.debug_mode
@@ -325,11 +342,224 @@ class VoiceManager:
     
     def get_whisper(self):
         """Get the Whisper model.
-        
+
         Returns:
             Current Whisper model name
         """
         return self.whisper_model
+
+    def set_language(self, language):
+        """Set the voice language.
+
+        Args:
+            language: Language code ('en', 'fr', 'es', 'de', 'it')
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Validate language
+        language = language.lower()
+        if language not in self.LANGUAGES:
+            if self.debug_mode:
+                available = ', '.join(self.LANGUAGES.keys())
+                print(f"⚠️ Unsupported language '{language}'. Available: {available}")
+            return False
+
+        # Skip if already using this language
+        if language == self.language:
+            if self.debug_mode:
+                print(f"✓ Already using {self.LANGUAGES[language]['name']} voice")
+            return True
+
+        # Stop any current operations
+        self.stop_speaking()
+        if self.voice_recognizer:
+            self.voice_recognizer.stop()
+
+        # Select best model for this language
+        selected_model = self._select_best_model(language)
+        models_to_try = [selected_model, self.SAFE_FALLBACK]
+
+        for model_name in models_to_try:
+            try:
+                if self.debug_mode:
+                    lang_name = self.LANGUAGES[language]['name']
+                    print(f"🌍 Switching to {lang_name} voice: {model_name}")
+
+                # Reinitialize TTS engine
+                TTSEngine = _import_tts_engine()
+                self.tts_engine = TTSEngine(model_name=model_name, debug_mode=self.debug_mode)
+
+                # Restore callbacks
+                self.tts_engine.on_playback_start = self._on_tts_start
+                self.tts_engine.on_playback_end = self._on_tts_end
+
+                # Update language and return success
+                self.language = language
+                return True
+
+            except Exception as e:
+                if self.debug_mode:
+                    print(f"⚠️ Model {model_name} failed: {e}")
+                continue
+
+        # All models failed
+        if self.debug_mode:
+            print(f"❌ All models failed for language '{language}'")
+        return False
+
+    def get_language(self):
+        """Get the current voice language.
+
+        Returns:
+            Current language code
+        """
+        return self.language
+
+    def get_supported_languages(self):
+        """Get list of supported language codes.
+
+        Returns:
+            List of supported language codes
+        """
+        return list(self.LANGUAGES.keys())
+
+    def get_language_name(self, language_code=None):
+        """Get the display name for a language.
+
+        Args:
+            language_code: Language code (defaults to current language)
+
+        Returns:
+            Language display name
+        """
+        lang = language_code or self.language
+        return self.LANGUAGES.get(lang, {}).get('name', lang)
+
+    def _select_best_model(self, language):
+        """Select the best available TTS model for a language.
+
+        Try premium model first (higher quality), fallback to default (reliable).
+
+        Args:
+            language: Language code
+
+        Returns:
+            Model name string
+        """
+        if language not in self.LANGUAGES:
+            return self.SAFE_FALLBACK
+
+        lang_config = self.LANGUAGES[language]
+
+        # Try premium model first (better quality)
+        if 'premium' in lang_config:
+            try:
+                premium_model = lang_config['premium']
+                # Quick test to see if this model type works
+                if self._test_model_compatibility(premium_model):
+                    if self.debug_mode:
+                        print(f"✨ Using premium quality model: {premium_model}")
+                    return premium_model
+                elif self.debug_mode:
+                    print(f"⚠️ Premium model not compatible, using default")
+            except Exception:
+                if self.debug_mode:
+                    print(f"⚠️ Premium model failed, using default")
+
+        # Use reliable default model
+        default_model = lang_config.get('default', self.SAFE_FALLBACK)
+        if self.debug_mode:
+            print(f"🔧 Using reliable default model: {default_model}")
+        return default_model
+
+    def _test_model_compatibility(self, model_name):
+        """Quick test if a model is compatible with current system.
+
+        Args:
+            model_name: TTS model name
+
+        Returns:
+            True if compatible, False otherwise
+        """
+        # For VITS models, check if espeak-ng is available
+        if 'vits' in model_name.lower():
+            try:
+                import subprocess
+                result = subprocess.run(['espeak-ng', '--version'],
+                                      capture_output=True, timeout=2)
+                return result.returncode == 0
+            except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.SubprocessError):
+                return False
+
+        # For other models, assume they work (they're more compatible)
+        return True
+
+    def set_voice_variant(self, language, variant):
+        """Set a specific voice variant for a language.
+
+        Args:
+            language: Language code ('fr', 'it')
+            variant: Variant name ('female', 'alternative', etc.)
+
+        Returns:
+            True if successful, False otherwise
+
+        Examples:
+            vm.set_voice_variant('it', 'female')  # Use female Italian voice
+            vm.set_voice_variant('fr', 'alternative')  # Use original French model
+        """
+        if language not in self.ALTERNATIVE_MODELS:
+            if self.debug_mode:
+                available_langs = ', '.join(self.ALTERNATIVE_MODELS.keys())
+                print(f"⚠️ No variants available for '{language}'. Languages with variants: {available_langs}")
+            return False
+
+        if variant not in self.ALTERNATIVE_MODELS[language]:
+            if self.debug_mode:
+                available_variants = ', '.join(self.ALTERNATIVE_MODELS[language].keys())
+                print(f"⚠️ Variant '{variant}' not available for {language}. Available: {available_variants}")
+            return False
+
+        # Get the specific model for this variant
+        model_name = self.ALTERNATIVE_MODELS[language][variant]
+
+        if self.debug_mode:
+            lang_name = self.LANGUAGES[language]['name']
+            print(f"🎭 Switching to {lang_name} {variant} voice: {model_name}")
+
+        # Set the specific model
+        return self.set_tts_model(model_name)
+
+    def get_model_info(self):
+        """Get information about currently loaded models and system capabilities.
+
+        Returns:
+            Dict with model information and system capabilities
+        """
+        info = {
+            'current_language': self.language,
+            'language_name': self.get_language_name(),
+            'espeak_available': self._test_model_compatibility('test_vits'),
+            'supported_languages': self.get_supported_languages()
+        }
+
+        # Add model recommendations for each language
+        info['models'] = {}
+        for lang in self.get_supported_languages():
+            selected_model = self._select_best_model(lang)
+            lang_config = self.LANGUAGES[lang]
+            is_premium = selected_model == lang_config.get('premium', '')
+
+            info['models'][lang] = {
+                'name': lang_config['name'],
+                'selected_model': selected_model,
+                'quality': 'premium' if is_premium else 'default',
+                'default_available': lang_config.get('default', ''),
+                'premium_available': lang_config.get('premium', '')
+            }
+
+        return info
     
     def change_vad_aggressiveness(self, aggressiveness):
         """Change VAD aggressiveness.

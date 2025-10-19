@@ -1,28 +1,57 @@
 # Installation Guide
 
-This guide provides detailed installation instructions for AbstractVoice across different operating systems and use cases.
+AbstractVoice is designed to work **out of the box** on all systems with automatic quality upgrades when possible.
 
-## Quick Installation
+## 🚀 Quick Start (Recommended)
 
-### Basic Installation
+### Step 1: Basic Installation
 ```bash
+# Install AbstractVoice with all features (works everywhere)
+pip install abstractvoice[all]
+```
+
+### Step 2: Verify Installation
+```bash
+# Test that everything works
+python -c "from abstractvoice import VoiceManager; vm = VoiceManager(); print('✅ Installation successful!')"
+```
+
+### Step 3: Optional Quality Upgrade
+```bash
+# For better voice quality (if you want the absolute best)
+# macOS:
+brew install espeak-ng
+
+# Linux:
+sudo apt-get install espeak-ng
+
+# Windows:
+conda install espeak-ng
+```
+
+**That's it!** AbstractVoice will automatically use the best available models for your system.
+
+## 📦 Installation Options
+
+### Minimal Installation
+```bash
+# Just the core package (2 dependencies)
 pip install abstractvoice
+
+# Add features as needed
+pip install abstractvoice[tts]      # Text-to-speech
+pip install abstractvoice[stt]      # Speech-to-text
+pip install abstractvoice[voice]    # Audio I/O
+pip install abstractvoice[all]      # Everything (recommended)
 ```
 
 ### Language-Specific Installation
 ```bash
-# Single language
-pip install "abstractvoice[fr]"    # French
-pip install "abstractvoice[es]"    # Spanish
-pip install "abstractvoice[de]"    # German
-pip install "abstractvoice[it]"    # Italian
-pip install "abstractvoice[ru]"    # Russian
-
-# Multiple languages
-pip install "abstractvoice[fr,es,de]"
-
-# All languages (recommended for international apps)
-pip install "abstractvoice[multilingual]"
+# Single language with all features
+pip install abstractvoice[fr]       # French
+pip install abstractvoice[es]       # Spanish
+pip install abstractvoice[de]       # German
+pip install abstractvoice[it]       # Italian
 ```
 
 ## Operating System Specific Instructions
