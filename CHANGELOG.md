@@ -5,6 +5,13 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-10-19
+
+### Fixed
+- **Dependency Conflict**: Removed upper bound on librosa version to resolve conflict with coqui-tts>=0.27.0
+  - coqui-tts requires librosa>=0.11.0 but we had pinned librosa<0.11.0
+  - Now allows librosa>=0.10.0 without upper bound for compatibility
+
 ## [0.3.0] - 2025-10-19
 
 ### Added

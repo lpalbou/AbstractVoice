@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abstractvoice"
-version = "0.3.0"
+dynamic = ["version"]
 description = "A modular Python library for voice interactions with AI systems"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -43,7 +43,7 @@ tts = [
     "torch>=2.0.0,<2.4.0",
     "torchvision>=0.15.0,<0.19.0",
     "torchaudio>=2.0.0,<2.4.0",
-    "librosa>=0.10.0,<0.11.0",
+    "librosa>=0.10.0",
 ]
 
 # Speech-to-Text functionality
@@ -67,7 +67,7 @@ all = [
     "torch>=2.0.0,<2.4.0",
     "torchvision>=0.15.0,<0.19.0",
     "torchaudio>=2.0.0,<2.4.0",
-    "librosa>=0.10.0,<0.11.0",
+    "librosa>=0.10.0",
     "soundfile>=0.12.1",
     "flask>=2.0.0",
     "tiktoken>=0.6.0",
@@ -90,7 +90,7 @@ voice-full = [
     "torch>=2.0.0,<2.4.0",
     "torchvision>=0.15.0,<0.19.0",
     "torchaudio>=2.0.0,<2.4.0",
-    "librosa>=0.10.0,<0.11.0",
+    "librosa>=0.10.0",
     "soundfile>=0.12.1",
     "tiktoken>=0.6.0",
 ]
@@ -101,7 +101,7 @@ core-tts = [
     "torch>=2.0.0,<2.4.0",
     "torchvision>=0.15.0,<0.19.0",
     "torchaudio>=2.0.0,<2.4.0",
-    "librosa>=0.10.0,<0.11.0",
+    "librosa>=0.10.0",
 ]
 
 # Core STT-only (lightweight, no TTS)
@@ -123,4 +123,7 @@ Repository = "https://github.com/lpalbou/abstractvoice"
 Documentation = "https://github.com/lpalbou/abstractvoice#readme"
 
 [project.scripts]
-abstractvoice = "abstractvoice.examples.voice_cli:main" 
+abstractvoice = "abstractvoice.examples.voice_cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "abstractvoice.__version__"} 
