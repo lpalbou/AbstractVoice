@@ -67,6 +67,116 @@ class VoiceManager:
     # Universal safe fallback
     SAFE_FALLBACK = 'tts_models/en/ljspeech/fast_pitch'
 
+    # Complete voice catalog with metadata
+    VOICE_CATALOG = {
+        'en': {
+            'vits_premium': {
+                'model': 'tts_models/en/ljspeech/vits',
+                'quality': 'premium',
+                'gender': 'female',
+                'accent': 'US English',
+                'license': 'Open source (LJSpeech)',
+                'requires': 'espeak-ng'
+            },
+            'fast_pitch_reliable': {
+                'model': 'tts_models/en/ljspeech/fast_pitch',
+                'quality': 'good',
+                'gender': 'female',
+                'accent': 'US English',
+                'license': 'Open source (LJSpeech)',
+                'requires': 'none'
+            },
+            'vctk_multi': {
+                'model': 'tts_models/en/vctk/vits',
+                'quality': 'premium',
+                'gender': 'multiple',
+                'accent': 'British English',
+                'license': 'Open source (VCTK)',
+                'requires': 'espeak-ng'
+            }
+        },
+        'fr': {
+            'css10_vits': {
+                'model': 'tts_models/fr/css10/vits',
+                'quality': 'premium',
+                'gender': 'male',
+                'accent': 'France French',
+                'license': 'Apache 2.0 (CSS10/LibriVox)',
+                'requires': 'espeak-ng'
+            },
+            'mai_tacotron': {
+                'model': 'tts_models/fr/mai/tacotron2-DDC',
+                'quality': 'good',
+                'gender': 'female',
+                'accent': 'France French',
+                'license': 'Permissive (M-AILABS/LibriVox)',
+                'requires': 'none'
+            }
+        },
+        'es': {
+            'mai_tacotron': {
+                'model': 'tts_models/es/mai/tacotron2-DDC',
+                'quality': 'good',
+                'gender': 'female',
+                'accent': 'Spain Spanish',
+                'license': 'Permissive (M-AILABS)',
+                'requires': 'none'
+            },
+            'css10_vits': {
+                'model': 'tts_models/es/css10/vits',
+                'quality': 'premium',
+                'gender': 'female',
+                'accent': 'Spain Spanish',
+                'license': 'Apache 2.0 (CSS10)',
+                'requires': 'espeak-ng'
+            }
+        },
+        'de': {
+            'thorsten_vits': {
+                'model': 'tts_models/de/thorsten/vits',
+                'quality': 'premium',
+                'gender': 'male',
+                'accent': 'Standard German',
+                'license': 'Open source (Thorsten)',
+                'requires': 'espeak-ng'
+            },
+            'thorsten_tacotron': {
+                'model': 'tts_models/de/thorsten/tacotron2-DDC',
+                'quality': 'good',
+                'gender': 'male',
+                'accent': 'Standard German',
+                'license': 'Open source (Thorsten)',
+                'requires': 'none'
+            }
+        },
+        'it': {
+            'mai_male_vits': {
+                'model': 'tts_models/it/mai_male/vits',
+                'quality': 'premium',
+                'gender': 'male',
+                'accent': 'Standard Italian',
+                'license': 'Permissive (M-AILABS)',
+                'requires': 'espeak-ng'
+            },
+            'mai_female_vits': {
+                'model': 'tts_models/it/mai_female/vits',
+                'quality': 'premium',
+                'gender': 'female',
+                'accent': 'Standard Italian',
+                'license': 'Permissive (M-AILABS)',
+                'requires': 'espeak-ng'
+            },
+            'mai_female_glow': {
+                'model': 'tts_models/it/mai_female/glow-tts',
+                'quality': 'good',
+                'gender': 'female',
+                'accent': 'Standard Italian',
+                'license': 'Permissive (M-AILABS)',
+                'requires': 'none'
+            }
+        }
+    }
+
     def __init__(self, language='en', tts_model=None, whisper_model="tiny", debug_mode=False):
         """Initialize the Voice Manager with language support.
 
@@ -560,6 +670,121 @@ class VoiceManager:
             }
 
         return info
+
+    def browse_voices(self, language=None, quality=None, gender=None):
+        """Browse available voices with filtering options.
+
+        Args:
+            language: Language code ('en', 'fr', etc.) or None for all
+            quality: 'premium', 'good', or None for all
+            gender: 'male', 'female', 'multiple', or None for all
+
+        Returns:
+            Dict of available voices with metadata
+        """
+        voices = {}
+
+        # Get languages to check
+        languages_to_check = [language] if language else self.VOICE_CATALOG.keys()
+
+        for lang in languages_to_check:
+            if lang not in self.VOICE_CATALOG:
+                continue
+
+            lang_voices = {}
+            for voice_id, voice_info in self.VOICE_CATALOG[lang].items():
+                # Apply filters
+                if quality and voice_info['quality'] != quality:
+                    continue
+                if gender and voice_info['gender'] != gender:
+                    continue
+
+                # Check if voice is compatible with current system
+                compatible = True
+                if voice_info['requires'] == 'espeak-ng':
+                    compatible = self._test_model_compatibility(voice_info['model'])
+
+                # Add compatibility info
+                voice_data = voice_info.copy()
+                voice_data['compatible'] = compatible
+                lang_voices[voice_id] = voice_data
+
+            if lang_voices:
+                voices[lang] = lang_voices
+
+        return voices
+
+    def list_voices(self, language=None):
+        """List available voices in a user-friendly format.
+
+        Args:
+            language: Language code or None for all languages
+        """
+        voices = self.browse_voices(language)
+
+        if not voices:
+            print("No voices found matching criteria.")
+            return
+
+        for lang, lang_voices in voices.items():
+            lang_name = self.LANGUAGES.get(lang, {}).get('name', lang)
+            print(f"\n🌍 {lang_name} ({lang}) - {len(lang_voices)} voices available:")
+
+            for voice_id, voice_info in lang_voices.items():
+                quality_icon = "✨" if voice_info['quality'] == 'premium' else "🔧"
+                compat_icon = "✅" if voice_info['compatible'] else "⚠️"
+                gender_icon = {"male": "👨", "female": "👩", "multiple": "👥"}.get(voice_info['gender'], "🗣️")
+
+                print(f"  {compat_icon} {quality_icon} {gender_icon} {voice_id}")
+                print(f"      {voice_info['accent']} - {voice_info['gender']} voice")
+                print(f"      License: {voice_info['license']}")
+                if not voice_info['compatible'] and voice_info['requires'] == 'espeak-ng':
+                    print(f"      ⚠️ Requires: espeak-ng (install for premium quality)")
+
+    def set_voice(self, language, voice_id):
+        """Set a specific voice by ID.
+
+        Args:
+            language: Language code
+            voice_id: Voice ID from voice catalog
+
+        Returns:
+            True if successful
+
+        Example:
+            vm.set_voice('fr', 'css10_vits')  # Use CSS10 French VITS voice
+            vm.set_voice('it', 'mai_female_vits')  # Use female Italian VITS voice
+        """
+        if language not in self.VOICE_CATALOG:
+            if self.debug_mode:
+                print(f"⚠️ Language '{language}' not available")
+            return False
+
+        if voice_id not in self.VOICE_CATALOG[language]:
+            if self.debug_mode:
+                available = ', '.join(self.VOICE_CATALOG[language].keys())
+                print(f"⚠️ Voice '{voice_id}' not available for {language}. Available: {available}")
+            return False
+
+        voice_info = self.VOICE_CATALOG[language][voice_id]
+
+        # Check compatibility
+        if voice_info['requires'] == 'espeak-ng' and not self._test_model_compatibility(voice_info['model']):
+            if self.debug_mode:
+                print(f"⚠️ Voice '{voice_id}' requires espeak-ng. Install it for premium quality.")
+            return False
+
+        # Set the specific voice
+        model_name = voice_info['model']
+        if self.debug_mode:
+            print(f"🎭 Setting {language} voice to: {voice_id}")
+            print(f"   Model: {model_name}")
+            print(f"   Quality: {voice_info['quality']} | Gender: {voice_info['gender']}")
+            print(f"   Accent: {voice_info['accent']}")
+
+        # Switch to the language and specific model
+        self.language = language
+        return self.set_tts_model(model_name)
     
     def change_vad_aggressiveness(self, aggressiveness):
         """Change VAD aggressiveness.

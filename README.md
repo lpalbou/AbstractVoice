@@ -25,6 +25,8 @@ While we provide CLI and WEB examples, AbstractVoice is designed to be integrate
 - **Interrupt Handling**: Stop TTS by speaking or using stop commands
 - **Modular Design**: Easily integrate with any text generation system
 
+Note : *the LLM access is rudimentary and abstractvoice is provided more as an example and demonstrator. A better integration is to use the functionalities of this library and use them directly in combination with [AbstractCore](https://github.com/lpalbou/AbstractCore)*.
+
 ## Installation
 
 AbstractVoice is designed to **work everywhere, out of the box** with automatic quality upgrades.
