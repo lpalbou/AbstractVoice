@@ -300,11 +300,24 @@ class NonBlockingAudioPlayer:
                     print(f"Error stopping audio stream: {e}")
             finally:
                 self.stream = None
-        
+
         self.is_playing = False
         with self.pause_lock:
             self.is_paused = False
         self.clear_queue()
+
+    def cleanup(self):
+        """Cleanup resources to prevent memory conflicts."""
+        try:
+            self.stop_stream()
+            # Clear any remaining references
+            self.current_audio = None
+            self.playback_complete_callback = None
+            if self.debug_mode:
+                print(" > Audio player cleaned up")
+        except Exception as e:
+            if self.debug_mode:
+                print(f"Audio cleanup warning: {e}")
     
     def play_audio(self, audio_array):
         """Add audio to the playback queue."""
@@ -519,21 +532,49 @@ class TTSEngine:
         if debug_mode and not espeak_available:
             print(" > espeak-ng not found, will skip VITS models")
 
-        # Step 2: Get all cached models and try them in compatibility order
+        # Step 2: Try the REQUESTED model first if it's cached
         cached_models = model_manager.get_cached_models()
         if cached_models and debug_mode:
             print(f" > Found {len(cached_models)} cached models")
 
-        # Compatibility-first order: universal models before premium models
-        model_priority_order = [
+        # First priority: Try the specifically requested model
+        if preferred_model in cached_models:
+            # Check espeak compatibility for VITS models
+            if "vits" in preferred_model and not espeak_available:
+                if debug_mode:
+                    print(f" > Requested model {preferred_model} requires espeak-ng (not available)")
+            else:
+                try:
+                    if debug_mode:
+                        print(f" > Trying requested model: {preferred_model}")
+                    self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
+                    if debug_mode:
+                        print(f" > ✅ Successfully loaded requested model: {preferred_model}")
+                    return True, preferred_model
+                except Exception as e:
+                    if debug_mode:
+                        print(f" > ❌ Requested model failed: {e}")
+
+        # Step 3: Only fall back to compatibility order if requested model failed
+        if debug_mode:
+            print(" > Requested model unavailable, trying fallback models...")
+
+        # Compatibility-first fallback order
+        fallback_models = [
             "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable
-            "tts_models/en/ljspeech/fast_pitch",     # Lightweight
-            "tts_models/en/ljspeech/glow-tts",       # Alternative
+            "tts_models/en/jenny/jenny",             # Different female speaker
+            "tts_models/en/ek1/tacotron2",           # Male voice, British accent
+            "tts_models/en/ljspeech/fast_pitch",     # Lightweight alternative
+            "tts_models/en/ljspeech/glow-tts",       # Another alternative
+            "tts_models/en/vctk/vits",               # Multi-speaker (requires espeak)
             "tts_models/en/ljspeech/vits",           # Premium (requires espeak)
         ]
 
-        # Try cached models in priority order
-        for model in model_priority_order:
+        # Remove the preferred model from fallbacks to avoid duplicate attempts
+        fallback_models = [m for m in fallback_models if m != preferred_model]
+
+        # Try fallback models
+        for model in fallback_models:
             if model in cached_models:
                 # Skip VITS models if no espeak
                 if "vits" in model and not espeak_available:
@@ -543,27 +584,45 @@ class TTSEngine:
 
                 try:
                     if debug_mode:
-                        print(f" > Trying cached model: {model}")
+                        print(f" > Trying fallback model: {model}")
                     self.tts = TTS(model_name=model, progress_bar=self.debug_mode)
                     if debug_mode:
-                        print(f" > ✅ Successfully loaded: {model}")
+                        print(f" > ✅ Successfully loaded fallback: {model}")
                     return True, model
                 except Exception as e:
                     if debug_mode:
-                        print(f" > ❌ Failed to load {model}: {e}")
+                        print(f" > ❌ Fallback {model} failed: {e}")
 
-        # Step 3: If no cached models work, try downloading in compatibility order
+        # Step 4: If no cached models work, try downloading requested model first
         if debug_mode:
             print(" > No cached models worked, attempting downloads...")
 
-        for model in model_priority_order:
+        # Try downloading the requested model first
+        if "vits" not in preferred_model or espeak_available:
+            try:
+                if debug_mode:
+                    print(f" > Downloading requested model: {preferred_model}...")
+                success = model_manager.download_model(preferred_model)
+                if success:
+                    self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
+                    if debug_mode:
+                        print(f" > ✅ Downloaded and loaded requested: {preferred_model}")
+                    return True, preferred_model
+                elif debug_mode:
+                    print(f" > ❌ Download failed for requested model: {preferred_model}")
+            except Exception as e:
+                if debug_mode:
+                    print(f" > ❌ Failed to download/load requested model: {e}")
+
+        # Step 5: If requested model download failed, try fallback downloads
+        for model in fallback_models:
             # Skip VITS models if no espeak
             if "vits" in model and not espeak_available:
                 continue
 
             try:
                 if debug_mode:
-                    print(f" > Downloading {model}...")
+                    print(f" > Downloading fallback: {model}...")
 
                 # First try to download
                 success = model_manager.download_model(model)
@@ -571,7 +630,7 @@ class TTSEngine:
                     # Then try to load
                     self.tts = TTS(model_name=model, progress_bar=self.debug_mode)
                     if debug_mode:
-                        print(f" > ✅ Downloaded and loaded: {model}")
+                        print(f" > ✅ Downloaded and loaded fallback: {model}")
                     return True, model
                 elif debug_mode:
                     print(f" > ❌ Download failed for {model}")
@@ -622,7 +681,9 @@ class TTSEngine:
         # Try non-phoneme models that don't require espeak (compatibility-first order)
         from TTS.api import TTS
         fallback_models = [
-            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable (now primary)
+            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable (primary)
+            "tts_models/en/jenny/jenny",             # Different female speaker
+            "tts_models/en/ek1/tacotron2",           # Male voice, British accent
             "tts_models/en/ljspeech/fast_pitch",     # Lightweight alternative
             "tts_models/en/ljspeech/glow-tts"        # Another alternative
         ]

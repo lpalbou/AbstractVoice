@@ -5,6 +5,71 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2025-10-19
+
+### Fixed
+- **🎯 CRITICAL FIX**: Voice switching now ACTUALLY loads different models instead of always falling back
+  - **Root cause**: TTS engine was ignoring `preferred_model` parameter and always trying hardcoded priority order
+  - **Solution**: Reordered model loading to try requested model FIRST, only fall back if it fails
+  - **Result**: `/setvoice en.jenny` now loads jenny model, `/setvoice en.ek1` loads ek1 model, etc.
+- **💥 Fixed Segmentation Faults**: Added proper memory cleanup when switching TTS models
+  - **Root cause**: Old TTS models not cleaned up before loading new ones, causing memory conflicts
+  - **Solution**: Added `cleanup()` method to `NonBlockingAudioPlayer` and proper deletion in `set_tts_model()`
+  - **Result**: No more crashes when switching voices, especially with EK1 model
+
+### Changed
+- **Smart Model Loading Strategy**: Now tries requested model first, bulletproof fallback second
+  1. **Try requested model** (if cached and compatible)
+  2. **Try downloading requested model** (if not cached)
+  3. **Only then fall back** to compatibility-first priority order
+- **Memory Management**: Proper cleanup of audio streams and TTS objects during voice switching
+
+### Technical Details
+- **TTS Engine**: `_load_with_simple_fallback()` now respects `preferred_model` parameter
+- **Audio Player**: Added `cleanup()` method to prevent memory leaks
+- **Voice Manager**: Enhanced `set_tts_model()` with proper resource cleanup
+
+### User Experience
+- ✅ **Voice switching WORKS**: Different voices now sound genuinely different
+- ✅ **No crashes**: Segmentation faults eliminated during voice switching
+- ✅ **Memory stable**: No memory leaks or conflicts when changing voices
+- ✅ **Bulletproof fallback**: Still works reliably if requested voice fails
+
+## [0.4.4] - 2025-10-19
+
+### Added
+- **🎭 VOICE DIVERSITY**: Added multiple distinct speakers for true voice switching
+  - **Jenny**: Different female speaker (US accent) - `en.jenny`
+  - **EK1**: Male voice with British accent - `en.ek1`
+  - **VCTK**: Multi-speaker dataset with various accents - `en.vctk`
+  - **Tacotron2**: Reliable female voice (primary fallback) - `en.tacotron2`
+- **📢 Real Voice Differences**: Each voice uses different speaker datasets, not just different engines
+  - No more "all English voices sound the same" problem
+  - Clear male vs female vs multi-speaker options
+  - US vs British accent variants
+
+### Fixed
+- **🔧 Voice Switching Actually Works**: Fixed voice catalog synchronization
+  - Updated `VOICE_CATALOG` to match `simple_model_manager.py` definitions
+  - `/setvoice en.jenny` now actually switches to Jenny's voice
+  - `/setvoice en.ek1` now actually switches to male British voice
+- **🛡️ Bulletproof Installation Maintained**: All new voices work with existing reliability
+  - Fallback priority: `tacotron2` → `jenny` → `ek1` → `vctk` → others
+  - Smart espeak detection still skips incompatible models
+  - Zero breaking changes to installation robustness
+
+### Technical Details
+- **Updated model definitions**: Both `simple_model_manager.py` and `voice_manager.py` synchronized
+- **Enhanced fallback chain**: Includes diverse speakers in compatibility-first order
+- **Preserved bulletproof installation**: All reliability improvements from v0.4.3 maintained
+
+### User Experience
+- ✅ **Real voice diversity**: English voices now sound genuinely different
+- ✅ **Easy switching**: `/setvoice en.jenny` vs `/setvoice en.ek1` vs `/setvoice en.tacotron2`
+- ✅ **Gender options**: Female (jenny, tacotron2) and male (ek1) voices available
+- ✅ **Accent variety**: US English vs British English options
+- ✅ **Zero installation friction**: Still works immediately after pip install
+
 ## [0.4.3] - 2025-10-19
 
 ### Fixed

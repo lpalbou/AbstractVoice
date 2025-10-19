@@ -32,5 +32,5 @@ from .voice_manager import VoiceManager
 # Import simple APIs for third-party applications
 from .simple_model_manager import list_models, download_model, get_status, is_ready
 
-__version__ = "0.4.3"
+__version__ = "0.4.5"
 __all__ = ['VoiceManager', 'list_models', 'download_model', 'get_status', 'is_ready'] 

@@ -37,12 +37,48 @@ class SimpleModelManager:
     # Available models organized by language with metadata
     AVAILABLE_MODELS = {
         "en": {
+            "tacotron2": {
+                "model": "tts_models/en/ljspeech/tacotron2-DDC",
+                "name": "Tacotron2 (English)",
+                "quality": "good",
+                "size_mb": 362,
+                "description": "Standard female voice, reliable",
+                "requires_espeak": False,
+                "default": True
+            },
+            "jenny": {
+                "model": "tts_models/en/jenny/jenny",
+                "name": "Jenny (English)",
+                "quality": "excellent",
+                "size_mb": 368,
+                "description": "Clear female voice, different speaker than LJSpeech",
+                "requires_espeak": False,
+                "default": False
+            },
+            "ek1": {
+                "model": "tts_models/en/ek1/tacotron2",
+                "name": "EK1 (English)",
+                "quality": "excellent",
+                "size_mb": 310,
+                "description": "Male voice with British accent",
+                "requires_espeak": False,
+                "default": False
+            },
+            "vctk": {
+                "model": "tts_models/en/vctk/vits",
+                "name": "VCTK Multi-speaker (English)",
+                "quality": "excellent",
+                "size_mb": 450,
+                "description": "Multi-speaker dataset with various accents",
+                "requires_espeak": True,
+                "default": False
+            },
             "fast_pitch": {
                 "model": "tts_models/en/ljspeech/fast_pitch",
                 "name": "Fast Pitch (English)",
                 "quality": "good",
                 "size_mb": 107,
-                "description": "Lightweight, reliable English voice",
+                "description": "Lightweight, same speaker as tacotron2",
                 "requires_espeak": False,
                 "default": False
             },
@@ -51,18 +87,9 @@ class SimpleModelManager:
                 "name": "VITS (English)",
                 "quality": "excellent",
                 "size_mb": 328,
-                "description": "High-quality English voice with natural prosody",
+                "description": "High-quality, same speaker as tacotron2",
                 "requires_espeak": True,
                 "default": False
-            },
-            "tacotron2": {
-                "model": "tts_models/en/ljspeech/tacotron2-DDC",
-                "name": "Tacotron2 (English)",
-                "quality": "good",
-                "size_mb": 362,
-                "description": "Classic English voice, reliable",
-                "requires_espeak": False,
-                "default": True
             }
         },
         "fr": {
