@@ -466,34 +466,21 @@ class TTSEngine:
         try:
             if self.debug_mode:
                 print(f" > Loading TTS model: {model_name}")
-            
-            # Try to initialize TTS using lazy import
+
+            # Try simple, effective initialization strategy
             try:
                 TTS = _import_tts()
-                self.tts = TTS(model_name=model_name, progress_bar=self.debug_mode)
+                success, final_model = self._load_with_simple_fallback(TTS, model_name, debug_mode)
+                if not success:
+                    # If all fails, provide actionable guidance
+                    self._handle_model_load_failure(debug_mode)
+                elif self.debug_mode and final_model != model_name:
+                    print(f" > Loaded fallback model: {final_model}")
             except Exception as e:
                 error_msg = str(e).lower()
                 # Check if this is an espeak-related error
                 if ("espeak" in error_msg or "phoneme" in error_msg):
-                    # Restore stdout to show user-friendly message
-                    if not debug_mode:
-                        sys.stdout = sys.__stdout__
-                    
-                    print("\n" + "="*70)
-                    print("⚠️  VITS Model Requires espeak-ng (Not Found)")
-                    print("="*70)
-                    print("\nFor BEST voice quality, install espeak-ng:")
-                    print("  • macOS:   brew install espeak-ng")
-                    print("  • Linux:   sudo apt-get install espeak-ng")
-                    print("  • Windows: conda install espeak-ng  (or see README)")
-                    print("\nFalling back to fast_pitch (lower quality, but works)")
-                    print("="*70 + "\n")
-                    
-                    if not debug_mode:
-                        sys.stdout = null_out
-                    
-                    # Fallback to fast_pitch
-                    self.tts = TTS(model_name="tts_models/en/ljspeech/fast_pitch", progress_bar=self.debug_mode)
+                    self._handle_espeak_fallback(debug_mode)
                 else:
                     # Different error, re-raise
                     raise
@@ -520,6 +507,136 @@ class TTSEngine:
         # Pause/resume state
         self.pause_lock = threading.Lock()  # Thread-safe pause operations
         self.is_paused_state = False  # Explicit paused state tracking
+
+    def _load_with_simple_fallback(self, TTS, preferred_model: str, debug_mode: bool) -> tuple[bool, str]:
+        """Load TTS model with simple, effective strategy."""
+        from ..simple_model_manager import get_model_manager
+
+        model_manager = get_model_manager(debug_mode=debug_mode)
+
+        # Strategy 1: Try preferred model if cached
+        if model_manager.is_model_cached(preferred_model):
+            try:
+                if debug_mode:
+                    print(f" > Using cached model: {preferred_model}")
+                self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
+                return True, preferred_model
+            except Exception as e:
+                if debug_mode:
+                    print(f" > Cached model failed: {e}")
+
+        # Strategy 2: Try essential model if cached
+        essential_model = model_manager.ESSENTIAL_MODEL
+        if essential_model != preferred_model and model_manager.is_model_cached(essential_model):
+            try:
+                if debug_mode:
+                    print(f" > Using cached essential model: {essential_model}")
+                self.tts = TTS(model_name=essential_model, progress_bar=self.debug_mode)
+                return True, essential_model
+            except Exception as e:
+                if debug_mode:
+                    print(f" > Essential model failed: {e}")
+
+        # Strategy 3: Download essential model (guaranteed to work)
+        try:
+            if debug_mode:
+                print(f" > Downloading essential model: {essential_model}")
+            success = model_manager.download_model(essential_model)
+            if success:
+                self.tts = TTS(model_name=essential_model, progress_bar=self.debug_mode)
+                return True, essential_model
+        except Exception as e:
+            if debug_mode:
+                print(f" > Essential model download failed: {e}")
+
+        # Strategy 4: Try downloading preferred model
+        try:
+            if debug_mode:
+                print(f" > Attempting preferred model download: {preferred_model}")
+            self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
+            return True, preferred_model
+        except Exception as e:
+            if debug_mode:
+                print(f" > Preferred model download failed: {e}")
+
+        return False, None
+
+    def _handle_espeak_fallback(self, debug_mode: bool):
+        """Handle espeak-related errors with fallback to non-phoneme models."""
+        # Restore stdout to show user-friendly message
+        if not debug_mode:
+            sys.stdout = sys.__stdout__
+
+        print("\n" + "="*70)
+        print("⚠️  VITS Model Requires espeak-ng (Not Found)")
+        print("="*70)
+        print("\nFor BEST voice quality, install espeak-ng:")
+        print("  • macOS:   brew install espeak-ng")
+        print("  • Linux:   sudo apt-get install espeak-ng")
+        print("  • Windows: conda install espeak-ng  (or see README)")
+        print("\nFalling back to fast_pitch (no espeak dependency)")
+        print("="*70 + "\n")
+
+        if not debug_mode:
+            import os
+            null_out = open(os.devnull, 'w')
+            sys.stdout = null_out
+
+        # Try non-phoneme models that don't require espeak
+        from TTS.api import TTS
+        fallback_models = [
+            "tts_models/en/ljspeech/fast_pitch",
+            "tts_models/en/ljspeech/tacotron2-DDC",
+            "tts_models/en/ljspeech/glow-tts"
+        ]
+
+        tts_loaded = False
+        for fallback_model in fallback_models:
+            try:
+                if debug_mode:
+                    print(f"Trying fallback model: {fallback_model}")
+                self.tts = TTS(model_name=fallback_model, progress_bar=self.debug_mode)
+                tts_loaded = True
+                break
+            except Exception as fallback_error:
+                if debug_mode:
+                    print(f"Fallback {fallback_model} failed: {fallback_error}")
+                continue
+
+        if not tts_loaded:
+            self._handle_model_load_failure(debug_mode)
+
+    def _handle_model_load_failure(self, debug_mode: bool):
+        """Handle complete model loading failure with actionable guidance."""
+        # Restore stdout to show user-friendly message
+        if not debug_mode:
+            sys.stdout = sys.__stdout__
+
+        print("\n" + "="*70)
+        print("❌ TTS Model Loading Failed")
+        print("="*70)
+        print("\nNo TTS models could be loaded (offline or online).")
+        print("\nQuick fixes:")
+        print("  1. Download essential models:")
+        print("     abstractvoice download-models")
+        print("  2. Check internet connectivity")
+        print("  3. Clear corrupted cache:")
+        print("     rm -rf ~/.cache/tts ~/.local/share/tts")
+        print("  4. Reinstall TTS:")
+        print("     pip install --force-reinstall coqui-tts")
+        print("  5. Use text-only mode:")
+        print("     abstractvoice --no-tts")
+        print("="*70)
+
+        raise RuntimeError(
+            "❌ Failed to load any TTS model.\n"
+            "This typically means:\n"
+            "  • No models cached locally AND no internet connection\n"
+            "  • Corrupted model cache\n"
+            "  • Insufficient disk space\n"
+            "  • Network firewall blocking downloads\n\n"
+            "Run 'abstractvoice download-models' when you have internet access."
+        )
     
     def _on_playback_complete(self):
         """Callback when audio playback completes."""

@@ -19,6 +19,14 @@ This directory contains technical documentation for AbstractVoice developers and
 - Performance optimization techniques
 - Error handling and fallback strategies
 
+### [model-management.md](model-management.md) ⭐ **NEW v0.4.0**
+**Complete model management guide**
+- Essential vs language-specific models
+- Programmatic APIs for third-party integration
+- CLI commands for model download and management
+- Voice selection and cache management
+- Integration patterns for libraries and web APIs
+
 ## 🎯 Quick Links
 
 **For Users**: See [../README.md](../README.md) for installation, usage, and API reference

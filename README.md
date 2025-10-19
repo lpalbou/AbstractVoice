@@ -82,34 +82,58 @@ AbstractVoice automatically detects espeak-ng and upgrades to premium quality vo
 
 ## Quick Start
 
-### Basic Usage (Minimal Installation)
+### ⚡ Instant TTS (v0.4.0+)
 
 ```python
-# First install with minimal dependencies
-# pip install abstractvoice
-
 from abstractvoice import VoiceManager
 
-# This will show a helpful error message with installation instructions
-try:
-    vm = VoiceManager()
-except ImportError as e:
-    print(e)  # Shows: "TTS functionality requires optional dependencies..."
-    # Follow the instructions to install: pip install abstractvoice[all]
+# Initialize voice manager - automatically downloads essential model if needed
+vm = VoiceManager()
+
+# Text-to-speech works immediately!
+vm.speak("Hello! TTS works out of the box!")
 ```
 
-### Full Usage Example
+**That's it!** AbstractVoice v0.4.0+ automatically:
+- ✅ Downloads essential English model (107MB) on first use
+- ✅ Caches models permanently for offline use
+- ✅ Works immediately after first setup
+- ✅ No complex configuration needed
+
+### 🌍 Multi-Language Support
 
 ```python
-# After installing with: pip install abstractvoice[all]
+# Download and use French voice
+vm.download_model('fr.css10_vits')  # Downloads automatically
+vm.set_language('fr')
+vm.speak("Bonjour! Je parle français maintenant.")
 
-from abstractvoice import VoiceManager
+# Download and use German voice
+vm.download_model('de.thorsten_vits')
+vm.set_language('de')
+vm.speak("Hallo! Ich spreche jetzt Deutsch.")
+```
 
-# Initialize voice manager
-vm = VoiceManager(language='en', debug_mode=True)
+### 🔧 Check System Status
 
-# Text-to-speech
-vm.speak("Hello! I can speak text and listen for responses.")
+```python
+from abstractvoice import is_ready, get_status, list_models
+import json
+
+# Quick readiness check
+ready = is_ready()
+print(f"TTS ready: {ready}")
+
+# Get detailed status
+status = json.loads(get_status())
+print(f"Models cached: {status['total_cached']}")
+print(f"Offline ready: {status['ready_for_offline']}")
+
+# List all available models
+models = json.loads(list_models())
+for lang, voices in models.items():
+    print(f"{lang}: {len(voices)} voices available")
+```
 
 # Speech-to-text with callbacks
 def on_transcription(text):
@@ -1205,6 +1229,80 @@ voice_manager.listen(
     on_transcription=on_transcription,
     on_stop=on_stop
 )
+```
+
+## 💻 CLI Commands (v0.4.0+)
+
+AbstractVoice provides powerful CLI commands for model management and voice interactions.
+
+### Model Management
+
+```bash
+# Download essential model for offline use (recommended first step)
+abstractvoice download-models
+
+# Download models for specific languages
+abstractvoice download-models --language fr    # French
+abstractvoice download-models --language de    # German
+abstractvoice download-models --language it    # Italian
+abstractvoice download-models --language es    # Spanish
+
+# Download specific model by name
+abstractvoice download-models --model tts_models/fr/css10/vits
+
+# Download all available models (large download!)
+abstractvoice download-models --all
+
+# Check current cache status
+abstractvoice download-models --status
+
+# Clear model cache
+abstractvoice download-models --clear
+```
+
+### Voice Interface
+
+```bash
+# Start voice interface (default)
+abstractvoice
+
+# Start CLI REPL with specific language
+abstractvoice cli --language fr
+
+# Start with specific model
+abstractvoice --model granite3.3:2b --language de
+
+# Run simple example
+abstractvoice simple
+
+# Check dependencies
+abstractvoice check-deps
+```
+
+### CLI Voice Commands
+
+In the CLI REPL, use these commands:
+
+```bash
+# List all available voices with download status
+/setvoice
+
+# Download and set specific voice
+/setvoice fr.css10_vits      # French CSS10 VITS
+/setvoice de.thorsten_vits   # German Thorsten
+/setvoice it.mai_male_vits   # Italian Male
+
+# Change language
+/language fr
+/language de
+
+# Voice controls
+/pause                       # Pause current speech
+/resume                      # Resume speech
+/stop                        # Stop speech
+
+# Exit
+/exit
 ```
 
 ## Perspectives

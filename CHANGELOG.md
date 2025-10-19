@@ -5,6 +5,93 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2025-10-19
+
+### Documentation
+- **📚 Complete Documentation Overhaul**: Comprehensive update to all documentation files for v0.4.0 model management system
+  - Updated `README.md` with offline-first TTS and model management sections
+  - Enhanced `llms.txt` (AI integration quick reference) with instant TTS setup and JSON APIs
+  - Enhanced `llms-full.txt` (developer integration guide) with programmatic model management
+  - Updated `docs/model-management.md` with comprehensive model management guide
+  - Added third-party API examples and integration patterns
+  - Updated CLI command references and model information tables
+
+### Added
+- **🔧 Enhanced JSON APIs Documentation**: Complete examples for third-party application integration
+  - `list_models()`, `download_model()`, `get_status()`, `is_ready()` functions
+  - Voice ID format examples (`fr.css10_vits`) and full model names
+  - Cache status monitoring and model availability checking
+- **📦 Model Information Reference**: Detailed tables with model sizes, quality ratings, and dependencies
+  - Essential model: `en.fast_pitch` (107MB) - Reliable English voice
+  - Premium models: High-quality VITS models with espeak-ng requirements
+  - Cache location documentation for all platforms
+- **🌐 Integration Pattern Examples**: Simple, robust, and enterprise deployment patterns
+  - One-liner setup for basic integration
+  - Progress callbacks and error handling for robust integration
+  - Pre-deployment verification for enterprise environments
+
+### Changed
+- **Documentation Structure**: Organized model management information across multiple files
+  - Quick reference (`llms.txt`) for immediate AI assistant integration
+  - Comprehensive guide (`llms-full.txt`) for developers and architects
+  - Technical documentation (`docs/model-management.md`) for advanced users
+- **CLI Documentation**: Updated all command examples to reflect v0.4.0 model management capabilities
+- **API Examples**: Enhanced programmatic API documentation with real-world usage patterns
+
+## [0.4.0] - 2025-10-19
+
+### Added
+- **🎯 Offline-First TTS Initialization**: Revolutionary improvement to user experience
+  - TTS models now load instantly from cache when available (0.2s vs 30s+ download)
+  - Intelligent fallback system tries cached models before attempting downloads
+  - No more network dependency for users who have used AbstractVoice before
+- **📦 Model Management System**: Complete model download and caching utilities
+  - `abstractvoice download-models` - Download essential models for offline use
+  - `abstractvoice download-models --all` - Download all supported models
+  - `abstractvoice download-models --status` - Check current cache status
+  - `abstractvoice download-models --clear` - Clear model cache
+- **🔄 Smart Model Selection Strategy**: Four-tier fallback system
+  1. **Preferred cached model** - Load instantly if available
+  2. **Cached fallback model** - Use any available cached model
+  3. **Network download preferred** - Download if internet available
+  4. **Network download fallback** - Try alternative models if preferred fails
+- **✨ Enhanced Error Guidance**: Actionable error messages with specific commands
+  - Clear distinction between offline/network/corruption issues
+  - Step-by-step troubleshooting guidance
+  - Recommendations for `download-models`, cache clearing, or text-only mode
+
+### Changed
+- **MAJOR UX IMPROVEMENT**: First-time users get immediate TTS after essential model download
+- **Enhanced CLI**: Added `download-models` command with comprehensive options
+- **Better Reliability**: TTS initialization now much more robust with multiple fallback strategies
+- **Improved Performance**: Cached models load in ~200ms instead of 30+ seconds
+
+### Technical Details
+- **ModelManager class**: New utility for managing TTS model cache and downloads
+- **Offline-first loading**: `_load_with_offline_fallback()` implements intelligent model selection
+- **Cache detection**: Automatic discovery of cached models across different cache locations
+- **Essential models**: Curated list of lightweight, reliable models for immediate functionality
+- **Premium models**: High-quality models downloaded on-demand or via `download-models --all`
+
+### Benefits for Users
+- ✅ **No waiting**: TTS works immediately after first setup
+- ✅ **Offline capable**: Full TTS functionality without internet connection
+- ✅ **Robust fallback**: Always finds a working model when possible
+- ✅ **Clear guidance**: Actionable error messages and status information
+- ✅ **Storage efficient**: Download only what you need, when you need it
+
+## [0.3.2] - 2025-10-19
+
+### Added
+- **`--no-tts` option**: Allows running in text-only mode when TTS models fail to download
+- **Better TTS fallback**: Multiple fallback models attempted before giving up
+- **Clearer error messages**: Distinguished between TTS model issues and Ollama model issues
+
+### Fixed
+- **Misleading error messages**: Now correctly identifies TTS download failures vs Ollama model issues
+- **TTS model download failures**: Improved handling and multiple fallback attempts
+- **Error attribution**: Users no longer see "Model not found" for their Ollama models when TTS fails
+
 ## [0.3.1] - 2025-10-19
 
 ### Fixed

@@ -823,14 +823,95 @@ class VoiceManager:
             return self.voice_recognizer.change_vad_aggressiveness(aggressiveness)
         return False
     
+    # ===== SIMPLE MODEL MANAGEMENT METHODS =====
+    # Clean, simple APIs for both CLI and third-party applications
+
+    def list_available_models(self, language: str = None) -> dict:
+        """Get available models with metadata.
+
+        Args:
+            language: Optional language filter
+
+        Returns:
+            dict: Model information with cache status
+
+        Example:
+            >>> vm = VoiceManager()
+            >>> models = vm.list_available_models('en')
+            >>> print(json.dumps(models, indent=2))
+        """
+        from .simple_model_manager import get_model_manager
+        manager = get_model_manager(self.debug_mode)
+        return manager.list_available_models(language)
+
+    def download_model(self, model_name: str, progress_callback=None) -> bool:
+        """Download a specific model.
+
+        Args:
+            model_name: Model name or voice ID (e.g., 'en.vits' or full model path)
+            progress_callback: Optional function(model_name, success)
+
+        Returns:
+            bool: True if successful
+
+        Example:
+            >>> vm = VoiceManager()
+            >>> vm.download_model('en.vits')  # or 'tts_models/en/ljspeech/vits'
+        """
+        from .simple_model_manager import download_model
+        return download_model(model_name, progress_callback)
+
+    def is_model_ready(self) -> bool:
+        """Check if essential model is ready for immediate use.
+
+        Returns:
+            bool: True if can speak immediately without download
+        """
+        from .simple_model_manager import is_ready
+        return is_ready()
+
+    def ensure_ready(self, auto_download: bool = True) -> bool:
+        """Ensure TTS is ready for immediate use.
+
+        Args:
+            auto_download: Whether to download essential model if needed
+
+        Returns:
+            bool: True if TTS is ready
+
+        Example:
+            >>> vm = VoiceManager()
+            >>> if vm.ensure_ready():
+            ...     vm.speak("Ready to go!")
+        """
+        if self.is_model_ready():
+            return True
+
+        if not auto_download:
+            return False
+
+        from .simple_model_manager import get_model_manager
+        manager = get_model_manager(self.debug_mode)
+        return manager.download_essential_model()
+
+    def get_cache_status(self) -> dict:
+        """Get model cache status.
+
+        Returns:
+            dict: Cache information including total models, sizes, etc.
+        """
+        from .simple_model_manager import get_model_manager
+        manager = get_model_manager(self.debug_mode)
+        return manager.get_status()
+
     def cleanup(self):
         """Clean up resources.
-        
+
         Returns:
             True if cleanup successful
         """
         if self.voice_recognizer:
             self.voice_recognizer.stop()
-        
+
         self.stop_speaking()
         return True 

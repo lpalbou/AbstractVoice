@@ -11,18 +11,20 @@ from abstractvoice.examples.cli_repl import VoiceREPL
 
 def print_examples():
     """Print available examples."""
-    print("Available examples:")
-    print("  cli       - Command-line REPL example")
-    print("  web       - Web API example")
-    print("  simple    - Simple usage example")
-    print("  check-deps - Check dependency compatibility")
-    print("\nUsage: abstractvoice <example> [--language <lang>] [args...]")
+    print("Available commands:")
+    print("  cli            - Command-line REPL example")
+    print("  web            - Web API example")
+    print("  simple         - Simple usage example")
+    print("  check-deps     - Check dependency compatibility")
+    print("  download-models - Download TTS models for offline use")
+    print("\nUsage: abstractvoice <command> [--language <lang>] [args...]")
     print("\nSupported languages: en, fr, es, de, it, ru, multilingual")
     print("\nExamples:")
-    print("  abstractvoice cli --language fr    # French CLI")
-    print("  abstractvoice simple --language ru # Russian simple example")
-    print("  abstractvoice check-deps           # Check dependencies")
-    print("  abstractvoice                      # Direct voice mode (default)")
+    print("  abstractvoice cli --language fr     # French CLI")
+    print("  abstractvoice simple --language ru  # Russian simple example")
+    print("  abstractvoice check-deps            # Check dependencies")
+    print("  abstractvoice download-models       # Download models for offline use")
+    print("  abstractvoice                       # Direct voice mode (default)")
 
 def simple_example():
     """Run a simple example demonstrating basic usage."""
@@ -95,10 +97,22 @@ def simple_example():
 
 def parse_args():
     """Parse command line arguments."""
+    import sys
+
+    # Check if it's a download-models command and handle separately
+    if len(sys.argv) > 1 and sys.argv[1] == "download-models":
+        # Return early with just the command to handle in main()
+        class DownloadModelsArgs:
+            command = "download-models"
+            # Add dummy attributes to prevent AttributeError
+            model = "granite3.3:2b"
+            debug = False
+        return DownloadModelsArgs()
+
     parser = argparse.ArgumentParser(description="AbstractVoice - Voice interactions with AI")
 
     # Examples and special commands
-    parser.add_argument("command", nargs="?", help="Command to run: cli, web, simple, check-deps (default: voice mode)")
+    parser.add_argument("command", nargs="?", help="Command to run: cli, web, simple, check-deps, download-models (default: voice mode)")
 
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
@@ -110,6 +124,8 @@ def parse_args():
                       help="Whisper model to use (tiny, base, small, medium, large)")
     parser.add_argument("--no-listening", action="store_true",
                       help="Disable speech-to-text (listening), TTS still works")
+    parser.add_argument("--no-tts", action="store_true",
+                      help="Disable text-to-speech (TTS), text-only mode")
     parser.add_argument("--system",
                       help="Custom system prompt")
     parser.add_argument("--temperature", type=float, default=0.4,
@@ -140,6 +156,17 @@ def main():
                 if args.debug:
                     import traceback
                     traceback.print_exc()
+            return
+        elif args.command == "download-models":
+            from abstractvoice.model_manager import download_models_cli
+            # Pass remaining arguments to download_models_cli
+            import sys
+            original_argv = sys.argv
+            sys.argv = ["download-models"] + sys.argv[2:]  # Remove script name and "download-models"
+            try:
+                download_models_cli()
+            finally:
+                sys.argv = original_argv
             return
         elif args.command == "cli":
             # Import and run CLI REPL example
@@ -188,7 +215,8 @@ def main():
             model=args.model,
             debug_mode=args.debug,
             language=args.language,
-            tts_model=args.tts_model
+            tts_model=args.tts_model,
+            disable_tts=args.no_tts
         )
         
         # Set custom system prompt if provided
@@ -224,22 +252,30 @@ def main():
         print("\nExiting AbstractVoice...")
     except Exception as e:
         error_msg = str(e).lower()
-        if "model file not found" in error_msg or "no such file" in error_msg:
-            print(f"❌ Model '{args.model}' not found")
-            print(f"   The model file is missing or not fully downloaded")
-            print(f"   Try: ollama pull {args.model}")
-            print(f"   Or check available models: ollama list")
-        elif "connection" in error_msg or "refused" in error_msg:
-            print(f"❌ Cannot connect to Ollama")
+
+        # Check if it's a TTS-related error (not Ollama model error)
+        if "model file not found in the output path" in error_msg:
+            print(f"❌ TTS model download failed")
+            print(f"   This is a TTS voice model issue, not your Ollama model")
+            print(f"   Your Ollama model '{args.model}' is fine")
+            print(f"   Try: rm -rf ~/.cache/tts && pip install --force-reinstall coqui-tts")
+            print(f"   Or check network connectivity for model downloads")
+        elif "ollama" in error_msg or "11434" in error_msg:
+            print(f"❌ Cannot connect to Ollama at {args.api}")
             print(f"   Make sure Ollama is running: ollama serve")
-            print(f"   API URL: {args.api}")
+            print(f"   Your model '{args.model}' exists but Ollama server isn't responding")
         elif "importerror" in error_msg or "no module" in error_msg:
             print(f"❌ Missing dependencies")
             print(f"   Try running: abstractvoice check-deps")
             print(f"   Or install dependencies: pip install abstractvoice[voice-full]")
+        elif "espeak" in error_msg or "phoneme" in error_msg:
+            print(f"❌ Voice synthesis setup issue")
+            print(f"   Install espeak-ng for better voice quality: brew install espeak-ng")
+            print(f"   Or this might be a TTS model download issue")
         else:
             print(f"❌ Application error: {e}")
             print(f"   Try running with --debug for more details")
+            print(f"   Note: Your Ollama model '{args.model}' appears to be available")
 
         if args.debug:
             import traceback

@@ -1,21 +1,58 @@
 # AbstractVoice: AI Integration Quick Reference
 
-**Version 0.3.0+** - Unified CLI and enhanced dependency management
+**Version 0.4.0+** - Automatic model management with instant TTS setup
 
-## ESSENTIAL SETUP
+## ESSENTIAL SETUP (v0.4.0+)
+
+### ⚡ Instant TTS
 ```python
 from abstractvoice import VoiceManager
 
-# Smart initialization (auto-selects best model for your system)
-vm = VoiceManager()                    # Automatic VITS → Tacotron2 fallback
+# Initialize - auto-downloads essential model (107MB) if needed
+vm = VoiceManager()
 
-# Language-specific setup
-vm = VoiceManager(language='fr')       # French with optimal defaults
-vm = VoiceManager(language='it')       # Italian with speed optimization (0.8x)
-vm = VoiceManager(language='de')       # German with premium quality
+# TTS works immediately!
+vm.speak("Hello! TTS works out of the box!")
+```
 
-# With debug information
-vm = VoiceManager(debug_mode=True)     # Shows model selection process
+### 🔧 Third-Party API (JSON)
+```python
+from abstractvoice import list_models, download_model, get_status, is_ready
+import json
+
+# Check if ready
+ready = is_ready()
+
+# Get models as JSON
+models = json.loads(list_models())
+french_models = json.loads(list_models('fr'))
+
+# Download specific model
+success = download_model('fr.css10_vits')  # Voice ID format
+success = download_model('tts_models/de/thorsten/vits')  # Full name
+
+# Get cache status
+status = json.loads(get_status())
+print(f"Ready: {status['ready_for_offline']}, Models: {status['total_cached']}")
+```
+
+### 📦 Model Management
+```python
+# Check if essential model is ready
+ready = vm.is_model_ready()
+
+# Ensure TTS is ready (downloads if needed)
+ready = vm.ensure_ready(auto_download=True)
+
+# List available models with metadata
+models = vm.list_available_models()
+models_fr = vm.list_available_models('fr')
+
+# Download specific model
+success = vm.download_model('de.thorsten_vits')
+
+# Get cache status
+status = vm.get_cache_status()
 ```
 
 ## CORE OPERATIONS
@@ -107,7 +144,14 @@ vm.set_voice_mode("ptt")   # Push-to-talk
 ```
 
 ```bash
-# CLI usage
+# Model management (v0.4.0+)
+abstractvoice download-models                    # Download essential model
+abstractvoice download-models --language fr     # Download French models
+abstractvoice download-models --status          # Check cache status
+abstractvoice download-models --all             # Download all models
+abstractvoice download-models --clear           # Clear cache
+
+# Voice interface
 abstractvoice                      # Voice mode (interactive AI chat)
 abstractvoice cli                  # CLI REPL example
 abstractvoice web                  # Web API example
@@ -115,6 +159,11 @@ abstractvoice simple               # Simple usage demo
 abstractvoice check-deps           # Check dependencies
 abstractvoice --language fr        # French voice mode
 abstractvoice --help               # See all options
+
+# CLI voice commands (in REPL)
+/setvoice                          # List all voices with download status
+/setvoice fr.css10_vits           # Download and set French voice
+/setvoice de.thorsten_vits        # Download and set German voice
 ```
 
 ## AI INTEGRATION PATTERNS

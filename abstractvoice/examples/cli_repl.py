@@ -38,7 +38,7 @@ class VoiceREPL(cmd.Cmd):
     use_rawinput = True
     
     def __init__(self, api_url="http://localhost:11434/api/chat",
-                 model="granite3.3:2b", debug_mode=False, language="en", tts_model=None):
+                 model="granite3.3:2b", debug_mode=False, language="en", tts_model=None, disable_tts=False):
         super().__init__()
 
         # Debug mode
@@ -54,11 +54,15 @@ class VoiceREPL(cmd.Cmd):
         self.current_language = language
 
         # Initialize voice manager with language support
-        self.voice_manager = VoiceManager(
-            language=language,
-            tts_model=tts_model,
-            debug_mode=debug_mode
-        )
+        if disable_tts:
+            self.voice_manager = None
+            print("🔇 TTS disabled - text-only mode")
+        else:
+            self.voice_manager = VoiceManager(
+                language=language,
+                tts_model=tts_model,
+                debug_mode=debug_mode
+            )
         
         # Settings
         self.use_tts = True
@@ -90,8 +94,11 @@ class VoiceREPL(cmd.Cmd):
     def _get_intro(self):
         """Generate intro message with help."""
         intro = f"\n{Colors.BOLD}Welcome to AbstractVoice CLI REPL{Colors.END}\n"
-        lang_name = self.voice_manager.get_language_name()
-        intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name}\n"
+        if self.voice_manager:
+            lang_name = self.voice_manager.get_language_name()
+            intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name}\n"
+        else:
+            intro += f"API: {self.api_url} | Model: {self.model} | Voice: Disabled\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
         intro += "  • Type messages to chat with the LLM\n"
         intro += "  • Use /voice <mode> to enable voice input\n"
@@ -232,7 +239,7 @@ class VoiceREPL(cmd.Cmd):
             print(f"{Colors.CYAN}{response_text}{Colors.END}")
             
             # Speak the response if voice manager is available
-            if self.voice_manager:
+            if self.voice_manager and self.use_tts:
                 self.voice_manager.speak(response_text)
                 
         except requests.exceptions.ConnectionError as e:
@@ -376,18 +383,47 @@ class VoiceREPL(cmd.Cmd):
           /setvoice <voice_id>         # Set voice (format: language.voice_id)
 
         Examples:
-          /setvoice                    # List all voices
+          /setvoice                    # List all voices with JSON-like info
           /setvoice fr.css10_vits      # Set French CSS10 VITS voice
           /setvoice it.mai_male_vits   # Set Italian male VITS voice
         """
         if not args:
-            # Show all available voices organized by language
+            # Show all available voices with metadata
             print(f"\n{Colors.CYAN}Available Voice Models:{Colors.END}")
-            self.voice_manager.list_voices()
 
-            print(f"\n{Colors.YELLOW}Usage:{Colors.END}")
-            print("  /setvoice <language>.<voice_id>")
-            print("  Example: /setvoice fr.css10_vits")
+            try:
+                models = self.voice_manager.list_available_models()
+
+                for language, voices in models.items():
+                    # Get language name
+                    lang_names = {
+                        'en': 'English', 'fr': 'French', 'es': 'Spanish',
+                        'de': 'German', 'it': 'Italian'
+                    }
+                    lang_name = lang_names.get(language, language.upper())
+
+                    print(f"\n🌍 {lang_name} ({language}):")
+
+                    for voice_id, voice_info in voices.items():
+                        cached_icon = "✅" if voice_info.get('cached', False) else "📥"
+                        quality_icon = "✨" if voice_info['quality'] == 'excellent' else "🔧"
+                        size_text = f"{voice_info['size_mb']}MB"
+
+                        print(f"  {cached_icon} {quality_icon} {language}.{voice_id}")
+                        print(f"      {voice_info['name']} ({size_text})")
+                        print(f"      {voice_info['description']}")
+                        if voice_info.get('requires_espeak', False):
+                            print(f"      ⚠️ Requires espeak-ng")
+
+                print(f"\n{Colors.YELLOW}Usage:{Colors.END}")
+                print("  /setvoice <language>.<voice_id>")
+                print("  Example: /setvoice fr.css10_vits")
+                print("\n📥 = Download needed  ✅ = Ready  ✨ = High quality  🔧 = Good quality")
+
+            except Exception as e:
+                print(f"❌ Error listing models: {e}")
+                # Fallback to old method
+                self.voice_manager.list_voices()
             return
 
         voice_spec = args.strip()
@@ -412,45 +448,46 @@ class VoiceREPL(cmd.Cmd):
         else:
             was_active = False
 
-        # Set the specific voice
+        # Download and set the specific voice using programmatic API
         try:
-            success = self.voice_manager.set_voice(language, voice_id)
+            print(f"🔄 Setting voice {voice_spec}...")
+
+            # Use the programmatic download API
+            success = self.voice_manager.download_model(voice_spec)
+
             if success:
-                # Update current language to match the voice
-                self.current_language = language
+                # Now set the language to match
+                success = self.voice_manager.set_language(language)
 
-                # Get voice info for confirmation
-                voice_info = self.voice_manager.VOICE_CATALOG.get(language, {}).get(voice_id, {})
-                lang_name = self.voice_manager.get_language_name(language)
+                if success:
+                    # Update current language
+                    self.current_language = language
 
-                print(f"✅ Voice changed successfully!")
-                print(f"   Language: {lang_name} ({language})")
-                print(f"   Voice: {voice_id}")
-                if voice_info:
-                    quality_icon = "✨" if voice_info.get('quality') == 'premium' else "🔧"
-                    gender_icon = {"male": "👨", "female": "👩", "multiple": "👥"}.get(voice_info.get('gender'), "🗣️")
-                    print(f"   Details: {quality_icon} {gender_icon} {voice_info.get('accent', 'Unknown accent')}")
+                    print(f"✅ Voice set to {voice_spec}")
 
-                # Test the new voice
-                test_messages = {
-                    'en': "Voice changed to English.",
-                    'fr': "Voix changée en français.",
-                    'es': "Voz cambiada al español.",
-                    'de': "Stimme auf Deutsch geändert.",
-                    'it': "Voce cambiata in italiano."
-                }
-                test_msg = test_messages.get(language, "Voice changed successfully.")
-                self.voice_manager.speak(test_msg)
+                    # Test the voice
+                    test_messages = {
+                        'en': 'Voice changed to English.',
+                        'fr': 'Voix changée en français.',
+                        'es': 'Voz cambiada al español.',
+                        'de': 'Stimme auf Deutsch geändert.',
+                        'it': 'Voce cambiata in italiano.'
+                    }
+                    test_msg = test_messages.get(language, f'Voice changed to {language}.')
+                    self.voice_manager.speak(test_msg)
 
-                # Restart voice mode if it was active
-                if was_active:
-                    self.do_voice(self.voice_mode)
+                    # Restart voice mode if it was active
+                    if was_active:
+                        self.do_voice(self.voice_mode)
+                else:
+                    print(f"❌ Failed to set language: {language}")
             else:
-                print(f"❌ Failed to set voice: {voice_spec}")
-                print(f"   Run '/setvoice' to see available voices")
+                print(f"❌ Failed to download voice: {voice_spec}")
+                print("   Check your internet connection or try a different voice")
 
         except Exception as e:
             print(f"❌ Error setting voice: {e}")
+            print(f"   Run '/setvoice' to see available voices")
             if self.debug_mode:
                 import traceback
                 traceback.print_exc()

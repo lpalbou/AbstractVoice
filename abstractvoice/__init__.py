@@ -29,5 +29,8 @@ warnings.filterwarnings(
 # Import the main class for public API
 from .voice_manager import VoiceManager
 
-__version__ = "0.3.1"
-__all__ = ['VoiceManager'] 
+# Import simple APIs for third-party applications
+from .simple_model_manager import list_models, download_model, get_status, is_ready
+
+__version__ = "0.4.1"
+__all__ = ['VoiceManager', 'list_models', 'download_model', 'get_status', 'is_ready'] 

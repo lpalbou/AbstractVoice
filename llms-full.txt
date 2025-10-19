@@ -4,7 +4,7 @@
 
 AbstractVoice is a production-ready Python library for offline voice interactions. This guide provides comprehensive technical documentation for developers and architects integrating voice capabilities into applications.
 
-**Version 0.3.0** introduces a unified CLI structure and enhanced dependency management for better user experience and stability.
+**Version 0.4.0** introduces automatic model management with offline-first TTS initialization for immediate functionality without complex setup.
 
 ## CORE FEATURES
 
@@ -113,6 +113,199 @@ abstractvoice check-deps
 # Python API
 from abstractvoice.dependency_check import check_dependencies
 check_dependencies()  # Comprehensive compatibility report
+```
+
+## MODEL MANAGEMENT (v0.4.0+)
+
+### **⚡ Instant TTS with Automatic Model Management**
+
+**Version 0.4.0 Game Changer**: TTS now works instantly after first setup with automatic essential model download.
+
+```python
+from abstractvoice import VoiceManager
+
+# Initialize - automatically downloads essential model (107MB) if needed
+vm = VoiceManager()
+
+# TTS works immediately!
+vm.speak("Hello! TTS works out of the box!")
+```
+
+**What Changed in v0.4.0**:
+- ✅ **Essential model auto-download**: Fast Pitch (107MB) downloads on first use
+- ✅ **Permanent caching**: Models cached offline forever after first download
+- ✅ **Instant subsequent usage**: ~200ms load time after caching
+- ✅ **No complex setup**: No manual model management needed
+
+### **Programmatic Model Management APIs**
+
+**For Third-Party Applications** - Complete JSON APIs:
+
+```python
+from abstractvoice import list_models, download_model, get_status, is_ready
+import json
+
+# Quick readiness check
+ready = is_ready()
+print(f"TTS ready: {ready}")
+
+# Get all models as JSON
+models_json = list_models()
+models = json.loads(models_json)
+print(f"Available languages: {list(models.keys())}")
+
+# Get specific language models
+french_models = json.loads(list_models('fr'))
+print(f"French voices: {list(french_models['fr'].keys())}")
+
+# Download specific model (voice ID format)
+success = download_model('fr.css10_vits')
+print(f"Downloaded French VITS: {success}")
+
+# Download with full model name
+success = download_model('tts_models/de/thorsten/vits')
+print(f"Downloaded German model: {success}")
+
+# Get cache status
+status = json.loads(get_status())
+print(f"Total cached: {status['total_cached']} models")
+print(f"Cache size: {status['total_size_mb']} MB")
+print(f"Ready for offline: {status['ready_for_offline']}")
+```
+
+**For Library Integration** - VoiceManager APIs:
+
+```python
+from abstractvoice import VoiceManager
+
+vm = VoiceManager()
+
+# Check if ready for immediate use
+ready = vm.is_model_ready()
+print(f"Essential model ready: {ready}")
+
+# Ensure TTS is ready (downloads if needed)
+ready = vm.ensure_ready(auto_download=True)
+print(f"System ready after ensure: {ready}")
+
+# List available models with metadata
+models = vm.list_available_models()
+for lang, voices in models.items():
+    print(f"{lang}: {len(voices)} voices")
+
+# Download specific model
+success = vm.download_model('de.thorsten_vits')
+print(f"Downloaded German voice: {success}")
+
+# Get cache status
+status = vm.get_cache_status()
+print(f"Cache info: {status['total_cached']} models, {status['total_size_mb']}MB")
+```
+
+### **CLI Model Management**
+
+**Essential Model Download** (recommended first step):
+```bash
+# Download essential English model for offline use
+abstractvoice download-models
+
+# Check current status
+abstractvoice download-models --status
+```
+
+**Language-Specific Downloads**:
+```bash
+# Download models for specific languages
+abstractvoice download-models --language fr    # French
+abstractvoice download-models --language de    # German
+abstractvoice download-models --language it    # Italian
+abstractvoice download-models --language es    # Spanish
+
+# Download specific model by name
+abstractvoice download-models --model tts_models/fr/css10/vits
+```
+
+**Advanced Options**:
+```bash
+# Download all available models (large!)
+abstractvoice download-models --all
+
+# Clear model cache
+abstractvoice download-models --clear
+
+# Debug mode
+abstractvoice download-models --debug
+```
+
+### **Voice Selection in CLI**
+
+```bash
+# Start CLI REPL
+abstractvoice cli
+
+# List all available voices with download status
+/setvoice
+
+# Download and set specific voice (uses programmatic APIs internally)
+/setvoice fr.css10_vits      # French CSS10 VITS
+/setvoice de.thorsten_vits   # German Thorsten
+/setvoice it.mai_male_vits   # Italian Male VITS
+```
+
+### **Model Information Reference**
+
+**Essential Model**:
+- `en.fast_pitch` (107MB) - Reliable English voice, no dependencies
+
+**Premium Models**:
+- `fr.css10_vits` (548MB) - High-quality French, requires espeak-ng
+- `de.thorsten_vits` (548MB) - High-quality German, requires espeak-ng
+- `it.mai_male_vits` (548MB) - High-quality Italian male, requires espeak-ng
+- `es.mai_tacotron2` (362MB) - Reliable Spanish, no dependencies
+
+**Cache Locations**:
+- macOS: `~/Library/Application Support/tts`
+- Linux: `~/.local/share/tts` or `~/.cache/tts`
+- Windows: `%APPDATA%\tts`
+
+### **Integration Patterns**
+
+**Simple Integration**:
+```python
+from abstractvoice import VoiceManager
+
+# One-liner: ensure models are ready and use TTS
+vm = VoiceManager()
+if vm.ensure_ready():
+    vm.speak("Ready to go!")
+```
+
+**Robust Integration**:
+```python
+def setup_voice_system():
+    vm = VoiceManager()
+
+    if vm.is_model_ready():
+        return vm
+
+    print("📥 Downloading essential model...")
+    if vm.ensure_ready():
+        return vm
+
+    print("❌ TTS setup failed")
+    return None
+
+vm = setup_voice_system()
+if vm:
+    vm.speak("System ready!")
+```
+
+**Enterprise Deployment**:
+```bash
+# In deployment script
+abstractvoice download-models --essential
+abstractvoice download-models --language fr
+abstractvoice download-models --status
 ```
 
 ## QUICK START EXAMPLES
