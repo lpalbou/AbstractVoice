@@ -31,7 +31,8 @@ class SimpleModelManager:
     """Simple, clean model manager for AbstractVoice."""
 
     # Essential model - guaranteed to work everywhere, reasonable size
-    ESSENTIAL_MODEL = "tts_models/en/ljspeech/fast_pitch"
+    # Changed from fast_pitch to tacotron2-DDC because fast_pitch downloads are failing
+    ESSENTIAL_MODEL = "tts_models/en/ljspeech/tacotron2-DDC"
 
     # Available models organized by language with metadata
     AVAILABLE_MODELS = {
@@ -43,7 +44,7 @@ class SimpleModelManager:
                 "size_mb": 107,
                 "description": "Lightweight, reliable English voice",
                 "requires_espeak": False,
-                "default": True
+                "default": False
             },
             "vits": {
                 "model": "tts_models/en/ljspeech/vits",
@@ -61,7 +62,7 @@ class SimpleModelManager:
                 "size_mb": 362,
                 "description": "Classic English voice, reliable",
                 "requires_espeak": False,
-                "default": False
+                "default": True
             }
         },
         "fr": {

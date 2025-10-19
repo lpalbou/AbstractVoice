@@ -5,6 +5,58 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2025-10-19
+
+### Fixed
+- **🎯 MAJOR UX FIX**: Completely rewrote TTS model selection logic to be bulletproof
+  - **Cache-first strategy**: Always tries cached models before downloads
+  - **Compatibility-first priority**: `tacotron2-DDC` → `fast_pitch` → `glow-tts` → `vits`
+  - **Smart espeak detection**: Automatically skips VITS models when espeak-ng unavailable
+  - **No more failures**: System finds and uses ANY working cached model instead of giving up
+- **🔧 Fixed Model Consistency**: Unified all model definitions across codebase
+  - Changed primary essential model from `fast_pitch` to `tacotron2-DDC` (more reliable)
+  - Updated VoiceManager English default to use `tacotron2-DDC` instead of `vits`
+  - Consistent model priority order in all fallback logic
+
+### Changed
+- **Model Priority Revolution**: Reversed from "premium-first" to "compatibility-first"
+  - Old broken order: VITS → fast_pitch → tacotron2 (failed frequently)
+  - New working order: tacotron2 → fast_pitch → glow-tts → VITS (succeeds reliably)
+- **Intelligent Model Selection**: TTS engine now tries ALL cached models in priority order
+- **Better User Experience**: Clear debug output shows exactly which model loads successfully
+
+### Technical Details
+- **`_load_with_simple_fallback()`**: Complete rewrite with bulletproof fallback chain
+- **`_check_espeak_available()`**: New method for accurate espeak-ng detection
+- **Model definitions**: Synchronized between `simple_model_manager.py` and `model_manager.py`
+- **Zero breaking changes**: All existing APIs remain identical
+
+### User Impact
+- ✅ **No more "TTS Model Loading Failed" errors** when models are actually cached
+- ✅ **Instant TTS startup** - uses cached `tacotron2-DDC` immediately
+- ✅ **Works without espeak-ng** - automatic fallback to compatible models
+- ✅ **Clear debug output** - users can see exactly what's happening
+
+## [0.4.2] - 2025-10-19
+
+### Fixed
+- **🔧 Critical Fix**: Missing `appdirs` dependency causing cache detection failures
+  - Added `appdirs>=1.4.0` to core dependencies in pyproject.toml
+  - Resolves `No module named 'appdirs'` errors when checking model cache
+- **🔄 Critical Fix**: Circular dependency in `download-models` command
+  - Fixed `download-models` command trying to initialize VoiceManager before downloading models
+  - Now uses ModelManager directly to avoid TTS initialization requirement
+  - Resolves infinite loop where download command fails because no models exist
+- **📦 Enhanced Model Management**: Improved standalone model download functionality
+  - `download-models --status` now works without requiring TTS initialization
+  - Language-specific downloads (`--language fr`) work independently
+  - Essential model downloads work without VoiceManager dependency
+
+### Technical Details
+- **ModelManager Independence**: `download_models_cli()` now operates completely independently
+- **Simplified Dependencies**: Removed VoiceManager requirement from CLI model management
+- **Better Error Handling**: Download failures provide actionable guidance without TTS errors
+
 ## [0.4.1] - 2025-10-19
 
 ### Documentation

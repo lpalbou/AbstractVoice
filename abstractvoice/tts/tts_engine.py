@@ -509,57 +509,94 @@ class TTSEngine:
         self.is_paused_state = False  # Explicit paused state tracking
 
     def _load_with_simple_fallback(self, TTS, preferred_model: str, debug_mode: bool) -> tuple[bool, str]:
-        """Load TTS model with simple, effective strategy."""
+        """Load TTS model with bulletproof compatibility-first strategy."""
         from ..simple_model_manager import get_model_manager
 
         model_manager = get_model_manager(debug_mode=debug_mode)
 
-        # Strategy 1: Try preferred model if cached
-        if model_manager.is_model_cached(preferred_model):
+        # Step 1: Check espeak availability for smart model filtering
+        espeak_available = self._check_espeak_available()
+        if debug_mode and not espeak_available:
+            print(" > espeak-ng not found, will skip VITS models")
+
+        # Step 2: Get all cached models and try them in compatibility order
+        cached_models = model_manager.get_cached_models()
+        if cached_models and debug_mode:
+            print(f" > Found {len(cached_models)} cached models")
+
+        # Compatibility-first order: universal models before premium models
+        model_priority_order = [
+            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable
+            "tts_models/en/ljspeech/fast_pitch",     # Lightweight
+            "tts_models/en/ljspeech/glow-tts",       # Alternative
+            "tts_models/en/ljspeech/vits",           # Premium (requires espeak)
+        ]
+
+        # Try cached models in priority order
+        for model in model_priority_order:
+            if model in cached_models:
+                # Skip VITS models if no espeak
+                if "vits" in model and not espeak_available:
+                    if debug_mode:
+                        print(f" > Skipping {model} (requires espeak-ng)")
+                    continue
+
+                try:
+                    if debug_mode:
+                        print(f" > Trying cached model: {model}")
+                    self.tts = TTS(model_name=model, progress_bar=self.debug_mode)
+                    if debug_mode:
+                        print(f" > ✅ Successfully loaded: {model}")
+                    return True, model
+                except Exception as e:
+                    if debug_mode:
+                        print(f" > ❌ Failed to load {model}: {e}")
+
+        # Step 3: If no cached models work, try downloading in compatibility order
+        if debug_mode:
+            print(" > No cached models worked, attempting downloads...")
+
+        for model in model_priority_order:
+            # Skip VITS models if no espeak
+            if "vits" in model and not espeak_available:
+                continue
+
             try:
                 if debug_mode:
-                    print(f" > Using cached model: {preferred_model}")
-                self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
-                return True, preferred_model
+                    print(f" > Downloading {model}...")
+
+                # First try to download
+                success = model_manager.download_model(model)
+                if success:
+                    # Then try to load
+                    self.tts = TTS(model_name=model, progress_bar=self.debug_mode)
+                    if debug_mode:
+                        print(f" > ✅ Downloaded and loaded: {model}")
+                    return True, model
+                elif debug_mode:
+                    print(f" > ❌ Download failed for {model}")
+
             except Exception as e:
                 if debug_mode:
-                    print(f" > Cached model failed: {e}")
-
-        # Strategy 2: Try essential model if cached
-        essential_model = model_manager.ESSENTIAL_MODEL
-        if essential_model != preferred_model and model_manager.is_model_cached(essential_model):
-            try:
-                if debug_mode:
-                    print(f" > Using cached essential model: {essential_model}")
-                self.tts = TTS(model_name=essential_model, progress_bar=self.debug_mode)
-                return True, essential_model
-            except Exception as e:
-                if debug_mode:
-                    print(f" > Essential model failed: {e}")
-
-        # Strategy 3: Download essential model (guaranteed to work)
-        try:
-            if debug_mode:
-                print(f" > Downloading essential model: {essential_model}")
-            success = model_manager.download_model(essential_model)
-            if success:
-                self.tts = TTS(model_name=essential_model, progress_bar=self.debug_mode)
-                return True, essential_model
-        except Exception as e:
-            if debug_mode:
-                print(f" > Essential model download failed: {e}")
-
-        # Strategy 4: Try downloading preferred model
-        try:
-            if debug_mode:
-                print(f" > Attempting preferred model download: {preferred_model}")
-            self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
-            return True, preferred_model
-        except Exception as e:
-            if debug_mode:
-                print(f" > Preferred model download failed: {e}")
+                    print(f" > ❌ Failed to load {model}: {e}")
 
         return False, None
+
+    def _check_espeak_available(self) -> bool:
+        """Check if espeak-ng is available on the system."""
+        import subprocess
+        try:
+            subprocess.run(['espeak-ng', '--version'],
+                         capture_output=True, check=True, timeout=5)
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+            # Try alternative espeak command
+            try:
+                subprocess.run(['espeak', '--version'],
+                             capture_output=True, check=True, timeout=5)
+                return True
+            except:
+                return False
 
     def _handle_espeak_fallback(self, debug_mode: bool):
         """Handle espeak-related errors with fallback to non-phoneme models."""
@@ -574,7 +611,7 @@ class TTSEngine:
         print("  • macOS:   brew install espeak-ng")
         print("  • Linux:   sudo apt-get install espeak-ng")
         print("  • Windows: conda install espeak-ng  (or see README)")
-        print("\nFalling back to fast_pitch (no espeak dependency)")
+        print("\nFalling back to compatible models (no espeak dependency)")
         print("="*70 + "\n")
 
         if not debug_mode:
@@ -582,12 +619,12 @@ class TTSEngine:
             null_out = open(os.devnull, 'w')
             sys.stdout = null_out
 
-        # Try non-phoneme models that don't require espeak
+        # Try non-phoneme models that don't require espeak (compatibility-first order)
         from TTS.api import TTS
         fallback_models = [
-            "tts_models/en/ljspeech/fast_pitch",
-            "tts_models/en/ljspeech/tacotron2-DDC",
-            "tts_models/en/ljspeech/glow-tts"
+            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable (now primary)
+            "tts_models/en/ljspeech/fast_pitch",     # Lightweight alternative
+            "tts_models/en/ljspeech/glow-tts"        # Another alternative
         ]
 
         tts_loaded = False
