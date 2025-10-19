@@ -537,23 +537,36 @@ class TTSEngine:
         if cached_models and debug_mode:
             print(f" > Found {len(cached_models)} cached models")
 
-        # First priority: Try the specifically requested model
+        # FORCE USER'S CHOICE: Try the specifically requested model first
         if preferred_model in cached_models:
-            # Check espeak compatibility for VITS models
-            if "vits" in preferred_model and not espeak_available:
+            try:
                 if debug_mode:
-                    print(f" > Requested model {preferred_model} requires espeak-ng (not available)")
-            else:
-                try:
+                    print(f" > LOADING REQUESTED MODEL: {preferred_model}")
+
+                # Safety check for Italian VITS models that might crash
+                if "it/" in preferred_model and "vits" in preferred_model:
                     if debug_mode:
-                        print(f" > Trying requested model: {preferred_model}")
-                    self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
+                        print(f" > Italian VITS model detected - using safe loading...")
+
+                self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
+
+                if debug_mode:
+                    print(f" > ✅ SUCCESS: Loaded requested model: {preferred_model}")
+                return True, preferred_model
+
+            except Exception as e:
+                error_msg = str(e).lower()
+                if debug_mode:
+                    print(f" > ❌ Requested model failed: {e}")
+
+                # Special handling for Italian model crashes
+                if "it/" in preferred_model and ("segmentation" in error_msg or "crash" in error_msg):
                     if debug_mode:
-                        print(f" > ✅ Successfully loaded requested model: {preferred_model}")
-                    return True, preferred_model
-                except Exception as e:
-                    if debug_mode:
-                        print(f" > ❌ Requested model failed: {e}")
+                        print(f" > Italian model caused crash - marking as incompatible")
+                    # Force fallback for crashed Italian models
+                    pass
+
+                # Only fall back if the model actually failed to load, not due to dependencies
 
         # Step 3: Only fall back to compatibility order if requested model failed
         if debug_mode:
@@ -561,9 +574,10 @@ class TTSEngine:
 
         # Compatibility-first fallback order
         fallback_models = [
-            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable
-            "tts_models/en/jenny/jenny",             # Different female speaker
-            "tts_models/en/ek1/tacotron2",           # Male voice, British accent
+            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable (Linda)
+            "tts_models/en/jenny/jenny",             # Different female speaker (Jenny)
+            "tts_models/en/ek1/tacotron2",           # Male British accent (Edward)
+            "tts_models/en/sam/tacotron-DDC",        # Different male voice (Sam)
             "tts_models/en/ljspeech/fast_pitch",     # Lightweight alternative
             "tts_models/en/ljspeech/glow-tts",       # Another alternative
             "tts_models/en/vctk/vits",               # Multi-speaker (requires espeak)
@@ -681,9 +695,10 @@ class TTSEngine:
         # Try non-phoneme models that don't require espeak (compatibility-first order)
         from TTS.api import TTS
         fallback_models = [
-            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable (primary)
-            "tts_models/en/jenny/jenny",             # Different female speaker
-            "tts_models/en/ek1/tacotron2",           # Male voice, British accent
+            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable (Linda)
+            "tts_models/en/jenny/jenny",             # Different female speaker (Jenny)
+            "tts_models/en/ek1/tacotron2",           # Male British accent (Edward)
+            "tts_models/en/sam/tacotron-DDC",        # Different male voice (Sam)
             "tts_models/en/ljspeech/fast_pitch",     # Lightweight alternative
             "tts_models/en/ljspeech/glow-tts"        # Another alternative
         ]

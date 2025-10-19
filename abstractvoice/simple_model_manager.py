@@ -39,55 +39,55 @@ class SimpleModelManager:
         "en": {
             "tacotron2": {
                 "model": "tts_models/en/ljspeech/tacotron2-DDC",
-                "name": "Tacotron2 (English)",
+                "name": "Linda (LJSpeech)",
                 "quality": "good",
                 "size_mb": 362,
-                "description": "Standard female voice, reliable",
+                "description": "Standard female voice (LJSpeech speaker)",
                 "requires_espeak": False,
                 "default": True
             },
             "jenny": {
                 "model": "tts_models/en/jenny/jenny",
-                "name": "Jenny (English)",
+                "name": "Jenny",
                 "quality": "excellent",
                 "size_mb": 368,
-                "description": "Clear female voice, different speaker than LJSpeech",
+                "description": "Different female voice, clear and natural",
                 "requires_espeak": False,
                 "default": False
             },
             "ek1": {
                 "model": "tts_models/en/ek1/tacotron2",
-                "name": "EK1 (English)",
+                "name": "Edward (EK1)",
                 "quality": "excellent",
                 "size_mb": 310,
                 "description": "Male voice with British accent",
                 "requires_espeak": False,
                 "default": False
             },
-            "vctk": {
-                "model": "tts_models/en/vctk/vits",
-                "name": "VCTK Multi-speaker (English)",
-                "quality": "excellent",
-                "size_mb": 450,
-                "description": "Multi-speaker dataset with various accents",
-                "requires_espeak": True,
+            "sam": {
+                "model": "tts_models/en/sam/tacotron-DDC",
+                "name": "Sam",
+                "quality": "good",
+                "size_mb": 370,
+                "description": "Different male voice, deeper tone",
+                "requires_espeak": False,
                 "default": False
             },
             "fast_pitch": {
                 "model": "tts_models/en/ljspeech/fast_pitch",
-                "name": "Fast Pitch (English)",
+                "name": "Linda Fast (LJSpeech)",
                 "quality": "good",
                 "size_mb": 107,
-                "description": "Lightweight, same speaker as tacotron2",
+                "description": "Same speaker as Linda but faster engine",
                 "requires_espeak": False,
                 "default": False
             },
             "vits": {
                 "model": "tts_models/en/ljspeech/vits",
-                "name": "VITS (English)",
+                "name": "Linda Premium (LJSpeech)",
                 "quality": "excellent",
                 "size_mb": 328,
-                "description": "High-quality, same speaker as tacotron2",
+                "description": "Same speaker as Linda but premium quality",
                 "requires_espeak": True,
                 "default": False
             }
@@ -212,7 +212,7 @@ class SimpleModelManager:
             return False
 
     def download_model(self, model_name: str, progress_callback: Optional[Callable[[str, bool], None]] = None) -> bool:
-        """Download a specific model.
+        """Download a specific model with improved error handling.
 
         Args:
             model_name: TTS model name (e.g., 'tts_models/en/ljspeech/fast_pitch')
@@ -231,25 +231,56 @@ class SimpleModelManager:
         try:
             TTS, _ = _import_tts()
 
-            if self.debug_mode:
-                print(f"📥 Downloading {model_name}...")
+            print(f"📥 Downloading {model_name}...")
+            print(f"   This may take a few minutes depending on your connection...")
 
             start_time = time.time()
 
             # Initialize TTS to trigger download
-            tts = TTS(model_name=model_name, progress_bar=True)
+            # Set gpu=False to avoid CUDA errors on systems without GPU
+            try:
+                tts = TTS(model_name=model_name, progress_bar=True, gpu=False)
+
+                # Verify the model actually downloaded
+                if not self.is_model_cached(model_name):
+                    print(f"⚠️ Model download completed but not found in cache")
+                    return False
+
+            except Exception as init_error:
+                # Try alternative download method
+                error_msg = str(init_error).lower()
+                if "connection" in error_msg or "timeout" in error_msg:
+                    print(f"❌ Network error: Check your internet connection")
+                elif "not found" in error_msg:
+                    print(f"❌ Model '{model_name}' not found in registry")
+                else:
+                    print(f"❌ Download error: {init_error}")
+                raise
 
             download_time = time.time() - start_time
-            if self.debug_mode:
-                print(f"✅ Downloaded {model_name} in {download_time:.1f}s")
+            print(f"✅ Downloaded {model_name} in {download_time:.1f}s")
 
             if progress_callback:
                 progress_callback(model_name, True)
             return True
 
         except Exception as e:
-            if self.debug_mode:
-                print(f"❌ Failed to download {model_name}: {e}")
+            error_msg = str(e).lower()
+
+            # Provide helpful error messages
+            if "connection" in error_msg or "timeout" in error_msg:
+                print(f"❌ Failed to download {model_name}: Network issue")
+                print(f"   Check your internet connection and try again")
+            elif "permission" in error_msg:
+                print(f"❌ Failed to download {model_name}: Permission denied")
+                print(f"   Check write permissions for cache directory")
+            elif "space" in error_msg:
+                print(f"❌ Failed to download {model_name}: Insufficient disk space")
+            else:
+                print(f"❌ Failed to download {model_name}")
+                if self.debug_mode:
+                    print(f"   Error: {e}")
+
             if progress_callback:
                 progress_callback(model_name, False)
             return False
@@ -424,3 +455,85 @@ def is_ready() -> bool:
     """Check if essential model is ready for immediate use."""
     manager = get_model_manager()
     return manager.is_model_cached(manager.ESSENTIAL_MODEL)
+
+
+def download_models_cli():
+    """Simple CLI entry point for downloading models."""
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="Download TTS models for offline use")
+    parser.add_argument("--essential", action="store_true",
+                       help="Download essential model (default)")
+    parser.add_argument("--all", action="store_true",
+                       help="Download all available models")
+    parser.add_argument("--model", type=str,
+                       help="Download specific model by name")
+    parser.add_argument("--language", type=str,
+                       help="Download models for specific language (en, fr, es, de, it)")
+    parser.add_argument("--status", action="store_true",
+                       help="Show current cache status")
+    parser.add_argument("--clear", action="store_true",
+                       help="Clear model cache")
+
+    args = parser.parse_args()
+
+    manager = get_model_manager(debug_mode=True)
+
+    if args.status:
+        print(get_status())
+        return
+
+    if args.clear:
+        # Ask for confirmation
+        response = input("⚠️ This will delete all downloaded TTS models. Continue? (y/N): ")
+        if response.lower() == 'y':
+            success = manager.clear_cache(confirm=True)
+            if success:
+                print("✅ Model cache cleared")
+            else:
+                print("❌ Failed to clear cache")
+        else:
+            print("Cancelled")
+        return
+
+    if args.model:
+        success = download_model(args.model)
+        if success:
+            print(f"✅ Downloaded {args.model}")
+        else:
+            print(f"❌ Failed to download {args.model}")
+        sys.exit(0 if success else 1)
+
+    if args.language:
+        # Language-specific downloads using our simple API
+        lang_models = {
+            'en': ['en.tacotron2', 'en.jenny', 'en.ek1'],
+            'fr': ['fr.css10_vits', 'fr.mai_tacotron2'],
+            'es': ['es.mai_tacotron2'],
+            'de': ['de.thorsten_vits'],
+            'it': ['it.mai_male_vits', 'it.mai_female_vits']
+        }
+
+        if args.language not in lang_models:
+            print(f"❌ Language '{args.language}' not supported")
+            print(f"   Available: {list(lang_models.keys())}")
+            sys.exit(1)
+
+        success = False
+        for model_id in lang_models[args.language]:
+            if download_model(model_id):
+                print(f"✅ Downloaded {model_id}")
+                success = True
+                break
+
+        sys.exit(0 if success else 1)
+
+    # Default: download essential model
+    print("📦 Downloading essential TTS model...")
+    success = download_model(manager.ESSENTIAL_MODEL)
+    if success:
+        print("✅ Essential model ready!")
+    else:
+        print("❌ Failed to download essential model")
+    sys.exit(0 if success else 1)

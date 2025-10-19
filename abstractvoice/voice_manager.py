@@ -94,13 +94,13 @@ class VoiceManager:
                 'license': 'Open source (EK1)',
                 'requires': 'none'
             },
-            'vctk': {
-                'model': 'tts_models/en/vctk/vits',
-                'quality': 'premium',
-                'gender': 'multiple',
-                'accent': 'British English',
-                'license': 'Open source (VCTK)',
-                'requires': 'espeak-ng'
+            'sam': {
+                'model': 'tts_models/en/sam/tacotron-DDC',
+                'quality': 'good',
+                'gender': 'male',
+                'accent': 'US English',
+                'license': 'Open source (Sam)',
+                'requires': 'none'
             },
             'fast_pitch': {
                 'model': 'tts_models/en/ljspeech/fast_pitch',
@@ -214,6 +214,20 @@ class VoiceManager:
             if debug_mode:
                 lang_name = self.LANGUAGES[self.language]['name']
                 print(f"🌍 Using {lang_name} voice: {tts_model}")
+
+        # Initialize TTS engine with instant setup for new users
+        from .instant_setup import ensure_instant_tts, get_instant_model, is_model_cached
+
+        # If using default VITS model but it's not cached, use instant setup
+        if tts_model == "tts_models/en/ljspeech/vits" and not is_model_cached(tts_model):
+            if debug_mode:
+                print("🚀 First-time setup: ensuring instant TTS availability...")
+
+            # Try instant setup with lightweight model
+            if ensure_instant_tts():
+                tts_model = get_instant_model()  # Use fast_pitch instead
+                if debug_mode:
+                    print(f"✅ Using essential model: {tts_model}")
 
         # Initialize TTS engine using lazy import
         TTSEngine = _import_tts_engine()
@@ -434,18 +448,41 @@ class VoiceManager:
         # Stop any current speech
         self.stop_speaking()
 
-        # Properly cleanup old TTS engine to prevent memory conflicts
+        # CRITICAL: Crash-safe cleanup of old TTS engine
         if hasattr(self, 'tts_engine') and self.tts_engine:
             try:
-                # Cleanup audio player if it exists
+                # Stop all audio and cleanup player
                 if hasattr(self.tts_engine, 'audio_player') and self.tts_engine.audio_player:
+                    # Try stop method if available
+                    if hasattr(self.tts_engine.audio_player, 'stop'):
+                        self.tts_engine.audio_player.stop()
                     self.tts_engine.audio_player.cleanup()
-                # Clear the TTS object
-                del self.tts_engine.tts
+
+                # Force cleanup of TTS object and release GPU memory
+                if hasattr(self.tts_engine, 'tts') and self.tts_engine.tts:
+                    # Clear CUDA cache if using GPU
+                    try:
+                        import torch
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                    except:
+                        pass
+
+                    del self.tts_engine.tts
+
+                # Clear the engine itself
                 del self.tts_engine
+                self.tts_engine = None
+
+                # Force garbage collection to prevent memory leaks
+                import gc
+                gc.collect()
+
             except Exception as e:
                 if self.debug_mode:
                     print(f"Warning: TTS cleanup issue: {e}")
+                # Force clear even if cleanup failed
+                self.tts_engine = None
 
         # Reinitialize TTS engine with new model using lazy import
         TTSEngine = _import_tts_engine()
@@ -511,13 +548,37 @@ class VoiceManager:
 
         # Select best model for this language
         selected_model = self._select_best_model(language)
-        models_to_try = [selected_model, self.SAFE_FALLBACK]
+
+        # CRITICAL FIX: Check if model is available, download if not
+        from .instant_setup import is_model_cached
+        from .simple_model_manager import download_model
+
+        if not is_model_cached(selected_model):
+            if self.debug_mode:
+                print(f"📥 Model {selected_model} not cached, downloading...")
+
+            # Try to download the model
+            success = download_model(selected_model)
+            if not success:
+                if self.debug_mode:
+                    print(f"❌ Failed to download {selected_model}")
+                # If download fails and it's not English, we have a problem
+                if language != 'en':
+                    print(f"❌ Cannot switch to {self.LANGUAGES[language]['name']}: Model download failed")
+                    print(f"   Try: abstractvoice download-models --language {language}")
+                    return False
+
+        models_to_try = [selected_model]
+
+        # Only add fallback if it's different from selected
+        if selected_model != self.SAFE_FALLBACK:
+            models_to_try.append(self.SAFE_FALLBACK)
 
         for model_name in models_to_try:
             try:
                 if self.debug_mode:
                     lang_name = self.LANGUAGES[language]['name']
-                    print(f"🌍 Switching to {lang_name} voice: {model_name}")
+                    print(f"🌍 Loading {lang_name} voice: {model_name}")
 
                 # Reinitialize TTS engine
                 TTSEngine = _import_tts_engine()
@@ -542,12 +603,16 @@ class VoiceManager:
 
             except Exception as e:
                 if self.debug_mode:
-                    print(f"⚠️ Model {model_name} failed: {e}")
+                    print(f"⚠️ Model {model_name} failed to load: {e}")
+                # Don't silently continue - report the failure
+                if model_name == selected_model and language != 'en':
+                    print(f"❌ Failed to load {lang_name} voice model")
+                    print(f"   The model might be corrupted. Try:")
+                    print(f"   abstractvoice download-models --language {language}")
                 continue
 
         # All models failed
-        if self.debug_mode:
-            print(f"❌ All models failed for language '{language}'")
+        print(f"❌ Cannot switch to {self.LANGUAGES[language]['name']}: No working models")
         return False
 
     def get_language(self):
@@ -819,15 +884,29 @@ class VoiceManager:
             return False
 
         voice_info = self.VOICE_CATALOG[language][voice_id]
+        model_name = voice_info['model']
 
-        # Check compatibility
-        if voice_info['requires'] == 'espeak-ng' and not self._test_model_compatibility(voice_info['model']):
+        # CRITICAL FIX: Download model if not cached
+        from .instant_setup import is_model_cached
+        from .simple_model_manager import download_model
+
+        if not is_model_cached(model_name):
+            print(f"📥 Voice model '{voice_id}' not cached, downloading...")
+            success = download_model(model_name)
+            if not success:
+                print(f"❌ Failed to download voice '{voice_id}'")
+                print(f"   Check your internet connection and try again")
+                return False
+            print(f"✅ Voice model '{voice_id}' downloaded successfully")
+
+        # Check compatibility after download
+        if voice_info['requires'] == 'espeak-ng' and not self._test_model_compatibility(model_name):
             if self.debug_mode:
                 print(f"⚠️ Voice '{voice_id}' requires espeak-ng. Install it for premium quality.")
-            return False
+            # Don't fail - try to load anyway
+            # return False
 
         # Set the specific voice
-        model_name = voice_info['model']
         if self.debug_mode:
             print(f"🎭 Setting {language} voice to: {voice_id}")
             print(f"   Model: {model_name}")

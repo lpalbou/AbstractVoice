@@ -158,7 +158,7 @@ def main():
                     traceback.print_exc()
             return
         elif args.command == "download-models":
-            from abstractvoice.model_manager import download_models_cli
+            from abstractvoice.simple_model_manager import download_models_cli
             # Pass remaining arguments to download_models_cli
             import sys
             original_argv = sys.argv

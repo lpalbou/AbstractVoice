@@ -82,37 +82,50 @@ AbstractVoice automatically detects espeak-ng and upgrades to premium quality vo
 
 ## Quick Start
 
-### ⚡ Instant TTS (v0.4.0+)
+### ⚡ Instant TTS (v0.5.0+)
 
 ```python
 from abstractvoice import VoiceManager
 
-# Initialize voice manager - automatically downloads essential model if needed
+# Initialize voice manager - works immediately with included dependencies
 vm = VoiceManager()
 
-# Text-to-speech works immediately!
+# Text-to-speech works right away!
 vm.speak("Hello! TTS works out of the box!")
+
+# Language switching with automatic model download
+vm.set_language('fr')
+vm.speak("Bonjour! Le français fonctionne aussi!")
 ```
 
-**That's it!** AbstractVoice v0.4.0+ automatically:
-- ✅ Downloads essential English model (107MB) on first use
-- ✅ Caches models permanently for offline use
-- ✅ Works immediately after first setup
+**That's it!** AbstractVoice v0.5.0+ automatically:
+- ✅ Includes essential TTS dependencies in base installation
+- ✅ Downloads models automatically when switching languages/voices
+- ✅ Works immediately after `pip install abstractvoice`
+- ✅ No silent failures - clear error messages if download fails
 - ✅ No complex configuration needed
 
-### 🌍 Multi-Language Support
+### 🌍 Multi-Language Support (Auto-Download in v0.5.0+)
 
 ```python
-# Download and use French voice
-vm.download_model('fr.css10_vits')  # Downloads automatically
+# Simply switch language - downloads model automatically if needed!
 vm.set_language('fr')
 vm.speak("Bonjour! Je parle français maintenant.")
 
-# Download and use German voice
-vm.download_model('de.thorsten_vits')
+# Switch to German - no manual download needed
 vm.set_language('de')
 vm.speak("Hallo! Ich spreche jetzt Deutsch.")
+
+# Spanish, Italian also supported
+vm.set_language('es')
+vm.speak("¡Hola! Hablo español ahora.")
+
+# If download fails, you'll get clear error messages with instructions
+# Example: "❌ Cannot switch to French: Model download failed"
+#          "   Try: abstractvoice download-models --language fr"
 ```
+
+**New in v0.5.0:** No more manual `download_model()` calls! Language switching handles downloads automatically.
 
 ### 🔧 Check System Status
 
@@ -1281,20 +1294,22 @@ abstractvoice check-deps
 
 ### CLI Voice Commands
 
-In the CLI REPL, use these commands:
+In the CLI REPL, use these commands (v0.5.0+):
 
 ```bash
 # List all available voices with download status
 /setvoice
 
-# Download and set specific voice
-/setvoice fr.css10_vits      # French CSS10 VITS
-/setvoice de.thorsten_vits   # German Thorsten
-/setvoice it.mai_male_vits   # Italian Male
+# Automatically download and set specific voice (NEW in v0.5.0!)
+/setvoice fr.css10_vits      # Downloads French CSS10 if needed
+/setvoice de.thorsten_vits   # Downloads German Thorsten if needed
+/setvoice it.mai_male_vits   # Downloads Italian Male if needed
+/setvoice en.jenny           # Downloads Jenny voice if needed
 
-# Change language
-/language fr
-/language de
+# Change language (automatically downloads models if needed - NEW!)
+/language fr                 # Switches to French, downloads if needed
+/language de                 # Switches to German, downloads if needed
+/language es                 # Switches to Spanish, downloads if needed
 
 # Voice controls
 /pause                       # Pause current speech
@@ -1304,6 +1319,8 @@ In the CLI REPL, use these commands:
 # Exit
 /exit
 ```
+
+**New in v0.5.0:** Language and voice commands now automatically download missing models with progress indicators. No more silent failures!
 
 ## Perspectives
 
