@@ -1,5 +1,7 @@
 # AbstractVoice: AI Integration Quick Reference
 
+**Version 0.3.0+** - Unified CLI and enhanced dependency management
+
 ## ESSENTIAL SETUP
 ```python
 from abstractvoice import VoiceManager
@@ -107,7 +109,10 @@ vm.set_voice_mode("ptt")   # Push-to-talk
 ```bash
 # CLI usage
 abstractvoice                      # Voice mode (interactive AI chat)
-abstractvoice-cli cli              # CLI REPL example
+abstractvoice cli                  # CLI REPL example
+abstractvoice web                  # Web API example
+abstractvoice simple               # Simple usage demo
+abstractvoice check-deps           # Check dependencies
 abstractvoice --language fr        # French voice mode
 abstractvoice --help               # See all options
 ```
@@ -232,15 +237,21 @@ vm.cleanup()
 ✅ **Voice Modes**: full/wait/stop/ptt for different interaction styles
 ✅ **Privacy-First**: Zero data transmission, all processing local
 
-## INSTALLATION
+## INSTALLATION (v0.3.0+)
 ```bash
 # Recommended: All features
 pip install abstractvoice[all]
 
-# Language-specific
-pip install abstractvoice[fr]      # French
-pip install abstractvoice[de]      # German
-pip install abstractvoice[it]      # Italian
+# Check installation
+abstractvoice check-deps
+
+# Test functionality
+abstractvoice simple
+
+# Targeted installations
+pip install abstractvoice[voice-full]  # Complete voice features
+pip install abstractvoice[core-tts]    # TTS only
+pip install abstractvoice[core-stt]    # STT only
 
 # For premium voice quality (optional)
 # macOS: brew install espeak-ng
@@ -248,11 +259,18 @@ pip install abstractvoice[it]      # Italian
 # Windows: Download espeak-ng-X64.msi
 ```
 
-## TROUBLESHOOTING
-- **Import errors**: Install missing dependencies with `pip install abstractvoice[all]`
+## TROUBLESHOOTING (v0.3.0+)
+- **Installation issues**: Run `abstractvoice check-deps` for diagnostic report
+- **PyTorch conflicts**: Run `pip uninstall torch torchvision torchaudio; pip install abstractvoice[all]`
+- **Import errors**: Install missing dependencies with `pip install abstractvoice[voice-full]`
 - **Audio issues**: Check `sounddevice.query_devices()` for available devices
 - **espeak-ng missing**: VITS models automatically fallback to Tacotron2
 - **Voice quality**: Use `vm.list_voices()` to see all available options
 - **Debug mode**: Use `VoiceManager(debug_mode=True)` to see model selection
 
-**Quick test**: `python -c "from abstractvoice import VoiceManager; VoiceManager().speak('Test')"`
+**Quick tests**:
+```bash
+abstractvoice check-deps              # Comprehensive dependency check
+abstractvoice simple                  # Test full functionality
+python -c "from abstractvoice import VoiceManager; VoiceManager().speak('Test')"
+```

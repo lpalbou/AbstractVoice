@@ -28,7 +28,7 @@ AbstractVoice is a modular Python library for voice interactions with AI systems
    - **pyproject.toml**:
      - Package name: `voicellm` → `abstractvoice`
      - Repository URL: Updated to `lpalbou/abstractvoice`
-     - CLI scripts: `voicellm` → `abstractvoice`, `voicellm-cli` → `abstractvoice-cli`
+     - CLI scripts: `voicellm` → `abstractvoice` (unified command)
    - **llms.txt** - Quick reference for AI assistants
    - **llms-full.txt** - Complete integration guide
 
@@ -61,13 +61,13 @@ AbstractVoice is a modular Python library for voice interactions with AI systems
 abstractvoice
 
 # CLI REPL
-abstractvoice-cli cli
+abstractvoice cli
 
 # Web API
-abstractvoice-cli web
+abstractvoice web
 
 # Simple example
-python -m abstractvoice simple
+abstractvoice simple
 ```
 
 **Verification Commands**:
@@ -116,6 +116,61 @@ print(abstractvoice.__version__)  # Output: 0.2.0
 
 ---
 
+### Task: CLI Unification and v0.3.0 Release (2025-10-19)
+
+**Description**: Simplified CLI structure by removing the redundant `abstractvoice-cli` command and unifying all functionality under a single `abstractvoice` command. This major improvement eliminates user confusion and provides a cleaner, more intuitive interface.
+
+**Implementation**:
+
+1. **CLI Unification**:
+   - Removed `abstractvoice-cli` entry point from pyproject.toml
+   - Enhanced `voice_cli.py` to handle all examples and utilities
+   - Single command interface: `abstractvoice [command] [options]`
+
+2. **Enhanced Dependency Management**:
+   - Fixed PyTorch/TorchVision conflicts with explicit version ranges
+   - Added comprehensive dependency checker with conflict detection
+   - Restructured optional dependencies into meaningful groups
+   - Enhanced error messages for installation issues
+
+3. **Complete Documentation Update**:
+   - Updated all documentation files to use unified CLI
+   - Enhanced installation guides with troubleshooting
+   - Updated llms.txt and llms-full.txt for AI integration
+   - Created migration guide for users
+
+4. **Version Management**:
+   - Incremented to v0.3.0 (major version for breaking change)
+   - Comprehensive changelog entry
+   - Created upgrade documentation
+
+**Results**:
+- ✅ **Single Entry Point**: `abstractvoice` command handles all functionality
+- ✅ **Simplified UX**: Eliminated confusion between dual commands
+- ✅ **Enhanced Stability**: Fixed dependency conflicts with version constraints
+- ✅ **Better Error Messages**: Context-aware guidance for installation issues
+- ✅ **Complete Documentation**: All files updated with unified CLI
+- ✅ **Migration Support**: Comprehensive upgrade guide for users
+
+**CLI Commands (v0.3.0)**:
+```bash
+abstractvoice                 # Voice mode (default)
+abstractvoice cli             # CLI REPL
+abstractvoice web             # Web API
+abstractvoice simple          # Simple demo
+abstractvoice check-deps      # Dependency check
+abstractvoice help            # Show commands
+abstractvoice --help          # Full help
+```
+
+**Breaking Changes**: `abstractvoice-cli` command removed. All functionality moved to unified `abstractvoice` command.
+
+**Issues/Concerns**: None. This is a significant UX improvement that maintains all functionality while simplifying the interface.
+
+**Verification**: All CLI functionality tested and working. Documentation updated across all files.
+
+---
+
 ## Project Structure
 
 ```
@@ -155,7 +210,7 @@ abstractvoice/
 - **Key Dependencies**: numpy, sounddevice, webrtcvad, openai-whisper, coqui-tts, torch, librosa, flask
 - **Architecture**: Modular design with separate TTS, STT, and VAD components
 - **Main Class**: `VoiceManager` - Coordinates TTS and STT functionality
-- **CLI**: Two entry points - `abstractvoice` (voice mode) and `abstractvoice-cli` (examples)
+- **CLI**: Unified `abstractvoice` command for all functionality (voice mode, examples, utilities)
 
 ## Important Notes
 

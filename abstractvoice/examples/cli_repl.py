@@ -235,8 +235,32 @@ class VoiceREPL(cmd.Cmd):
             if self.voice_manager:
                 self.voice_manager.speak(response_text)
                 
+        except requests.exceptions.ConnectionError as e:
+            print(f"❌ Cannot connect to Ollama API at {self.api_url}")
+            print(f"   Please check that Ollama is running and accessible")
+            print(f"   Try: ollama serve")
+            if self.debug_mode:
+                print(f"   Connection error: {e}")
+        except requests.exceptions.HTTPError as e:
+            if "404" in str(e):
+                print(f"❌ Model '{self.model}' not found on Ollama server")
+                print(f"   Available models: Try 'ollama list' to see installed models")
+                print(f"   To install a model: ollama pull {self.model}")
+            else:
+                print(f"❌ HTTP error from Ollama API: {e}")
+            if self.debug_mode:
+                print(f"   Full error: {e}")
         except Exception as e:
-            print(f"Error: {e}")
+            error_msg = str(e).lower()
+            if "model file not found" in error_msg or "no such file" in error_msg:
+                print(f"❌ Model '{self.model}' not found or not fully downloaded")
+                print(f"   Try: ollama pull {self.model}")
+                print(f"   Or use an existing model: ollama list")
+            elif "connection" in error_msg or "refused" in error_msg:
+                print(f"❌ Cannot connect to Ollama at {self.api_url}")
+                print(f"   Make sure Ollama is running: ollama serve")
+            else:
+                print(f"❌ Error: {e}")
             if self.debug_mode:
                 import traceback
                 traceback.print_exc()

@@ -7,7 +7,10 @@
 pip install abstractvoice[all]
 
 # Check if everything is working
-python -m abstractvoice check-deps
+abstractvoice check-deps
+
+# Test basic functionality
+abstractvoice simple
 ```
 
 ## Installation Options
@@ -168,7 +171,7 @@ pip install abstractvoice[voice-full]
 ### Check Dependencies
 ```bash
 # Run comprehensive dependency check
-python -m abstractvoice check-deps
+abstractvoice check-deps
 ```
 
 This will show:
@@ -236,12 +239,12 @@ python -c "from abstractvoice import VoiceManager; print('✅ AbstractVoice impo
 
 ### 2. Full Functionality Test
 ```bash
-python -m abstractvoice simple
+abstractvoice simple
 ```
 
 ### 3. Check Dependencies
 ```bash
-python -m abstractvoice check-deps
+abstractvoice check-deps
 ```
 
 ### 4. Test TTS Only
@@ -280,7 +283,7 @@ AbstractVoice automatically selects the best model for your system:
 
 ## Getting Help
 
-1. **Check dependencies**: `python -m abstractvoice check-deps`
+1. **Check dependencies**: `abstractvoice check-deps`
 2. **Read error messages**: AbstractVoice provides specific installation instructions for each error
 3. **GitHub Issues**: [Report problems](https://github.com/lpalbou/abstractvoice/issues)
 4. **Documentation**: Check the [README](README.md) for usage examples

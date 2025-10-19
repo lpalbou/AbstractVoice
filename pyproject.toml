@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abstractvoice"
-version = "0.2.1"
+version = "0.3.0"
 description = "A modular Python library for voice interactions with AI systems"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -123,5 +123,4 @@ Repository = "https://github.com/lpalbou/abstractvoice"
 Documentation = "https://github.com/lpalbou/abstractvoice#readme"
 
 [project.scripts]
-abstractvoice = "abstractvoice.examples.voice_cli:main"
-abstractvoice-cli = "abstractvoice.__main__:main" 
+abstractvoice = "abstractvoice.examples.voice_cli:main" 

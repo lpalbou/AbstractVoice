@@ -9,9 +9,98 @@ import argparse
 import time
 from abstractvoice.examples.cli_repl import VoiceREPL
 
+def print_examples():
+    """Print available examples."""
+    print("Available examples:")
+    print("  cli       - Command-line REPL example")
+    print("  web       - Web API example")
+    print("  simple    - Simple usage example")
+    print("  check-deps - Check dependency compatibility")
+    print("\nUsage: abstractvoice <example> [--language <lang>] [args...]")
+    print("\nSupported languages: en, fr, es, de, it, ru, multilingual")
+    print("\nExamples:")
+    print("  abstractvoice cli --language fr    # French CLI")
+    print("  abstractvoice simple --language ru # Russian simple example")
+    print("  abstractvoice check-deps           # Check dependencies")
+    print("  abstractvoice                      # Direct voice mode (default)")
+
+def simple_example():
+    """Run a simple example demonstrating basic usage."""
+    from abstractvoice import VoiceManager
+    import time
+
+    print("Simple AbstractVoice Example")
+    print("============================")
+    print("This example demonstrates basic TTS and STT functionality.")
+    print("(Use --language argument to test different languages)")
+    print()
+
+    # Initialize voice manager (can be overridden with --language)
+    manager = VoiceManager(debug_mode=True)
+
+    try:
+        # TTS example
+        print("Speaking a welcome message...")
+        manager.speak("Hello! I'm a voice assistant powered by AbstractVoice. "
+                     "I can speak and listen to you.")
+
+        # Wait for speech to complete
+        while manager.is_speaking():
+            time.sleep(0.1)
+
+        print("\nNow I'll listen for 10 seconds. Say something!")
+
+        # Store transcribed text
+        transcribed_text = None
+
+        # Callback for speech recognition
+        def on_transcription(text):
+            nonlocal transcribed_text
+            print(f"\nTranscribed: {text}")
+            transcribed_text = text
+
+            # If user says stop, stop listening
+            if text.lower() == "stop":
+                return
+
+            # Otherwise respond
+            print("Responding...")
+            manager.speak(f"You said: {text}")
+
+        # Start listening
+        manager.listen(on_transcription)
+
+        # Listen for 10 seconds or until "stop" is said
+        start_time = time.time()
+        while time.time() - start_time < 10 and manager.is_listening():
+            time.sleep(0.1)
+
+        # Stop listening if still active
+        if manager.is_listening():
+            manager.stop_listening()
+            print("\nDone listening.")
+
+        # If something was transcribed, repeat it back
+        if transcribed_text and transcribed_text.lower() != "stop":
+            print("\nSaying goodbye...")
+            manager.speak("Thanks for trying AbstractVoice! Goodbye!")
+            while manager.is_speaking():
+                time.sleep(0.1)
+
+        print("\nExample complete!")
+
+    finally:
+        # Clean up
+        manager.cleanup()
+
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="AbstractVoice Voice Mode")
+    parser = argparse.ArgumentParser(description="AbstractVoice - Voice interactions with AI")
+
+    # Examples and special commands
+    parser.add_argument("command", nargs="?", help="Command to run: cli, web, simple, check-deps (default: voice mode)")
+
+    # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--api", default="http://localhost:11434/api/chat",
                       help="LLM API URL")
@@ -35,11 +124,55 @@ def parse_args():
     return parser.parse_args()
 
 def main():
-    """Entry point for direct voice mode."""
+    """Entry point for AbstractVoice CLI."""
     try:
         # Parse command line arguments
         args = parse_args()
-        
+
+        # Handle special commands and examples
+        if args.command == "check-deps":
+            from abstractvoice.dependency_check import check_dependencies
+            try:
+                check_dependencies(verbose=True)
+            except Exception as e:
+                print(f"❌ Error running dependency check: {e}")
+                print("This might indicate a dependency issue.")
+                if args.debug:
+                    import traceback
+                    traceback.print_exc()
+            return
+        elif args.command == "cli":
+            # Import and run CLI REPL example
+            repl = VoiceREPL(
+                api_url=args.api,
+                model=args.model,
+                debug_mode=args.debug,
+                language=args.language,
+                tts_model=args.tts_model
+            )
+            # Set temperature and max_tokens
+            repl.temperature = args.temperature
+            repl.max_tokens = args.max_tokens
+            if args.system:
+                repl.system_prompt = args.system
+                repl.messages = [{"role": "system", "content": args.system}]
+            repl.cmdloop()
+            return
+        elif args.command == "web":
+            from abstractvoice.examples.web_api import main as web_main
+            web_main()
+            return
+        elif args.command == "simple":
+            simple_example()
+            return
+        elif args.command == "help" or args.command == "--help":
+            print_examples()
+            return
+        elif args.command:
+            print(f"Unknown command: {args.command}")
+            print_examples()
+            return
+
         # Show language information
         language_names = {
             'en': 'English', 'fr': 'French', 'es': 'Spanish',
@@ -90,7 +223,24 @@ def main():
     except KeyboardInterrupt:
         print("\nExiting AbstractVoice...")
     except Exception as e:
-        print(f"Application error: {e}")
+        error_msg = str(e).lower()
+        if "model file not found" in error_msg or "no such file" in error_msg:
+            print(f"❌ Model '{args.model}' not found")
+            print(f"   The model file is missing or not fully downloaded")
+            print(f"   Try: ollama pull {args.model}")
+            print(f"   Or check available models: ollama list")
+        elif "connection" in error_msg or "refused" in error_msg:
+            print(f"❌ Cannot connect to Ollama")
+            print(f"   Make sure Ollama is running: ollama serve")
+            print(f"   API URL: {args.api}")
+        elif "importerror" in error_msg or "no module" in error_msg:
+            print(f"❌ Missing dependencies")
+            print(f"   Try running: abstractvoice check-deps")
+            print(f"   Or install dependencies: pip install abstractvoice[voice-full]")
+        else:
+            print(f"❌ Application error: {e}")
+            print(f"   Try running with --debug for more details")
+
         if args.debug:
             import traceback
             traceback.print_exc()

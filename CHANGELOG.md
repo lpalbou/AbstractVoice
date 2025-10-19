@@ -5,6 +5,45 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-10-19
+
+### Added
+- **Unified CLI Structure**: Single `abstractvoice` command handles all functionality
+  - `abstractvoice` - Voice mode (default)
+  - `abstractvoice cli` - CLI REPL example
+  - `abstractvoice web` - Web API server
+  - `abstractvoice simple` - Simple demonstration
+  - `abstractvoice check-deps` - Dependency compatibility checking
+- **Enhanced Dependency Management**: Fixed PyTorch/TorchVision conflicts
+  - Added explicit torchvision dependency with compatible version ranges
+  - Restructured optional dependencies into meaningful groups (`voice-full`, `core-tts`, `core-stt`, `audio-only`)
+  - Added comprehensive dependency checker with conflict detection
+- **Improved Error Messages**: Context-aware error handling for Ollama/model issues
+  - Specific guidance for connection errors, missing models, and installation issues
+  - Actionable error messages with exact commands to resolve problems
+
+### Changed
+- **BREAKING**: Removed `abstractvoice-cli` command (functionality moved to `abstractvoice`)
+- **Dependencies**: Added version constraints for PyTorch ecosystem (2.0.0-2.3.x)
+- **CLI Structure**: Simplified from dual entry points to single unified command
+
+### Fixed
+- **PyTorch Conflicts**: Resolved `RuntimeError: operator torchvision::nms does not exist`
+- **Check-deps Command**: Now accessible via `abstractvoice check-deps`
+- **Model Parameter**: Enhanced error messages when Ollama models are unavailable
+- **Dependency Compatibility**: Automatic detection and resolution guidance for version conflicts
+
+### Documentation
+- Updated all documentation to use unified `abstractvoice` command
+- Enhanced installation guides with dependency troubleshooting
+- Added comprehensive dependency management documentation
+- Simplified CLI reference and usage examples
+
+## [0.2.1] - 2025-10-19
+- Dependency compatibility fixes and enhanced error handling
+
+## [0.2.0] - 2025-10-18
+- Package renamed from voicellm to abstractvoice
 
 ## [0.1.1] - 2025-10-18
 - Minor update to README and .toml

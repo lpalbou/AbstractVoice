@@ -4,6 +4,8 @@
 
 AbstractVoice is a production-ready Python library for offline voice interactions. This guide provides comprehensive technical documentation for developers and architects integrating voice capabilities into applications.
 
+**Version 0.3.0** introduces a unified CLI structure and enhanced dependency management for better user experience and stability.
+
 ## CORE FEATURES
 
 ### 🎯 **Offline-First Architecture**
@@ -32,13 +34,16 @@ AbstractVoice is a production-ready Python library for offline voice interaction
 
 ## INSTALLATION
 
-### **Quick Start (2024-2025 Stable)**
+### **Quick Start (v0.3.0+ Unified CLI)**
 ```bash
 # Complete voice functionality (recommended)
 pip install abstractvoice[voice-full]
 
 # Check installation and dependencies
-python -m abstractvoice check-deps
+abstractvoice check-deps
+
+# Test functionality
+abstractvoice simple
 
 # Minimal core (2 dependencies only)
 pip install abstractvoice
@@ -67,7 +72,7 @@ pip uninstall torch torchvision torchaudio transformers
 pip install abstractvoice[all]  # Installs tested compatible versions
 
 # Check for conflicts
-python -m abstractvoice check-deps
+abstractvoice check-deps
 ```
 
 ### **Quality Enhancement (Optional)**
@@ -101,7 +106,11 @@ pip install -e ".[all,dev]"
 - Coqui-TTS: 0.27.0 - 0.29.x
 
 **Dependency Checker**: New utility to diagnose installation issues:
-```python
+```bash
+# Command line (recommended)
+abstractvoice check-deps
+
+# Python API
 from abstractvoice.dependency_check import check_dependencies
 check_dependencies()  # Comprehensive compatibility report
 ```
@@ -248,28 +257,30 @@ vm.stop_listening()
 
 ## ADVANCED FEATURES
 
-### **CLI Interface**
+### **Unified CLI Interface (v0.3.0+)**
 ```bash
 # Voice mode (interactive conversation with AI)
-abstractvoice
+abstractvoice                      # Default: interactive voice mode
+abstractvoice --model cogito:3b    # With custom Ollama model
+abstractvoice --language fr        # French voice mode
+abstractvoice --no-listening       # TTS-only mode
 
-# CLI REPL example
-abstractvoice-cli cli
+# Examples and utilities
+abstractvoice cli                  # CLI REPL example
+abstractvoice web                  # Web API server example
+abstractvoice simple               # Simple usage demonstration
+abstractvoice check-deps           # Dependency compatibility check
+abstractvoice help                 # Show available commands
 
-# Web API server example
-abstractvoice-cli web
+# Language-specific examples
+abstractvoice cli --language de    # German CLI REPL
+abstractvoice simple --language fr # French simple demo
 
-# Simple example
-abstractvoice-cli simple
-
-# With specific language
-abstractvoice --language fr
-abstractvoice-cli cli --language de
-
-# Check available options
-abstractvoice --help
-abstractvoice-cli --help
+# Get help
+abstractvoice --help               # Complete help with all options
 ```
+
+**Major Improvement in v0.3.0**: Single unified `abstractvoice` command replaces the previous dual entry point system (`abstractvoice` + `abstractvoice-cli`). All functionality is now accessible through one intuitive command.
 
 ### **Voice Management**
 ```python
@@ -601,7 +612,7 @@ flask>=2.0.0          # Web API server
 **Solution**:
 ```bash
 # Step 1: Check current state
-python -m abstractvoice check-deps
+abstractvoice check-deps
 
 # Step 2: Clean reinstall
 pip uninstall torch torchvision torchaudio transformers
@@ -641,6 +652,9 @@ pip install abstractvoice[audio-only]  # Reinstall audio components
 conda create -n abstractvoice python=3.10
 conda activate abstractvoice
 pip install abstractvoice[voice-full]  # Use pip, not conda
+
+# Test installation
+abstractvoice check-deps
 ```
 
 ### **Debug Mode & Dependency Checking**
@@ -654,7 +668,7 @@ from abstractvoice.dependency_check import check_dependencies
 check_dependencies()  # Full compatibility report with fix recommendations
 
 # Quick installation verification
-python -m abstractvoice check-deps
+abstractvoice check-deps
 ```
 
 ### **Legacy Issues**
@@ -682,10 +696,17 @@ python -m abstractvoice check-deps
 - **Voice Models & Licensing**: docs/voices-and-licenses.md
 - **Installation Guide**: docs/installation.md
 - **Architecture Documentation**: docs/architecture.md
-- **CLI Reference**: Run `abstractvoice --help` and `abstractvoice-cli --help`
+- **CLI Reference**: Run `abstractvoice --help` for all available commands and options
 - **Voice Selection**: Use `/setvoice` command in CLI or `vm.list_voices()` in Python
 
 **Quick verification of your installation:**
 ```bash
+# Test import
 python -c "from abstractvoice import VoiceManager; vm = VoiceManager(); print('✅ AbstractVoice installed correctly')"
+
+# Check dependencies
+abstractvoice check-deps
+
+# Test simple functionality
+abstractvoice simple
 ```

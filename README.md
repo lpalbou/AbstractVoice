@@ -282,14 +282,40 @@ abstractvoice --debug --whisper base --model gemma3:latest --api http://localhos
   - **Note**: This creates a "TTS-only" mode where you type and the AI speaks back
 - `--system <prompt>` - Custom system prompt
 
+### 🎯 Complete CLI Interface (v0.3.0+)
+
+AbstractVoice provides a unified command interface for all functionality:
+
+```bash
+# Voice mode (default)
+abstractvoice                      # Interactive voice mode with AI
+abstractvoice --model cogito:3b    # With custom Ollama model
+abstractvoice --language fr        # French voice mode
+
+# Examples and utilities
+abstractvoice cli                  # CLI REPL for text interaction
+abstractvoice web                  # Web API server
+abstractvoice simple               # Simple TTS/STT demonstration
+abstractvoice check-deps           # Check dependency compatibility
+abstractvoice help                 # Show available commands
+
+# Get help
+abstractvoice --help               # Complete help with all options
+```
+
+**All functionality through one command!** No more confusion between different entry points.
+
 ### Command-Line REPL
 
 ```bash
 # Run the CLI example (TTS ON, STT OFF)
-abstractvoice-cli cli
+abstractvoice cli
 
 # With debug mode
-abstractvoice-cli cli --debug
+abstractvoice cli --debug
+
+# With specific language
+abstractvoice cli --language fr
 ```
 
 #### REPL Commands
@@ -341,17 +367,17 @@ All commands must start with `/` except `stop`:
 
 ```bash
 # Run the web API example
-abstractvoice-cli web
+abstractvoice web
 
 # With different host and port
-abstractvoice-cli web --host 0.0.0.0 --port 8000
+abstractvoice web --host 0.0.0.0 --port 8000
 ```
 
 You can also run a simplified version that doesn't load the full models:
 
 ```bash
 # Run the web API with simulation mode
-abstractvoice-cli web --simulate
+abstractvoice web --simulate
 ```
 
 #### Troubleshooting Web API
@@ -379,7 +405,7 @@ If you encounter issues with the web API:
 
 ```bash
 # Run the simple example
-abstractvoice-cli simple
+abstractvoice simple
 ```
 
 ## Documentation
