@@ -4,7 +4,7 @@
 
 AbstractVoice is a production-ready Python library for offline voice interactions. This guide provides comprehensive technical documentation for developers and architects integrating voice capabilities into applications.
 
-**Version 0.4.0** introduces automatic model management with offline-first TTS initialization for immediate functionality without complex setup.
+**Version 0.5.0** introduces automatic model downloads on language/voice switching, crash-safe memory management, and genuine voice diversity. No more silent failures - the system now clearly reports what's happening and downloads models automatically when needed.
 
 ## CORE FEATURES
 
@@ -34,7 +34,7 @@ AbstractVoice is a production-ready Python library for offline voice interaction
 
 ## INSTALLATION
 
-### **Quick Start (v0.3.0+ Unified CLI)**
+### **Quick Start (v0.5.0+ with Auto-Download)**
 ```bash
 # Complete voice functionality (recommended)
 pip install abstractvoice[voice-full]
@@ -45,9 +45,11 @@ abstractvoice check-deps
 # Test functionality
 abstractvoice simple
 
-# Minimal core (2 dependencies only)
+# Minimal core with essential TTS dependencies included
 pip install abstractvoice
 ```
+
+**New in v0.5.0:** Essential TTS dependencies now included in base installation. Models download automatically when switching languages/voices - no manual setup required!
 
 ### **Smart Dependency Groups**
 ```bash
@@ -338,7 +340,7 @@ vm = VoiceManager(language='en', debug_mode=True)
 #         🌍 Using English voice: tts_models/en/ljspeech/vits
 ```
 
-### **3. Voice Discovery and Selection**
+### **3. Voice Discovery and Selection (Auto-Download in v0.5.0+)**
 ```python
 # List all available voices
 vm = VoiceManager()
@@ -347,11 +349,20 @@ vm.list_voices()
 # Browse specific language
 vm.list_voices('fr')
 
-# Set specific voice
-vm.set_voice('fr', 'css10_vits')        # Premium French male voice
-vm.set_voice('it', 'mai_male_vits')     # Premium Italian male (0.8x speed)
-vm.set_voice('de', 'thorsten_vits')     # Premium German male voice
+# Set specific voice - DOWNLOADS AUTOMATICALLY if needed (v0.5.0+)
+vm.set_voice('fr', 'css10_vits')        # Downloads French model if needed
+vm.set_voice('it', 'mai_male_vits')     # Downloads Italian model if needed
+vm.set_voice('de', 'thorsten_vits')     # Downloads German model if needed
+vm.set_voice('en', 'jenny')             # Downloads Jenny voice if needed
+vm.set_voice('en', 'ek1')               # Downloads Edward voice if needed
+
+# Progress indicators shown during download:
+# 📥 Downloading tts_models/fr/css10/vits...
+#    This may take a few minutes depending on your connection...
+# ✅ Downloaded tts_models/fr/css10/vits in 45.2s
 ```
+
+**New in v0.5.0:** Voice switching now downloads missing models automatically. No manual `download_model()` calls required!
 
 ## CORE OPERATIONS
 
@@ -377,14 +388,14 @@ if vm.is_speaking():
     print("TTS is active")
 ```
 
-### **2. Language Support**
+### **2. Language Support (Auto-Download in v0.5.0+)**
 ```python
 # Language-specific instances
 vm_en = VoiceManager(language='en')    # English
-vm_fr = VoiceManager(language='fr')    # French
-vm_es = VoiceManager(language='es')    # Spanish
-vm_de = VoiceManager(language='de')    # German
-vm_it = VoiceManager(language='it')    # Italian
+vm_fr = VoiceManager(language='fr')    # French (downloads model if needed)
+vm_es = VoiceManager(language='es')    # Spanish (downloads model if needed)
+vm_de = VoiceManager(language='de')    # German (downloads model if needed)
+vm_it = VoiceManager(language='it')    # Italian (downloads model if needed)
 
 # Speak in different languages
 vm_fr.speak("Bonjour! Je suis votre assistant IA.")
@@ -392,13 +403,23 @@ vm_es.speak("¡Hola! Soy tu asistente de IA.")
 vm_de.speak("Hallo! Ich bin Ihr KI-Assistent.")
 vm_it.speak("Ciao! Sono il tuo assistente IA.")
 
-# Dynamic language switching
+# Dynamic language switching - NOW WITH AUTO-DOWNLOAD (v0.5.0+)
 vm = VoiceManager()
+
+# Switches to French, downloads model if not cached
 vm.set_language('fr')
 vm.speak("Maintenant je parle français.")
+
+# Switches back to English
 vm.set_language('en')
 vm.speak("Now I speak English.")
+
+# Clear error messages if download fails:
+# ❌ Cannot switch to French: Model download failed
+#    Try: abstractvoice download-models --language fr
 ```
+
+**New in v0.5.0:** Language switching now automatically downloads missing models with progress indicators. No more silent fallbacks to English!
 
 ### **3. Professional Audio Control**
 ```python

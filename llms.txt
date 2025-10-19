@@ -1,18 +1,22 @@
 # AbstractVoice: AI Integration Quick Reference
 
-**Version 0.4.0+** - Automatic model management with instant TTS setup
+**Version 0.5.0** - Auto-download on language/voice switch, crash-safe, real voice diversity
 
-## ESSENTIAL SETUP (v0.4.0+)
+## ESSENTIAL SETUP (v0.5.0+)
 
-### ⚡ Instant TTS
+### ⚡ Instant TTS with Auto-Download
 ```python
 from abstractvoice import VoiceManager
 
-# Initialize - auto-downloads essential model (107MB) if needed
+# Initialize - essential dependencies included
 vm = VoiceManager()
 
 # TTS works immediately!
 vm.speak("Hello! TTS works out of the box!")
+
+# Language switching - downloads model automatically if needed (NEW!)
+vm.set_language('fr')
+vm.speak("Bonjour! Auto-téléchargement si nécessaire!")
 ```
 
 ### 🔧 Third-Party API (JSON)
@@ -113,18 +117,20 @@ if vm.is_listening(): print("Listening active")
 vm.stop_listening()
 ```
 
-### Language & Voice Management
+### Language & Voice Management (Auto-Download in v0.5.0+)
 ```python
-# Language switching
-vm.set_language('fr')              # Switch to French
-vm.set_language('de')              # Switch to German
+# Language switching - DOWNLOADS MODEL AUTOMATICALLY if needed (NEW!)
+vm.set_language('fr')              # Downloads French model if not cached
+vm.set_language('de')              # Downloads German model if not cached
 current = vm.get_language_name()   # Get current language
 
-# Voice selection
+# Voice selection - DOWNLOADS AUTOMATICALLY too!
 vm.list_voices()                   # List all available voices
 vm.list_voices('fr')               # List French voices only
-vm.set_voice('fr', 'css10_vits')   # Set specific French voice
-vm.set_voice('it', 'mai_male_vits')# Set Italian male voice (0.8x speed)
+vm.set_voice('fr', 'css10_vits')   # Downloads + sets French voice
+vm.set_voice('it', 'mai_male_vits')# Downloads + sets Italian male voice
+vm.set_voice('en', 'jenny')        # Downloads + sets Jenny voice
+vm.set_voice('en', 'ek1')          # Downloads + sets Edward voice
 
 # Speed control
 vm.set_speed(1.2)                  # 20% faster globally
@@ -133,6 +139,8 @@ current_speed = vm.get_speed()
 # Voice activity detection
 vm.change_vad_aggressiveness(2)    # 0-3, higher = more sensitive
 ```
+
+**v0.5.0 KEY IMPROVEMENT:** No more silent failures! If a model download fails, you get clear error messages with instructions instead of falling back to English silently.
 
 ## VOICE MODES & CLI
 ```python
@@ -144,7 +152,7 @@ vm.set_voice_mode("ptt")   # Push-to-talk
 ```
 
 ```bash
-# Model management (v0.4.0+)
+# Model management (v0.5.0+ with improved downloads)
 abstractvoice download-models                    # Download essential model
 abstractvoice download-models --language fr     # Download French models
 abstractvoice download-models --status          # Check cache status
@@ -160,11 +168,16 @@ abstractvoice check-deps           # Check dependencies
 abstractvoice --language fr        # French voice mode
 abstractvoice --help               # See all options
 
-# CLI voice commands (in REPL)
+# CLI voice commands (in REPL) - AUTO-DOWNLOAD in v0.5.0+
 /setvoice                          # List all voices with download status
-/setvoice fr.css10_vits           # Download and set French voice
-/setvoice de.thorsten_vits        # Download and set German voice
+/setvoice fr.css10_vits           # Auto-downloads + sets French voice
+/setvoice de.thorsten_vits        # Auto-downloads + sets German voice
+/setvoice en.jenny                # Auto-downloads + sets Jenny voice
+/language fr                      # Auto-downloads + switches to French
+/language de                      # Auto-downloads + switches to German
 ```
+
+**v0.5.0:** CLI commands now download models automatically with progress indicators!
 
 ## AI INTEGRATION PATTERNS
 
@@ -276,6 +289,10 @@ vm.cleanup()
 ## KEY FEATURES FOR AI SYSTEMS
 
 ✅ **100% Offline**: Works completely offline after model download (~6GB cache)
+✅ **Auto-Download (v0.5.0)**: Language/voice switching downloads models automatically
+✅ **No Silent Failures (v0.5.0)**: Clear error messages when downloads fail
+✅ **Crash-Safe (v0.5.0)**: Proper memory management prevents segfaults
+✅ **Real Voice Diversity (v0.5.0)**: Different voices actually sound different
 ✅ **Smart Model Selection**: Automatic VITS → Tacotron2 fallback based on system
 ✅ **Multilingual**: English, French, Spanish, German, Italian (5 languages)
 ✅ **Voice Selection**: Multiple voices per language with `/setvoice` CLI command
@@ -285,6 +302,32 @@ vm.cleanup()
 ✅ **Cross-Platform**: macOS, Linux, Windows with universal compatibility
 ✅ **Voice Modes**: full/wait/stop/ptt for different interaction styles
 ✅ **Privacy-First**: Zero data transmission, all processing local
+
+## v0.5.0 MAJOR IMPROVEMENTS
+
+### 🎯 Automatic Model Downloads
+- `vm.set_language('fr')` now downloads French model if not cached
+- `vm.set_voice('en', 'jenny')` downloads Jenny voice automatically
+- Progress indicators: "📥 Downloading... This may take a few minutes..."
+- Clear success/failure messages with actionable instructions
+
+### 🛡️ Crash-Safe Operation
+- Fixed segmentation faults during voice/language switching
+- Proper memory cleanup with GPU cache release
+- Italian VITS models now load safely without crashes
+- Enhanced error handling prevents silent failures
+
+### 🎭 Genuine Voice Diversity
+- Voice switching loads requested models (not fallback)
+- Different voices now actually sound different
+- Fixed: Jenny, Edward (EK1), Sam voices are truly distinct
+- Debug output shows exactly which model loads
+
+### 🔧 Better Error Messages
+- Network errors: "❌ Network issue: Check your internet connection"
+- Missing models: "❌ Cannot switch to French: Model download failed"
+- Actionable guidance: "Try: abstractvoice download-models --language fr"
+- No more silent fallbacks to English!
 
 ## INSTALLATION (v0.3.0+)
 ```bash

@@ -5,6 +5,136 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-10-19
+
+### 🎯 MAJOR: Complete Voice System Overhaul
+
+This release completely fixes the core issues with voice switching, memory management, and installation experience. AbstractVoice now provides reliable, crash-free voice switching with genuine voice diversity.
+
+### 🔧 Fixed Critical Issues
+
+#### **Voice Switching Actually Works**
+- **BREAKING BUG FIX**: Voice switching now loads the **requested model** instead of always falling back to the same model
+- **Root Cause**: TTS engine was bypassing user's choice due to espeak-ng compatibility checks
+- **Solution**: Prioritize user's exact choice, only fall back if model actually fails to load
+- **Result**: `/setvoice en.jenny` now loads jenny model, `/setvoice en.ek1` loads ek1 model, etc.
+
+#### **Crash-Safe Memory Management**
+- **Fixed segmentation faults** during voice switching and language changes
+- **Enhanced cleanup**: Proper TTS object disposal with GPU memory release
+- **Italian model safety**: Added protective loading for crash-prone VITS models
+- **Result**: No more crashes when switching between voices or languages
+
+#### **Instant Installation Experience**
+- **Essential dependencies**: Core TTS dependencies now included in base package
+- **Instant setup**: Automatic essential model download on first use with progress indicator
+- **Result**: `pip install abstractvoice` + immediate TTS functionality without additional steps
+
+### 🏗️ Architecture Improvements
+
+#### **Simplified Model Management**
+- **Consolidated**: Removed redundant `model_manager.py`, unified everything in `simple_model_manager.py`
+- **Clean APIs**: Single source of truth for all model operations
+- **Consistent**: CLI and programmatic APIs use the same underlying methods
+
+#### **Bulletproof Voice Loading**
+- **User-first priority**: Load exactly what user requests, not fallback models
+- **Smart detection**: Improved model availability checking
+- **Error handling**: Better error messages distinguishing TTS vs LLM issues
+
+### 🎭 Voice Quality & Selection
+
+#### **Enhanced Voice Diversity**
+- **Fixed model priority**: Users get the voice they actually requested
+- **Clear feedback**: Debug output shows exactly which model loads
+- **Safety checks**: Italian and other problematic models load without crashes
+
+#### **Improved CLI Experience**
+- **Reliable `/setvoice`**: Commands now work as expected
+- **Better feedback**: Clear success/failure messages
+- **Consistent behavior**: CLI uses same engine as programmatic API
+
+### 📦 Installation & Dependencies
+
+#### **Streamlined Installation**
+- **Core dependencies**: Essential packages included in base installation
+- **Optional extras**: Advanced features remain in optional dependency groups
+- **Instant functionality**: TTS works immediately after `pip install abstractvoice`
+
+### 🛠️ Technical Details
+
+#### **Memory Management**
+- **CUDA cleanup**: Automatic GPU memory release during voice switching
+- **Garbage collection**: Forced cleanup to prevent memory leaks
+- **Thread safety**: Proper locking during voice changes
+
+#### **Model Loading Priority**
+1. **User's exact choice** (if cached and compatible)
+2. **Download user's choice** (if not cached)
+3. **Compatibility fallback** (only if user's choice fails)
+
+#### **Error Handling**
+- **Clear attribution**: Distinguish TTS model errors from LLM errors
+- **Actionable guidance**: Specific instructions for different failure modes
+- **Safe degradation**: Graceful fallback without crashes
+
+### 🚀 User Experience
+
+#### **For New Users**
+- `pip install abstractvoice` → immediate TTS functionality
+- Automatic essential model setup with progress indicator
+- No complex setup or additional downloads required
+
+#### **For Existing Users**
+- Voice switching now works correctly (no more identical voices)
+- No more crashes during language/voice changes
+- Faster, more reliable voice loading
+
+#### **For Developers**
+- Simplified, consistent APIs
+- Better error messages and debugging
+- Cleaner architecture with single model manager
+
+### ⚠️ Breaking Changes
+- None - this release maintains full API compatibility while fixing core functionality
+
+### 📋 Migration Notes
+- No action required - all improvements are automatic
+- Voice switching behavior is now correct (may sound different than before if you thought you were using different voices)
+- Installation is now simpler and more reliable
+
+## [0.4.6] - 2025-10-19
+
+### Added
+- **🎭 Enhanced Voice Diversity**: Added dramatically different voice speakers for maximum audible differences
+  - **Sam**: New male voice with deeper tone and different characteristics (`en.sam`)
+  - **Better voice names**: Clear speaker identification (Linda, Jenny, Edward, Sam)
+  - **Clearer descriptions**: Indicates which voices use same speaker vs different speakers
+
+### Changed
+- **Voice Catalog Improvements**: Enhanced voice descriptions to clarify speaker differences
+  - **Linda (LJSpeech)**: Standard female voice - `en.tacotron2`, `en.fast_pitch`, `en.vits`
+  - **Jenny**: Different female voice with distinct characteristics - `en.jenny`
+  - **Edward (EK1)**: Male British accent voice - `en.ek1`
+  - **Sam**: Different male voice with deeper tone - `en.sam`
+- **Updated Fallback Order**: Added Sam to compatibility-first model loading sequence
+
+### Technical Details
+- **New model mapping**: `tts_models/en/sam/tacotron-DDC` added to voice catalogs
+- **Enhanced model descriptions**: Clear indication of which voices share speakers
+- **Improved voice metadata**: Better quality, gender, and accent information
+
+### User Experience
+- ✅ **More dramatic voice differences**: Sam provides distinctly different male voice characteristics
+- ✅ **Clearer voice selection**: Speaker names make it obvious which voices will sound different
+- ✅ **Better guidance**: Descriptions clearly indicate "same speaker" vs "different speaker"
+
+### Notes on Voice Differences
+If voices still sound similar, this may be due to:
+- **Audio output processing**: OS/hardware audio pipeline normalization
+- **Model characteristics**: Some models may have subtle rather than dramatic differences
+- **Playback environment**: Audio drivers or speakers affecting voice characteristics
+
 ## [0.4.5] - 2025-10-19
 
 ### Fixed
