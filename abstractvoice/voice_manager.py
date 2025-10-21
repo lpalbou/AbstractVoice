@@ -241,6 +241,18 @@ class VoiceManager:
         self.tts_engine.on_playback_start = self._on_tts_start
         self.tts_engine.on_playback_end = self._on_tts_end
         
+        # NEW: Enhanced audio lifecycle callbacks (v0.5.1)
+        self.on_audio_start = None      # Called when first audio sample plays
+        self.on_audio_end = None        # Called when last audio sample finishes
+        self.on_audio_pause = None      # Called when audio is paused
+        self.on_audio_resume = None     # Called when audio is resumed
+        
+        # Wire callbacks directly to audio player (skip TTSEngine layer)
+        self.tts_engine.audio_player.on_audio_start = self._on_audio_start
+        self.tts_engine.audio_player.on_audio_end = self._on_audio_end
+        self.tts_engine.audio_player.on_audio_pause = self._on_audio_pause
+        self.tts_engine.audio_player.on_audio_resume = self._on_audio_resume
+        
         # Voice recognizer is initialized on demand
         self.voice_recognizer = None
         self.whisper_model = whisper_model
@@ -1030,4 +1042,24 @@ class VoiceManager:
             self.voice_recognizer.stop()
 
         self.stop_speaking()
-        return True 
+        return True
+    
+    def _on_audio_start(self):
+        """Called when audio actually starts playing."""
+        if self.on_audio_start:
+            self.on_audio_start()
+    
+    def _on_audio_end(self):
+        """Called when audio actually finishes playing."""
+        if self.on_audio_end:
+            self.on_audio_end()
+    
+    def _on_audio_pause(self):
+        """Called when audio is paused."""
+        if self.on_audio_pause:
+            self.on_audio_pause()
+    
+    def _on_audio_resume(self):
+        """Called when audio is resumed."""
+        if self.on_audio_resume:
+            self.on_audio_resume() 

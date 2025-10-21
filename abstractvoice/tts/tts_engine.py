@@ -212,6 +212,13 @@ class NonBlockingAudioPlayer:
         self.current_position = 0
         self.playback_complete_callback = None
         
+        # NEW: Enhanced audio lifecycle callbacks
+        self.on_audio_start = None      # Called when first audio sample plays
+        self.on_audio_end = None        # Called when last audio sample finishes
+        self.on_audio_pause = None      # Called when audio is paused
+        self.on_audio_resume = None     # Called when audio is resumed
+        self._audio_started = False     # Track if we've fired start callback
+        
     def _audio_callback(self, outdata, frames, time, status):
         """Callback function for OutputStream - provides immediate pause/resume."""
         if status and self.debug_mode:
@@ -237,6 +244,12 @@ class NonBlockingAudioPlayer:
                     outdata.fill(0)
                     if self.is_playing:
                         self.is_playing = False
+                        self._audio_started = False  # Reset for next playback
+                        
+                        # Fire audio end callback
+                        if self.on_audio_end:
+                            threading.Thread(target=self.on_audio_end, daemon=True).start()
+                            
                         if self.playback_complete_callback:
                             # Call completion callback in a separate thread to avoid blocking
                             threading.Thread(target=self.playback_complete_callback, daemon=True).start()
@@ -245,6 +258,12 @@ class NonBlockingAudioPlayer:
             # Calculate how much audio we can output this frame
             remaining = len(self.current_audio) - self.current_position
             frames_to_output = min(frames, remaining)
+            
+            # Fire audio start callback on first real audio output
+            if frames_to_output > 0 and not self._audio_started:
+                self._audio_started = True
+                if self.on_audio_start:
+                    threading.Thread(target=self.on_audio_start, daemon=True).start()
             
             # Output the audio data
             if frames_to_output > 0:
@@ -344,6 +363,11 @@ class NonBlockingAudioPlayer:
                 self.is_paused = True
                 if self.debug_mode:
                     print(" > Audio paused immediately")
+                
+                # Fire audio pause callback
+                if self.on_audio_pause:
+                    threading.Thread(target=self.on_audio_pause, daemon=True).start()
+                
                 return True
         return False
     
@@ -354,6 +378,11 @@ class NonBlockingAudioPlayer:
                 self.is_paused = False
                 if self.debug_mode:
                     print(" > Audio resumed immediately")
+                
+                # Fire audio resume callback
+                if self.on_audio_resume:
+                    threading.Thread(target=self.on_audio_resume, daemon=True).start()
+                
                 return True
         return False
     
@@ -1264,4 +1293,5 @@ class TTSEngine:
         Returns:
             True if TTS is active, False otherwise
         """
-        return self.is_playing 
+        return self.is_playing
+    

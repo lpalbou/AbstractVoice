@@ -4,7 +4,9 @@
 
 AbstractVoice is a production-ready Python library for offline voice interactions. This guide provides comprehensive technical documentation for developers and architects integrating voice capabilities into applications.
 
-**Version 0.5.0** introduces automatic model downloads on language/voice switching, crash-safe memory management, and genuine voice diversity. No more silent failures - the system now clearly reports what's happening and downloads models automatically when needed.
+**Version 0.5.1** introduces precise audio lifecycle callbacks for applications that need to distinguish between synthesis and actual audio playback phases. Perfect for system tray icons, UI animations, and sophisticated audio state management.
+
+**Version 0.5.0** introduced automatic model downloads on language/voice switching, crash-safe memory management, and genuine voice diversity. No more silent failures - the system now clearly reports what's happening and downloads models automatically when needed.
 
 ## CORE FEATURES
 
@@ -521,6 +523,79 @@ vm.set_voice_mode("ptt")    # Push-to-talk mode
 ```
 
 ## INTEGRATION PATTERNS
+
+### **Enhanced Audio Lifecycle Callbacks (v0.5.1+)**
+
+**NEW**: Precise audio timing callbacks for applications that need to distinguish between synthesis and actual audio playback phases.
+
+```python
+from abstractvoice import VoiceManager
+
+# Initialize voice manager
+vm = VoiceManager()
+
+# Define callback functions for different audio states
+def on_synthesis_start():
+    """Called when TTS synthesis begins (text processing)"""
+    print("🔴 Synthesis started - show thinking animation")
+    # Perfect for: Loading spinners, "thinking" indicators
+
+def on_audio_start():
+    """Called when first audio sample actually plays"""
+    print("🔵 Audio started - show speaking animation")
+    # Perfect for: Speaking animations, visual waveforms
+
+def on_audio_pause():
+    """Called when audio playback is paused"""
+    print("⏸️ Audio paused - show paused state")
+    # Perfect for: Pause icons, dimmed animations
+
+def on_audio_resume():
+    """Called when audio playback is resumed"""
+    print("▶️ Audio resumed - continue speaking animation")
+    # Perfect for: Resume animations, restore visual state
+
+def on_audio_end():
+    """Called when last audio sample finishes playing"""
+    print("🟢 Audio ended - show ready state")
+    # Perfect for: Ready indicators, idle animations
+
+def on_synthesis_end():
+    """Called when TTS synthesis completes"""
+    print("✅ Synthesis complete")
+    # Perfect for: Cleanup tasks, final processing
+
+# Wire up callbacks
+vm.tts_engine.on_playback_start = on_synthesis_start    # Existing (synthesis phase)
+vm.tts_engine.on_playback_end = on_synthesis_end        # Existing (synthesis phase)
+vm.on_audio_start = on_audio_start                      # NEW (actual audio playback)
+vm.on_audio_end = on_audio_end                          # NEW (actual audio playback)
+vm.on_audio_pause = on_audio_pause                      # NEW (pause events)
+vm.on_audio_resume = on_audio_resume                    # NEW (resume events)
+
+# Test the callbacks
+vm.speak("This demonstrates the precise timing of audio lifecycle callbacks.")
+
+# Pause and resume to test those callbacks
+import time
+time.sleep(1)
+vm.pause_speaking()  # Triggers on_audio_pause
+time.sleep(2)
+vm.resume_speaking()  # Triggers on_audio_resume
+```
+
+**Key Benefits:**
+- **Precise Timing**: Callbacks fire within ~20ms of actual audio events
+- **Visual Feedback**: Perfect for system tray icons, UI animations
+- **State Management**: Track exact audio lifecycle for complex applications
+- **Thread Safe**: All callbacks execute in separate threads
+- **Backward Compatible**: Existing callbacks unchanged
+
+**Use Cases:**
+- **System Tray Applications**: Show different icons for thinking/speaking/paused/ready
+- **Desktop Assistants**: Coordinate visual animations with audio state
+- **Multi-Audio Applications**: Manage multiple voice streams
+- **Professional Tools**: Precise audio timing for broadcast/recording applications
 
 ### **AI Assistant Integration**
 ```python

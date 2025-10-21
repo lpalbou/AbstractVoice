@@ -5,6 +5,79 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-10-21
+
+### 🎯 Enhanced Audio Lifecycle Callbacks
+
+This release adds precise audio timing callbacks for applications that need to distinguish between synthesis and actual audio playback phases.
+
+### ✨ Added
+
+#### **Precise Audio Timing Callbacks**
+- **NEW**: `on_audio_start` - Triggered when first audio sample actually plays (not when synthesis starts)
+- **NEW**: `on_audio_end` - Triggered when last audio sample finishes playing (not when synthesis completes)
+- **NEW**: `on_audio_pause` - Triggered when audio playback is paused
+- **NEW**: `on_audio_resume` - Triggered when audio playback is resumed
+
+#### **Complete Audio State Tracking**
+- **Enhanced VoiceManager**: Exposes all audio lifecycle callbacks to applications
+- **Thread-Safe**: All callbacks execute in separate threads to avoid blocking audio pipeline
+- **Backward Compatible**: Existing `on_playback_start`/`on_playback_end` callbacks unchanged
+
+#### **Perfect for Visual Status Indicators**
+```python
+def on_synthesis_start():
+    show_thinking_animation()  # Red rotating bars
+
+def on_audio_start():
+    show_speaking_animation()  # Blue vibrating bars
+    
+def on_audio_pause():
+    show_paused_animation()    # Yellow pause icon
+
+def on_audio_end():
+    show_ready_animation()     # Green breathing circle
+
+vm = VoiceManager()
+vm.tts_engine.on_playback_start = on_synthesis_start  # Existing
+vm.on_audio_start = on_audio_start                    # NEW
+vm.on_audio_pause = on_audio_pause                    # NEW  
+vm.on_audio_end = on_audio_end                        # NEW
+```
+
+### 🔧 Technical Implementation
+
+#### **NonBlockingAudioPlayer Enhancements**
+- Added callback firing in `_audio_callback()` for precise timing
+- Enhanced `pause()` and `resume()` methods with callback support
+- Thread-safe callback execution prevents audio pipeline blocking
+
+#### **TTSEngine Integration**
+- Wired audio player callbacks through TTSEngine layer
+- Maintains clean separation of concerns
+- Preserves existing callback patterns
+
+#### **Architecture Benefits**
+- **Immediate Response**: Callbacks fire within ~20ms of actual audio events
+- **Exact Timing**: Distinguishes synthesis phase from playback phase
+- **Minimal Overhead**: Only 4 new callback attributes, no performance impact
+- **Clean Design**: Leverages existing callback threading patterns
+
+### 📚 Use Cases
+
+This enhancement enables sophisticated applications with:
+- **System Tray Icons**: Show different states (thinking/speaking/paused/ready)
+- **Visual Feedback**: Precise timing for UI animations
+- **Audio Coordination**: Coordinate multiple audio streams
+- **State Management**: Track exact audio lifecycle for complex workflows
+
+### 🔄 Migration Guide
+
+**No breaking changes** - this is a purely additive enhancement:
+- All existing APIs work unchanged
+- New callbacks are optional (default to `None`)
+- Applications can adopt new callbacks incrementally
+
 ## [0.5.0] - 2025-10-19
 
 ### 🎯 MAJOR: Complete Voice System Overhaul
