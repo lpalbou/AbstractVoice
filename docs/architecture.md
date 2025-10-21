@@ -211,7 +211,46 @@ def on_speech(text):
 vm.listen(on_transcription=on_speech)
 ```
 
-### 3. Threading Model
+### 3. Enhanced Audio Lifecycle Callbacks (v0.5.1+)
+
+**Problem**: Applications need to distinguish between synthesis phase and actual audio playback for precise visual feedback.
+
+**Solution**: Dual-layer callback system
+
+```python
+# Synthesis Phase Callbacks (existing)
+vm.tts_engine.on_playback_start = synthesis_start_callback  # TTS synthesis begins
+vm.tts_engine.on_playback_end = synthesis_end_callback      # TTS synthesis completes
+
+# Audio Playback Callbacks (NEW in v0.5.1)
+vm.on_audio_start = audio_start_callback    # First audio sample plays
+vm.on_audio_end = audio_end_callback        # Last audio sample finishes
+vm.on_audio_pause = audio_pause_callback    # Audio playback paused
+vm.on_audio_resume = audio_resume_callback  # Audio playback resumed
+```
+
+**Timing Precision:**
+- **Synthesis callbacks**: Fire during text processing and model inference
+- **Audio callbacks**: Fire during actual speaker output with ~20ms precision
+- **Use case**: Perfect for system tray icons showing thinking vs speaking states
+
+**Implementation Details:**
+```python
+# In NonBlockingAudioPlayer._audio_callback()
+if frames_to_output > 0 and not self._audio_started:
+    self._audio_started = True
+    if self.on_audio_start:
+        threading.Thread(target=self.on_audio_start, daemon=True).start()
+
+# When queue empty and playback complete
+if self.is_playing:
+    self.is_playing = False
+    self._audio_started = False
+    if self.on_audio_end:
+        threading.Thread(target=self.on_audio_end, daemon=True).start()
+```
+
+### 4. Threading Model
 
 **Main Thread**: Application logic, REPL, user interface
 **TTS Synthesis Thread**: Background text-to-speech generation

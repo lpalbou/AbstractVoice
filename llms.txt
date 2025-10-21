@@ -1,5 +1,6 @@
 # AbstractVoice: AI Integration Quick Reference
 
+**Version 0.5.1** - Enhanced audio lifecycle callbacks for precise timing control
 **Version 0.5.0** - Auto-download on language/voice switch, crash-safe, real voice diversity
 
 ## ESSENTIAL SETUP (v0.5.0+)
@@ -141,6 +142,35 @@ vm.change_vad_aggressiveness(2)    # 0-3, higher = more sensitive
 ```
 
 **v0.5.0 KEY IMPROVEMENT:** No more silent failures! If a model download fails, you get clear error messages with instructions instead of falling back to English silently.
+
+## AUDIO LIFECYCLE CALLBACKS (v0.5.1+)
+
+**NEW**: Precise timing callbacks for visual status indicators:
+
+```python
+# Define callbacks for different audio states
+def on_synthesis_start():
+    show_thinking_animation()  # 🔴 Red rotating bars
+
+def on_audio_start():
+    show_speaking_animation()  # 🔵 Blue vibrating bars
+
+def on_audio_pause():
+    show_paused_animation()    # ⏸️ Yellow pause icon
+
+def on_audio_end():
+    show_ready_animation()     # 🟢 Green breathing circle
+
+# Wire up callbacks
+vm.tts_engine.on_playback_start = on_synthesis_start    # Synthesis phase
+vm.on_audio_start = on_audio_start                      # Actual audio playback
+vm.on_audio_pause = on_audio_pause                      # Pause events
+vm.on_audio_end = on_audio_end                          # Audio completion
+
+# Perfect for: System tray icons, UI animations, state management
+```
+
+**Key Benefits**: ~20ms precision, thread-safe, backward compatible
 
 ## VOICE MODES & CLI
 ```python

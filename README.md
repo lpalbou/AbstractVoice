@@ -525,6 +525,37 @@ manager.set_tts_model("tts_models/en/ljspeech/glow-tts")
 # - "tts_models/en/ljspeech/glow-tts" (alternative fallback)
 # - "tts_models/en/ljspeech/tacotron2-DDC" (legacy)
 
+# === Audio Lifecycle Callbacks (v0.5.1+) ===
+
+# NEW: Precise audio timing callbacks for visual status indicators
+def on_synthesis_start():
+    print("🔴 Synthesis started - show thinking animation")
+
+def on_audio_start():
+    print("🔵 Audio started - show speaking animation")
+
+def on_audio_pause():
+    print("⏸️ Audio paused - show paused animation")
+
+def on_audio_resume():
+    print("▶️ Audio resumed - continue speaking animation")
+
+def on_audio_end():
+    print("🟢 Audio ended - show ready animation")
+
+def on_synthesis_end():
+    print("✅ Synthesis complete")
+
+# Wire up callbacks
+manager.tts_engine.on_playback_start = on_synthesis_start    # Existing (synthesis phase)
+manager.tts_engine.on_playback_end = on_synthesis_end        # Existing (synthesis phase)
+manager.on_audio_start = on_audio_start                      # NEW (actual audio playback)
+manager.on_audio_end = on_audio_end                          # NEW (actual audio playback)
+manager.on_audio_pause = on_audio_pause                      # NEW (pause events)
+manager.on_audio_resume = on_audio_resume                    # NEW (resume events)
+
+# Perfect for system tray icons, UI animations, or coordinating multiple audio streams
+
 # === STT (Speech-to-Text) ===
 
 def on_transcription(text):
