@@ -5,6 +5,78 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2025-11-11
+
+### 🔧 Fixed
+
+#### **PyTorch Dependency Constraints Updated**
+- **FIXED**: Updated PyTorch version constraints to match Coqui-TTS requirements
+  - `torch`: `2.0.0-2.4.0` → `2.1.0-2.9.0` (aligns with coqui-tts 0.27.2)
+  - `torchvision`: `0.15.0-0.19.0` → `0.16.0-1.0.0` (improved compatibility)
+  - `torchaudio`: `2.0.0-2.4.0` → `2.1.0-2.9.0` (aligns with coqui-tts 0.27.2)
+- **BENEFIT**: Resolves compatibility issues with downstream projects requiring PyTorch 2.6+
+- **IMPACT**: AbstractVoice can now be used alongside AbstractCore 2.5.3+ and other modern PyTorch-dependent packages
+
+#### **Dependency Management Cleanup**
+- **REMOVED**: `requirements.txt` (redundant, superseded by pyproject.toml)
+- **STANDARD**: Single source of truth for dependencies via `pyproject.toml`
+- **BEST PRACTICE**: Follows modern Python packaging standards (PEP 621)
+
+### 📦 Changed
+
+#### **Updated Dependency Constraints (All Dependency Groups)**
+Updated PyTorch constraints in all dependency groups:
+- Core dependencies
+- `[tts]` - Text-to-Speech functionality
+- `[all]` - All features combined
+- `[voice-full]` - Complete voice functionality
+- `[core-tts]` - Core TTS-only
+
+### ⚙️ Technical Details
+
+#### **Rationale**
+- Previous constraints (`torch<2.4.0`) were overly restrictive and outdated
+- Coqui-TTS 0.27.2 (our primary TTS dependency) supports `torch>2.1,<2.9`
+- Blocking PyTorch 2.4-2.8 prevented integration with modern AI frameworks
+- Aligns with SOTA dependency management: "Match upstream, avoid over-constraint"
+
+#### **Backward Compatibility**
+- ✅ **Fully backward compatible** - No API changes
+- ✅ **Existing installations unaffected** - Only impacts new installations
+- ✅ **Semantic versioning compliant** - Patch release (0.5.1 → 0.5.2)
+
+#### **Testing**
+- ✅ Package imports successfully
+- ✅ Core functionality verified
+- ✅ Dependency resolution validated
+- ℹ️ Pre-existing test suite segfault issues (gruut library) remain unresolved
+
+### 🎯 Migration Guide
+
+**For End Users:**
+```bash
+# Simply upgrade to the latest version
+pip install --upgrade abstractvoice
+```
+
+**For Downstream Projects:**
+```toml
+# If you were using version pinning, update to:
+abstractvoice = ">=0.5.2"
+
+# Or use compatible release specifier:
+abstractvoice = "~=0.5.2"
+```
+
+**For Projects Requiring PyTorch 2.6+:**
+```toml
+# AbstractVoice 0.5.2+ is now compatible with:
+dependencies = [
+    "abstractvoice>=0.5.2",
+    "torch>=2.6.0,<3.0.0",  # Now compatible!
+]
+```
+
 ## [0.5.1] - 2025-10-21
 
 ### 🎯 Enhanced Audio Lifecycle Callbacks
