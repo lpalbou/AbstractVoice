@@ -53,6 +53,14 @@ class TtsMixin:
     def import_voice(self, path: str) -> str:
         return self._get_voice_cloner().import_voice(path)
 
+    def set_cloned_tts_quality(self, preset: str) -> bool:
+        """Set cloned TTS quality preset: fast|balanced|high."""
+        self._get_voice_cloner().set_quality_preset(preset)
+        return True
+
+    def get_cloning_runtime_info(self):
+        return self._get_voice_cloner().get_runtime_info()
+
     def rename_cloned_voice(self, voice_id: str, new_name: str) -> bool:
         self._get_voice_cloner().rename_cloned_voice(voice_id, new_name)
         return True
@@ -207,7 +215,21 @@ class TtsMixin:
                 cancel.set()
         except Exception:
             pass
-        return self.tts_engine.stop()
+        ok = False
+        try:
+            ok = bool(self.tts_engine.stop())
+        finally:
+            # CRITICAL: stopping playback abruptly may not trigger the normal
+            # playback-end callbacks (PortAudio stream is just closed).
+            # If we don't restore recognizer state here, transcriptions can stay
+            # paused or listening can remain paused, which breaks STOP/PTT.
+            try:
+                on_end = getattr(self, "_on_tts_end", None)
+                if callable(on_end):
+                    on_end()
+            except Exception:
+                pass
+        return ok
 
     def pause_speaking(self):
         if not self.tts_engine:

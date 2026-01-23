@@ -50,12 +50,30 @@ class VoiceManagerCore:
             if not bool(getattr(self.voice_recognizer, "aec_enabled", False)):
                 self.voice_recognizer.pause_tts_interrupt()
             # In full mode we keep transcriptions enabled for headset/echo-controlled setups.
-        elif self._voice_mode in ["wait", "stop", "ptt"]:
-            # Wait/Stop/PTT: disable generic interrupt and suppress normal transcriptions
-            # to avoid self-feedback loops. Stop phrase remains available.
+            return
+
+        if self._voice_mode == "wait":
+            # WAIT: fully pause mic processing while we speak (max robustness).
+            # Trade-off: user can't barge-in by voice while TTS is playing.
+            if hasattr(self.voice_recognizer, "pause_listening"):
+                self.voice_recognizer.pause_listening()
+            return
+
+        if self._voice_mode == "stop":
+            # STOP: keep listening, but suppress normal transcriptions while speaking
+            # to avoid self-feedback loops; stop phrase remains available.
             self.voice_recognizer.pause_tts_interrupt()
             if hasattr(self.voice_recognizer, "pause_transcriptions"):
                 self.voice_recognizer.pause_transcriptions()
+            return
+
+        if self._voice_mode == "ptt":
+            # PTT: listening should be controlled explicitly by the integrator/REPL.
+            # If we happen to be listening, treat speaking like STOP mode.
+            self.voice_recognizer.pause_tts_interrupt()
+            if hasattr(self.voice_recognizer, "pause_transcriptions"):
+                self.voice_recognizer.pause_transcriptions()
+            return
 
     def _on_tts_end(self):
         """Called when TTS playback ends - handle based on voice mode."""
@@ -64,10 +82,18 @@ class VoiceManagerCore:
 
         if self._voice_mode == "full":
             self.voice_recognizer.resume_tts_interrupt()
-        elif self._voice_mode in ["wait", "stop", "ptt"]:
+            return
+
+        if self._voice_mode == "wait":
+            if hasattr(self.voice_recognizer, "resume_listening"):
+                self.voice_recognizer.resume_listening()
+            return
+
+        if self._voice_mode in ("stop", "ptt"):
             self.voice_recognizer.resume_tts_interrupt()
             if hasattr(self.voice_recognizer, "resume_transcriptions"):
                 self.voice_recognizer.resume_transcriptions()
+            return
 
     def _on_audio_start(self):
         if self.on_audio_start:

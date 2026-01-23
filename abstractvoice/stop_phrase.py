@@ -21,10 +21,25 @@ def normalize_stop_phrase(text: str) -> str:
 
 
 def is_stop_phrase(text: str, phrases: Iterable[str]) -> bool:
-    """Return True if text exactly matches any configured stop phrase."""
+    """Return True if text matches any configured stop phrase.
+
+    Matching is intentionally:
+    - conservative about normalization (no fancy text transforms)
+    - but tolerant to common STT variations like "stop." / "stop please"
+
+    We match phrases as whole-word sequences inside the normalized text.
+    """
     normalized = normalize_stop_phrase(text)
     if not normalized:
         return False
     phrase_set = {normalize_stop_phrase(p) for p in phrases if p}
-    return normalized in phrase_set
+    for phrase in phrase_set:
+        if not phrase:
+            continue
+        # Whole word sequence match.
+        if normalized == phrase:
+            return True
+        if re.search(rf"(^| ){re.escape(phrase)}( |$)", normalized):
+            return True
+    return False
 

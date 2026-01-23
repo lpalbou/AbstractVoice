@@ -77,7 +77,9 @@ class VoiceRecognizer:
                  silence_timeout=1500, sample_rate=16000, 
                  chunk_duration=30, whisper_model="tiny", 
                  min_transcription_length=5, debug_mode=False,
-                 aec_enabled: bool = False, aec_stream_delay_ms: int = 0):
+                 aec_enabled: bool = False, aec_stream_delay_ms: int = 0,
+                 language: str | None = None,
+                 allow_downloads: bool = True):
         """Initialize voice recognizer.
         
         Args:
@@ -95,10 +97,22 @@ class VoiceRecognizer:
         self.debug_mode = debug_mode
         self.transcription_callback = transcription_callback
         self.stop_callback = stop_callback
+        self.language = (language or None)
+        self.allow_downloads = bool(allow_downloads)
 
         # Stop phrase(s): robust “interrupt” without requiring echo cancellation.
         # Keep it conservative to avoid accidental stops from the assistant audio.
-        self.stop_phrases = ["ok stop", "okay stop"]
+        # Include bare "stop" because users will naturally say it.
+        self.stop_phrases = ["stop", "ok stop", "okay stop"]
+
+        # While TTS is playing we can end up with continuous "speech" from speaker echo,
+        # which prevents end-of-utterance detection and therefore prevents stop phrase
+        # transcription. To keep STOP mode usable without AEC, we run a low-rate rolling
+        # window transcription ONLY for stop-phrase detection when transcriptions are paused.
+        self._stop_ring = bytearray()
+        self._stop_last_check = 0.0
+        self._stop_check_interval_s = 0.9
+        self._stop_window_s = 1.6
         
         # Configuration
         self.sample_rate = sample_rate
@@ -106,6 +120,8 @@ class VoiceRecognizer:
         self.chunk_size = int(sample_rate * chunk_duration / 1000)
         self.min_speech_chunks = int(min_speech_duration / chunk_duration)
         self.silence_timeout_chunks = int(silence_timeout / chunk_duration)
+        self._default_min_speech_chunks = int(self.min_speech_chunks)
+        self._default_silence_timeout_chunks = int(self.silence_timeout_chunks)
         
         # Initialize components using lazy imports
         VoiceDetector = _import_vad()
@@ -117,7 +133,12 @@ class VoiceRecognizer:
 
         # STT: use faster-whisper adapter by default (core dependency)
         STTAdapter = _import_transcriber()
-        self.stt_adapter = STTAdapter(model_size=whisper_model, device="cpu", compute_type="int8")
+        self.stt_adapter = STTAdapter(
+            model_size=whisper_model,
+            device="auto",
+            compute_type="int8",
+            allow_downloads=bool(self.allow_downloads),
+        )
         self.min_transcription_length = min_transcription_length
         
         # State
@@ -130,6 +151,7 @@ class VoiceRecognizer:
         # While TTS is playing (esp. without AEC), we often want to suppress normal
         # transcriptions to avoid self-feedback loops, but still allow stop phrase.
         self.transcriptions_paused = False
+        self._profile = "stop"
 
         # Optional AEC (echo cancellation) state.
         self.aec_enabled = False
@@ -138,6 +160,35 @@ class VoiceRecognizer:
         self._far_end_pcm16 = bytearray()
         if aec_enabled:
             self.enable_aec(True, stream_delay_ms=aec_stream_delay_ms)
+
+        # Apply initial profile.
+        self.set_profile("stop")
+
+    def set_profile(self, profile: str) -> None:
+        """Set listening profile tuned for the current interaction mode.
+
+        Why this exists:
+        - PTT needs *very* low thresholds to reliably capture short utterances.
+        - STOP/WAIT should use more conservative defaults to reduce false triggers.
+        """
+        p = (profile or "").strip().lower()
+        if p not in ("stop", "wait", "full", "ptt"):
+            return
+        self._profile = p
+
+        if p == "ptt":
+            # Make capture responsive: start recording as soon as we see speech,
+            # and end quickly after short silence.
+            self.min_speech_chunks = 1
+            # ~700ms of silence to end (tuned for quick PTT turns).
+            self.silence_timeout_chunks = max(8, int(round(700.0 / float(self.chunk_duration))))
+            self.transcriptions_paused = False
+            self.listening_paused = False
+            return
+
+        # Default/conservative for continuous modes.
+        self.min_speech_chunks = int(self._default_min_speech_chunks)
+        self.silence_timeout_chunks = int(self._default_silence_timeout_chunks)
 
     def enable_aec(self, enabled: bool = True, *, stream_delay_ms: int = 0) -> bool:
         """Enable/disable acoustic echo cancellation (optional).
@@ -261,18 +312,70 @@ class VoiceRecognizer:
             print(" > Voice recognition stopped")
         return True
 
-    def _transcribe_pcm16(self, pcm16_bytes: bytes, language: Optional[str] = None) -> str:
+    def _transcribe_pcm16(
+        self,
+        pcm16_bytes: bytes,
+        language: Optional[str] = None,
+        *,
+        hotwords: str | None = None,
+        condition_on_previous_text: bool = True,
+    ) -> str:
         """Transcribe raw PCM16 mono audio bytes."""
         if not pcm16_bytes:
             return ""
 
         audio = np.frombuffer(pcm16_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-        text = self.stt_adapter.transcribe_from_array(audio, sample_rate=self.sample_rate, language=language)
+        lang = language if language is not None else self.language
+        text = self.stt_adapter.transcribe_from_array(
+            audio,
+            sample_rate=self.sample_rate,
+            language=lang,
+            hotwords=hotwords,
+            condition_on_previous_text=bool(condition_on_previous_text),
+        )
         return (text or "").strip()
 
     def _is_stop_command(self, text: str) -> bool:
         """Return True if text matches a configured stop phrase."""
         return is_stop_phrase(text, self.stop_phrases)
+
+    def _maybe_detect_stop_phrase_continuous(self, pcm16_chunk: bytes) -> bool:
+        """Best-effort rolling stop-phrase detection during TTS playback.
+
+        Returns True if stop_callback was invoked.
+        """
+        if not (self.transcriptions_paused and self.stop_callback):
+            return False
+
+        now = time.time()
+        self._stop_ring.extend(pcm16_chunk)
+        max_bytes = int(self.sample_rate * float(self._stop_window_s) * 2)
+        if max_bytes > 0 and len(self._stop_ring) > max_bytes:
+            del self._stop_ring[: len(self._stop_ring) - max_bytes]
+
+        if (now - float(self._stop_last_check)) < float(self._stop_check_interval_s):
+            return False
+        self._stop_last_check = now
+
+        try:
+            text = self._transcribe_pcm16(
+                bytes(self._stop_ring),
+                hotwords="stop, ok stop, okay stop",
+                condition_on_previous_text=False,
+            )
+        except Exception:
+            return False
+
+        if text and self._is_stop_command(text):
+            try:
+                self.stop_callback()
+            except Exception:
+                pass
+            self._stop_ring = bytearray()
+            # small cooldown
+            self._stop_last_check = time.time()
+            return True
+        return False
     
     def _recognition_loop(self):
         """Main recognition loop."""
@@ -309,6 +412,13 @@ class VoiceRecognizer:
                 # Optional AEC: remove speaker echo from mic input before VAD/STT.
                 if self.aec_enabled and self._aec:
                     audio_data = self._apply_aec(audio_data)
+
+                # While transcriptions are paused (typically during TTS in STOP mode),
+                # run a rolling stop-phrase detector so "stop" can still work even if
+                # VAD never sees a clean end-of-utterance due to speaker echo.
+                if self._maybe_detect_stop_phrase_continuous(audio_data):
+                    # Don't also feed this chunk into VAD/recording state.
+                    continue
                 
                 # Check for speech
                 is_speech = self.voice_detector.is_speech(audio_data)
