@@ -263,17 +263,50 @@ class FasterWhisperAdapter(STTAdapter):
         Returns:
             Transcribed text
         """
-        # Convert array to WAV bytes
-        audio_bytes = self._array_to_wav_bytes(audio_array, sample_rate)
-        
-        # Transcribe from bytes
-        return self.transcribe_from_bytes(
-            audio_bytes,
-            language=language,
-            hotwords=hotwords,
-            initial_prompt=initial_prompt,
-            condition_on_previous_text=bool(condition_on_previous_text),
-        )
+        # Fast path: pass float32 mono directly to faster-whisper (no temp files).
+        # NOTE: faster-whisper expects 16kHz audio when passing an array. We resample
+        # lightweightly if needed.
+        if not self.is_available():
+            raise RuntimeError(
+                "Faster-Whisper is not available. Install with: pip install faster-whisper>=0.10.0"
+            )
+        try:
+            import numpy as _np
+
+            x = _np.asarray(audio_array, dtype=_np.float32).reshape(-1)
+            sr = int(sample_rate)
+            if sr != 16000:
+                from ..audio.resample import linear_resample_mono
+
+                x = linear_resample_mono(x, sr, 16000)
+                sr = 16000
+
+            segments, info = self._model.transcribe(
+                x,
+                language=language,
+                beam_size=2,
+                best_of=2,
+                temperature=0.0,
+                vad_filter=False,
+                hotwords=hotwords,
+                initial_prompt=initial_prompt,
+                condition_on_previous_text=bool(condition_on_previous_text),
+                without_timestamps=True,
+            )
+            text = " ".join([segment.text.strip() for segment in segments])
+            if language is None:
+                logger.debug(f"Detected language: {info.language} (confidence: {info.language_probability:.2f})")
+            return text.strip()
+        except Exception:
+            # Fallback to file-based path for maximum compatibility.
+            audio_bytes = self._array_to_wav_bytes(audio_array, sample_rate)
+            return self.transcribe_from_bytes(
+                audio_bytes,
+                language=language,
+                hotwords=hotwords,
+                initial_prompt=initial_prompt,
+                condition_on_previous_text=bool(condition_on_previous_text),
+            )
     
     def _array_to_wav_bytes(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
         """Convert numpy array to WAV bytes.

@@ -113,6 +113,8 @@ class VoiceRecognizer:
         self._stop_last_check = 0.0
         self._stop_check_interval_s = 0.9
         self._stop_window_s = 1.6
+        self._stop_hit_count = 0
+        self._stop_hit_deadline = 0.0
         
         # Configuration
         self.sample_rate = sample_rate
@@ -339,6 +341,21 @@ class VoiceRecognizer:
         """Return True if text matches a configured stop phrase."""
         return is_stop_phrase(text, self.stop_phrases)
 
+    def _match_stop_phrase(self, text: str) -> str | None:
+        """Return the matched stop phrase (normalized) or None."""
+        from .stop_phrase import normalize_stop_phrase
+
+        normalized = normalize_stop_phrase(text)
+        if not normalized:
+            return None
+        phrases = [normalize_stop_phrase(p) for p in (self.stop_phrases or []) if p]
+        for ph in phrases:
+            if not ph:
+                continue
+            if normalized == ph or normalized.startswith(ph + " ") or normalized.endswith(" " + ph):
+                return ph
+        return None
+
     def _maybe_detect_stop_phrase_continuous(self, pcm16_chunk: bytes) -> bool:
         """Best-effort rolling stop-phrase detection during TTS playback.
 
@@ -366,7 +383,28 @@ class VoiceRecognizer:
         except Exception:
             return False
 
-        if text and self._is_stop_command(text):
+        # Keep this conservative to avoid hallucinated "stop" from hotword bias:
+        # - only accept short transcripts
+        # - require confirmation for bare "stop"
+        words = (text or "").strip().split()
+        if len(words) > 4:
+            self._stop_hit_count = 0
+            return False
+
+        matched = self._match_stop_phrase(text or "")
+        if matched:
+            now2 = time.time()
+            # Confirmation: for bare "stop" require 2 hits within 2.5s.
+            if matched == "stop":
+                if now2 > float(self._stop_hit_deadline):
+                    self._stop_hit_count = 0
+                self._stop_hit_deadline = now2 + 2.5
+                self._stop_hit_count += 1
+                if self._stop_hit_count < 2:
+                    return False
+            else:
+                self._stop_hit_count = 0
+
             try:
                 self.stop_callback()
             except Exception:
