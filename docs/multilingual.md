@@ -262,10 +262,11 @@ else:
 
 2. **Model Download Issues**
    ```python
-   # Force model download
-   from TTS.api import TTS
-   tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
-   print("Model downloaded successfully")
+   # Piper voices download on demand when you switch language.
+   from abstractvoice import VoiceManager
+   vm = VoiceManager()
+   vm.set_language("fr")
+   print("French voice ready")
    ```
 
 3. **Language Not Working**

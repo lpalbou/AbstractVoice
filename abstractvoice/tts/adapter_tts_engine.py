@@ -91,6 +91,20 @@ class AdapterTTSEngine:
         self.audio_player.play_audio(audio)
         return True
 
+    def play_audio_array(self, audio: np.ndarray, callback=None) -> bool:
+        """Play already-synthesized audio through the same playback pipeline.
+
+        Used for optional features (e.g., voice cloning) that produce WAV bytes
+        externally but still want to reuse the existing low-latency playback +
+        lifecycle callbacks.
+        """
+        self._user_callback = callback
+        if self.on_playback_start:
+            threading.Thread(target=self.on_playback_start, daemon=True).start()
+
+        self.audio_player.play_audio(audio)
+        return True
+
     def _on_playback_complete(self) -> None:
         """Called by the audio player when playback fully drains."""
         if self.on_playback_end:

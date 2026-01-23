@@ -1,1295 +1,235 @@
-"""TTS Engine for high-quality speech synthesis with interrupt handling.
+"""Core audio playback utilities (Piper-first).
 
-This module implements best practices for TTS synthesis including:
-- Sentence segmentation for long text (prevents attention degradation)
-- Text chunking for extremely long content
-- Text preprocessing and normalization
-- Robust error handling
+AbstractVoice core intentionally avoids shipping legacy Coqui-based TTSEngine
+logic. This module contains only reusable audio utilities:
+- `NonBlockingAudioPlayer` for low-latency pause/resume/stop
+- `apply_speed_without_pitch_change` (optional librosa)
 """
 
-import threading
-import time
-import numpy as np
-import os
-import sys
+from __future__ import annotations
+
 import logging
-import warnings
-import re
 import queue
+import threading
+from typing import Callable, Optional
 
-# Lazy imports for heavy dependencies
-def _import_tts():
-    """Import TTS with helpful error message if dependencies missing."""
-    try:
-        from TTS.api import TTS
-        return TTS
-    except ImportError as e:
-        error_msg = str(e).lower()
+import numpy as np
 
-        # Check for specific PyTorch/TorchVision conflicts
-        if "torchvision::nms does not exist" in error_msg or "gpt2pretrainedmodel" in error_msg:
-            raise ImportError(
-                "❌ PyTorch/TorchVision version conflict detected!\n\n"
-                "This is a known compatibility issue. To fix:\n\n"
-                "1. Uninstall conflicting packages:\n"
-                "   pip uninstall torch torchvision torchaudio transformers\n\n"
-                "2. Reinstall with compatible versions:\n"
-                "   pip install abstractvoice[all]  # Installs tested compatible versions\n\n"
-                "3. Or use specific PyTorch version:\n"
-                "   pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1\n"
-                "   pip install abstractvoice[voice-full]\n\n"
-                "For conda environments, consider:\n"
-                "   conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia\n\n"
-                f"Original error: {e}"
-            ) from e
-        elif "no module named 'tts'" in error_msg or "coqui" in error_msg:
-            raise ImportError(
-                "TTS functionality requires coqui-tts. Install with:\n"
-                "  pip install abstractvoice[tts]        # For TTS only\n"
-                "  pip install abstractvoice[voice-full] # For complete voice functionality\n"
-                "  pip install abstractvoice[all]        # For all features\n"
-                f"Original error: {e}"
-            ) from e
-        else:
-            # Generic import error
-            raise ImportError(
-                "TTS functionality requires optional dependencies. Install with:\n"
-                "  pip install abstractvoice[tts]        # For TTS only\n"
-                "  pip install abstractvoice[voice-full] # For complete voice functionality\n"
-                "  pip install abstractvoice[all]        # For all features\n\n"
-                "If you're getting PyTorch-related errors, try:\n"
-                "  pip install abstractvoice[core-tts]   # Lightweight TTS without extras\n\n"
-                f"Original error: {e}"
-            ) from e
 
 def _import_sounddevice():
-    """Import sounddevice with a helpful error message if missing.
-
-    Audio playback should *not* require `librosa`. `librosa` is only needed for
-    speed/pitch processing.
-    """
     try:
         import sounddevice as sd
         return sd
     except ImportError as e:
         raise ImportError(
             "Audio playback requires sounddevice. Install with:\n"
-            "  pip install abstractvoice[audio-only]  # For audio processing only\n"
-            "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
-            "  pip install abstractvoice[all]         # For all features\n\n"
-            "On some systems, you may need system audio libraries:\n"
-            "  Ubuntu/Debian: sudo apt-get install portaudio19-dev\n"
-            "  macOS: brew install portaudio\n"
-            "  Windows: Usually works out of the box\n\n"
+            "  pip install abstractvoice\n"
             f"Original error: {e}"
         ) from e
 
 
 def _import_librosa():
-    """Import librosa with a helpful error message if missing."""
     try:
         import librosa
         return librosa
     except ImportError as e:
         raise ImportError(
-            "Audio processing requires librosa. Install with:\n"
-            "  pip install abstractvoice[tts]         # For TTS functionality\n"
-            "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
-            "  pip install abstractvoice[all]         # For all features\n\n"
+            "Speed/pitch processing requires librosa. Install with:\n"
+            "  pip install \"abstractvoice[audio-fx]\"\n"
             f"Original error: {e}"
         ) from e
 
-# Suppress the PyTorch FutureWarning about torch.load
-warnings.filterwarnings(
-    "ignore", 
-    message="You are using `torch.load` with `weights_only=False`", 
-    category=FutureWarning
-)
 
-# Suppress pkg_resources deprecation warning from jieba
-warnings.filterwarnings(
-    "ignore",
-    message=".*pkg_resources is deprecated.*",
-    category=DeprecationWarning
-)
+def apply_speed_without_pitch_change(audio: np.ndarray, speed: float, sr: int = 22050) -> np.ndarray:
+    """Apply speed change without affecting pitch (best-effort).
 
-# Suppress coqpit deserialization warnings from TTS models
-warnings.filterwarnings(
-    "ignore",
-    message=".*Type mismatch.*",
-    category=UserWarning
-)
-warnings.filterwarnings(
-    "ignore",
-    message=".*Failed to deserialize field.*",
-    category=UserWarning
-)
-
-# Suppress macOS audio warnings (harmless but annoying)
-import os
-os.environ['PYTHONWARNINGS'] = 'ignore'
-
-def preprocess_text(text):
-    """Preprocess text for better TTS synthesis.
-    
-    This function normalizes text to prevent synthesis errors:
-    - Removes excessive whitespace
-    - Normalizes punctuation
-    - Handles common abbreviations
-    - Removes problematic characters
-    
-    Args:
-        text: Input text string
-        
-    Returns:
-        Cleaned and normalized text
+    If librosa is not installed (or fails), returns the original audio.
     """
-    if not text:
-        return text
-    
-    # Remove excessive whitespace
-    text = re.sub(r'\s+', ' ', text)
-    
-    # Normalize ellipsis
-    text = text.replace('...', '.')
-    
-    # Remove or normalize problematic characters
-    # Keep basic punctuation that helps with prosody
-    text = re.sub(r'[^\w\s.,!?;:\-\'"()]', '', text)
-    
-    # Ensure proper spacing after punctuation
-    text = re.sub(r'([.,!?;:])([^\s])', r'\1 \2', text)
-    
-    return text.strip()
-
-
-def apply_speed_without_pitch_change(audio, speed, sr=22050):
-    """Apply speed change without affecting pitch using librosa time_stretch.
-    
-    Args:
-        audio: Audio samples as numpy array
-        speed: Speed multiplier (0.5-2.0, where >1.0 is faster, <1.0 is slower)
-        sr: Sample rate (default 22050)
-        
-    Returns:
-        Time-stretched audio samples
-    """
-    if speed == 1.0:
+    if not speed or speed == 1.0:
         return audio
-    
-    # librosa.effects.time_stretch expects rate parameter where:
-    # rate > 1.0 makes audio faster (shorter)
-    # rate < 1.0 makes audio slower (longer)
-    # This matches our speed semantics
+
     try:
         librosa = _import_librosa()
-        stretched_audio = librosa.effects.time_stretch(audio, rate=speed)
-        return stretched_audio
+        return librosa.effects.time_stretch(audio, rate=float(speed))
     except Exception as e:
-        # If time-stretching fails, return original audio
         logging.warning(f"Time-stretching failed: {e}, using original audio")
         return audio
 
 
 class NonBlockingAudioPlayer:
-    """Non-blocking audio player using OutputStream callbacks for immediate pause/resume."""
-    
-    def __init__(self, sample_rate=22050, debug_mode=False):
-        self.sample_rate = sample_rate
+    """Non-blocking audio player using OutputStream callbacks for pause/resume."""
+
+    def __init__(self, sample_rate: int = 22050, debug_mode: bool = False):
+        self.sample_rate = int(sample_rate)
         self.debug_mode = debug_mode
-        
-        # Audio queue and playback state
-        self.audio_queue = queue.Queue()
+
+        self.audio_queue: "queue.Queue[np.ndarray]" = queue.Queue()
         self.stream = None
         self.is_playing = False
-        self.is_paused = False
-        self.pause_lock = threading.Lock()
-        
-        # Current audio buffer management
-        self.current_audio = None
+
+        self._pause_lock = threading.Lock()
+        self._paused = False
+
+        self.current_audio: Optional[np.ndarray] = None
         self.current_position = 0
-        self.playback_complete_callback = None
-        
-        # NEW: Enhanced audio lifecycle callbacks
-        self.on_audio_start = None      # Called when first audio sample plays
-        self.on_audio_end = None        # Called when last audio sample finishes
-        self.on_audio_pause = None      # Called when audio is paused
-        self.on_audio_resume = None     # Called when audio is resumed
-        self._audio_started = False     # Track if we've fired start callback
-        
-    def _audio_callback(self, outdata, frames, time, status):
-        """Callback function for OutputStream - provides immediate pause/resume."""
+
+        self.playback_complete_callback: Optional[Callable[[], None]] = None
+
+        # Audio lifecycle callbacks
+        self.on_audio_start: Optional[Callable[[], None]] = None
+        self.on_audio_end: Optional[Callable[[], None]] = None
+        self.on_audio_pause: Optional[Callable[[], None]] = None
+        self.on_audio_resume: Optional[Callable[[], None]] = None
+        self._audio_started = False
+
+        # Optional hook: called with chunks that are actually written to the output.
+        # Used for advanced features like AEC (barge-in without self-interruption).
+        self.on_audio_chunk = None  # Callable[[np.ndarray, int], None] | None
+
+    def _audio_callback(self, outdata, frames, _time, status):
         if status and self.debug_mode:
             print(f"Audio callback status: {status}")
-        
-        # Check pause state (thread-safe)
-        with self.pause_lock:
-            if self.is_paused:
-                # Output silence when paused - immediate response
+
+        with self._pause_lock:
+            if self._paused:
                 outdata.fill(0)
                 return
-        
+
         try:
-            # Get next audio chunk if needed
             if self.current_audio is None or self.current_position >= len(self.current_audio):
                 try:
                     self.current_audio = self.audio_queue.get_nowait()
                     self.current_position = 0
-                    if self.debug_mode:
-                        print(f" > Playing audio chunk ({len(self.current_audio)} samples)")
                 except queue.Empty:
-                    # No more audio - output silence and mark as not playing
                     outdata.fill(0)
                     if self.is_playing:
                         self.is_playing = False
-                        self._audio_started = False  # Reset for next playback
-                        
-                        # Fire audio end callback
+                        self._audio_started = False
                         if self.on_audio_end:
                             threading.Thread(target=self.on_audio_end, daemon=True).start()
-                            
                         if self.playback_complete_callback:
-                            # Call completion callback in a separate thread to avoid blocking
                             threading.Thread(target=self.playback_complete_callback, daemon=True).start()
                     return
-            
-            # Calculate how much audio we can output this frame
+
             remaining = len(self.current_audio) - self.current_position
             frames_to_output = min(frames, remaining)
-            
-            # Fire audio start callback on first real audio output
+
             if frames_to_output > 0 and not self._audio_started:
                 self._audio_started = True
                 if self.on_audio_start:
                     threading.Thread(target=self.on_audio_start, daemon=True).start()
-            
-            # Output the audio data
+
             if frames_to_output > 0:
-                # Handle both mono and stereo output
-                if outdata.shape[1] == 1:  # Mono output
-                    outdata[:frames_to_output, 0] = self.current_audio[self.current_position:self.current_position + frames_to_output]
-                else:  # Stereo output
-                    audio_data = self.current_audio[self.current_position:self.current_position + frames_to_output]
-                    outdata[:frames_to_output, 0] = audio_data  # Left channel
-                    outdata[:frames_to_output, 1] = audio_data  # Right channel
-                
+                if outdata.shape[1] == 1:
+                    outdata[:frames_to_output, 0] = self.current_audio[
+                        self.current_position : self.current_position + frames_to_output
+                    ]
+                else:
+                    audio_data = self.current_audio[
+                        self.current_position : self.current_position + frames_to_output
+                    ]
+                    outdata[:frames_to_output, 0] = audio_data
+                    outdata[:frames_to_output, 1] = audio_data
+
+                # Emit the actual output chunk (mono float32) for optional consumers.
+                try:
+                    if self.on_audio_chunk:
+                        chunk = self.current_audio[
+                            self.current_position : self.current_position + frames_to_output
+                        ]
+                        self.on_audio_chunk(chunk, int(self.sample_rate))
+                except Exception:
+                    # Never let optional hooks break audio playback.
+                    pass
                 self.current_position += frames_to_output
-            
-            # Fill remaining with silence if needed
+
             if frames_to_output < frames:
                 outdata[frames_to_output:].fill(0)
-                
+
         except Exception as e:
             if self.debug_mode:
                 print(f"Error in audio callback: {e}")
             outdata.fill(0)
-    
+
     def start_stream(self):
-        """Start the audio stream."""
-        if self.stream is None:
-            try:
-                sd = _import_sounddevice()
-                self.stream = sd.OutputStream(
-                    samplerate=self.sample_rate,
-                    channels=1,  # Mono output
-                    callback=self._audio_callback,
-                    blocksize=1024,  # Small buffer for low latency
-                    dtype=np.float32
-                )
-                self.stream.start()
-                if self.debug_mode:
-                    print(" > Audio stream started")
-            except Exception as e:
-                if self.debug_mode:
-                    print(f"Error starting audio stream: {e}")
-                raise
-    
+        if self.stream is not None:
+            return
+        sd = _import_sounddevice()
+        self.stream = sd.OutputStream(
+            samplerate=self.sample_rate,
+            channels=1,
+            callback=self._audio_callback,
+            blocksize=1024,
+            dtype=np.float32,
+        )
+        self.stream.start()
+
     def stop_stream(self):
-        """Stop the audio stream."""
         if self.stream:
             try:
                 self.stream.stop()
+            except Exception:
+                pass
+            try:
                 self.stream.close()
-                if self.debug_mode:
-                    print(" > Audio stream stopped")
-            except Exception as e:
-                if self.debug_mode:
-                    print(f"Error stopping audio stream: {e}")
-            finally:
-                self.stream = None
+            except Exception:
+                pass
+            self.stream = None
 
         self.is_playing = False
-        with self.pause_lock:
-            self.is_paused = False
+        with self._pause_lock:
+            self._paused = False
         self.clear_queue()
 
     def cleanup(self):
-        """Cleanup resources to prevent memory conflicts."""
-        try:
-            self.stop_stream()
-            # Clear any remaining references
-            self.current_audio = None
-            self.playback_complete_callback = None
-            if self.debug_mode:
-                print(" > Audio player cleaned up")
-        except Exception as e:
-            if self.debug_mode:
-                print(f"Audio cleanup warning: {e}")
-    
-    def play_audio(self, audio_array):
-        """Add audio to the playback queue."""
-        if audio_array is not None and len(audio_array) > 0:
-            # Ensure audio is float32 and normalized
-            if audio_array.dtype != np.float32:
-                audio_array = audio_array.astype(np.float32)
-            
-            # Normalize if needed
-            if np.max(np.abs(audio_array)) > 1.0:
-                audio_array = audio_array / np.max(np.abs(audio_array))
-            
-            self.audio_queue.put(audio_array)
-            self.is_playing = True
-            
-            # Start stream if not already running
-            if self.stream is None:
-                self.start_stream()
-    
-    def pause(self):
-        """Pause audio playback immediately."""
-        with self.pause_lock:
-            if self.is_playing and not self.is_paused:
-                self.is_paused = True
-                if self.debug_mode:
-                    print(" > Audio paused immediately")
-                
-                # Fire audio pause callback
+        self.stop_stream()
+        self.current_audio = None
+        self.playback_complete_callback = None
+
+    def play_audio(self, audio_array: np.ndarray):
+        if audio_array is None or len(audio_array) == 0:
+            return
+
+        if audio_array.dtype != np.float32:
+            audio_array = audio_array.astype(np.float32)
+
+        max_abs = float(np.max(np.abs(audio_array))) if len(audio_array) else 0.0
+        if max_abs > 1.0:
+            audio_array = audio_array / max_abs
+
+        self.audio_queue.put(audio_array)
+        self.is_playing = True
+        if self.stream is None:
+            self.start_stream()
+
+    def pause(self) -> bool:
+        with self._pause_lock:
+            if self.is_playing and not self._paused:
+                self._paused = True
                 if self.on_audio_pause:
                     threading.Thread(target=self.on_audio_pause, daemon=True).start()
-                
                 return True
         return False
-    
-    def resume(self):
-        """Resume audio playback immediately."""
-        with self.pause_lock:
-            if self.is_paused:
-                self.is_paused = False
-                if self.debug_mode:
-                    print(" > Audio resumed immediately")
-                
-                # Fire audio resume callback
+
+    def resume(self) -> bool:
+        with self._pause_lock:
+            if self._paused:
+                self._paused = False
                 if self.on_audio_resume:
                     threading.Thread(target=self.on_audio_resume, daemon=True).start()
-                
                 return True
         return False
-    
-    def is_paused_state(self):
-        """Check if audio is currently paused."""
-        with self.pause_lock:
-            return self.is_paused
-    
+
+    def is_paused_state(self) -> bool:
+        with self._pause_lock:
+            return bool(self._paused)
+
     def clear_queue(self):
-        """Clear the audio queue."""
         while not self.audio_queue.empty():
             try:
                 self.audio_queue.get_nowait()
             except queue.Empty:
                 break
-        
-        # Reset current audio buffer
         self.current_audio = None
         self.current_position = 0
 
-
-def chunk_long_text(text, max_chunk_size=300):
-    """Split very long text into manageable chunks at natural boundaries.
-    
-    For extremely long texts, this function splits at paragraph or sentence
-    boundaries to prevent memory issues and attention degradation.
-    
-    Args:
-        text: Input text string
-        max_chunk_size: Maximum characters per chunk (default 300)
-        
-    Returns:
-        List of text chunks
-    """
-    if len(text) <= max_chunk_size:
-        return [text]
-    
-    chunks = []
-    
-    # First try to split by paragraphs
-    paragraphs = text.split('\n\n')
-    
-    current_chunk = ""
-    for para in paragraphs:
-        # If adding this paragraph would exceed limit and we have content
-        if len(current_chunk) + len(para) > max_chunk_size and current_chunk:
-            chunks.append(current_chunk.strip())
-            current_chunk = para
-        else:
-            if current_chunk:
-                current_chunk += "\n\n" + para
-            else:
-                current_chunk = para
-        
-        # If a single paragraph is too long, split by sentences
-        if len(current_chunk) > max_chunk_size:
-            # Split on sentence boundaries
-            sentences = re.split(r'([.!?]+\s+)', current_chunk)
-            temp_chunk = ""
-            
-            for i in range(0, len(sentences), 2):
-                sentence = sentences[i]
-                punct = sentences[i+1] if i+1 < len(sentences) else ""
-                
-                if len(temp_chunk) + len(sentence) + len(punct) > max_chunk_size and temp_chunk:
-                    chunks.append(temp_chunk.strip())
-                    temp_chunk = sentence + punct
-                else:
-                    temp_chunk += sentence + punct
-            
-            current_chunk = temp_chunk
-    
-    # Add remaining text
-    if current_chunk:
-        chunks.append(current_chunk.strip())
-    
-    return chunks if chunks else [text]
-
-
-class TTSEngine:
-    """Text-to-speech engine with interrupt capability."""
-    
-    def __init__(self, model_name="tts_models/en/ljspeech/vits", debug_mode=False, streaming=True):
-        """Initialize the TTS engine.
-        
-        Args:
-            model_name: TTS model to use (default: vits - best quality, requires espeak-ng)
-            debug_mode: Enable debug output
-            streaming: Enable streaming playback (start playing while synthesizing remaining chunks)
-        
-        Note:
-            VITS model (default) requires espeak-ng for best quality:
-            - macOS: brew install espeak-ng
-            - Linux: sudo apt-get install espeak-ng  
-            - Windows: See installation guide in README
-            
-            If espeak-ng is not available, will auto-fallback to fast_pitch
-        """
-        # Set up debug mode
-        self.debug_mode = debug_mode
-        self.streaming = streaming
-        
-        # Callback to notify when TTS starts/stops (for pausing voice recognition)
-        self.on_playback_start = None
-        self.on_playback_end = None
-        
-        # Suppress TTS output unless in debug mode
-        if not debug_mode:
-            # Suppress all TTS logging
-            logging.getLogger('TTS').setLevel(logging.ERROR)
-            logging.getLogger('TTS.utils.audio').setLevel(logging.ERROR)
-            logging.getLogger('TTS.utils.io').setLevel(logging.ERROR)
-            logging.getLogger('numba').setLevel(logging.ERROR)
-            
-            # Disable stdout during TTS loading
-            os.environ['TTS_VERBOSE'] = '0'
-            
-            # Temporarily redirect stdout to suppress TTS init messages
-            orig_stdout = sys.stdout
-            null_out = open(os.devnull, 'w')
-            sys.stdout = null_out
-        
-        try:
-            if self.debug_mode:
-                print(f" > Loading TTS model: {model_name}")
-
-            # Try simple, effective initialization strategy
-            try:
-                TTS = _import_tts()
-                success, final_model = self._load_with_simple_fallback(TTS, model_name, debug_mode)
-                if not success:
-                    # If all fails, provide actionable guidance
-                    self._handle_model_load_failure(debug_mode)
-                elif self.debug_mode and final_model != model_name:
-                    print(f" > Loaded fallback model: {final_model}")
-            except Exception as e:
-                error_msg = str(e).lower()
-                # Check if this is an espeak-related error
-                if ("espeak" in error_msg or "phoneme" in error_msg):
-                    self._handle_espeak_fallback(debug_mode)
-                else:
-                    # Different error, re-raise
-                    raise
-        finally:
-            # Restore stdout if we redirected it
-            if not debug_mode:
-                sys.stdout = orig_stdout
-                null_out.close()
-        
-        # Initialize non-blocking audio player for immediate pause/resume
-        self.audio_player = NonBlockingAudioPlayer(sample_rate=22050, debug_mode=debug_mode)
-        self.audio_player.playback_complete_callback = self._on_playback_complete
-        
-        # Legacy playback state (for compatibility with existing code)
-        self.is_playing = False
-        self.stop_flag = threading.Event()
-        self.pause_flag = threading.Event()
-        self.pause_flag.set()  # Initially not paused (set means "not paused")
-        self.playback_thread = None
-        self.start_time = 0
-        self.audio_queue = []  # Queue for streaming playback
-        self.queue_lock = threading.Lock()  # Thread-safe queue access
-        
-        # Pause/resume state
-        self.pause_lock = threading.Lock()  # Thread-safe pause operations
-        self.is_paused_state = False  # Explicit paused state tracking
-
-    def _load_with_simple_fallback(self, TTS, preferred_model: str, debug_mode: bool) -> tuple[bool, str]:
-        """Load TTS model with bulletproof compatibility-first strategy."""
-        from ..simple_model_manager import get_model_manager
-
-        model_manager = get_model_manager(debug_mode=debug_mode)
-
-        # Step 1: Check espeak availability for smart model filtering
-        espeak_available = self._check_espeak_available()
-        if debug_mode and not espeak_available:
-            print(" > espeak-ng not found, will skip VITS models")
-
-        # Step 2: Try the REQUESTED model first if it's cached
-        cached_models = model_manager.get_cached_models()
-        if cached_models and debug_mode:
-            print(f" > Found {len(cached_models)} cached models")
-
-        # FORCE USER'S CHOICE: Try the specifically requested model first
-        if preferred_model in cached_models:
-            try:
-                if debug_mode:
-                    print(f" > LOADING REQUESTED MODEL: {preferred_model}")
-
-                # Safety check for Italian VITS models that might crash
-                if "it/" in preferred_model and "vits" in preferred_model:
-                    if debug_mode:
-                        print(f" > Italian VITS model detected - using safe loading...")
-
-                self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
-
-                if debug_mode:
-                    print(f" > ✅ SUCCESS: Loaded requested model: {preferred_model}")
-                return True, preferred_model
-
-            except Exception as e:
-                error_msg = str(e).lower()
-                if debug_mode:
-                    print(f" > ❌ Requested model failed: {e}")
-
-                # Special handling for Italian model crashes
-                if "it/" in preferred_model and ("segmentation" in error_msg or "crash" in error_msg):
-                    if debug_mode:
-                        print(f" > Italian model caused crash - marking as incompatible")
-                    # Force fallback for crashed Italian models
-                    pass
-
-                # Only fall back if the model actually failed to load, not due to dependencies
-
-        # Step 3: Only fall back to compatibility order if requested model failed
-        if debug_mode:
-            print(" > Requested model unavailable, trying fallback models...")
-
-        # Compatibility-first fallback order
-        fallback_models = [
-            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable (Linda)
-            "tts_models/en/jenny/jenny",             # Different female speaker (Jenny)
-            "tts_models/en/ek1/tacotron2",           # Male British accent (Edward)
-            "tts_models/en/sam/tacotron-DDC",        # Different male voice (Sam)
-            "tts_models/en/ljspeech/fast_pitch",     # Lightweight alternative
-            "tts_models/en/ljspeech/glow-tts",       # Another alternative
-            "tts_models/en/vctk/vits",               # Multi-speaker (requires espeak)
-            "tts_models/en/ljspeech/vits",           # Premium (requires espeak)
-        ]
-
-        # Remove the preferred model from fallbacks to avoid duplicate attempts
-        fallback_models = [m for m in fallback_models if m != preferred_model]
-
-        # Try fallback models
-        for model in fallback_models:
-            if model in cached_models:
-                # Skip VITS models if no espeak
-                if "vits" in model and not espeak_available:
-                    if debug_mode:
-                        print(f" > Skipping {model} (requires espeak-ng)")
-                    continue
-
-                try:
-                    if debug_mode:
-                        print(f" > Trying fallback model: {model}")
-                    self.tts = TTS(model_name=model, progress_bar=self.debug_mode)
-                    if debug_mode:
-                        print(f" > ✅ Successfully loaded fallback: {model}")
-                    return True, model
-                except Exception as e:
-                    if debug_mode:
-                        print(f" > ❌ Fallback {model} failed: {e}")
-
-        # Step 4: If no cached models work, try downloading requested model first
-        if debug_mode:
-            print(" > No cached models worked, attempting downloads...")
-
-        # Try downloading the requested model first
-        if "vits" not in preferred_model or espeak_available:
-            try:
-                if debug_mode:
-                    print(f" > Downloading requested model: {preferred_model}...")
-                success = model_manager.download_model(preferred_model)
-                if success:
-                    self.tts = TTS(model_name=preferred_model, progress_bar=self.debug_mode)
-                    if debug_mode:
-                        print(f" > ✅ Downloaded and loaded requested: {preferred_model}")
-                    return True, preferred_model
-                elif debug_mode:
-                    print(f" > ❌ Download failed for requested model: {preferred_model}")
-            except Exception as e:
-                if debug_mode:
-                    print(f" > ❌ Failed to download/load requested model: {e}")
-
-        # Step 5: If requested model download failed, try fallback downloads
-        for model in fallback_models:
-            # Skip VITS models if no espeak
-            if "vits" in model and not espeak_available:
-                continue
-
-            try:
-                if debug_mode:
-                    print(f" > Downloading fallback: {model}...")
-
-                # First try to download
-                success = model_manager.download_model(model)
-                if success:
-                    # Then try to load
-                    self.tts = TTS(model_name=model, progress_bar=self.debug_mode)
-                    if debug_mode:
-                        print(f" > ✅ Downloaded and loaded fallback: {model}")
-                    return True, model
-                elif debug_mode:
-                    print(f" > ❌ Download failed for {model}")
-
-            except Exception as e:
-                if debug_mode:
-                    print(f" > ❌ Failed to load {model}: {e}")
-
-        return False, None
-
-    def _check_espeak_available(self) -> bool:
-        """Check if espeak-ng is available on the system."""
-        import subprocess
-        try:
-            subprocess.run(['espeak-ng', '--version'],
-                         capture_output=True, check=True, timeout=5)
-            return True
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-            # Try alternative espeak command
-            try:
-                subprocess.run(['espeak', '--version'],
-                             capture_output=True, check=True, timeout=5)
-                return True
-            except:
-                return False
-
-    def _handle_espeak_fallback(self, debug_mode: bool):
-        """Handle espeak-related errors with fallback to non-phoneme models."""
-        # Restore stdout to show user-friendly message
-        if not debug_mode:
-            sys.stdout = sys.__stdout__
-
-        print("\n" + "="*70)
-        print("⚠️  VITS Model Requires espeak-ng (Not Found)")
-        print("="*70)
-        print("\nFor BEST voice quality, install espeak-ng:")
-        print("  • macOS:   brew install espeak-ng")
-        print("  • Linux:   sudo apt-get install espeak-ng")
-        print("  • Windows: conda install espeak-ng  (or see README)")
-        print("\nFalling back to compatible models (no espeak dependency)")
-        print("="*70 + "\n")
-
-        if not debug_mode:
-            import os
-            null_out = open(os.devnull, 'w')
-            sys.stdout = null_out
-
-        # Try non-phoneme models that don't require espeak (compatibility-first order)
-        from TTS.api import TTS
-        fallback_models = [
-            "tts_models/en/ljspeech/tacotron2-DDC",  # Most reliable (Linda)
-            "tts_models/en/jenny/jenny",             # Different female speaker (Jenny)
-            "tts_models/en/ek1/tacotron2",           # Male British accent (Edward)
-            "tts_models/en/sam/tacotron-DDC",        # Different male voice (Sam)
-            "tts_models/en/ljspeech/fast_pitch",     # Lightweight alternative
-            "tts_models/en/ljspeech/glow-tts"        # Another alternative
-        ]
-
-        tts_loaded = False
-        for fallback_model in fallback_models:
-            try:
-                if debug_mode:
-                    print(f"Trying fallback model: {fallback_model}")
-                self.tts = TTS(model_name=fallback_model, progress_bar=self.debug_mode)
-                tts_loaded = True
-                break
-            except Exception as fallback_error:
-                if debug_mode:
-                    print(f"Fallback {fallback_model} failed: {fallback_error}")
-                continue
-
-        if not tts_loaded:
-            self._handle_model_load_failure(debug_mode)
-
-    def _handle_model_load_failure(self, debug_mode: bool):
-        """Handle complete model loading failure with actionable guidance."""
-        # Restore stdout to show user-friendly message
-        if not debug_mode:
-            sys.stdout = sys.__stdout__
-
-        print("\n" + "="*70)
-        print("❌ TTS Model Loading Failed")
-        print("="*70)
-        print("\nNo TTS models could be loaded (offline or online).")
-        print("\nQuick fixes:")
-        print("  1. Download essential models:")
-        print("     abstractvoice download-models")
-        print("  2. Check internet connectivity")
-        print("  3. Clear corrupted cache:")
-        print("     rm -rf ~/.cache/tts ~/.local/share/tts")
-        print("  4. Reinstall TTS:")
-        print("     pip install --force-reinstall coqui-tts")
-        print("  5. Use text-only mode:")
-        print("     abstractvoice --no-tts")
-        print("="*70)
-
-        raise RuntimeError(
-            "❌ Failed to load any TTS model.\n"
-            "This typically means:\n"
-            "  • No models cached locally AND no internet connection\n"
-            "  • Corrupted model cache\n"
-            "  • Insufficient disk space\n"
-            "  • Network firewall blocking downloads\n\n"
-            "Run 'abstractvoice download-models' when you have internet access."
-        )
-    
-    def _on_playback_complete(self):
-        """Callback when audio playback completes."""
-        self.is_playing = False
-        if self.on_playback_end:
-            self.on_playback_end()
-    
-    def _speak_with_nonblocking_player(self, text, speed=1.0, callback=None, language='en'):
-        """Alternative speak method using NonBlockingAudioPlayer for immediate pause/resume with language support."""
-        # Stop any existing playback
-        self.stop()
-
-        if not text:
-            return False
-
-        try:
-            # Preprocess text for better synthesis quality
-            processed_text = preprocess_text(text)
-
-            if self.debug_mode:
-                print(f" > Speaking (non-blocking): '{processed_text[:100]}{'...' if len(processed_text) > 100 else ''}'")
-                print(f" > Text length: {len(processed_text)} chars")
-                if language != 'en':
-                    print(f" > Language: {language}")
-                if speed != 1.0:
-                    print(f" > Using speed multiplier: {speed}x")
-
-            # For very long text, chunk it at natural boundaries
-            text_chunks = chunk_long_text(processed_text, max_chunk_size=300)
-
-            if self.debug_mode and len(text_chunks) > 1:
-                print(f" > Split into {len(text_chunks)} chunks for processing")
-
-            # Set playing state
-            self.is_playing = True
-            self.is_paused_state = False
-
-            # Call start callback
-            if self.on_playback_start:
-                self.on_playback_start()
-
-            # Synthesize and queue audio chunks
-            def synthesis_worker():
-                try:
-                    for i, chunk in enumerate(text_chunks):
-                        if self.stop_flag.is_set():
-                            break
-
-                        if self.debug_mode and len(text_chunks) > 1:
-                            print(f" > Processing chunk {i+1}/{len(text_chunks)} ({len(chunk)} chars)...")
-
-                        # Generate audio for this chunk with language support
-                        try:
-                            # Check if this is an XTTS model (supports language parameter)
-                            if 'xtts' in self.tts.model_name.lower():
-                                chunk_audio = self.tts.tts(chunk, language=language, split_sentences=True)
-                                if self.debug_mode and language != 'en':
-                                    print(f" > Using XTTS with language: {language}")
-                            else:
-                                # Monolingual model - ignore language parameter
-                                chunk_audio = self.tts.tts(chunk, split_sentences=True)
-                                if self.debug_mode and language != 'en':
-                                    print(f" > Monolingual model - ignoring language parameter")
-                        except Exception as tts_error:
-                            # Fallback: try without language parameter
-                            if self.debug_mode:
-                                print(f" > TTS with language failed, trying without: {tts_error}")
-                            chunk_audio = self.tts.tts(chunk, split_sentences=True)
-
-                        if chunk_audio and len(chunk_audio) > 0:
-                            # Apply speed adjustment
-                            if speed != 1.0:
-                                chunk_audio = apply_speed_without_pitch_change(
-                                    np.array(chunk_audio), speed
-                                )
-
-                            # Queue the audio for playback
-                            self.audio_player.play_audio(np.array(chunk_audio))
-
-                            if self.debug_mode:
-                                print(f" > Chunk {i+1} queued ({len(chunk_audio)} samples)")
-
-                        # Small delay between chunks to prevent overwhelming the queue
-                        time.sleep(0.01)
-
-                except Exception as e:
-                    if self.debug_mode:
-                        print(f"Error in synthesis worker: {e}")
-                finally:
-                    # Synthesis complete - audio player will handle completion callback
-                    pass
-
-            # Start synthesis in background thread
-            synthesis_thread = threading.Thread(target=synthesis_worker, daemon=True)
-            synthesis_thread.start()
-
-            return True
-
-        except Exception as e:
-            if self.debug_mode:
-                print(f"Error in _speak_with_nonblocking_player: {e}")
-            self.is_playing = False
-            return False
-    
-    def speak(self, text, speed=1.0, callback=None, language='en'):
-        """Convert text to speech and play audio with language support.
-
-        Implements SOTA best practices for long text synthesis:
-        - Text preprocessing and normalization
-        - Intelligent chunking for very long text (>500 chars)
-        - Sentence segmentation to prevent attention degradation
-        - Seamless audio concatenation for chunks
-        - Multilingual support via XTTS models
-
-        Args:
-            text: Text to convert to speech
-            speed: Speed multiplier (0.5-2.0)
-            callback: Function to call when speech is complete
-            language: Language code for XTTS models ('en', 'fr', 'es', 'de', 'it', 'ru')
-
-        Returns:
-            True if speech started, False if text was empty
-        """
-        # Use the new non-blocking audio player for immediate pause/resume
-        return self._speak_with_nonblocking_player(text, speed, callback, language)
-        
-        if not text:
-            return False
-        
-        try:
-            # Preprocess text for better synthesis quality
-            processed_text = preprocess_text(text)
-            
-            if self.debug_mode:
-                print(f" > Speaking: '{processed_text[:100]}{'...' if len(processed_text) > 100 else ''}'")
-                print(f" > Text length: {len(processed_text)} chars")
-                if speed != 1.0:
-                    print(f" > Using speed multiplier: {speed}x")
-            
-            # For very long text, chunk it at natural boundaries
-            # Use 300 chars to stay well within model's training distribution
-            text_chunks = chunk_long_text(processed_text, max_chunk_size=300)
-            
-            if self.debug_mode and len(text_chunks) > 1:
-                print(f" > Split into {len(text_chunks)} chunks for processing")
-            
-            # Redirect stdout for non-debug mode
-            orig_stdout = None
-            null_out = None
-            if not self.debug_mode:
-                orig_stdout = sys.stdout
-                null_out = open(os.devnull, 'w')
-                sys.stdout = null_out
-            
-            try:
-                # Choose synthesis strategy based on streaming mode
-                if self.streaming and len(text_chunks) > 1:
-                    # STREAMING MODE: Synthesize and play progressively
-                    if self.debug_mode:
-                        sys.stdout = sys.__stdout__
-                        print(f" > Streaming mode: will start playback after first chunk")
-                        if not self.debug_mode:
-                            sys.stdout = null_out
-                    
-                    # Synthesize first chunk
-                    if self.debug_mode:
-                        sys.stdout = sys.__stdout__
-                        print(f" > Processing chunk 1/{len(text_chunks)} ({len(text_chunks[0])} chars)...")
-                        if not self.debug_mode:
-                            sys.stdout = null_out
-                    
-                    first_audio = self.tts.tts(text_chunks[0], split_sentences=True)
-                    
-                    if not first_audio:
-                        if self.debug_mode:
-                            sys.stdout = sys.__stdout__
-                            print("TTS failed to generate audio for first chunk.")
-                        return False
-                    
-                    # Apply speed adjustment using time-stretching (preserves pitch)
-                    if speed != 1.0:
-                        first_audio = apply_speed_without_pitch_change(
-                            np.array(first_audio), speed
-                        )
-                    
-                    if self.debug_mode:
-                        sys.stdout = sys.__stdout__
-                        print(f" > Chunk 1 generated {len(first_audio)} audio samples")
-                        if speed != 1.0:
-                            print(f" > Applied time-stretch: {speed}x (pitch preserved)")
-                        print(f" > Starting playback while synthesizing remaining chunks...")
-                        if not self.debug_mode:
-                            sys.stdout = null_out
-                    
-                    # Initialize queue with first chunk
-                    with self.queue_lock:
-                        self.audio_queue = [first_audio]
-                    
-                    # Start playback thread (will play from queue)
-                    audio = None  # Will use queue instead
-                    
-                else:
-                    # NON-STREAMING MODE: Synthesize all chunks then play
-                    audio_chunks = []
-                    for i, chunk in enumerate(text_chunks):
-                        if self.debug_mode and len(text_chunks) > 1:
-                            sys.stdout = sys.__stdout__
-                            print(f" > Processing chunk {i+1}/{len(text_chunks)} ({len(chunk)} chars)...")
-                            if not self.debug_mode:
-                                sys.stdout = null_out
-                        
-                        # Use split_sentences=True (SOTA best practice)
-                        chunk_audio = self.tts.tts(chunk, split_sentences=True)
-                        
-                        if chunk_audio:
-                            # Apply speed adjustment using time-stretching (preserves pitch)
-                            if speed != 1.0:
-                                chunk_audio = apply_speed_without_pitch_change(
-                                    np.array(chunk_audio), speed
-                                )
-                            audio_chunks.append(chunk_audio)
-                            if self.debug_mode and len(text_chunks) > 1:
-                                sys.stdout = sys.__stdout__
-                                print(f" > Chunk {i+1} generated {len(chunk_audio)} audio samples")
-                                if not self.debug_mode:
-                                    sys.stdout = null_out
-                        elif self.debug_mode:
-                            sys.stdout = sys.__stdout__
-                            print(f" > Warning: Chunk {i+1} failed to generate audio")
-                            if not self.debug_mode:
-                                sys.stdout = null_out
-                    
-                    if not audio_chunks:
-                        if self.debug_mode:
-                            sys.stdout = sys.__stdout__
-                            print("TTS failed to generate audio.")
-                        return False
-                    
-                    # Concatenate audio arrays
-                    if len(audio_chunks) == 1:
-                        audio = audio_chunks[0]
-                    else:
-                        audio = np.concatenate(audio_chunks)
-                        if self.debug_mode:
-                            sys.stdout = sys.__stdout__
-                            print(f" > Concatenated {len(audio_chunks)} chunks into {len(audio)} total audio samples")
-                            if not self.debug_mode:
-                                sys.stdout = null_out
-                
-            finally:
-                # Restore stdout if we redirected it
-                if not self.debug_mode and orig_stdout:
-                    sys.stdout = orig_stdout
-                    if null_out:
-                        null_out.close()
-            
-            def _audio_playback():
-                # Import sounddevice at runtime to avoid loading heavy dependencies
-                sd = _import_sounddevice()
-
-                try:
-                    self.is_playing = True
-                    self.start_time = time.time()
-                    
-                    # Notify that playback is starting (to pause voice recognition)
-                    if self.on_playback_start:
-                        self.on_playback_start()
-                    
-                    # Use standard playback rate (speed is handled via time-stretching)
-                    playback_rate = 22050
-                    
-                    # STREAMING MODE: Play from queue while synthesizing remaining chunks
-                    if audio is None:  # Streaming mode indicator
-                        # Start background thread to synthesize remaining chunks
-                        def _synthesize_remaining():
-                            for i in range(1, len(text_chunks)):
-                                if self.stop_flag.is_set():
-                                    break
-                                
-                                if self.debug_mode:
-                                    print(f" > [Background] Processing chunk {i+1}/{len(text_chunks)} ({len(text_chunks[i])} chars)...")
-                                
-                                try:
-                                    chunk_audio = self.tts.tts(text_chunks[i], split_sentences=True)
-                                    if chunk_audio:
-                                        # Apply speed adjustment using time-stretching (preserves pitch)
-                                        if speed != 1.0:
-                                            chunk_audio = apply_speed_without_pitch_change(
-                                                np.array(chunk_audio), speed
-                                            )
-                                        with self.queue_lock:
-                                            self.audio_queue.append(chunk_audio)
-                                        if self.debug_mode:
-                                            print(f" > [Background] Chunk {i+1} generated {len(chunk_audio)} samples, added to queue")
-                                except Exception as e:
-                                    if self.debug_mode:
-                                        print(f" > [Background] Chunk {i+1} synthesis error: {e}")
-                        
-                        synthesis_thread = threading.Thread(target=_synthesize_remaining)
-                        synthesis_thread.daemon = True
-                        synthesis_thread.start()
-                        
-                        # Play chunks from queue as they become available
-                        chunks_played = 0
-                        while chunks_played < len(text_chunks) and not self.stop_flag.is_set():
-                            # Check for pause before processing next chunk
-                            while not self.pause_flag.is_set() and not self.stop_flag.is_set():
-                                time.sleep(0.1)  # Non-blocking pause check
-                            
-                            if self.stop_flag.is_set():
-                                break
-                            
-                            # Wait for next chunk to be available
-                            while True:
-                                with self.queue_lock:
-                                    if chunks_played < len(self.audio_queue):
-                                        chunk_to_play = self.audio_queue[chunks_played]
-                                        break
-                                if self.stop_flag.is_set():
-                                    break
-                                time.sleep(0.05)  # Short wait before checking again
-                            
-                            if self.stop_flag.is_set():
-                                break
-                            
-                            # Play this chunk
-                            audio_array = np.array(chunk_to_play)
-                            sd.play(audio_array, samplerate=playback_rate)
-                            
-                            # Wait for this chunk to finish (with frequent pause checks)
-                            while not self.stop_flag.is_set() and sd.get_stream().active:
-                                # Check for pause more frequently
-                                if not self.pause_flag.is_set():
-                                    # Paused - let current audio finish naturally (avoids terminal interference)
-                                    break
-                                time.sleep(0.05)  # Check every 50ms for better responsiveness
-                            
-                            if self.stop_flag.is_set():
-                                # Only use sd.stop() for explicit stop, not pause
-                                sd.stop()
-                                break
-                            
-                            chunks_played += 1
-                        
-                        synthesis_thread.join(timeout=1.0)  # Wait for synthesis to complete
-                    
-                    else:
-                        # NON-STREAMING MODE: Play concatenated audio
-                        audio_array = np.array(audio)
-                        sd.play(audio_array, samplerate=playback_rate)
-                        
-                        # Wait for playback to complete or stop flag (with pause support)
-                        while not self.stop_flag.is_set() and sd.get_stream().active:
-                            # Check for pause more frequently
-                            if not self.pause_flag.is_set():
-                                # Paused - let current audio finish naturally and wait
-                                if self.debug_mode:
-                                    print(" > Audio paused, waiting for resume...")
-                                # Non-blocking wait for resume
-                                while not self.pause_flag.is_set() and not self.stop_flag.is_set():
-                                    time.sleep(0.1)
-                                if not self.stop_flag.is_set():
-                                    # Resume - restart the audio (non-streaming limitation)
-                                    if self.debug_mode:
-                                        print(" > Resuming audio from beginning of current segment...")
-                                    sd.play(audio_array, samplerate=playback_rate)
-                            time.sleep(0.05)  # Check every 50ms for better responsiveness
-                        
-                        sd.stop()
-                    
-                    self.is_playing = False
-                    
-                    # Notify that playback has ended (to resume voice recognition)
-                    if self.on_playback_end:
-                        self.on_playback_end()
-                    
-                    if self.debug_mode:
-                        duration = time.time() - self.start_time
-                        if not self.stop_flag.is_set():  # Only if completed normally
-                            print(f" > Speech completed in {duration:.2f} seconds")
-                    
-                    # Call the callback if provided and speech completed normally
-                    if callback and not self.stop_flag.is_set():
-                        callback()
-                
-                except Exception as e:
-                    if self.debug_mode:
-                        print(f"Audio playback error: {e}")
-                    self.is_playing = False
-                    # Ensure we notify end even on error
-                    if self.on_playback_end:
-                        self.on_playback_end()
-            
-            # Start playback in a separate thread
-            self.stop_flag.clear()
-            self.pause_flag.set()  # Ensure we start unpaused
-            self.is_paused_state = False  # Reset paused state
-            self.playback_thread = threading.Thread(target=_audio_playback)
-            self.playback_thread.start()
-            return True
-        
-        except Exception as e:
-            if self.debug_mode:
-                print(f"TTS error: {e}")
-            return False
-    
-    def stop(self):
-        """Stop current audio playback.
-        
-        Returns:
-            True if playback was stopped, False if no playback was active
-        """
-        stopped = False
-        
-        # Stop new non-blocking audio player
-        if self.audio_player.is_playing:
-            self.audio_player.stop_stream()
-            stopped = True
-            if self.debug_mode:
-                print(" > TTS playback stopped (non-blocking)")
-        
-        # Stop legacy playback system
-        if self.playback_thread and self.playback_thread.is_alive():
-            self.stop_flag.set()
-            self.pause_flag.set()  # Ensure we're not stuck in pause
-            self.is_paused_state = False  # Reset paused state
-            self.playback_thread.join()
-            self.playback_thread = None
-            stopped = True
-            
-            if self.debug_mode:
-                print(" > TTS playback interrupted (legacy)")
-        
-        # Reset state
-        self.is_playing = False
-        self.is_paused_state = False
-        
-        return stopped
-    
-    def pause(self):
-        """Pause current speech playback.
-        
-        Uses a non-interfering pause method that avoids terminal I/O issues.
-        
-        Returns:
-            True if paused, False if no playback was active
-        """
-        # Try new non-blocking audio player first
-        if self.audio_player.is_playing:
-            result = self.audio_player.pause()
-            if result:
-                self.is_paused_state = True
-                if self.debug_mode:
-                    print(" > TTS paused immediately (non-blocking)")
-            return result
-        
-        # Fallback to legacy system
-        if self.playback_thread and self.playback_thread.is_alive() and self.is_playing:
-            self.pause_flag.clear()  # Clear means "paused"
-            self.is_paused_state = True  # Explicit state tracking
-            
-            if self.debug_mode:
-                print(" > TTS paused (legacy method)")
-            
-            return True
-        
-        return False
-    
-    def resume(self):
-        """Resume paused speech playback.
-        
-        Returns:
-            True if resumed, False if not paused or no playback active
-        """
-        if self.is_paused_state:
-            # Try new non-blocking audio player first
-            if self.audio_player.is_paused_state():
-                result = self.audio_player.resume()
-                if result:
-                    self.is_paused_state = False
-                    if self.debug_mode:
-                        print(" > TTS resumed immediately (non-blocking)")
-                    return True
-            
-            # Fallback to legacy system
-            if self.playback_thread and self.playback_thread.is_alive():
-                # Thread is still alive, can resume
-                self.pause_flag.set()  # Set means "not paused"
-                self.is_paused_state = False  # Clear explicit state
-                if self.debug_mode:
-                    print(" > TTS resumed (legacy method)")
-                return True
-            else:
-                # Thread died while paused, nothing to resume
-                self.is_paused_state = False  # Clear paused state
-                if self.debug_mode:
-                    print(" > TTS was paused but playback already completed")
-                return False
-        return False
-    
-    def is_paused(self):
-        """Check if TTS is currently paused.
-        
-        Returns:
-            True if paused, False otherwise
-        """
-        return self.is_paused_state
-    
-    def is_active(self):
-        """Check if TTS is currently playing.
-        
-        Returns:
-            True if TTS is active, False otherwise
-        """
-        return self.is_playing
-    

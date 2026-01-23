@@ -36,15 +36,26 @@ Try:
 ### 4) Engine selection
 
 - `/tts_engine piper`
-- `/tts_engine vits` (legacy, may require extra deps)
 - `/stt_engine faster_whisper`
 
-### 4) Voice catalog (legacy, optional)
+### 4) Voice catalog (Piper)
 
 - `/setvoice` lists voices.
-- `/setvoice fr.css10_vits` attempts to switch to a specific legacy model.
+- `/setvoice fr.siwis` switches to French (voice id is best-effort).
 
-This is optional and may require additional dependencies (see README install extras).
+### 5) Voice cloning (optional extra)
+
+Install:
+
+```bash
+pip install "abstractvoice[cloning]"
+```
+
+Commands:
+- `/clones` (list cloned voices)
+- `/clone <path> [name]` (clone from a WAV file or a folder containing WAVs)
+- `/clone-my-voice` (records a short prompt and creates `my_voice`)
+- `/tts_voice piper` or `/tts_voice clone <id-or-name>` (choose which voice is used for speaking)
 
 ## Troubleshooting
 

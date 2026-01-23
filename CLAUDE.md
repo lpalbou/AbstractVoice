@@ -357,10 +357,9 @@ abstractvoice/
    - Enhanced error handling with actionable guidance
    - Clear distinction between offline/network/corruption issues
 
-2. **📦 Model Management System** (`abstractvoice/simple_model_manager.py`):
+2. **📦 Model Management System (legacy Coqui, optional)** (`abstractvoice/coqui_model_manager.py`):
    - `SimpleModelManager` class for cache operations and downloads (legacy Coqui TTS models)
-   - Simple public helpers exported from `abstractvoice.__init__`:
-     - `list_models`, `download_model`, `get_status`, `is_ready`
+   - Public helpers live under `abstractvoice.coqui_model_manager` (not part of the core integrator contract)
 
 3. **🔧 Programmatic API** (`abstractvoice/voice_manager.py`):
    - `check_models_available(language=None)`: Check if models ready for immediate use
@@ -428,7 +427,7 @@ abstractvoice download-models --all
 
 **Files Modified**:
 - `abstractvoice/tts/tts_engine.py` - Offline-first loading with 4-tier fallback
-- `abstractvoice/simple_model_manager.py` - Model management utilities and CLI
+- `abstractvoice/coqui_model_manager.py` - Legacy Coqui model management utilities and CLI
 - `abstractvoice/voice_manager.py` - Programmatic API methods
 - `abstractvoice/examples/voice_cli.py` - Enhanced CLI with model management
 - `abstractvoice/__init__.py` - Version bump to 0.4.0

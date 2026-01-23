@@ -10,7 +10,9 @@ import argparse
 import cmd
 import json
 import re
+import shutil
 import sys
+import importlib.util
 import requests
 from abstractvoice import VoiceManager
 
@@ -64,6 +66,14 @@ class VoiceREPL(cmd.Cmd):
                 tts_model=tts_model,
                 debug_mode=debug_mode
             )
+
+        # Current speaking voice:
+        # - None => Piper (default, language-driven)
+        # - str  => cloned voice_id
+        self.current_tts_voice: str | None = None
+
+        # Seed a default cloned voice (HAL9000) if samples are present.
+        self._seed_hal9000_voice()
         
         # Settings
         self.use_tts = True
@@ -104,6 +114,7 @@ class VoiceREPL(cmd.Cmd):
         intro += "  • Type messages to chat with the LLM\n"
         intro += "  • Use /voice <mode> to enable voice input\n"
         intro += "  • Use /language <lang> to switch voice language\n"
+        intro += "  • Use /clones and /tts_voice to use cloned voices\n"
         intro += "  • Type /help for full command list\n"
         intro += "  • Type /exit or /q to quit\n"
         return intro
@@ -241,7 +252,17 @@ class VoiceREPL(cmd.Cmd):
             
             # Speak the response if voice manager is available
             if self.voice_manager and self.use_tts:
-                self.voice_manager.speak(response_text)
+                try:
+                    # UX guard: never trigger big cloning downloads during normal chat.
+                    if self.current_tts_voice and not self._is_cloning_runtime_ready():
+                        print(
+                            "ℹ️  Cloned voice selected but cloning runtime is not ready.\n"
+                            "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
+                        )
+                    else:
+                        self.voice_manager.speak(response_text, voice=self.current_tts_voice)
+                except Exception as e:
+                    print(f"❌ TTS failed: {e}")
                 
         except requests.exceptions.ConnectionError as e:
             print(f"❌ Cannot connect to Ollama API at {self.api_url}")
@@ -324,7 +345,7 @@ class VoiceREPL(cmd.Cmd):
         """Switch voice language.
 
         Usage: /language <lang>
-        Available languages: en, fr, es, de, it
+        Available languages: en, fr, es, de, ru, zh
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
@@ -364,12 +385,13 @@ class VoiceREPL(cmd.Cmd):
                 'fr': "Langue changée en français.",
                 'es': "Idioma cambiado a español.",
                 'de': "Sprache auf Deutsch umgestellt.",
-                'it': "Lingua cambiata in italiano."
+                'ru': "Язык переключен на русский.",
+                'zh': "语言已切换到中文。"
             }
             test_msg = test_messages.get(language, "Language switched.")
             # Respect TTS toggle: if the user disabled TTS, don't speak test messages.
             if getattr(self, "use_tts", True):
-                self.voice_manager.speak(test_msg)
+                self.voice_manager.speak(test_msg, voice=self.current_tts_voice)
 
             # Restart voice mode if it was active
             if was_active:
@@ -390,9 +412,8 @@ class VoiceREPL(cmd.Cmd):
           /setvoice <voice_id>         # Set voice (format: language.voice_id)
 
         Examples:
-          /setvoice                    # List all voices with JSON-like info
-          /setvoice fr.css10_vits      # Set French CSS10 VITS voice
-          /setvoice it.mai_male_vits   # Set Italian male VITS voice
+          /setvoice                    # List all Piper voices
+          /setvoice fr.siwis           # Switch to French (voice id is best-effort)
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
@@ -409,7 +430,7 @@ class VoiceREPL(cmd.Cmd):
                     # Get language name
                     lang_names = {
                         'en': 'English', 'fr': 'French', 'es': 'Spanish',
-                        'de': 'German', 'it': 'Italian'
+                        'de': 'German', 'ru': 'Russian', 'zh': 'Chinese'
                     }
                     lang_name = lang_names.get(language, language.upper())
 
@@ -417,24 +438,22 @@ class VoiceREPL(cmd.Cmd):
 
                     for voice_id, voice_info in voices.items():
                         cached_icon = "✅" if voice_info.get('cached', False) else "📥"
-                        quality_icon = "✨" if voice_info['quality'] == 'excellent' else "🔧"
-                        size_text = f"{voice_info['size_mb']}MB"
+                        quality_icon = "🔧"
+                        size_text = f"{voice_info.get('size_mb', 0)}MB"
 
                         print(f"  {cached_icon} {quality_icon} {language}.{voice_id}")
                         print(f"      {voice_info['name']} ({size_text})")
                         print(f"      {voice_info['description']}")
-                        if voice_info.get('requires_espeak', False):
-                            print(f"      ⚠️ Requires espeak-ng")
+                        # Piper has no system deps.
 
                 print(f"\n{Colors.YELLOW}Usage:{Colors.END}")
                 print("  /setvoice <language>.<voice_id>")
-                print("  Example: /setvoice fr.css10_vits")
-                print("\n📥 = Download needed  ✅ = Ready  ✨ = High quality  🔧 = Good quality")
+                print("  Example: /setvoice fr.siwis")
+                print("\n📥 = Download needed  ✅ = Ready")
 
             except Exception as e:
                 print(f"❌ Error listing models: {e}")
-                # Fallback to old method
-                self.voice_manager.list_voices()
+                print("   (No fallback available)")
             return
 
         voice_spec = args.strip()
@@ -473,13 +492,12 @@ class VoiceREPL(cmd.Cmd):
                     'fr': 'Voix changée en français.',
                     'es': 'Voz cambiada al español.',
                     'de': 'Stimme auf Deutsch geändert.',
-                    'it': 'Voce cambiata in italiano.',
                     'ru': 'Голос изменён на русский.',
                     'zh': '语音已切换到中文。'
                 }
                 test_msg = test_messages.get(language, f'Voice changed to {language}.')
                 if getattr(self, "use_tts", True):
-                    self.voice_manager.speak(test_msg)
+                    self.voice_manager.speak(test_msg, voice=self.current_tts_voice)
 
                 if was_active:
                     self.do_voice(self.voice_mode)
@@ -644,43 +662,12 @@ class VoiceREPL(cmd.Cmd):
             print("Usage: /speed <number>  (e.g., /speed 1.5)")
     
     def do_tts_model(self, arg):
-        """Change TTS model.
-        
-        Available models (quality ranking):
-          vits          - BEST quality (requires espeak-ng)
-          fast_pitch    - Good quality (works everywhere)
-          glow-tts      - Alternative fallback
-          tacotron2-DDC - Legacy
-        
-        Usage:
-          /tts_model vits
-          /tts_model fast_pitch
+        """Deprecated: legacy TTS model switching.
+
+        AbstractVoice core is Piper-first; use `/setvoice` (Piper voices) or cloned voices.
         """
-        if not self.voice_manager:
-            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
-            return
-        model_shortcuts = {
-            'vits': 'tts_models/en/ljspeech/vits',
-            'fast_pitch': 'tts_models/en/ljspeech/fast_pitch',
-            'glow-tts': 'tts_models/en/ljspeech/glow-tts',
-            'tacotron2-DDC': 'tts_models/en/ljspeech/tacotron2-DDC',
-        }
-        
-        arg = arg.strip()
-        if not arg:
-            print("Usage: /tts_model <model_name>")
-            print("Available models: vits (best), fast_pitch, glow-tts, tacotron2-DDC")
-            return
-        
-        # Get full model name
-        model_name = model_shortcuts.get(arg, arg)
-        
-        print(f"Changing TTS model to: {model_name}")
-        try:
-            self.voice_manager.set_tts_model(model_name)
-            print("✓ TTS model changed successfully")
-        except Exception as e:
-            print(f"✗ Error changing model: {e}")
+        print("❌ /tts_model is not supported (Piper-first core).")
+        print("   Use /setvoice for Piper voices, or /tts_voice clone <id> for cloned voices.")
     
     def do_whisper(self, arg):
         """Change Whisper model."""
@@ -710,21 +697,216 @@ class VoiceREPL(cmd.Cmd):
             return
 
         try:
-            self.voice_manager.speak(text)
+            self.voice_manager.speak(text, voice=self.current_tts_voice)
         except Exception as e:
             print(f"❌ Speak failed: {e}")
             if self.debug_mode:
                 import traceback
                 traceback.print_exc()
 
+    def do_clones(self, arg):
+        """List cloned voices in the local store."""
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        try:
+            voices = self.voice_manager.list_cloned_voices()
+            if not voices:
+                print("No cloned voices yet. Use /clone <path> or /clone-my-voice.")
+                return
+            print(f"\n{Colors.CYAN}Cloned voices:{Colors.END}")
+            for v in voices:
+                vid = v.get("voice_id") or v.get("voice", "")
+                name = v.get("name", "")
+                print(f"  - {name}: {vid}")
+        except Exception as e:
+            print(f"❌ Error listing cloned voices: {e}")
+
+    def do_clone(self, arg):
+        """Clone a voice from a reference file or folder.
+
+        Usage:
+          /clone <path> [name]
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        parts = arg.strip().split()
+        if not parts:
+            print("Usage: /clone <path> [name]")
+            return
+        path = parts[0]
+        name = parts[1] if len(parts) > 1 else None
+        try:
+            voice_id = self.voice_manager.clone_voice(path, name=name)
+            print(f"✅ Cloned voice created: {voice_id}")
+            print("   Use /tts_voice clone <id-or-name> to select it.")
+            if not self._is_cloning_runtime_ready():
+                print("   (Cloning runtime not ready yet; run /cloning_status and /cloning_download first.)")
+        except Exception as e:
+            print(f"❌ Clone failed: {e}")
+
+    def do_tts_voice(self, arg):
+        """Select which voice is used for speaking.
+
+        Usage:
+          /tts_voice piper
+          /tts_voice clone <voice_id_or_name>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        parts = arg.strip().split()
+        if not parts:
+            current = self.current_tts_voice or "piper"
+            print(f"Current TTS voice: {current}")
+            print("Usage: /tts_voice piper | /tts_voice clone <id-or-name>")
+            return
+
+        if parts[0] == "piper":
+            self.current_tts_voice = None
+            print("✅ Using Piper (default) voice")
+            return
+
+        if parts[0] != "clone" or len(parts) < 2:
+            print("Usage: /tts_voice piper | /tts_voice clone <id-or-name>")
+            return
+
+        wanted = parts[1]
+        voices = self.voice_manager.list_cloned_voices()
+        match = None
+        for v in voices:
+            vid = v.get("voice_id") or ""
+            name = v.get("name") or ""
+            if wanted == vid or vid.startswith(wanted) or wanted == name:
+                match = vid
+                break
+        if not match:
+            print(f"❌ Unknown cloned voice: {wanted}. Use /clones to list.")
+            return
+
+        # Do not allow selecting a cloned voice unless the runtime is ready.
+        if not self._is_cloning_runtime_ready():
+            print("❌ Cloning runtime is not ready (would trigger large downloads).")
+            print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
+            return
+
+        self.current_tts_voice = match
+        print(f"✅ Using cloned voice: {match}")
+
+    def do_clone_my_voice(self, arg):
+        """Interactive voice cloning from microphone.
+
+        This records a short prompt to WAV and adds it to the voice store.
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        prompt = "Good evening, Dave."
+        seconds = 6.0
+        print("You will record a short reference sample for voice cloning.")
+        print(f"Please read this aloud (once): {prompt}")
+        input("Press Enter to start recording...")
+        try:
+            import appdirs
+            from pathlib import Path
+            from abstractvoice.audio import record_wav
+
+            out_dir = Path(appdirs.user_data_dir("abstractvoice")) / "recordings"
+            out_path = out_dir / "my_voice.wav"
+            record_wav(out_path, seconds=seconds, sample_rate=24000, channels=1)
+            voice_id = self.voice_manager.clone_voice(str(out_path), name="my_voice", reference_text=prompt)
+            print(f"✅ Recorded and cloned: {voice_id}")
+            print("   Use /tts_voice clone <id-or-name> to select it.")
+        except Exception as e:
+            print(f"❌ /clone-my-voice failed: {e}")
+
+    def do_cloning_status(self, arg):
+        """Show whether cloning runtime is ready locally (no downloads)."""
+        if importlib.util.find_spec("f5_tts") is None:
+            print("Cloning runtime not installed in this environment (missing: f5_tts).")
+            print("Install: pip install \"abstractvoice[cloning]\"")
+            return
+        if self._is_openf5_cached():
+            print("✅ OpenF5 artifacts: present (cached)")
+        else:
+            print("ℹ️  OpenF5 artifacts: not present (will require ~5.4GB download)")
+            print("Run: /cloning_download")
+
+    def do_cloning_download(self, arg):
+        """Explicitly download cloning artifacts (this may take a long time)."""
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        if importlib.util.find_spec("f5_tts") is None:
+            print("❌ Cloning runtime not installed in this environment (missing: f5_tts).")
+            print("   Install: pip install \"abstractvoice[cloning]\"")
+            return
+        try:
+            cloner = self.voice_manager._get_voice_cloner()  # REPL convenience
+            engine = cloner._get_engine()  # explicit download is an engine concern
+            print("Downloading OpenF5 artifacts (~5.4GB). This is a one-time cache per machine.")
+            engine.ensure_openf5_artifacts_downloaded()
+            print("✅ Download complete.")
+        except Exception as e:
+            print(f"❌ Download failed: {e}")
+
+    def _is_openf5_cached(self) -> bool:
+        """Heuristic local check that avoids importing huggingface_hub."""
+        from pathlib import Path
+        import os
+
+        root = Path(os.path.expanduser("~/.cache/abstractvoice/openf5"))
+        if not root.exists():
+            return False
+        cfg = next(iter(root.rglob("*.yaml")), None) or next(iter(root.rglob("*.yml")), None)
+        ckpt = next(iter(root.rglob("*.pt")), None)
+        vocab = next(iter(root.rglob("vocab*.txt")), None) or next(iter(root.rglob("*.txt")), None)
+        return bool(cfg and ckpt and vocab)
+
+    def _is_cloning_runtime_ready(self) -> bool:
+        return importlib.util.find_spec("f5_tts") is not None and self._is_openf5_cached()
+
+    def _seed_hal9000_voice(self):
+        """Seed a default 'hal9000' cloned voice if sample WAVs are present."""
+        if not self.voice_manager:
+            return
+        try:
+            from pathlib import Path
+
+            sample_dir = Path("audio_samples") / "hal9000"
+            if not sample_dir.exists():
+                return
+
+            # If already present, do nothing.
+            existing_hal = None
+            for v in self.voice_manager.list_cloned_voices():
+                if (v.get("name") or "").lower() == "hal9000":
+                    existing_hal = v.get("voice_id")
+                    break
+
+            # Seed from directory (WAV only; MP3 intentionally ignored).
+            if existing_hal is None:
+                existing_hal = self.voice_manager.clone_voice(str(sample_dir), name="hal9000")
+                if self.debug_mode:
+                    print(f"Seeded cloned voice 'hal9000': {existing_hal}")
+
+            # Do NOT auto-select here; selecting a clone without explicit user action
+            # can cause surprise multi-GB downloads. Users can opt in via /tts_voice.
+        except Exception:
+            # Best-effort only; never block REPL start.
+            return
+
     def do_tts_engine(self, arg):
-        """Select TTS engine: auto|piper|vits.
+        """Select TTS engine: auto|piper.
 
         This recreates the internal VoiceManager instance.
         """
         engine = arg.strip().lower()
-        if engine not in ("auto", "piper", "vits"):
-            print("Usage: /tts_engine auto|piper|vits")
+        if engine not in ("auto", "piper"):
+            print("Usage: /tts_engine auto|piper")
             return
 
         if self.voice_manager:
@@ -740,6 +922,52 @@ class VoiceREPL(cmd.Cmd):
             tts_engine=engine,
         )
         print(f"✅ TTS engine set to: {engine}")
+
+    def do_aec(self, arg):
+        """Enable/disable optional AEC (echo cancellation) for true barge-in.
+
+        Usage:
+          /aec on [delay_ms]
+          /aec off
+        """
+        if not self.voice_manager:
+            print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+            return
+
+        parts = arg.strip().split()
+        if not parts:
+            enabled = bool(getattr(self.voice_manager, "_aec_enabled", False))
+            delay = int(getattr(self.voice_manager, "_aec_stream_delay_ms", 0))
+            print(f"AEC: {'on' if enabled else 'off'} (delay_ms={delay})")
+            print("Usage: /aec on [delay_ms] | /aec off")
+            return
+
+        if parts[0] == "off":
+            try:
+                self.voice_manager.enable_aec(False)
+                print("✅ AEC disabled")
+            except Exception as e:
+                print(f"❌ AEC disable failed: {e}")
+            return
+
+        if parts[0] != "on":
+            print("Usage: /aec on [delay_ms] | /aec off")
+            return
+
+        delay_ms = 0
+        if len(parts) > 1:
+            try:
+                delay_ms = int(parts[1])
+            except Exception:
+                print("Usage: /aec on [delay_ms] | /aec off")
+                return
+
+        try:
+            self.voice_manager.enable_aec(True, stream_delay_ms=delay_ms)
+            print(f"✅ AEC enabled (delay_ms={delay_ms}).")
+            print("Tip: use /voice full for barge-in behavior when AEC is enabled.")
+        except Exception as e:
+            print(f"❌ AEC enable failed: {e}")
 
     def do_stt_engine(self, arg):
         """Select STT engine: auto|faster_whisper|whisper.
@@ -913,23 +1141,31 @@ class VoiceREPL(cmd.Cmd):
         print("  /clear              Clear history")
         print("  /tts on|off         Toggle TTS")
         print("  /voice <mode>       Voice input: off|full|wait|stop|ptt")
-        print("  /language <lang>    Switch voice language (en, fr, es, de, it)")
-        print("  /setvoice [id]      List voices or set specific voice (lang.voice_id)")
+        print("  /language <lang>    Switch voice language (en, fr, es, de, ru, zh)")
+        print("  /setvoice [id]      List Piper voices or set one (lang.voice_id)")
         print("  /lang_info          Show current language information")
         print("  /list_languages     List all supported languages")
         print("  /speed <number>     Set TTS speed (0.5-2.0, default: 1.0, pitch preserved)")
-        print("  /tts_model <model>  Switch TTS model: vits(best)|fast_pitch|glow-tts|tacotron2-DDC")
-        print("  /tts_engine <e>     Switch TTS engine: auto|piper|vits")
+        print("  /tts_voice ...      Select Piper vs cloned voice (see below)")
+        print("  /tts_engine <e>     Switch TTS engine: auto|piper")
         print("  /whisper <model>    Switch Whisper model: tiny|base|small|medium|large")
-        print("  /stt_engine <e>     Switch STT engine: auto|faster_whisper|whisper")
+        print("  /stt_engine <e>     Switch STT engine: auto|faster_whisper|whisper (whisper is optional extra)")
         print("  /speak <text>       Speak text (no LLM call)")
         print("  /transcribe <path>  Transcribe an audio file (faster-whisper by default)")
         print("  /system <prompt>    Set system prompt")
         print("  /stop               Stop voice mode or TTS playback")
         print("  /pause              Pause current TTS playback")
         print("  /resume             Resume paused TTS playback")
+        print("  /aec on|off         Optional echo cancellation for true barge-in (requires [aec])")
         print("  /tokens             Display token usage stats")
         print("  /help               Show this help")
+        print("  /clones             List cloned voices")
+        print("  /clone <path> [nm]  Add a cloned voice from WAV/FLAC/OGG")
+        print("  /clone-my-voice     Record a short prompt and clone it")
+        print("  /tts_voice piper    Speak with Piper (default)")
+        print("  /tts_voice clone X  Speak with a cloned voice (requires cloning runtime + cache)")
+        print("  /cloning_status     Show cloning readiness (no downloads)")
+        print("  /cloning_download   Explicitly download OpenF5 artifacts (~5.4GB)")
         print("  /save <filename>    Save chat history to file")
         print("  /load <filename>    Load chat history from file")
         print("  /model <name>       Change the LLM model")

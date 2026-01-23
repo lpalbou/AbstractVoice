@@ -34,7 +34,7 @@ This conflicts with our core constraint: **easy pip install on Windows/macOS/Lin
 
 We support “interactive discussion” with **two modes** that are robust without AEC, and a **stop phrase**:
 
-- **wait mode (recommended default)**: pause listening during TTS playback (no self-interruption).
+- **wait mode (recommended default)**: keep mic capture active but **suppress normal transcriptions** and **disable “interrupt on any speech”** during TTS playback (no self-interruption). The **stop phrase remains active** so the user can stop playback explicitly.
 - **full mode**: keep listening during TTS but **disable auto-interrupt** to avoid self-interruption; user can still stop via explicit commands (REPL `/stop`) or UI controls.
 - **Stop phrase interruption (enabled)**: while listening, saying **“ok stop”** (and compatible variants like “okay stop”) stops the assistant safely without requiring echo cancellation.
 

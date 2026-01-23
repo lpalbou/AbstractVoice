@@ -1,5 +1,5 @@
-"""TTS module for voice synthesis with interrupt handling."""
+"""TTS utilities (Piper-first)."""
 
-from .tts_engine import TTSEngine
+from .tts_engine import NonBlockingAudioPlayer, apply_speed_without_pitch_change
 
-__all__ = ['TTSEngine'] 
+__all__ = ["NonBlockingAudioPlayer", "apply_speed_without_pitch_change"]

@@ -26,7 +26,6 @@ class DependencyChecker:
     }
 
     OPTIONAL_DEPS = {
-        "coqui-tts": ("0.27.0", "0.30.0"),
         "openai-whisper": ("20230314", None),
         "sounddevice": ("0.4.6", None),
         "librosa": ("0.10.0", "0.11.0"),

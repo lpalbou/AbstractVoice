@@ -38,7 +38,7 @@ def test_language_switching():
             assert audio_bytes[:4] == b"RIFF"
         else:
             print(f"❌ {name}: Failed to load")
-            print(f"   Run: abstractvoice download-models --language {lang}")
+            print(f"   Piper voice for {lang} may be missing or download failed")
 
     vm.cleanup()
     print("\n✅ Language switching test complete!")
@@ -102,32 +102,13 @@ def test_cli_commands():
 
 
 def test_download_status():
-    """Test model download and status checking."""
-    from abstractvoice import is_ready, get_status
-    import json
+    """Test that no legacy model-management API leaks into core."""
+    import abstractvoice
 
-    print("\n📦 Testing Model Status")
-    print("=" * 60)
-
-    # Check if ready
-    ready = is_ready()
-    print(f"System ready: {ready}")
-
-    # Get detailed status
-    status = json.loads(get_status())
-    print(f"Total cached models: {status.get('total_cached', 0)}")
-    print(f"Cache size: {status.get('total_size_mb', 0):.1f} MB")
-    print(f"Ready for offline: {status.get('ready_for_offline', False)}")
-
-    # List cached models
-    if 'cached_models' in status:
-        print("\nCached models:")
-        for model in status['cached_models'][:5]:  # Show first 5
-            print(f"  • {model}")
-        if len(status['cached_models']) > 5:
-            print(f"  ... and {len(status['cached_models']) - 5} more")
-
-    print("\n✅ Model status test complete!")
+    assert not hasattr(abstractvoice, "list_models")
+    assert not hasattr(abstractvoice, "download_model")
+    assert not hasattr(abstractvoice, "get_status")
+    assert not hasattr(abstractvoice, "is_ready")
 
 
 def main():

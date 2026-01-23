@@ -396,11 +396,11 @@ sudo systemctl restart pulseaudio
 **Solution:**
 ```bash
 # Models are downloaded once and cached
-# First run may be slow (downloading ~1GB for XTTS-v2)
+# First run may be slow (downloading the Piper voice for that language)
 # Subsequent runs are fast
 
 # Check cache location:
-python -c "import torch; print(torch.hub.get_dir())"
+python -c "from pathlib import Path; print(Path.home() / '.piper' / 'models')"
 ```
 
 ## Performance Optimization
@@ -410,7 +410,6 @@ python -c "import torch; print(torch.hub.get_dir())"
 # For memory-constrained environments
 vm = VoiceManager(
     language='en',
-    tts_model="tts_models/en/ljspeech/fast_pitch",  # Smaller model
     whisper_model="tiny"  # Smallest Whisper model
 )
 ```

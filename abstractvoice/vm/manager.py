@@ -8,22 +8,19 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..config.voice_catalog import LANGUAGES, SAFE_FALLBACK, VOICE_CATALOG
+from ..config.voice_catalog import LANGUAGES, SAFE_FALLBACK
 from ..tts.adapter_tts_engine import AdapterTTSEngine
 
-from .common import import_tts_engine
 from .core import VoiceManagerCore
-from .mm_mixin import MMMixin
 from .stt_mixin import SttMixin
 from .tts_mixin import TtsMixin
 
 
-class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin, MMMixin):
+class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
     """Main class for voice interaction capabilities."""
 
     LANGUAGES = LANGUAGES
     SAFE_FALLBACK = SAFE_FALLBACK
-    VOICE_CATALOG = VOICE_CATALOG
 
     def __init__(
         self,
@@ -53,23 +50,14 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin, MMMixin):
         self._tts_engine_name = None
         self.tts_engine = None
 
+        if tts_engine not in ("auto", "piper"):
+            raise ValueError("Only Piper TTS is supported in AbstractVoice core. Use tts_engine='piper'.")
+
         if tts_engine in ("auto", "piper"):
             self.tts_adapter = self._try_init_piper(language)
             if self.tts_adapter and self.tts_adapter.is_available():
                 self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=debug_mode)
                 self._tts_engine_name = "piper"
-
-        if self.tts_engine is None and tts_engine in ("auto", "vits"):
-            if tts_model is None:
-                tts_model = self._select_best_model(self.language)
-                if debug_mode:
-                    lang_name = self.LANGUAGES[self.language]["name"]
-                    print(f"🌍 Using {lang_name} voice: {tts_model}")
-
-            # Legacy TTSEngine
-            TTSEngine = import_tts_engine()
-            self.tts_engine = TTSEngine(model_name=tts_model, debug_mode=debug_mode)
-            self._tts_engine_name = "vits"
 
         # Audio lifecycle callbacks (public hooks)
         self.on_audio_start = None
@@ -83,9 +71,14 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin, MMMixin):
         self.voice_recognizer = None
         self.whisper_model = whisper_model
         self.stt_adapter = None
+        self._voice_cloner = None
+        self._aec_enabled = False
+        self._aec_stream_delay_ms = 0
 
         # State tracking
         self._transcription_callback = None
         self._stop_callback = None
-        self._voice_mode = "full"
+        # Default to "wait" for robustness without echo cancellation.
+        # "full" is intended for headset / echo-controlled environments.
+        self._voice_mode = "wait"
 
