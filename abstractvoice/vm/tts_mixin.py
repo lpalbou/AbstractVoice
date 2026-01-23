@@ -28,6 +28,14 @@ class TtsMixin:
     def list_cloned_voices(self):
         return self._get_voice_cloner().list_cloned_voices()
 
+    def set_cloned_voice_reference_text(self, voice_id: str, reference_text: str) -> bool:
+        """Update a cloned voice's reference transcript (quality fix).
+
+        A bad reference transcript commonly causes repeated/incorrect words in output.
+        """
+        self._get_voice_cloner().set_reference_text(voice_id, reference_text)
+        return True
+
     def export_voice(self, voice_id: str, path: str) -> str:
         return self._get_voice_cloner().export_voice(voice_id, path)
 

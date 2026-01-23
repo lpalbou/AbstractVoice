@@ -822,6 +822,40 @@ class VoiceREPL(cmd.Cmd):
         except Exception as e:
             print(f"❌ Clone failed: {e}")
 
+    def do_clone_set_ref_text(self, arg):
+        """Set the reference transcript for a cloned voice (quality fix).
+
+        Usage:
+          /clone_set_ref_text <id-or-name> <text...>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        parts = arg.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            print("Usage: /clone_set_ref_text <id-or-name> <text...>")
+            return
+
+        wanted, text = parts[0], parts[1]
+        voices = self.voice_manager.list_cloned_voices()
+        match = None
+        for v in voices:
+            vid = v.get("voice_id") or ""
+            name = v.get("name") or ""
+            if wanted == vid or vid.startswith(wanted) or wanted == name:
+                match = vid
+                break
+        if not match:
+            print(f"❌ Unknown cloned voice: {wanted}. Use /clones to list.")
+            return
+
+        try:
+            self.voice_manager.set_cloned_voice_reference_text(match, text)
+            print("✅ Updated reference text.")
+        except Exception as e:
+            print(f"❌ Failed to update reference text: {e}")
+
     def do_tts_voice(self, arg):
         """Select which voice is used for speaking.
 
@@ -963,9 +997,18 @@ class VoiceREPL(cmd.Cmd):
                     existing_hal = v.get("voice_id")
                     break
 
-            # Seed from directory (WAV only; MP3 intentionally ignored).
+            # Seed from the clean short WAV sample to avoid noisy auto-transcriptions.
+            # This avoids repeated artifacts like "how are you hal" bleeding into outputs.
             if existing_hal is None:
-                existing_hal = self.voice_manager.clone_voice(str(sample_dir), name="hal9000")
+                ref = sample_dir / "hal9000_hello.wav"
+                if ref.exists():
+                    existing_hal = self.voice_manager.clone_voice(
+                        str(ref),
+                        name="hal9000",
+                        reference_text="Hello, Dave.",
+                    )
+                else:
+                    existing_hal = self.voice_manager.clone_voice(str(sample_dir), name="hal9000")
                 if self.debug_mode:
                     print(f"Seeded cloned voice 'hal9000': {existing_hal}")
 

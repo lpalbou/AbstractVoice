@@ -118,6 +118,20 @@ class VoiceCloneStore:
         out.sort(key=lambda d: float(d.get("created_at", 0)), reverse=True)
         return out
 
+    def set_reference_text(self, voice_id: str, reference_text: str) -> None:
+        """Set (or replace) the stored reference text for a cloned voice.
+
+        This matters a lot for cloning quality: if reference_text is garbled,
+        the model often produces artifacts (wrong words bleeding into output).
+        """
+        index = self._read_index()
+        if voice_id not in index:
+            raise KeyError(f"Unknown voice_id: {voice_id}")
+        data = dict(index[voice_id])
+        data["reference_text"] = str(reference_text or "")
+        index[voice_id] = data
+        self._write_index(index)
+
     def export_voice(self, voice_id: str, path: str | Path) -> str:
         """Export a voice bundle as a zip archive."""
         import zipfile
