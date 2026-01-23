@@ -13,6 +13,8 @@ import re
 import shutil
 import sys
 import importlib.util
+import threading
+import time
 import requests
 from abstractvoice import VoiceManager
 
@@ -157,6 +159,14 @@ class VoiceREPL(cmd.Cmd):
             if self.debug_mode:
                 print(f"Voice mode active ({self.voice_mode}). Use /voice off or say 'stop' to exit.")
             return
+
+        # Interrupt any ongoing TTS playback immediately when the user types.
+        # This is the expected “barge-in by typing” UX for a REPL.
+        try:
+            if self.voice_manager:
+                self.voice_manager.stop_speaking()
+        except Exception:
+            pass
         
         # Everything else goes to LLM
         self.process_query(line.strip())
@@ -165,6 +175,14 @@ class VoiceREPL(cmd.Cmd):
         """Process a query and get a response from the LLM."""
         if not query:
             return
+
+        # If audio is currently playing, stop it so the new request can be handled
+        # without overlapping speech.
+        try:
+            if self.voice_manager:
+                self.voice_manager.stop_speaking()
+        except Exception:
+            pass
             
         # Count user message tokens
         self._count_tokens(query, "user")
@@ -260,7 +278,8 @@ class VoiceREPL(cmd.Cmd):
                             "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
                         )
                     else:
-                        self.voice_manager.speak(response_text, voice=self.current_tts_voice)
+                        with self._busy_indicator(enabled=bool(self.current_tts_voice)):
+                            self.voice_manager.speak(response_text, voice=self.current_tts_voice)
                 except Exception as e:
                     print(f"❌ TTS failed: {e}")
                 
@@ -697,12 +716,69 @@ class VoiceREPL(cmd.Cmd):
             return
 
         try:
-            self.voice_manager.speak(text, voice=self.current_tts_voice)
+            with self._busy_indicator(enabled=bool(self.current_tts_voice)):
+                self.voice_manager.speak(text, voice=self.current_tts_voice)
         except Exception as e:
             print(f"❌ Speak failed: {e}")
             if self.debug_mode:
                 import traceback
                 traceback.print_exc()
+
+    class _busy_indicator:
+        """A minimal, discreet spinner (no extra lines)."""
+
+        def __init__(self, enabled: bool = False):
+            self.enabled = bool(enabled)
+            self._stop = threading.Event()
+            self._thread = None
+
+        def __enter__(self):
+            if not self.enabled:
+                return self
+
+            def _run():
+                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+                i = 0
+                t0 = time.time()
+                # Small delay so fast operations don't flash.
+                time.sleep(0.25)
+                if self._stop.is_set():
+                    return
+                # Hide cursor for a cleaner look.
+                try:
+                    sys.stdout.write("\033[?25l")
+                    sys.stdout.flush()
+                except Exception:
+                    pass
+                while not self._stop.is_set():
+                    elapsed = time.time() - t0
+                    sys.stdout.write(f"\r(synthesizing {elapsed:0.1f}s) {frames[i % len(frames)]}")
+                    sys.stdout.flush()
+                    i += 1
+                    time.sleep(0.1)
+
+            self._thread = threading.Thread(target=_run, daemon=True)
+            self._thread.start()
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            if not self.enabled:
+                return False
+            self._stop.set()
+            try:
+                if self._thread:
+                    self._thread.join(timeout=0.5)
+            except Exception:
+                pass
+            # Clear spinner line.
+            sys.stdout.write("\r" + (" " * 40) + "\r")
+            # Restore cursor.
+            try:
+                sys.stdout.write("\033[?25h")
+            except Exception:
+                pass
+            sys.stdout.flush()
+            return False
 
     def do_clones(self, arg):
         """List cloned voices in the local store."""
