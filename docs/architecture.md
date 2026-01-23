@@ -2,6 +2,8 @@
 
 This document explains how AbstractVoice works internally, its components, and how they communicate to provide seamless voice interactions with immediate pause/resume capabilities.
 
+For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
+
 ## Overview
 
 AbstractVoice is designed as a modular voice interaction system that bridges text generation systems (LLMs) with voice input/output. The architecture prioritizes real-time responsiveness, especially for pause/resume functionality.

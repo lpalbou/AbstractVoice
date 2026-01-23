@@ -2,18 +2,22 @@
 
 import threading
 import time
+from typing import Optional
+
+import numpy as np
+import re
 
 # Lazy imports for heavy dependencies
 def _import_audio_deps():
     """Import audio dependencies with helpful error message if missing."""
     try:
-        import pyaudio
-        return pyaudio
+        import sounddevice as sd
+        return sd
     except ImportError as e:
         raise ImportError(
-            "Audio functionality requires optional dependencies. Install with:\n"
-            "  pip install abstractvoice[voice]  # For basic audio\n"
-            "  pip install abstractvoice[all]    # For all features\n"
+            "Audio capture/playback requires sounddevice. Install with:\n"
+            "  pip install abstractvoice          # Core install (includes sounddevice)\n"
+            "  pip install abstractvoice[all]      # All features\n"
             f"Original error: {e}"
         ) from e
 
@@ -33,18 +37,18 @@ def _import_vad():
         raise
 
 def _import_transcriber():
-    """Import Transcriber with helpful error message if dependencies missing."""
+    """Import STT adapter with helpful error message if dependencies missing."""
     try:
-        from .stt import Transcriber
-        return Transcriber
+        from .adapters.stt_faster_whisper import FasterWhisperAdapter
+        return FasterWhisperAdapter
     except ImportError as e:
-        if "whisper" in str(e) or "tiktoken" in str(e):
-            raise ImportError(
-                "Speech recognition functionality requires optional dependencies. Install with:\n"
-                "  pip install abstractvoice[stt]    # For speech recognition only\n"
-                "  pip install abstractvoice[all]    # For all features\n"
-                f"Original error: {e}"
-            ) from e
+        raise ImportError(
+            "Speech recognition requires faster-whisper (core dependency). "
+            "If this error occurs, your installation is inconsistent.\n"
+            "Try reinstalling:\n"
+            "  pip install --upgrade abstractvoice\n"
+            f"Original error: {e}"
+        ) from e
         raise
 
 
@@ -73,6 +77,10 @@ class VoiceRecognizer:
         self.debug_mode = debug_mode
         self.transcription_callback = transcription_callback
         self.stop_callback = stop_callback
+
+        # Stop phrase(s): robust “interrupt” without requiring echo cancellation.
+        # Keep it conservative to avoid accidental stops from the assistant audio.
+        self.stop_phrases = ["ok stop", "okay stop"]
         
         # Configuration
         self.sample_rate = sample_rate
@@ -89,17 +97,14 @@ class VoiceRecognizer:
             debug_mode=debug_mode
         )
 
-        Transcriber = _import_transcriber()
-        self.transcriber = Transcriber(
-            model_name=whisper_model,
-            min_transcription_length=min_transcription_length,
-            debug_mode=debug_mode
-        )
+        # STT: use faster-whisper adapter by default (core dependency)
+        STTAdapter = _import_transcriber()
+        self.stt_adapter = STTAdapter(model_size=whisper_model, device="cpu", compute_type="int8")
+        self.min_transcription_length = min_transcription_length
         
         # State
         self.is_running = False
         self.thread = None
-        self.pyaudio = None
         self.stream = None
         self.tts_interrupt_callback = None
         self.tts_interrupt_enabled = True  # Can be disabled during TTS playback
@@ -140,28 +145,60 @@ class VoiceRecognizer:
             self.thread.join()
         
         if self.stream:
-            self.stream.stop_stream()
-            self.stream.close()
-        
-        if self.pyaudio:
-            self.pyaudio.terminate()
+            try:
+                self.stream.stop()
+            except Exception:
+                pass
+            try:
+                self.stream.close()
+            except Exception:
+                pass
+            self.stream = None
         
         if self.debug_mode:
             print(" > Voice recognition stopped")
         return True
+
+    def _transcribe_pcm16(self, pcm16_bytes: bytes, language: Optional[str] = None) -> str:
+        """Transcribe raw PCM16 mono audio bytes."""
+        if not pcm16_bytes:
+            return ""
+
+        audio = np.frombuffer(pcm16_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+        text = self.stt_adapter.transcribe_from_array(audio, sample_rate=self.sample_rate, language=language)
+        return (text or "").strip()
+
+    def _is_stop_command(self, text: str) -> bool:
+        """Return True if text matches a configured stop phrase."""
+        if not text:
+            return False
+
+        normalized = re.sub(r"[^a-z0-9\s]+", " ", text.lower()).strip()
+        normalized = re.sub(r"\s+", " ", normalized)
+
+        # Exact match for configured stop phrases
+        if normalized in self.stop_phrases:
+            return True
+
+        # Backward compatibility / convenience: allow plain "stop" as well
+        if normalized == "stop":
+            return True
+
+        return False
     
     def _recognition_loop(self):
         """Main recognition loop."""
-        pyaudio = _import_audio_deps()
+        sd = _import_audio_deps()
 
-        self.pyaudio = pyaudio.PyAudio()
-        self.stream = self.pyaudio.open(
-            format=pyaudio.paInt16,
+        # NOTE: sounddevice uses PortAudio under the hood (same as our TTS playback).
+        # Keeping microphone capture in-process avoids PyAudio install issues.
+        self.stream = sd.InputStream(
+            samplerate=self.sample_rate,
             channels=1,
-            rate=self.sample_rate,
-            input=True,
-            frames_per_buffer=self.chunk_size
+            dtype="int16",
+            blocksize=self.chunk_size,
         )
+        self.stream.start()
         
         speech_buffer = []
         speech_count = 0
@@ -176,7 +213,10 @@ class VoiceRecognizer:
                     continue
                 
                 # Read audio data
-                audio_data = self.stream.read(self.chunk_size, exception_on_overflow=False)
+                audio_chunk, overflowed = self.stream.read(self.chunk_size)
+                if overflowed and self.debug_mode:
+                    print(" > Mic input overflow")
+                audio_data = audio_chunk.tobytes()
                 
                 # Check for speech
                 is_speech = self.voice_detector.is_speech(audio_data)
@@ -212,11 +252,11 @@ class VoiceRecognizer:
                                 print(f" > Speech detected ({len(speech_buffer)} chunks), transcribing...")
                                 
                             audio_bytes = b''.join(speech_buffer)
-                            text = self.transcriber.transcribe(audio_bytes)
+                            text = self._transcribe_pcm16(audio_bytes)
                             
                             if text:
                                 # Check for stop command
-                                if text.lower() == "stop":
+                                if self._is_stop_command(text):
                                     if self.stop_callback:
                                         self.stop_callback()
                                     else:
@@ -251,7 +291,15 @@ class VoiceRecognizer:
         Returns:
             True if changed, False otherwise
         """
-        return self.transcriber.change_model(model_name)
+        try:
+            # Recreate adapter to switch model size.
+            STTAdapter = _import_transcriber()
+            self.stt_adapter = STTAdapter(model_size=model_name, device="cpu", compute_type="int8")
+            return True
+        except Exception as e:
+            if self.debug_mode:
+                print(f"STT model change error: {e}")
+            return False
     
     def change_vad_aggressiveness(self, aggressiveness):
         """Change VAD aggressiveness.

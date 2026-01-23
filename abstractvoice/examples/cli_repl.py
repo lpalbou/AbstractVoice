@@ -693,6 +693,113 @@ class VoiceREPL(cmd.Cmd):
             return
         
         self.voice_manager.set_whisper(model)            
+
+    def do_speak(self, arg):
+        """Speak a text immediately (without calling the LLM).
+
+        Usage:
+          /speak Hello world
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        text = arg.strip()
+        if not text:
+            print("Usage: /speak <text>")
+            return
+
+        try:
+            self.voice_manager.speak(text)
+        except Exception as e:
+            print(f"❌ Speak failed: {e}")
+            if self.debug_mode:
+                import traceback
+                traceback.print_exc()
+
+    def do_tts_engine(self, arg):
+        """Select TTS engine: auto|piper|vits.
+
+        This recreates the internal VoiceManager instance.
+        """
+        engine = arg.strip().lower()
+        if engine not in ("auto", "piper", "vits"):
+            print("Usage: /tts_engine auto|piper|vits")
+            return
+
+        if self.voice_manager:
+            try:
+                self.voice_manager.cleanup()
+            except Exception:
+                pass
+
+        self.voice_manager = VoiceManager(
+            language=self.current_language,
+            tts_model=self._initial_tts_model,
+            debug_mode=self.debug_mode,
+            tts_engine=engine,
+        )
+        print(f"✅ TTS engine set to: {engine}")
+
+    def do_stt_engine(self, arg):
+        """Select STT engine: auto|faster_whisper|whisper.
+
+        This recreates the internal VoiceManager instance.
+        """
+        engine = arg.strip().lower()
+        if engine not in ("auto", "faster_whisper", "whisper"):
+            print("Usage: /stt_engine auto|faster_whisper|whisper")
+            return
+
+        if not self.voice_manager:
+            print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+            return
+
+        # Recreate VoiceManager preserving current TTS engine preference.
+        # If the current engine is unknown, let it auto-select.
+        tts_engine = getattr(self.voice_manager, "_tts_engine_preference", "auto")
+
+        try:
+            self.voice_manager.cleanup()
+        except Exception:
+            pass
+
+        self.voice_manager = VoiceManager(
+            language=self.current_language,
+            tts_model=self._initial_tts_model,
+            debug_mode=self.debug_mode,
+            tts_engine=tts_engine,
+            stt_engine=engine,
+        )
+        print(f"✅ STT engine set to: {engine}")
+
+    def do_transcribe(self, arg):
+        """Transcribe an audio file via the library STT path (faster-whisper by default).
+
+        Usage:
+          /transcribe path/to/audio.wav
+
+        Notes:
+        - This is the simplest way to validate STT without requiring microphone capture.
+        - The default engine is faster-whisper; legacy openai-whisper remains optional.
+        """
+        if not self.voice_manager:
+            print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+            return
+
+        path = arg.strip()
+        if not path:
+            print("Usage: /transcribe <path/to/audio.wav>")
+            return
+
+        try:
+            text = self.voice_manager.transcribe_file(path)
+            print(f"{Colors.CYAN}{text}{Colors.END}")
+        except Exception as e:
+            print(f"❌ Transcription failed: {e}")
+            if self.debug_mode:
+                import traceback
+                traceback.print_exc()
     
     def do_clear(self, arg):
         """Clear chat history."""
@@ -812,7 +919,11 @@ class VoiceREPL(cmd.Cmd):
         print("  /list_languages     List all supported languages")
         print("  /speed <number>     Set TTS speed (0.5-2.0, default: 1.0, pitch preserved)")
         print("  /tts_model <model>  Switch TTS model: vits(best)|fast_pitch|glow-tts|tacotron2-DDC")
+        print("  /tts_engine <e>     Switch TTS engine: auto|piper|vits")
         print("  /whisper <model>    Switch Whisper model: tiny|base|small|medium|large")
+        print("  /stt_engine <e>     Switch STT engine: auto|faster_whisper|whisper")
+        print("  /speak <text>       Speak text (no LLM call)")
+        print("  /transcribe <path>  Transcribe an audio file (faster-whisper by default)")
         print("  /system <prompt>    Set system prompt")
         print("  /stop               Stop voice mode or TTS playback")
         print("  /pause              Pause current TTS playback")

@@ -12,16 +12,10 @@ While we provide CLI and WEB examples, AbstractVoice is designed to be integrate
 
 ## Features
 
-- **High-Quality TTS**: Best-in-class speech synthesis with VITS model
-  - Natural prosody and intonation
-  - Adjustable speed without pitch distortion (using librosa time-stretching)
-  - Multiple quality levels (VITS best, fast_pitch fallback)
-  - Automatic fallback if espeak-ng not installed
-- **Cross-Platform**: Works on macOS, Linux, and Windows
-  - Best quality: Install espeak-ng (easy on all platforms)
-  - Fallback mode: Works without any system dependencies
-- **Speech-to-Text**: Accurate voice recognition using OpenAI's Whisper
-- **Voice Activity Detection**: Efficient speech detection using WebRTC VAD
+- **Cross-Platform TTS (default)**: Piper (no system dependencies)
+- **Fast multilingual STT (default)**: faster-whisper
+- **Headless/server-friendly**: TTS to bytes/file, STT from bytes/file
+- **Playback control**: stop/pause/resume
 - **Interrupt Handling**: Stop TTS by speaking or using stop commands
 - **Modular Design**: Easily integrate with any text generation system
 
@@ -29,81 +23,72 @@ Note : *the LLM access is rudimentary and abstractvoice is provided more as an e
 
 ## Installation
 
-AbstractVoice is designed to **work everywhere, out of the box** with automatic quality upgrades.
+AbstractVoice is designed to **work everywhere, out of the box** with sane defaults:
+- **TTS**: Piper
+- **STT**: faster-whisper
 
-### 🚀 Quick Start (Recommended)
+### 🚀 Quick Start
 
 ```bash
-# One command installation - works on all systems
-pip install abstractvoice[all]
+# Minimal install (includes Piper + faster-whisper)
+pip install abstractvoice
 
 # Verify it works
 python -c "from abstractvoice import VoiceManager; print('✅ Ready to go!')"
 ```
 
-**That's it!** AbstractVoice automatically:
-- ✅ **Works everywhere** - Uses reliable models that run on any system
-- ✅ **Auto-upgrades quality** - Detects when better models are available
-- ✅ **No system dependencies required** - Pure Python installation
-- ✅ **Optional quality boost** - Install `espeak-ng` for premium voices
-
 ### Installation Options
 
 ```bash
-# Minimal (just 2 dependencies)
-pip install abstractvoice
-
-# Add features as needed
-pip install abstractvoice[tts]      # Text-to-speech
-pip install abstractvoice[stt]      # Speech-to-text
-pip install abstractvoice[all]      # Everything (recommended)
-
-# Language-specific
-pip install abstractvoice[fr]       # French with all features
-pip install abstractvoice[de]       # German with all features
+# Add legacy engines and extra tooling (optional)
+pip install abstractvoice[all]
 ```
 
-### Optional Quality Upgrade
+### Optional legacy engines
 
-For the **absolute best voice quality**, install espeak-ng:
-
-```bash
-# macOS
-brew install espeak-ng
-
-# Linux
-sudo apt-get install espeak-ng
-
-# Windows
-conda install espeak-ng
-```
-
-AbstractVoice automatically detects espeak-ng and upgrades to premium quality voices when available.
+Some older voices/models rely on extra dependencies (Coqui / openai-whisper / etc.). If you need them:
+- install `abstractvoice[all]`
+- or install only what you need via `abstractvoice[tts]` and/or `abstractvoice[stt]`
 
 ## Quick Start
 
-### ⚡ Instant TTS (v0.5.0+)
+### ⚡ TTS (local playback)
 
 ```python
 from abstractvoice import VoiceManager
 
-# Initialize voice manager - works immediately with included dependencies
 vm = VoiceManager()
 
-# Text-to-speech works right away!
 vm.speak("Hello! TTS works out of the box!")
 
-# Language switching with automatic model download
 vm.set_language('fr')
 vm.speak("Bonjour! Le français fonctionne aussi!")
 ```
 
-**That's it!** AbstractVoice v0.5.0+ automatically:
-- ✅ Includes essential TTS dependencies in base installation
-- ✅ Downloads models automatically when switching languages/voices
-- ✅ Works immediately after `pip install abstractvoice`
-- ✅ No silent failures - clear error messages if download fails
-- ✅ No complex configuration needed
+### ⚡ Server/headless (bytes/file)
+
+```python
+from abstractvoice import VoiceManager
+
+vm = VoiceManager()
+audio_bytes = vm.speak_to_bytes("Hello from the server")
+text = vm.transcribe_from_bytes(audio_bytes)
+```
+
+## REPL (general voice assistant / smoke test)
+
+```bash
+abstractvoice cli --debug
+```
+
+See `docs/repl_guide.md` for a short checklist.
+
+## Documentation
+
+- `docs/overview.md`
+- `docs/public_api.md`
+- `docs/repl_guide.md`
+- `docs/architecture.md`
 
 ### 🌍 Multi-Language Support (Auto-Download in v0.5.0+)
 
