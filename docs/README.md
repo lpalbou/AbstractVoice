@@ -4,6 +4,34 @@ This directory contains technical documentation for AbstractVoice developers and
 
 ## 📖 Available Documentation
 
+### [overview.md](overview.md)
+**High-level orientation**
+- What AbstractVoice is for
+- Supported usage modes (local/headless/REPL)
+
+### [acronyms.md](acronyms.md)
+**Shared vocabulary**
+- Definitions for common acronyms used across docs (TTS, STT, VAD, VM, MM, …)
+
+### [public_api.md](public_api.md)
+**Supported integrator API contract**
+- The small set of front-facing methods we want integrators to rely on
+
+### [repl_guide.md](repl_guide.md)
+**How to use the REPL as a general voice assistant**
+- Smoke test checklist
+- Common commands
+
+### [getting_started.md](getting_started.md)
+**Local developer setup + testing**
+- venv setup
+- run tests
+- run the local assistant
+
+### [adr/](adr/)
+**Architecture Decision Records**
+- design constraints and trade-offs captured as ADRs
+
 ### [architecture.md](architecture.md)
 **Complete technical architecture guide**
 - Component overview and communication patterns
@@ -26,6 +54,10 @@ This directory contains technical documentation for AbstractVoice developers and
 - CLI commands for model download and management
 - Voice selection and cache management
 - Integration patterns for libraries and web APIs
+
+### [voice_cloning_2026.md](voice_cloning_2026.md)
+**Investigation report**
+- Permissive (MIT/Apache) voice cloning options as of Jan 2026
 
 ## 🎯 Quick Links
 

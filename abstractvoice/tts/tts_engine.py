@@ -16,8 +16,6 @@ import logging
 import warnings
 import re
 import queue
-import atexit
-import weakref
 
 # Lazy imports for heavy dependencies
 def _import_tts():
@@ -67,8 +65,8 @@ def _import_tts():
 def _import_sounddevice():
     """Import sounddevice with a helpful error message if missing.
 
-    Note: sounddevice is required for audio playback, but audio playback should
-    *not* require librosa. Speed/pitch processing is the part that needs librosa.
+    Audio playback should *not* require `librosa`. `librosa` is only needed for
+    speed/pitch processing.
     """
     try:
         import sounddevice as sd
@@ -130,22 +128,6 @@ warnings.filterwarnings(
 # Suppress macOS audio warnings (harmless but annoying)
 import os
 os.environ['PYTHONWARNINGS'] = 'ignore'
-
-# Track active audio players to ensure streams are closed at process exit.
-# This avoids rare but real crashes when PortAudio callbacks outlive Python
-# objects (common in "fresh install" smoke tests that don't await playback).
-_ACTIVE_AUDIO_PLAYERS: "weakref.WeakSet[NonBlockingAudioPlayer]" = weakref.WeakSet()
-
-
-def _cleanup_active_audio_players() -> None:
-    for player in list(_ACTIVE_AUDIO_PLAYERS):
-        try:
-            player.stop_stream()
-        except Exception:
-            pass
-
-
-atexit.register(_cleanup_active_audio_players)
 
 def preprocess_text(text):
     """Preprocess text for better TTS synthesis.
@@ -315,7 +297,6 @@ class NonBlockingAudioPlayer:
                     dtype=np.float32
                 )
                 self.stream.start()
-                _ACTIVE_AUDIO_PLAYERS.add(self)
                 if self.debug_mode:
                     print(" > Audio stream started")
             except Exception as e:
@@ -327,15 +308,6 @@ class NonBlockingAudioPlayer:
         """Stop the audio stream."""
         if self.stream:
             try:
-                # Abort first to minimize callback re-entrancy issues.
-                # Some PortAudio backends can behave poorly if `stop()` is
-                # called while callbacks are active.
-                if hasattr(self.stream, "abort"):
-                    try:
-                        self.stream.abort()
-                    except Exception:
-                        pass
-
                 self.stream.stop()
                 self.stream.close()
                 if self.debug_mode:
@@ -345,10 +317,6 @@ class NonBlockingAudioPlayer:
                     print(f"Error stopping audio stream: {e}")
             finally:
                 self.stream = None
-                try:
-                    _ACTIVE_AUDIO_PLAYERS.discard(self)
-                except Exception:
-                    pass
 
         self.is_playing = False
         with self.pause_lock:

@@ -35,6 +35,8 @@ dependencies = [
     # Core audio
     "sounddevice>=0.4.6",
     "soundfile>=0.12.1",
+    # Core VAD (needed for listen() out-of-the-box)
+    "webrtcvad>=2.0.10",
 ]
 
 [project.optional-dependencies]
