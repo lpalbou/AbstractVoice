@@ -75,8 +75,6 @@ class VoiceREPL(cmd.Cmd):
         # - None => Piper (default, language-driven)
         # - str  => cloned voice_id
         self.current_tts_voice: str | None = None
-        self._tts_indicator = None
-        self._tts_indicator_lock = threading.Lock()
 
         # Seed a default cloned voice (HAL9000) if samples are present.
         self._seed_hal9000_voice()
@@ -169,7 +167,6 @@ class VoiceREPL(cmd.Cmd):
         try:
             if self.voice_manager:
                 self.voice_manager.stop_speaking()
-                self._stop_tts_indicator()
         except Exception:
             pass
         
@@ -186,7 +183,6 @@ class VoiceREPL(cmd.Cmd):
         try:
             if self.voice_manager:
                 self.voice_manager.stop_speaking()
-                self._stop_tts_indicator()
         except Exception:
             pass
             
@@ -284,9 +280,7 @@ class VoiceREPL(cmd.Cmd):
                             "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
                         )
                     else:
-                        if self.current_tts_voice:
-                            self._start_tts_indicator()
-                        self.voice_manager.speak(response_text, voice=self.current_tts_voice)
+                        self._speak_with_spinner_until_audio_starts(response_text)
                 except Exception as e:
                     print(f"❌ TTS failed: {e}")
                 
@@ -725,14 +719,58 @@ class VoiceREPL(cmd.Cmd):
             return
 
         try:
-            if self.current_tts_voice:
-                self._start_tts_indicator()
-            self.voice_manager.speak(text, voice=self.current_tts_voice)
+            self._speak_with_spinner_until_audio_starts(text)
         except Exception as e:
             print(f"❌ Speak failed: {e}")
             if self.debug_mode:
                 import traceback
                 traceback.print_exc()
+
+    def _speak_with_spinner_until_audio_starts(self, text: str) -> None:
+        """REPL UX: show spinner while waiting for first audio, then stop.
+
+        This avoids corrupting the `cmd` prompt while still giving feedback during
+        long cloned-TTS synthesis. Once playback starts, the prompt is displayed
+        normally so the user can interrupt anytime by typing.
+        """
+        if not self.voice_manager:
+            return
+
+        is_clone = bool(self.current_tts_voice)
+        ind = self._busy_indicator(enabled=is_clone)
+        try:
+            if is_clone:
+                ind.start()
+            self.voice_manager.speak(text, voice=self.current_tts_voice)
+
+            if not is_clone:
+                return
+
+            # Wait until audio playback actually starts (or synthesis ends without audio).
+            vm = self.voice_manager
+            while True:
+                try:
+                    playing = bool(vm.is_speaking())
+                    synth_active = bool(
+                        getattr(vm, "_cloned_synthesis_active", None) and vm._cloned_synthesis_active.is_set()
+                    )
+                except Exception:
+                    playing, synth_active = False, False
+
+                if playing:
+                    break
+
+                # If synthesis is no longer active and we aren't playing, stop the spinner
+                # (either done very quickly or failed).
+                if not synth_active:
+                    break
+
+                time.sleep(0.05)
+        finally:
+            try:
+                ind.stop()
+            except Exception:
+                pass
 
     class _busy_indicator:
         """A minimal, discreet spinner (no extra lines)."""
@@ -798,43 +836,10 @@ class VoiceREPL(cmd.Cmd):
             self.stop()
             return False
 
-    def _start_tts_indicator(self):
-        """Start a non-blocking spinner while cloned TTS is active."""
-        if not self.voice_manager:
-            return
-
-        with self._tts_indicator_lock:
-            try:
-                if self._tts_indicator is not None:
-                    self._tts_indicator.stop()
-            except Exception:
-                pass
-            self._tts_indicator = self._busy_indicator(enabled=True)
-            self._tts_indicator.start()
-
-        def _monitor():
-            vm = self.voice_manager
-            while True:
-                try:
-                    synth = bool(getattr(vm, "_cloned_synthesis_active", None) and vm._cloned_synthesis_active.is_set())
-                    playing = bool(vm.is_speaking())
-                except Exception:
-                    synth, playing = False, False
-                if not (synth or playing):
-                    break
-                time.sleep(0.05)
-            self._stop_tts_indicator()
-
-        threading.Thread(target=_monitor, daemon=True).start()
-
-    def _stop_tts_indicator(self):
-        with self._tts_indicator_lock:
-            try:
-                if self._tts_indicator is not None:
-                    self._tts_indicator.stop()
-            except Exception:
-                pass
-            self._tts_indicator = None
+    # NOTE: We intentionally do not keep a background spinner running while the REPL
+    # is waiting for user input (it corrupts the prompt line). Instead, we show a
+    # spinner only until the first audio actually starts, then stop it so the prompt
+    # stays usable for interruption-by-typing.
 
     def do_clones(self, arg):
         """List cloned voices in the local store."""
@@ -1099,19 +1104,8 @@ class VoiceREPL(cmd.Cmd):
             print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
             return
 
-        # Do not allow selecting a voice that would require implicit STT downloads
-        # (e.g. missing reference_text triggers auto-fallback).
-        try:
-            info = self.voice_manager.get_cloned_voice(match)
-            if not (info.get("reference_text") or "").strip():
-                print("❌ This cloned voice has no reference_text stored.")
-                print("   Fix:")
-                print("     - Provide reference_text when cloning, or")
-                print("     - Set it manually: /clone_set_ref_text <id> \"...\"")
-                return
-        except Exception:
-            # If inspection fails, selection is allowed; speaking may still fail.
-            pass
+        # Allow selecting voices without reference_text; we will auto-fallback at speak-time
+        # if the STT model is already cached locally (no downloads in REPL).
 
         self.current_tts_voice = match
         print(f"✅ Using cloned voice: {match}")
@@ -1150,6 +1144,19 @@ class VoiceREPL(cmd.Cmd):
             print("Cloning runtime not installed in this environment (missing: f5_tts).")
             print("Install: pip install \"abstractvoice[cloning]\"")
             return
+        try:
+            import torch
+
+            mps = False
+            try:
+                mps = bool(torch.backends.mps.is_available())
+            except Exception:
+                mps = False
+            print(f"torch: {getattr(torch, '__version__', '?')}")
+            print(f"cuda_available: {bool(torch.cuda.is_available())}")
+            print(f"mps_available:  {mps}")
+        except Exception:
+            pass
         if self._is_openf5_cached():
             print("✅ OpenF5 artifacts: present (cached)")
         else:
