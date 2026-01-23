@@ -45,7 +45,14 @@ class FasterWhisperAdapter(STTAdapter):
         'it', 'pt', 'ja', 'ko', 'ar', 'hi',  # Additional common languages
     ]
     
-    def __init__(self, model_size: str = 'base', device: str = 'cpu', compute_type: str = 'int8'):
+    def __init__(
+        self,
+        model_size: str = "base",
+        device: str = "cpu",
+        compute_type: str = "int8",
+        *,
+        allow_downloads: bool = True,
+    ):
         """Initialize Faster-Whisper STT adapter.
         
         Args:
@@ -60,6 +67,7 @@ class FasterWhisperAdapter(STTAdapter):
         self._device = device
         self._compute_type = compute_type
         self._current_language = None
+        self._allow_downloads = bool(allow_downloads)
         
         # Try to import faster-whisper
         try:
@@ -68,7 +76,8 @@ class FasterWhisperAdapter(STTAdapter):
             self._faster_whisper_available = True
             logger.info("✅ Faster-Whisper initialized successfully")
             
-            # Load model
+            # Load model (best-effort). When allow_downloads=False we force offline mode
+            # so we never trigger downloads in interactive contexts (e.g. REPL).
             self._load_model(model_size, device, compute_type)
             
         except ImportError as e:
@@ -79,7 +88,7 @@ class FasterWhisperAdapter(STTAdapter):
                 "This will enable 4x faster STT with same accuracy."
             )
     
-    def _load_model(self, model_size: str, device: str = 'cpu', compute_type: str = 'int8') -> bool:
+    def _load_model(self, model_size: str, device: str = "cpu", compute_type: str = "int8") -> bool:
         """Load Faster-Whisper model.
         
         Args:
@@ -99,14 +108,32 @@ class FasterWhisperAdapter(STTAdapter):
         
         try:
             logger.info(f"⬇️  Loading Faster-Whisper model: {model_size} ({self.MODELS[model_size]['params']})")
-            
-            # Load model (will auto-download if not cached)
-            self._model = self._WhisperModel(
-                model_size,
-                device=device,
-                compute_type=compute_type,
-                download_root=None  # Use default cache (~/.cache/huggingface)
-            )
+
+            # Load model (may auto-download if not cached).
+            # When downloads are not allowed, force HF offline mode so we never pull
+            # bytes from the network implicitly.
+            old_offline = os.environ.get("HF_HUB_OFFLINE")
+            old_disable_pb = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
+            if not self._allow_downloads:
+                os.environ["HF_HUB_OFFLINE"] = "1"
+                os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+            try:
+                self._model = self._WhisperModel(
+                    model_size,
+                    device=device,
+                    compute_type=compute_type,
+                    download_root=None,  # Use default cache (~/.cache/huggingface)
+                )
+            finally:
+                if not self._allow_downloads:
+                    if old_offline is None:
+                        os.environ.pop("HF_HUB_OFFLINE", None)
+                    else:
+                        os.environ["HF_HUB_OFFLINE"] = old_offline
+                    if old_disable_pb is None:
+                        os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
+                    else:
+                        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = old_disable_pb
             
             self._model_size = model_size
             self._device = device
@@ -116,7 +143,11 @@ class FasterWhisperAdapter(STTAdapter):
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to load Faster-Whisper model: {e}")
+            if self._allow_downloads:
+                logger.error(f"❌ Failed to load Faster-Whisper model: {e}")
+            else:
+                # Offline mode: model might simply not be cached locally.
+                logger.info(f"ℹ️ Faster-Whisper model '{model_size}' not available locally (offline mode).")
             return False
     
     def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:

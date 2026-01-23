@@ -109,6 +109,11 @@ class VoiceCloneStore:
         data = index[voice_id]
         return ClonedVoice(**data)
 
+    def get_voice_dict(self, voice_id: str) -> Dict[str, Any]:
+        """Return the stored voice record as a JSON-serializable dict."""
+        v = self.get_voice(voice_id)
+        return {"voice_id": voice_id, **asdict(v)}
+
     def list_voices(self) -> List[Dict[str, Any]]:
         index = self._read_index()
         out: List[Dict[str, Any]] = []
@@ -118,7 +123,7 @@ class VoiceCloneStore:
         out.sort(key=lambda d: float(d.get("created_at", 0)), reverse=True)
         return out
 
-    def set_reference_text(self, voice_id: str, reference_text: str) -> None:
+    def set_reference_text(self, voice_id: str, reference_text: str, *, source: str | None = None) -> None:
         """Set (or replace) the stored reference text for a cloned voice.
 
         This matters a lot for cloning quality: if reference_text is garbled,
@@ -129,6 +134,10 @@ class VoiceCloneStore:
             raise KeyError(f"Unknown voice_id: {voice_id}")
         data = dict(index[voice_id])
         data["reference_text"] = str(reference_text or "")
+        if source:
+            meta = dict(data.get("meta") or {})
+            meta["reference_text_source"] = str(source)
+            data["meta"] = meta
         index[voice_id] = data
         self._write_index(index)
 
@@ -187,4 +196,30 @@ class VoiceCloneStore:
             self._write_index(index)
 
         return new_id
+
+    def rename_voice(self, voice_id: str, new_name: str) -> None:
+        index = self._read_index()
+        if voice_id not in index:
+            raise KeyError(f"Unknown voice_id: {voice_id}")
+        data = dict(index[voice_id])
+        data["name"] = str(new_name or "").strip() or data.get("name") or f"voice_{voice_id[:8]}"
+        index[voice_id] = data
+        self._write_index(index)
+
+    def delete_voice(self, voice_id: str) -> None:
+        """Delete a voice entry and its reference files from disk."""
+        index = self._read_index()
+        if voice_id not in index:
+            raise KeyError(f"Unknown voice_id: {voice_id}")
+
+        vdir = self._voice_dir(voice_id)
+        try:
+            if vdir.exists():
+                shutil.rmtree(vdir)
+        except Exception:
+            # If deletion fails, do not leave index in an inconsistent state.
+            raise
+
+        del index[voice_id]
+        self._write_index(index)
 

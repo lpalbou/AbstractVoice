@@ -125,6 +125,7 @@ Documentation = "https://github.com/lpalbou/abstractvoice#readme"
 
 [project.scripts]
 abstractvoice = "abstractvoice.examples.voice_cli:main"
+abstractvoice-prefetch = "abstractvoice.prefetch:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "abstractvoice.__version__"} 

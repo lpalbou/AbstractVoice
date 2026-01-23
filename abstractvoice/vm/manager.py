@@ -6,6 +6,7 @@ and responsibilities clear.
 
 from __future__ import annotations
 
+import threading
 from typing import Optional
 
 from ..config.voice_catalog import LANGUAGES, SAFE_FALLBACK
@@ -30,9 +31,17 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         debug_mode: bool = False,
         tts_engine: str = "auto",
         stt_engine: str = "auto",
+        allow_downloads: bool = True,
+        cloned_tts_streaming: bool = True,
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
+        # Controls whether the library may download model weights implicitly.
+        # The REPL sets this to False to enforce "no surprise downloads".
+        self.allow_downloads = bool(allow_downloads)
+        # Cloned TTS can either stream batches (lower time-to-first-audio, but may
+        # introduce gaps if generation can't stay ahead) or generate full audio first.
+        self.cloned_tts_streaming = bool(cloned_tts_streaming)
 
         language = (language or "en").lower()
         if language not in self.LANGUAGES:
@@ -74,6 +83,11 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         self._voice_cloner = None
         self._aec_enabled = False
         self._aec_stream_delay_ms = 0
+
+        # Cloned-speech cancellation token (best-effort).
+        self._cloned_cancel_event = threading.Event()
+        # Tracks whether cloned TTS synthesis is currently running (separate from playback).
+        self._cloned_synthesis_active = threading.Event()
 
         # State tracking
         self._transcription_callback = None

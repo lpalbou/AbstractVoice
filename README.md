@@ -24,6 +24,25 @@ Optional extras (legacy engines / extra tooling):
 pip install "abstractvoice[all]"
 ```
 
+### Explicit model downloads (recommended; never implicit in the REPL)
+
+Some features rely on large model weights/artifacts. AbstractVoice will **not**
+download these implicitly inside the REPL.
+
+After installing, prefetch explicitly (cross-platform):
+
+```bash
+abstractvoice-prefetch --stt small
+abstractvoice-prefetch --openf5
+```
+
+Or equivalently:
+
+```bash
+python -m abstractvoice download --stt small
+python -m abstractvoice download --openf5
+```
+
 ---
 
 ## Quick smoke tests
