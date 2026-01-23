@@ -59,6 +59,9 @@ class VoiceCloner:
     def import_voice(self, path: str) -> str:
         return self.store.import_voice(path)
 
+    def set_reference_text(self, voice_id: str, reference_text: str) -> None:
+        self.store.set_reference_text(voice_id, reference_text)
+
     def speak_to_bytes(self, text: str, *, voice_id: str, format: str = "wav", speed: Optional[float] = None) -> bytes:
         if format.lower() != "wav":
             raise ValueError("Voice cloning currently supports WAV output only.")

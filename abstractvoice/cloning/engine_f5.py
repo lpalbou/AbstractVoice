@@ -278,21 +278,53 @@ class F5TTSVoiceCloningEngine:
             with warnings.catch_warnings():
                 # Torchaudio emits noisy deprecation warnings; they don't help users here.
                 warnings.filterwarnings("ignore", category=UserWarning, module=r"torchaudio\..*")
-                with stdout_cm, stderr_cm:
-                    ref_audio_path, ref_text = preprocess_ref_audio_text(
-                        str(ref_wav),
-                        str(reference_text),
-                        show_info=(print if self.debug else (lambda *_a, **_k: None)),
-                    )
-                    audio_segment, final_sr, _spec = infer_process(
-                        ref_audio_path,
-                        ref_text,
-                        str(text),
+                # NOTE: redirecting sys.stdout affects the REPL spinner thread (global),
+                # so we avoid redirects here. Instead, we call lower-level primitives
+                # that don't print when properly configured.
+
+                # Minimal normalization: f5_tts expects sentence-ending punctuation.
+                ref_text = str(reference_text or "").strip()
+                if ref_text and not (ref_text.endswith(". ") or ref_text.endswith("。") or ref_text.endswith(".")):
+                    ref_text = ref_text + ". "
+                elif ref_text.endswith("."):
+                    ref_text = ref_text + " "
+
+                # Avoid f5_tts preprocess_ref_audio_text() because it prints loudly.
+                # We already clipped/resampled reference audio in _prepare_reference_wav().
+                ref_audio_path = str(ref_wav)
+
+                # Build gen_text batches with a simple chunker (no prints).
+                gen_text = str(text)
+                batches: List[str] = []
+                max_chars = 160
+                cur = ""
+                for part in gen_text.replace("\n", " ").split(" "):
+                    if not part:
+                        continue
+                    if len((cur + " " + part).strip()) <= max_chars:
+                        cur = (cur + " " + part).strip()
+                    else:
+                        if cur:
+                            batches.append(cur)
+                        cur = part.strip()
+                if cur:
+                    batches.append(cur)
+
+                from f5_tts.infer.utils_infer import infer_batch_process
+                import numpy as _np
+                import torchaudio
+
+                audio, sr = torchaudio.load(ref_audio_path)
+                # infer_batch_process returns a generator yielding final_wave at the end.
+                final_wave, final_sr, _spec = next(
+                    infer_batch_process(
+                        (audio, sr),
+                        ref_text if ref_text else " ",  # must not be empty
+                        batches or [" "],
                         self._f5_model,
                         self._f5_vocoder,
                         mel_spec_type=self._vocoder_name,
-                        show_info=(print if self.debug else (lambda *_a, **_k: None)),
-                        progress=None,  # disable tqdm
+                        progress=None,
                         target_rms=self._target_rms,
                         cross_fade_duration=self._cross_fade_duration,
                         nfe_step=self._nfe_step,
@@ -301,7 +333,12 @@ class F5TTSVoiceCloningEngine:
                         speed=float(speed) if speed is not None else 1.0,
                         fix_duration=None,
                         device=self._f5_device,
+                        streaming=False,
                     )
+                )
+
+                audio_segment = _np.asarray(final_wave, dtype=_np.float32)
+                final_sr = int(final_sr)
 
             buf = io.BytesIO()
             sf.write(buf, audio_segment, int(final_sr), format="WAV", subtype="PCM_16")
