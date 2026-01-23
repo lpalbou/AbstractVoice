@@ -622,7 +622,9 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager.listen(
                     on_transcription=self._voice_callback,
                     # Stop phrase interrupts TTS; keep listening.
-                    on_stop=lambda: print("\n⏹️  Stopped speaking.\n"),
+                    on_stop=lambda: (
+                        print("\n⏹️  Stopped speaking.\n") if (self.voice_manager and self.voice_manager.is_speaking()) else None
+                    ),
                 )
                 self.voice_mode_active = True
             except Exception as e:
@@ -700,18 +702,34 @@ class VoiceREPL(cmd.Cmd):
         sr = 16000
         frames: list[bytes] = []
         stream = {"obj": None}
+        cols = 80
+        try:
+            cols = int(shutil.get_terminal_size((80, 20)).columns)
+        except Exception:
+            cols = 80
 
-        def _status_line(msg: str) -> None:
+        def _clear_status() -> None:
             try:
-                sys.stdout.write("\r" + (" " * 80) + "\r")
-                sys.stdout.write(msg)
+                sys.stdout.write("\r" + (" " * max(10, cols - 1)) + "\r")
                 sys.stdout.flush()
             except Exception:
                 pass
 
-        def _clear_status() -> None:
+        def _status_line(msg: str) -> None:
+            # Render on a single line (no newline) so SPACE can be pressed repeatedly.
             try:
-                sys.stdout.write("\r" + (" " * 80) + "\r")
+                _clear_status()
+                sys.stdout.write(str(msg)[: max(0, cols - 1)])
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        def _println(msg: str = "") -> None:
+            # When in raw terminal mode, '\n' does NOT reliably return to column 0.
+            # Use CRLF explicitly to prevent "diagonal drifting" rendering.
+            try:
+                _clear_status()
+                sys.stdout.write("\r\n" + str(msg) + "\r\n")
                 sys.stdout.flush()
             except Exception:
                 pass
@@ -753,7 +771,7 @@ class VoiceREPL(cmd.Cmd):
                 self._ptt_recording = False
                 stream["obj"] = None
                 _clear_status()
-                print(f"\n❌ Failed to start microphone stream: {e}\n")
+                _println(f"❌ Failed to start microphone stream: {e}")
 
         def _stop_recording_and_send() -> None:
             if not self._ptt_recording:
@@ -776,7 +794,7 @@ class VoiceREPL(cmd.Cmd):
 
             pcm = b"".join(frames)
             if len(pcm) < int(sr * 0.25) * 2:
-                print("\n…(too short, try again)\n")
+                _println("…(too short, try again)")
                 return
 
             buf = io.BytesIO()
@@ -792,15 +810,15 @@ class VoiceREPL(cmd.Cmd):
                 text = (self.voice_manager.transcribe_from_bytes(wav_bytes, language=self.current_language) or "").strip()
             except Exception as e:
                 self._ptt_busy = False
-                print(f"\n❌ Transcription failed: {e}\n")
+                _println(f"❌ Transcription failed: {e}")
                 return
             self._ptt_busy = False
 
             if not text:
-                print("\n…(no transcription)\n")
+                _println("…(no transcription)")
                 return
 
-            print(f"\n> {text}\n")
+            _println(f"> {text}")
             self.process_query(text)
 
         # Platform key read.
@@ -827,6 +845,26 @@ class VoiceREPL(cmd.Cmd):
             old = termios.tcgetattr(fd)
             try:
                 tty.setraw(fd)
+
+                def _run_in_cooked(block):
+                    """Run a block with normal tty settings.
+
+                    In raw mode, many terminals treat '\n' as LF without CR, so prints from
+                    deeper code paths (LLM responses) can drift/indent. We temporarily
+                    restore the terminal mode to keep output rendering stable.
+                    """
+                    try:
+                        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+                    except Exception:
+                        pass
+                    try:
+                        block()
+                    finally:
+                        try:
+                            tty.setraw(fd)
+                        except Exception:
+                            pass
+
                 while self._ptt_session_active:
                     ch = sys.stdin.read(1)
                     if ch == "\x1b":  # ESC
@@ -837,7 +875,7 @@ class VoiceREPL(cmd.Cmd):
                         if not self._ptt_recording:
                             _start_recording()
                         else:
-                            _stop_recording_and_send()
+                            _run_in_cooked(_stop_recording_and_send)
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
@@ -851,6 +889,12 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             pass
         _clear_status()
+        # Ensure we end on a clean line before restoring other modes.
+        try:
+            sys.stdout.write("\r\n")
+            sys.stdout.flush()
+        except Exception:
+            pass
         # Restore to STOP after exiting PTT.
         try:
             self.do_voice("stop")

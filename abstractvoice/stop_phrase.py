@@ -36,10 +36,16 @@ def is_stop_phrase(text: str, phrases: Iterable[str]) -> bool:
     for phrase in phrase_set:
         if not phrase:
             continue
-        # Whole word sequence match.
+        # We only match:
+        # - exact (stop)
+        # - prefix (stop please)
+        # - suffix (please stop)
+        # This avoids false positives like "don't stop now" when "stop" is a phrase.
         if normalized == phrase:
             return True
-        if re.search(rf"(^| ){re.escape(phrase)}( |$)", normalized):
+        if normalized.startswith(phrase + " "):
+            return True
+        if normalized.endswith(" " + phrase):
             return True
     return False
 
