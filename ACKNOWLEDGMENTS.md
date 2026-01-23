@@ -5,12 +5,15 @@ AbstractVoice uses several open-source libraries and models. We would like to ac
 ## Key Dependencies
 
 ### Speech Recognition
-- [OpenAI Whisper](https://github.com/openai/whisper) - Licensed under MIT
+- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) - Licensed under MIT
+- [CTranslate2](https://github.com/OpenNMT/CTranslate2) - Licensed under MIT
+- (Optional) [OpenAI Whisper](https://github.com/openai/whisper) - Licensed under MIT
 - [WebRTCVAD](https://github.com/wiseman/py-webrtcvad) - Licensed under MIT
 
 ### Text-to-Speech
-- [Coqui TTS](https://github.com/coqui-ai/TTS) - Licensed under MPL-2.0
-- [PyAudio](https://github.com/jleb/pyaudio) - Licensed under MIT
+- [Piper](https://github.com/rhasspy/piper) - Licensed under MIT
+- [ONNX Runtime](https://github.com/microsoft/onnxruntime) - Licensed under MIT
+- (Optional) [Coqui TTS](https://github.com/coqui-ai/TTS) - Licensed under MPL-2.0
 
 ### Machine Learning
 - [PyTorch](https://github.com/pytorch/pytorch) - Licensed under BSD-3-Clause
@@ -25,6 +28,7 @@ AbstractVoice uses several open-source libraries and models. We would like to ac
 ### Audio Processing
 - [SoundFile](https://github.com/bastibe/python-soundfile) - Licensed under BSD-3-Clause
 - [SoundDevice](https://github.com/spatialaudio/python-sounddevice) - Licensed under BSD-3-Clause
+- [PortAudio](http://www.portaudio.com/) - Cross-platform audio I/O library (used via SoundDevice)
 - [Librosa](https://github.com/librosa/librosa) - Licensed under ISC
 
 ### Utilities
@@ -45,8 +49,9 @@ AbstractVoice can optionally use the following system-level software for enhance
 
 AbstractVoice may download and use pre-trained models as part of its operation:
 
-- OpenAI Whisper models - Licensed under MIT
-- Coqui TTS models - Various licenses, typically CC-BY-NC-4.0 or MIT
+- faster-whisper / Whisper model weights - Licensing varies by model; verify upstream terms.
+- Piper voice models - Licensing varies by voice; verify upstream terms.
+- (Optional) Coqui TTS models - Licensing varies by model/dataset; verify upstream terms.
 
 ## Notice
 
