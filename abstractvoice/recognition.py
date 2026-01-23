@@ -3,9 +3,13 @@
 import threading
 import time
 from typing import Optional
+from collections import deque
 
 import numpy as np
 import re
+
+from .stop_phrase import is_stop_phrase
+from .audio.resample import linear_resample_mono
 
 # Lazy imports for heavy dependencies
 def _import_audio_deps():
@@ -52,6 +56,19 @@ def _import_transcriber():
         raise
 
 
+def _import_aec_processor():
+    """Import AEC processor with helpful error if dependencies missing."""
+    try:
+        from .aec.webrtc_apm import AecConfig, WebRtcAecProcessor
+        return AecConfig, WebRtcAecProcessor
+    except ImportError as e:
+        raise ImportError(
+            "AEC is optional and requires extra dependencies.\n"
+            "Install with: pip install \"abstractvoice[aec]\"\n"
+            f"Original error: {e}"
+        ) from e
+
+
 class VoiceRecognizer:
     """Voice recognition with VAD and STT."""
     
@@ -59,7 +76,8 @@ class VoiceRecognizer:
                  vad_aggressiveness=1, min_speech_duration=600, 
                  silence_timeout=1500, sample_rate=16000, 
                  chunk_duration=30, whisper_model="tiny", 
-                 min_transcription_length=5, debug_mode=False):
+                 min_transcription_length=5, debug_mode=False,
+                 aec_enabled: bool = False, aec_stream_delay_ms: int = 0):
         """Initialize voice recognizer.
         
         Args:
@@ -109,6 +127,90 @@ class VoiceRecognizer:
         self.tts_interrupt_callback = None
         self.tts_interrupt_enabled = True  # Can be disabled during TTS playback
         self.listening_paused = False  # Can be paused to completely stop processing audio
+        # While TTS is playing (esp. without AEC), we often want to suppress normal
+        # transcriptions to avoid self-feedback loops, but still allow stop phrase.
+        self.transcriptions_paused = False
+
+        # Optional AEC (echo cancellation) state.
+        self.aec_enabled = False
+        self._aec = None
+        self._far_end_lock = threading.Lock()
+        self._far_end_pcm16 = bytearray()
+        if aec_enabled:
+            self.enable_aec(True, stream_delay_ms=aec_stream_delay_ms)
+
+    def enable_aec(self, enabled: bool = True, *, stream_delay_ms: int = 0) -> bool:
+        """Enable/disable acoustic echo cancellation (optional).
+
+        When enabled, the recognizer expects far-end audio via `feed_far_end_audio()`.
+        """
+        if not enabled:
+            self.aec_enabled = False
+            self._aec = None
+            with self._far_end_lock:
+                self._far_end_pcm16 = bytearray()
+            return True
+
+        AecConfig, WebRtcAecProcessor = _import_aec_processor()
+        self._aec = WebRtcAecProcessor(
+            AecConfig(sample_rate=int(self.sample_rate), channels=1, stream_delay_ms=int(stream_delay_ms))
+        )
+        self.aec_enabled = True
+        return True
+
+    def feed_far_end_audio(self, audio_chunk: np.ndarray, *, sample_rate: int) -> None:
+        """Provide far-end (speaker) audio reference for AEC.
+
+        audio_chunk: mono float32 in [-1, 1] (as written to speaker output)
+        """
+        if not self.aec_enabled:
+            return
+        if audio_chunk is None or len(audio_chunk) == 0:
+            return
+
+        mono = audio_chunk.astype(np.float32, copy=False)
+        if int(sample_rate) != int(self.sample_rate):
+            mono = linear_resample_mono(mono, int(sample_rate), int(self.sample_rate))
+
+        pcm16 = np.clip(mono, -1.0, 1.0)
+        pcm16 = (pcm16 * 32767.0).astype(np.int16).tobytes()
+
+        with self._far_end_lock:
+            self._far_end_pcm16.extend(pcm16)
+
+    def _pop_far_end_pcm16(self, nbytes: int) -> bytes:
+        if nbytes <= 0:
+            return b""
+        with self._far_end_lock:
+            if not self._far_end_pcm16:
+                return b"\x00" * nbytes
+            take = min(nbytes, len(self._far_end_pcm16))
+            out = bytes(self._far_end_pcm16[:take])
+            del self._far_end_pcm16[:take]
+        if take < nbytes:
+            out += b"\x00" * (nbytes - take)
+        return out
+
+    def _apply_aec(self, near_pcm16: bytes) -> bytes:
+        if not (self.aec_enabled and self._aec):
+            return near_pcm16
+
+        # The underlying APM typically expects 10ms frames. We can split any chunk
+        # size into 10ms sub-frames for robustness.
+        frame_bytes = int(self.sample_rate * 0.01) * 2  # 10ms * int16
+        if frame_bytes <= 0:
+            return near_pcm16
+        if len(near_pcm16) % frame_bytes != 0:
+            # Pad to whole frames.
+            pad = frame_bytes - (len(near_pcm16) % frame_bytes)
+            near_pcm16 = near_pcm16 + (b"\x00" * pad)
+
+        out = bytearray()
+        for i in range(0, len(near_pcm16), frame_bytes):
+            near = near_pcm16[i : i + frame_bytes]
+            far = self._pop_far_end_pcm16(frame_bytes)
+            out.extend(self._aec.process(near_pcm16=near, far_pcm16=far))
+        return bytes(out)
     
     def start(self, tts_interrupt_callback=None):
         """Start voice recognition in a separate thread.
@@ -170,21 +272,7 @@ class VoiceRecognizer:
 
     def _is_stop_command(self, text: str) -> bool:
         """Return True if text matches a configured stop phrase."""
-        if not text:
-            return False
-
-        normalized = re.sub(r"[^a-z0-9\s]+", " ", text.lower()).strip()
-        normalized = re.sub(r"\s+", " ", normalized)
-
-        # Exact match for configured stop phrases
-        if normalized in self.stop_phrases:
-            return True
-
-        # Backward compatibility / convenience: allow plain "stop" as well
-        if normalized == "stop":
-            return True
-
-        return False
+        return is_stop_phrase(text, self.stop_phrases)
     
     def _recognition_loop(self):
         """Main recognition loop."""
@@ -217,6 +305,10 @@ class VoiceRecognizer:
                 if overflowed and self.debug_mode:
                     print(" > Mic input overflow")
                 audio_data = audio_chunk.tobytes()
+
+                # Optional AEC: remove speaker echo from mic input before VAD/STT.
+                if self.aec_enabled and self._aec:
+                    audio_data = self._apply_aec(audio_data)
                 
                 # Check for speech
                 is_speech = self.voice_detector.is_speech(audio_data)
@@ -263,8 +355,9 @@ class VoiceRecognizer:
                                         # If no stop callback, invoke transcription callback anyway
                                         self.transcription_callback(text)
                                 else:
-                                    # Normal transcription
-                                    self.transcription_callback(text)
+                                    # Normal transcription (can be suppressed during TTS)
+                                    if not self.transcriptions_paused:
+                                        self.transcription_callback(text)
                             
                             # Reset state
                             speech_buffer = []
@@ -341,3 +434,15 @@ class VoiceRecognizer:
         self.listening_paused = False
         if self.debug_mode:
             print(" > Listening resumed") 
+
+    def pause_transcriptions(self):
+        """Suppress normal transcriptions while still allowing stop phrase detection."""
+        self.transcriptions_paused = True
+        if self.debug_mode:
+            print(" > Transcriptions paused")
+
+    def resume_transcriptions(self):
+        """Re-enable normal transcriptions after they were suppressed."""
+        self.transcriptions_paused = False
+        if self.debug_mode:
+            print(" > Transcriptions resumed")

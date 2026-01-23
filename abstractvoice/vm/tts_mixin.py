@@ -1,35 +1,103 @@
 """TTS + voice/language methods for VoiceManager.
 
 This module intentionally focuses on orchestration and keeps heavy engine details
-behind adapters or TTSEngine implementations.
+behind adapters.
 """
 
 from __future__ import annotations
 
-from .common import import_tts_engine
-
 
 class TtsMixin:
-    def speak(self, text, speed=1.0, callback=None):
+    def _get_voice_cloner(self):
+        if getattr(self, "_voice_cloner", None) is None:
+            try:
+                from ..cloning import VoiceCloner
+            except Exception as e:
+                raise RuntimeError(
+                    "Voice cloning is an optional feature.\n"
+                    "Install with: pip install \"abstractvoice[cloning]\"\n"
+                    f"Original error: {e}"
+                ) from e
+
+            self._voice_cloner = VoiceCloner(debug=bool(getattr(self, "debug_mode", False)), whisper_model=getattr(self, "whisper_model", "tiny"))
+        return self._voice_cloner
+
+    def clone_voice(self, reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None) -> str:
+        return self._get_voice_cloner().clone_voice(reference_audio_path, name=name, reference_text=reference_text)
+
+    def list_cloned_voices(self):
+        return self._get_voice_cloner().list_cloned_voices()
+
+    def export_voice(self, voice_id: str, path: str) -> str:
+        return self._get_voice_cloner().export_voice(voice_id, path)
+
+    def import_voice(self, path: str) -> str:
+        return self._get_voice_cloner().import_voice(path)
+    def speak(self, text, speed=1.0, callback=None, voice: str | None = None):
         sp = speed if speed != 1.0 else self.speed
         if not self.tts_engine:
             raise RuntimeError("No TTS engine available")
+
+        # Optional cloned voice playback: synthesize to WAV bytes, decode to mono,
+        # resample to current audio player sample rate, and play.
+        if voice:
+            import io
+            import soundfile as sf
+            import numpy as np
+
+            from ..audio.resample import linear_resample_mono
+
+            wav = self.speak_to_bytes(str(text), format="wav", voice=voice)
+            audio, sr = sf.read(io.BytesIO(wav), always_2d=True, dtype="float32")
+            mono = np.mean(audio, axis=1).astype(np.float32)
+
+            target_sr = int(getattr(getattr(self.tts_engine, "audio_player", None), "sample_rate", sr))
+            if sr != target_sr:
+                mono = linear_resample_mono(mono, int(sr), target_sr)
+
+            # Reuse the engine's playback pipeline/callbacks.
+            if hasattr(self.tts_engine, "play_audio_array"):
+                return self.tts_engine.play_audio_array(mono, callback=callback)
+
+            # Fallback: play directly.
+            if hasattr(self.tts_engine, "audio_player") and self.tts_engine.audio_player:
+                self.tts_engine.audio_player.play_audio(mono)
+                return True
+
+            raise RuntimeError("No audio player available for cloned voice playback")
+
         return self.tts_engine.speak(text, sp, callback)
 
     # Network/headless-friendly methods
-    def speak_to_bytes(self, text: str, format: str = "wav") -> bytes:
+    def speak_to_bytes(self, text: str, format: str = "wav", voice: str | None = None) -> bytes:
+        """Synthesize to bytes.
+
+        - If `voice` is None: use Piper (default).
+        - If `voice` is provided: treat as a cloned voice_id (requires `abstractvoice[cloning]`).
+        """
+        if voice:
+            cloner = self._get_voice_cloner()
+            return cloner.speak_to_bytes(text, voice_id=voice, format=format, speed=self.speed)
+
         if self.tts_adapter and self.tts_adapter.is_available():
             return self.tts_adapter.synthesize_to_bytes(text, format=format)
-        raise NotImplementedError(
-            "speak_to_bytes() requires Piper TTS (default engine)."
-        )
+        raise NotImplementedError("speak_to_bytes() requires Piper TTS (default engine).")
 
-    def speak_to_file(self, text: str, output_path: str, format: str | None = None) -> str:
+    def speak_to_file(
+        self, text: str, output_path: str, format: str | None = None, voice: str | None = None
+    ) -> str:
+        if voice:
+            data = self.speak_to_bytes(text, format=(format or "wav"), voice=voice)
+            from pathlib import Path
+
+            out = Path(output_path)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(data)
+            return str(out)
+
         if self.tts_adapter and self.tts_adapter.is_available():
             return self.tts_adapter.synthesize_to_file(text, output_path, format=format)
-        raise NotImplementedError(
-            "speak_to_file() requires Piper TTS (default engine)."
-        )
+        raise NotImplementedError("speak_to_file() requires Piper TTS (default engine).")
 
     def stop_speaking(self):
         if not self.tts_engine:
@@ -77,43 +145,29 @@ class TtsMixin:
                 print(f"⚠️  Piper TTS not available: {e}")
             return None
 
-    def set_tts_model(self, model_name):
-        self.stop_speaking()
-
-        if hasattr(self, "tts_engine") and self.tts_engine:
-            try:
-                if hasattr(self.tts_engine, "audio_player") and self.tts_engine.audio_player:
-                    if hasattr(self.tts_engine.audio_player, "stop"):
-                        self.tts_engine.audio_player.stop()
-                    self.tts_engine.audio_player.cleanup()
-
-                if hasattr(self.tts_engine, "tts") and self.tts_engine.tts:
-                    try:
-                        import torch  # type: ignore[import-not-found]
-                        if torch.cuda.is_available():
-                            torch.cuda.empty_cache()
-                    except Exception:
-                        pass
-                    del self.tts_engine.tts
-
-                del self.tts_engine
-                self.tts_engine = None
-
-                import gc
-                gc.collect()
-            except Exception as e:
-                if self.debug_mode:
-                    print(f"Warning: TTS cleanup issue: {e}")
-                self.tts_engine = None
-
-        TTSEngine = import_tts_engine()
-        self.tts_engine = TTSEngine(model_name=model_name, debug_mode=self.debug_mode)
-        self._tts_engine_name = "vits"
-        self._wire_tts_callbacks()
-        return True
-
     def get_supported_languages(self):
         return list(self.LANGUAGES.keys())
+
+    def list_available_models(self, language: str | None = None) -> dict:
+        """List available TTS voices/models (Piper-only core).
+
+        Returns a dict shaped for CLI display:
+        { "en": { "amy": { ... } }, "fr": { ... } }
+        """
+        if self.tts_adapter and hasattr(self.tts_adapter, "list_available_models"):
+            return self.tts_adapter.list_available_models(language=language)
+
+        # Best-effort: instantiate a temporary Piper adapter to enumerate models.
+        try:
+            from ..adapters.tts_piper import PiperTTSAdapter
+
+            return PiperTTSAdapter(language=(language or "en")).list_available_models(language=language)
+        except Exception:
+            return {}
+
+    # Backward-compatible alias used by some CLI code.
+    def list_voices(self, language: str | None = None) -> dict:
+        return self.list_available_models(language=language)
 
     def get_language(self):
         return self.language
@@ -139,147 +193,41 @@ class TtsMixin:
         if self.voice_recognizer:
             self.voice_recognizer.stop()
 
-        if self._tts_engine_preference in ("auto", "piper"):
-            try:
-                if self.tts_adapter is None:
-                    self.tts_adapter = self._try_init_piper(language)
-                else:
-                    self.tts_adapter.set_language(language)
+        # Piper-only core: switch Piper model for the requested language.
+        try:
+            if self.tts_adapter is None:
+                self.tts_adapter = self._try_init_piper(language)
+            else:
+                self.tts_adapter.set_language(language)
 
-                if self.tts_adapter and self.tts_adapter.is_available():
-                    if self._tts_engine_name != "piper" or self.tts_engine is None:
-                        from ..tts.adapter_tts_engine import AdapterTTSEngine
+            if self.tts_adapter and self.tts_adapter.is_available():
+                if self._tts_engine_name != "piper" or self.tts_engine is None:
+                    from ..tts.adapter_tts_engine import AdapterTTSEngine
 
-                        self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=self.debug_mode)
-                        self._tts_engine_name = "piper"
-                        self._wire_tts_callbacks()
-
-                    self.language = language
-                    self.speed = 1.0
-                    return True
-            except Exception as e:
-                if self.debug_mode:
-                    print(f"⚠️ Piper language switch failed, falling back: {e}")
-
-        selected_model = self._select_best_model(language)
-
-        from ..instant_setup import is_model_cached
-        from ..simple_model_manager import download_model
-
-        if not is_model_cached(selected_model):
-            if self.debug_mode:
-                print(f"📥 Model {selected_model} not cached, downloading...")
-            success = download_model(selected_model)
-            if not success and language != "en":
-                print(f"❌ Cannot switch to {self.LANGUAGES[language]['name']}: Model download failed")
-                print(f"   Try: abstractvoice download-models --language {language}")
-                return False
-
-        models_to_try = [selected_model]
-        if selected_model != self.SAFE_FALLBACK:
-            models_to_try.append(self.SAFE_FALLBACK)
-
-        for model_name in models_to_try:
-            try:
-                if self.debug_mode:
-                    lang_name = self.LANGUAGES[language]["name"]
-                    print(f"🌍 Loading {lang_name} voice: {model_name}")
-
-                TTSEngine = import_tts_engine()
-                self.tts_engine = TTSEngine(model_name=model_name, debug_mode=self.debug_mode)
-                self._tts_engine_name = "vits"
-                self._wire_tts_callbacks()
+                    self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=self.debug_mode)
+                    self._tts_engine_name = "piper"
+                    self._wire_tts_callbacks()
 
                 self.language = language
-                self.speed = 0.8 if language == "it" else 1.0
+                self.speed = 1.0
                 return True
-            except Exception as e:
-                if self.debug_mode:
-                    print(f"⚠️ Model {model_name} failed to load: {e}")
-                continue
+        except Exception as e:
+            if self.debug_mode:
+                print(f"⚠️ Piper language switch failed: {e}")
 
-        print(f"❌ Cannot switch to {self.LANGUAGES[language]['name']}: No working models")
         return False
-
-    def _select_best_model(self, language):
-        if language not in self.LANGUAGES:
-            return self.SAFE_FALLBACK
-
-        lang_config = self.LANGUAGES[language]
-
-        if "premium" in lang_config:
-            try:
-                premium_model = lang_config["premium"]
-                if self._test_model_compatibility(premium_model):
-                    if self.debug_mode:
-                        print(f"✨ Using premium quality model: {premium_model}")
-                    return premium_model
-            except Exception:
-                pass
-
-        return lang_config.get("default", self.SAFE_FALLBACK)
-
-    def _test_model_compatibility(self, model_name):
-        try:
-            TTSEngine = import_tts_engine()
-            engine = TTSEngine(model_name=model_name, debug_mode=False)
-            engine.cleanup()
-            return True
-        except Exception:
-            return False
 
     def set_voice(self, language, voice_id):
         language = language.lower()
 
-        if self._tts_engine_preference in ("auto", "piper"):
-            try:
-                if self.tts_adapter is None:
-                    self.tts_adapter = self._try_init_piper(language)
-                else:
-                    self.tts_adapter.set_language(language)
-
-                if self.tts_adapter and self.tts_adapter.is_available():
-                    if self._tts_engine_name != "piper" or self.tts_engine is None:
-                        from ..tts.adapter_tts_engine import AdapterTTSEngine
-
-                        self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=self.debug_mode)
-                        self._tts_engine_name = "piper"
-                        self._wire_tts_callbacks()
-
-                    self.language = language
-                    self.speed = 1.0
-                    if self.debug_mode:
-                        print(f"🎭 Piper voice selection: using default {language} voice (requested: {voice_id})")
-                    return True
-            except Exception as e:
-                if self.debug_mode:
-                    print(f"⚠️ Piper voice selection failed, falling back: {e}")
-
-        if language not in self.VOICE_CATALOG:
-            if self.debug_mode:
-                print(f"⚠️ Language '{language}' not available")
-            return False
-
-        if voice_id not in self.VOICE_CATALOG[language]:
-            if self.debug_mode:
-                available = ", ".join(self.VOICE_CATALOG[language].keys())
-                print(f"⚠️ Voice '{voice_id}' not available for {language}. Available: {available}")
-            return False
-
-        voice_info = self.VOICE_CATALOG[language][voice_id]
-        model_name = voice_info["model"]
-
-        from ..instant_setup import is_model_cached
-        from ..simple_model_manager import download_model
-
-        if not is_model_cached(model_name):
-            print(f"📥 Voice model '{voice_id}' not cached, downloading...")
-            success = download_model(model_name)
-            if not success:
-                print(f"❌ Failed to download voice '{voice_id}'")
+        # Piper voice selection is adapter-specific. For now, treat `voice_id` as
+        # best-effort metadata and ensure language switching is robust.
+        try:
+            if not self.set_language(language):
                 return False
-
-        self.language = language
-        self.speed = voice_info.get("speed", 1.0)
-        return self.set_tts_model(model_name)
+            if self.debug_mode:
+                print(f"🎭 Piper voice selection (best-effort): {language}.{voice_id}")
+            return True
+        except Exception:
+            return False
 

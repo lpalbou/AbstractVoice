@@ -16,14 +16,12 @@ def print_examples():
     print("  web            - Web API example")
     print("  simple         - Simple usage example")
     print("  check-deps     - Check dependency compatibility")
-    print("  download-models - Download TTS models for offline use")
     print("\nUsage: abstractvoice <command> [--language <lang>] [args...]")
-    print("\nSupported languages: en, fr, es, de, it, ru, multilingual")
+    print("\nSupported languages: en, fr, es, de, ru, zh")
     print("\nExamples:")
     print("  abstractvoice cli --language fr     # French CLI")
     print("  abstractvoice simple --language ru  # Russian simple example")
     print("  abstractvoice check-deps            # Check dependencies")
-    print("  abstractvoice download-models       # Download models for offline use")
     print("  abstractvoice                       # Direct voice mode (default)")
 
 def simple_example():
@@ -99,20 +97,10 @@ def parse_args():
     """Parse command line arguments."""
     import sys
 
-    # Check if it's a download-models command and handle separately
-    if len(sys.argv) > 1 and sys.argv[1] == "download-models":
-        # Return early with just the command to handle in main()
-        class DownloadModelsArgs:
-            command = "download-models"
-            # Add dummy attributes to prevent AttributeError
-            model = "granite3.3:2b"
-            debug = False
-        return DownloadModelsArgs()
-
     parser = argparse.ArgumentParser(description="AbstractVoice - Voice interactions with AI")
 
     # Examples and special commands
-    parser.add_argument("command", nargs="?", help="Command to run: cli, web, simple, check-deps, download-models (default: voice mode)")
+    parser.add_argument("command", nargs="?", help="Command to run: cli, web, simple, check-deps (default: voice mode)")
 
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
@@ -133,8 +121,8 @@ def parse_args():
     parser.add_argument("--max-tokens", type=int, default=4096,
                       help="Set maximum tokens for the LLM response")
     parser.add_argument("--language", "--lang", default="en",
-                      choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
-                      help="Voice language (en=English, fr=French, es=Spanish, de=German, it=Italian, ru=Russian, multilingual=All)")
+                      choices=["en", "fr", "es", "de", "ru", "zh"],
+                      help="Voice language (en=English, fr=French, es=Spanish, de=German, ru=Russian, zh=Chinese)")
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
     return parser.parse_args()
@@ -156,17 +144,6 @@ def main():
                 if args.debug:
                     import traceback
                     traceback.print_exc()
-            return
-        elif args.command == "download-models":
-            from abstractvoice.simple_model_manager import download_models_cli
-            # Pass remaining arguments to download_models_cli
-            import sys
-            original_argv = sys.argv
-            sys.argv = ["download-models"] + sys.argv[2:]  # Remove script name and "download-models"
-            try:
-                download_models_cli()
-            finally:
-                sys.argv = original_argv
             return
         elif args.command == "cli":
             # Import and run CLI REPL example
@@ -258,7 +235,7 @@ def main():
             print(f"❌ TTS model download failed")
             print(f"   This is a TTS voice model issue, not your Ollama model")
             print(f"   Your Ollama model '{args.model}' is fine")
-            print(f"   Try: rm -rf ~/.cache/tts && pip install --force-reinstall coqui-tts")
+            print("   Try: pip install --upgrade abstractvoice")
             print(f"   Or check network connectivity for model downloads")
         elif "ollama" in error_msg or "11434" in error_msg:
             print(f"❌ Cannot connect to Ollama at {args.api}")

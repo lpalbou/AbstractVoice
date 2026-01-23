@@ -8,17 +8,20 @@ This document defines the intended, supported API surface for third‑party inte
 
 ## TTS
 
-- `speak(text: str, speed: float = 1.0, callback=None) -> bool`
+- `speak(text: str, speed: float = 1.0, callback=None, voice: str | None = None) -> bool`
   - Plays audio locally.
+  - Optional: if `voice` is provided, treat it as a cloned voice_id (requires `abstractvoice[cloning]`).
 
 - `pause_speaking() -> bool`, `resume_speaking() -> bool`, `stop_speaking() -> bool`
   - Playback control.
 
-- `speak_to_bytes(text: str, format: str = "wav") -> bytes`
+- `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None) -> bytes`
   - Returns audio bytes for network transmission / headless use.
+  - Optional: if `voice` is provided, treat it as a cloned voice_id (requires `abstractvoice[cloning]`).
 
-- `speak_to_file(text: str, output_path: str, format: str | None = None) -> str`
+- `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None) -> str`
   - Writes an audio file and returns the path.
+  - Optional: if `voice` is provided, treat it as a cloned voice_id (requires `abstractvoice[cloning]`).
 
 ## STT
 
@@ -44,7 +47,7 @@ This document defines the intended, supported API surface for third‑party inte
 
 VoiceManager supports voice modes that control how listening behaves during TTS:
 
-- **wait**: pauses listening during TTS playback (most robust without echo cancellation)
+- **wait**: suppresses normal transcriptions and disables “interrupt on speech” during TTS playback (most robust without echo cancellation; stop phrase still works)
 - **full**: keeps listening, but disables “interrupt on speech” during TTS to avoid self-interruption
 
 In both modes, the stop phrase remains available as a safe “barge-in” substitute.

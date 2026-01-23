@@ -393,3 +393,45 @@ class PiperTTSAdapter(TTSAdapter):
             'cross_platform': True
         })
         return info
+
+    def list_available_models(self, language: Optional[str] = None) -> Dict[str, Any]:
+        """List available Piper voices with cache status.
+
+        This is a small, stable introspection surface used by the CLI to present
+        selectable voices. Piper model downloads happen on-demand in `set_language()`.
+        """
+        def _parse_size_mb(size: str) -> int:
+            try:
+                return int(str(size).lower().replace("mb", "").strip())
+            except Exception:
+                return 0
+
+        def _voice_id_from_hf_path(hf_path: str) -> str:
+            # e.g. "en/en_US/amy/medium" -> "amy"
+            parts = (hf_path or "").split("/")
+            return parts[2] if len(parts) >= 3 else hf_path
+
+        models: Dict[str, Any] = {}
+        languages = [language] if language else list(self.PIPER_MODELS.keys())
+
+        for lang in languages:
+            if lang not in self.PIPER_MODELS:
+                continue
+
+            hf_path, model_filename = self.PIPER_MODELS[lang]
+            voice_id = _voice_id_from_hf_path(hf_path)
+            model_path, config_path = self._get_model_path(lang)
+            cached = model_path.exists() and config_path.exists()
+
+            models.setdefault(lang, {})
+            models[lang][voice_id] = {
+                "name": f"Piper {voice_id}",
+                "quality": "medium",
+                "size_mb": _parse_size_mb(self.MODEL_SIZES.get(lang, "0MB")),
+                "description": f"Default Piper voice for {lang}",
+                "requires_espeak": False,
+                "cached": cached,
+                "model_filename": model_filename,
+            }
+
+        return models

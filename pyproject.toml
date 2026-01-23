@@ -44,21 +44,24 @@ dependencies = [
 voice = [
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
-    "PyAudio>=0.2.13",
     "soundfile>=0.12.1",
 ]
 
-# Text-to-Speech functionality (legacy VITS engine for premium voices)
-tts = [
-    "coqui-tts>=0.27.0,<0.30.0",
-    "torch>=2.1.0,<2.9.0",
-    "torchvision>=0.16.0,<1.0.0",
-    "torchaudio>=2.1.0,<2.9.0",
+# Audio effects (optional; only needed for speed/pitch processing)
+audio-fx = [
     "librosa>=0.10.0",
 ]
 
-# Lightweight TTS-only (Piper, already in core)
-tts-lite = []
+# Voice cloning (optional; research-grade, heavy deps).
+cloning = [
+    "f5-tts>=1.1.0",
+]
+
+# Optional AEC (Acoustic Echo Cancellation) for true barge-in.
+# This is intentionally opt-in because platform support/toolchain requirements vary.
+aec = [
+    "aec-audio-processing>=1.0.1",
+]
 
 # Speech-to-Text functionality
 stt = [
@@ -76,16 +79,14 @@ all = [
     "piper-tts>=1.2.0",
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
-    "PyAudio>=0.2.13",
     "openai-whisper>=20230314",
-    "coqui-tts>=0.27.0,<0.30.0",
-    "torch>=2.1.0,<2.9.0",
-    "torchvision>=0.16.0,<1.0.0",
-    "torchaudio>=2.1.0,<2.9.0",
     "librosa>=0.10.0",
     "soundfile>=0.12.1",
     "flask>=2.0.0",
     "tiktoken>=0.6.0",
+    # Optional advanced features
+    "f5-tts>=1.1.0",
+    "aec-audio-processing>=1.0.1",
 ]
 
 # Development dependencies
@@ -99,24 +100,10 @@ dev = [
 voice-full = [
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
-    "PyAudio>=0.2.13",
     "openai-whisper>=20230314",
-    "coqui-tts>=0.27.0,<0.30.0",
-    "torch>=2.1.0,<2.9.0",
-    "torchvision>=0.16.0,<1.0.0",
-    "torchaudio>=2.1.0,<2.9.0",
     "librosa>=0.10.0",
     "soundfile>=0.12.1",
     "tiktoken>=0.6.0",
-]
-
-# Core TTS-only (lightweight, no STT)
-core-tts = [
-    "coqui-tts>=0.27.0,<0.30.0",
-    "torch>=2.1.0,<2.9.0",
-    "torchvision>=0.16.0,<1.0.0",
-    "torchaudio>=2.1.0,<2.9.0",
-    "librosa>=0.10.0",
 ]
 
 # Core STT-only (lightweight, no TTS)
@@ -129,7 +116,6 @@ core-stt = [
 audio-only = [
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
-    "PyAudio>=0.2.13",
     "soundfile>=0.12.1",
 ]
 
@@ -142,3 +128,9 @@ abstractvoice = "abstractvoice.examples.voice_cli:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "abstractvoice.__version__"} 
+
+[tool.setuptools.packages.find]
+# Explicit discovery avoids setuptools accidentally treating `audio_samples/`
+# (or any other repo folder) as an installable top-level package.
+include = ["abstractvoice*"]
+exclude = ["audio_samples*", "tests*", "docs*"]

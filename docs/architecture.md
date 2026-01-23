@@ -37,19 +37,16 @@ AbstractVoice is designed as a modular voice interaction system that bridges tex
 
 ### 1. VoiceManager (Orchestrator)
 
-**Location**: `abstractvoice/voice_manager.py`
+**Location**:
+- Public façade: `abstractvoice/voice_manager.py`
+- Implementation: `abstractvoice/vm/manager.py` (built from small mixins in `abstractvoice/vm/`)
 
 The central coordinator that manages all voice interactions:
 
 ```python
 class VoiceManager:
-    def __init__(self, tts_model=None, whisper_model="tiny", debug_mode=False):
-        self.tts_engine = TTSEngine(model_name=tts_model, debug_mode=debug_mode)
-        self.voice_recognizer = VoiceRecognizer(...)
-        
-        # Set up communication between components
-        self.tts_engine.on_playback_start = self._on_tts_start
-        self.tts_engine.on_playback_end = self._on_tts_end
+    # See `abstractvoice/vm/manager.py` for the real implementation.
+    # Internally, it wires TTS lifecycle callbacks to listening behavior via `abstractvoice/vm/core.py`.
 ```
 
 **Key Responsibilities:**
@@ -67,26 +64,16 @@ class VoiceManager:
 
 **Location**: `abstractvoice/tts/tts_engine.py`
 
-Handles text-to-speech synthesis with advanced features:
+In AbstractVoice core, this module contains **audio playback utilities** used by the Piper-backed engine facade:
 
 ```python
-class TTSEngine:
-    def __init__(self, model_name="tts_models/en/ljspeech/vits", debug_mode=False, streaming=True):
-        # Initialize TTS model
-        self.tts = TTS(model_name=model_name)
-        
-        # Initialize non-blocking audio player for immediate pause/resume
-        self.audio_player = NonBlockingAudioPlayer(sample_rate=22050, debug_mode=debug_mode)
-        
-        # Set up callbacks
-        self.audio_player.playback_complete_callback = self._on_playback_complete
+from abstractvoice.tts.tts_engine import NonBlockingAudioPlayer
+
+player = NonBlockingAudioPlayer(sample_rate=22050)
 ```
 
 **Key Features:**
-- **Text Preprocessing**: Normalizes text for better synthesis
-- **Intelligent Chunking**: Splits long text at natural boundaries (300 chars)
 - **Speed Control**: Time-stretching via librosa (preserves pitch)
-- **Streaming Synthesis**: Starts playback while synthesizing remaining chunks
 - **Immediate Pause/Resume**: Via NonBlockingAudioPlayer
 
 **Text Processing Pipeline:**

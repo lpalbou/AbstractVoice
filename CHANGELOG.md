@@ -190,7 +190,7 @@ This release completely fixes the core issues with voice switching, memory manag
 ### 🏗️ Architecture Improvements
 
 #### **Simplified Model Management**
-- **Consolidated**: Removed redundant `model_manager.py`, unified everything in `simple_model_manager.py`
+- **Clarified scope**: Legacy Coqui model management is now explicitly engine-scoped in `coqui_model_manager.py` (with `simple_model_manager.py` as a thin import façade).
 - **Clean APIs**: Single source of truth for all model operations
 - **Consistent**: CLI and programmatic APIs use the same underlying methods
 

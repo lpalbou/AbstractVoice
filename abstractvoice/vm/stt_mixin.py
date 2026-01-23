@@ -74,7 +74,11 @@ class SttMixin:
                     self._transcription_callback(text)
 
             def _stop_handler():
-                self.stop_listening()
+                # Stop phrase semantics (ADR 0002 Phase 1):
+                # - Always stop TTS playback immediately.
+                # - Do NOT forcibly stop listening unless the integrator wants that
+                #   (they can call stop_listening() inside on_stop).
+                self.stop_speaking()
                 if self._stop_callback:
                     self._stop_callback()
 
@@ -84,9 +88,24 @@ class SttMixin:
                 stop_callback=_stop_handler,
                 whisper_model=self.whisper_model,
                 debug_mode=self.debug_mode,
+                aec_enabled=bool(getattr(self, "_aec_enabled", False)),
+                aec_stream_delay_ms=int(getattr(self, "_aec_stream_delay_ms", 0)),
             )
 
         return self.voice_recognizer.start(tts_interrupt_callback=self.stop_speaking)
+
+    def enable_aec(self, enabled: bool = True, *, stream_delay_ms: int = 0) -> bool:
+        """Enable optional AEC-based barge-in support.
+
+        Notes:
+        - This is opt-in and requires: pip install "abstractvoice[aec]"
+        - Intended for `voice_mode="full"` where we want true barge-in.
+        """
+        self._aec_enabled = bool(enabled)
+        self._aec_stream_delay_ms = int(stream_delay_ms)
+        if self.voice_recognizer and hasattr(self.voice_recognizer, "enable_aec"):
+            return bool(self.voice_recognizer.enable_aec(bool(enabled), stream_delay_ms=int(stream_delay_ms)))
+        return True
 
     def stop_listening(self):
         if self.voice_recognizer:
