@@ -52,6 +52,7 @@ class VoiceREPL(cmd.Cmd):
 
         # Language settings
         self.current_language = language
+        self._initial_tts_model = tts_model
 
         # Initialize voice manager with language support
         if disable_tts:
@@ -325,6 +326,10 @@ class VoiceREPL(cmd.Cmd):
         Usage: /language <lang>
         Available languages: en, fr, es, de, it
         """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
         if not args:
             current_name = self.voice_manager.get_language_name()
             current_code = self.voice_manager.get_language()
@@ -362,7 +367,9 @@ class VoiceREPL(cmd.Cmd):
                 'it': "Lingua cambiata in italiano."
             }
             test_msg = test_messages.get(language, "Language switched.")
-            self.voice_manager.speak(test_msg)
+            # Respect TTS toggle: if the user disabled TTS, don't speak test messages.
+            if getattr(self, "use_tts", True):
+                self.voice_manager.speak(test_msg)
 
             # Restart voice mode if it was active
             if was_active:
@@ -387,6 +394,10 @@ class VoiceREPL(cmd.Cmd):
           /setvoice fr.css10_vits      # Set French CSS10 VITS voice
           /setvoice it.mai_male_vits   # Set Italian male VITS voice
         """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
         if not args:
             # Show all available voices with metadata
             print(f"\n{Colors.CYAN}Available Voice Models:{Colors.END}")
@@ -451,39 +462,29 @@ class VoiceREPL(cmd.Cmd):
         # Download and set the specific voice using programmatic API
         try:
             print(f"🔄 Setting voice {voice_spec}...")
-
-            # Use the programmatic download API
-            success = self.voice_manager.download_model(voice_spec)
+            success = self.voice_manager.set_voice(language, voice_id)
 
             if success:
-                # Now set the language to match
-                success = self.voice_manager.set_language(language)
+                self.current_language = language
+                print(f"✅ Voice set to {voice_spec}")
 
-                if success:
-                    # Update current language
-                    self.current_language = language
-
-                    print(f"✅ Voice set to {voice_spec}")
-
-                    # Test the voice
-                    test_messages = {
-                        'en': 'Voice changed to English.',
-                        'fr': 'Voix changée en français.',
-                        'es': 'Voz cambiada al español.',
-                        'de': 'Stimme auf Deutsch geändert.',
-                        'it': 'Voce cambiata in italiano.'
-                    }
-                    test_msg = test_messages.get(language, f'Voice changed to {language}.')
+                test_messages = {
+                    'en': 'Voice changed to English.',
+                    'fr': 'Voix changée en français.',
+                    'es': 'Voz cambiada al español.',
+                    'de': 'Stimme auf Deutsch geändert.',
+                    'it': 'Voce cambiata in italiano.',
+                    'ru': 'Голос изменён на русский.',
+                    'zh': '语音已切换到中文。'
+                }
+                test_msg = test_messages.get(language, f'Voice changed to {language}.')
+                if getattr(self, "use_tts", True):
                     self.voice_manager.speak(test_msg)
 
-                    # Restart voice mode if it was active
-                    if was_active:
-                        self.do_voice(self.voice_mode)
-                else:
-                    print(f"❌ Failed to set language: {language}")
+                if was_active:
+                    self.do_voice(self.voice_mode)
             else:
-                print(f"❌ Failed to download voice: {voice_spec}")
-                print("   Check your internet connection or try a different voice")
+                print(f"❌ Failed to set voice: {voice_spec}")
 
         except Exception as e:
             print(f"❌ Error setting voice: {e}")
@@ -609,6 +610,13 @@ class VoiceREPL(cmd.Cmd):
         
         if arg == "on":
             self.use_tts = True
+            if self.voice_manager is None:
+                # Re-enable voice features (TTS/STT) by creating a VoiceManager.
+                self.voice_manager = VoiceManager(
+                    language=self.current_language,
+                    tts_model=self._initial_tts_model,
+                    debug_mode=self.debug_mode
+                )
             print("TTS enabled" if self.debug_mode else "")
         elif arg == "off":
             self.use_tts = False
@@ -618,6 +626,9 @@ class VoiceREPL(cmd.Cmd):
     
     def do_speed(self, arg):
         """Set the TTS speed multiplier."""
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
         if not arg.strip():
             print(f"Current TTS speed: {self.voice_manager.get_speed()}x")
             return
@@ -645,6 +656,9 @@ class VoiceREPL(cmd.Cmd):
           /tts_model vits
           /tts_model fast_pitch
         """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
         model_shortcuts = {
             'vits': 'tts_models/en/ljspeech/vits',
             'fast_pitch': 'tts_models/en/ljspeech/fast_pitch',
@@ -670,6 +684,9 @@ class VoiceREPL(cmd.Cmd):
     
     def do_whisper(self, arg):
         """Change Whisper model."""
+        if not self.voice_manager:
+            print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+            return
         model = arg.strip()
         if not model:
             print(f"Current Whisper model: {self.voice_manager.get_whisper()}")

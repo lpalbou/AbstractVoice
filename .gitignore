@@ -207,3 +207,6 @@ token.json
 deprecated/
 
 *.mem
+
+.vtest/
+.vtest/bin/

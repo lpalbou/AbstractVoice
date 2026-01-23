@@ -1,4 +1,4 @@
-#!/Users/albou/projects/abstractvoice/.vtest/bin/python
+#!/Users/albou/abstractframework/abstractvoice/.vtest/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

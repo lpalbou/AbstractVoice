@@ -51,6 +51,18 @@ Updated PyTorch constraints in all dependency groups:
 - ✅ Dependency resolution validated
 - ℹ️ Pre-existing test suite segfault issues (gruut library) remain unresolved
 
+## [Unreleased]
+
+### ✨ Added
+- **Piper TTSEngine facade**: `abstractvoice/tts/adapter_tts_engine.py` wraps adapter-based TTS behind a TTSEngine-compatible interface, preserving `VoiceManager.tts_engine` behavior (stop/pause/resume/callbacks).
+
+### 📦 Changed
+- **VoiceManager STT default**: `transcribe_file()` now prefers faster-whisper when available; legacy `openai-whisper` remains optional.
+- **CLI REPL robustness**: `/tts on` now re-enables voice features in “text-only” mode; commands that require voice features fail gracefully when disabled.
+
+### 🔧 Fixed
+- **Audio teardown stability**: hardening in audio player shutdown to prevent process-exit crashes during tests and short-playback scenarios.
+
 ### 🎯 Migration Guide
 
 **For End Users:**
