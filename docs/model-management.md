@@ -1,10 +1,19 @@
 # Model Management Guide
 
-This guide covers everything you need to know about managing TTS models in AbstractVoice v0.4.0+.
+This guide explains **model/voice management**, but it is critical to understand that AbstractVoice has **two different TTS engines**:
+
+- **Piper (default)**: small ONNX voices downloaded/managed by `abstractvoice/adapters/tts_piper.py`
+- **Legacy Coqui TTS (optional fallback)**: larger models managed by `abstractvoice/simple_model_manager.py`
 
 ## 🎯 Quick Start
 
-AbstractVoice automatically downloads essential models on first use. For most users, no additional setup is needed:
+### Piper (default)
+
+Piper voices are downloaded on-demand the first time you use a given language.
+
+### Legacy Coqui TTS (optional)
+
+The legacy Coqui path uses `simple_model_manager.py` and can auto-download an essential model on first use.
 
 ```python
 from abstractvoice import VoiceManager
@@ -13,15 +22,25 @@ vm = VoiceManager()
 vm.speak("Hello! TTS works immediately!")  # Downloads essential model if needed
 ```
 
-## 📦 Model Types
+## 📦 Piper voices vs legacy Coqui models
 
-### Essential Model
+### Piper voices (default)
+
+- Managed by `abstractvoice/adapters/tts_piper.py`
+- Stored under `~/.piper/models` by default
+- Voices are selected primarily by language (current Phase 1 behavior)
+
+### Legacy Coqui models (optional)
+
+Managed by `abstractvoice/simple_model_manager.py`.
+
+#### Essential Model (legacy Coqui)
 - **Model**: `tts_models/en/ljspeech/fast_pitch` (107MB)
 - **Purpose**: Guaranteed to work everywhere, lightweight, reliable
 - **Auto-download**: Yes, on first TTS use
 - **Quality**: Good English voice
 
-### Language Models
+#### Language Models (legacy Coqui)
 - **French**: CSS10 VITS (548MB) - High quality
 - **Spanish**: MAI Tacotron2 (362MB) - Reliable
 - **German**: Thorsten VITS (548MB) - High quality
@@ -30,7 +49,7 @@ vm.speak("Hello! TTS works immediately!")  # Downloads essential model if needed
 
 ## 🔧 Programmatic APIs
 
-### Simple JSON APIs (for third-party applications)
+### Simple JSON APIs (legacy Coqui model management)
 
 ```python
 from abstractvoice import list_models, download_model, get_status, is_ready
@@ -51,7 +70,7 @@ success = download_model('fr.css10_vits')  # Voice ID format
 success = download_model('tts_models/fr/css10/vits')  # Full name
 ```
 
-### VoiceManager APIs (for library integration)
+### VoiceManager APIs (legacy Coqui model management)
 
 ```python
 from abstractvoice import VoiceManager

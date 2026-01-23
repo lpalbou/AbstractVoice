@@ -1,79 +1,35 @@
-# Multilingual Voice Support
+# Multilingual support (current)
 
-AbstractVoice provides comprehensive multilingual text-to-speech support through the advanced XTTS-v2 model, enabling high-quality voice synthesis in multiple languages with consistent API design.
+## TTS (Piper, default)
 
-## Supported Languages
+Piper voices are currently configured per-language. Supported language codes in the default mapping include:
 
-| Language | Code | Model | Quality | Notes |
-|----------|------|-------|---------|-------|
-| English | `en` | VITS/FastPitch/XTTS-v2 | Excellent | Multiple model options |
-| French | `fr` | XTTS-v2 | Excellent | Native accent support |
-| Spanish | `es` | XTTS-v2 | Excellent | Neutral Latin American accent |
-| German | `de` | XTTS-v2 | Excellent | Standard German accent |
-| Italian | `it` | XTTS-v2 | Excellent | Standard Italian accent |
-| Russian | `ru` | XTTS-v2 | Excellent | Moscow accent |
+- `en`, `fr`, `de`, `es`, `ru`, `zh`
 
-## Installation
+Usage:
 
-### Language-Specific Installation
+```python
+from abstractvoice import VoiceManager
 
-Install AbstractVoice with specific language support:
+vm = VoiceManager(language="en")
+vm.speak("Hello")
 
-```bash
-# French voice support
-pip install "abstractvoice[fr]"
-
-# Spanish voice support
-pip install "abstractvoice[es]"
-
-# German voice support
-pip install "abstractvoice[de]"
-
-# Italian voice support
-pip install "abstractvoice[it]"
-
-# Russian voice support
-pip install "abstractvoice[ru]"
-
-# Multiple languages
-pip install "abstractvoice[fr,es,de,it,ru]"
-
-# All languages (multilingual pack)
-pip install "abstractvoice[multilingual]"
+vm.set_language("fr")
+vm.speak("Bonjour")
 ```
 
-### Operating System Requirements
+## STT (faster-whisper, default)
 
-#### macOS
-```bash
-# No additional requirements - works out of the box
-pip install "abstractvoice[fr]"
+STT supports many languages. You can pass a language hint when transcribing files:
+
+```python
+text = vm.transcribe_file("audio.wav", language="fr")
 ```
 
-#### Linux (Ubuntu/Debian)
-```bash
-# Install system audio dependencies
-sudo apt-get update
-sudo apt-get install portaudio19-dev python3-pyaudio
+## Notes
 
-# For enhanced quality (optional)
-sudo apt-get install espeak-ng
-
-# Install AbstractVoice
-pip install "abstractvoice[fr]"
-```
-
-#### Windows
-```bash
-# Install using conda (recommended)
-conda install pyaudio
-pip install "abstractvoice[fr]"
-
-# Or using pip with Visual C++ Build Tools
-pip install "abstractvoice[fr]"
-```
-
-## Usage Examples
+- Available languages/voices can evolve over time; see `abstractvoice/adapters/tts_piper.py` for the current mapping.
+- For commercial use, verify voice/model licensing (see `docs/voices-and-licenses.md`).
 
 ### Simple Language Selection
 

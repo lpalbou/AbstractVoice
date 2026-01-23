@@ -39,5 +39,5 @@ Historically we relied on `PyAudio`, which is a frequent installation failure po
 ### Negative / Risks
 
 - PortAudio availability can still be an issue on some Linux setups.
-  - Mitigation: document common system packages in `docs/installation.md`.
+  - Mitigation: document common system packages in `README.md` and `docs/installation.md`.
 

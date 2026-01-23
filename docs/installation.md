@@ -1,83 +1,41 @@
-# Installation Guide
+# Installation (concise)
 
-AbstractVoice is designed to work **out of the box** on all systems with automatic quality upgrades when possible.
+AbstractVoice aims to work **out of the box** with:
+- **TTS**: Piper (default)
+- **STT**: faster-whisper (default)
 
-## 🚀 Quick Start (Recommended)
+## Install
 
-### Step 1: Basic Installation
 ```bash
-# Install AbstractVoice with all features (works everywhere)
-pip install abstractvoice[all]
-```
-
-### Step 2: Verify Installation
-```bash
-# Test that everything works
-python -c "from abstractvoice import VoiceManager; vm = VoiceManager(); print('✅ Installation successful!')"
-```
-
-### Step 3: Optional Quality Upgrade
-```bash
-# For better voice quality (if you want the absolute best)
-# macOS:
-brew install espeak-ng
-
-# Linux:
-sudo apt-get install espeak-ng
-
-# Windows:
-conda install espeak-ng
-```
-
-**That's it!** AbstractVoice will automatically use the best available models for your system.
-
-## 📦 Installation Options
-
-### Minimal Installation
-```bash
-# Just the core package (2 dependencies)
 pip install abstractvoice
-
-# Add features as needed
-pip install abstractvoice[tts]      # Text-to-speech
-pip install abstractvoice[stt]      # Speech-to-text
-pip install abstractvoice[voice]    # Audio I/O
-pip install abstractvoice[all]      # Everything (recommended)
 ```
 
-### Language-Specific Installation
+## Verify
+
 ```bash
-# Single language with all features
-pip install abstractvoice[fr]       # French
-pip install abstractvoice[es]       # Spanish
-pip install abstractvoice[de]       # German
-pip install abstractvoice[it]       # Italian
+python -c "from abstractvoice import VoiceManager; VoiceManager(); print('✅ OK')"
 ```
 
-## Operating System Specific Instructions
+## Microphone + speakers (common issues)
+
+AbstractVoice uses **PortAudio** via `sounddevice`.
 
 ### macOS
 
-AbstractVoice works out of the box on macOS with minimal setup:
+- Ensure your terminal/IDE has **Microphone** permission (System Settings → Privacy & Security → Microphone).
+
+### Linux (Debian/Ubuntu)
+
+If `sounddevice` can’t open devices, you typically need PortAudio:
 
 ```bash
-# Basic installation
-pip install "abstractvoice[multilingual]"
-
-# For best English quality (optional)
-brew install espeak-ng
-
-# Verify installation
-python -c "from abstractvoice import VoiceManager; print('✅ Installation successful')"
+sudo apt-get update
+sudo apt-get install -y portaudio19-dev
 ```
 
-#### macOS Troubleshooting
+### Windows
 
-**Audio Permission Issues:**
-```bash
-# If you get audio permission errors, go to:
-# System Preferences > Security & Privacy > Privacy > Microphone
-# Add Terminal or your Python IDE to allowed apps
+Usually works out of the box. If device access fails, check OS microphone permissions and installed audio drivers.
 ```
 
 **Homebrew Missing:**
