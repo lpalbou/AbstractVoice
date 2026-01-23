@@ -86,16 +86,6 @@ class VoiceCloner:
         if (voice.reference_text or "").strip():
             return str(voice.reference_text).strip()
 
-        # In interactive contexts (e.g. REPL), we must never trigger downloads.
-        if not self._allow_downloads:
-            raise RuntimeError(
-                "This cloned voice has no stored reference_text, and downloads are disabled.\n"
-                "Fix options:\n"
-                "  - Provide reference_text when cloning, or\n"
-                "  - Set it manually: /clone_set_ref_text <id> \"...\", or\n"
-                "  - Prefetch STT weights outside the REPL, then re-run autofill.\n"
-            )
-
         # One-time fallback: transcribe reference audio and persist.
         ref_paths = self.store.resolve_reference_paths(voice_id)
 
@@ -123,8 +113,16 @@ class VoiceCloner:
             model_size=self._reference_text_whisper_model,
             device="cpu",
             compute_type="int8",
-            allow_downloads=True,
+            allow_downloads=bool(self._allow_downloads),
         )
+        if not stt.is_available():
+            raise RuntimeError(
+                "This cloned voice has no stored reference_text.\n"
+                "Auto-fallback requires a cached STT model, but downloads are disabled.\n"
+                "Fix options:\n"
+                "  - Prefetch outside the REPL: abstractvoice-prefetch --stt small\n"
+                "  - Or set it manually: /clone_set_ref_text <id> \"...\""
+            )
         text = (stt.transcribe_from_array(clip, sample_rate=target_sr) or "").strip()
 
         # Conservative normalization: keep it short, end with punctuation.

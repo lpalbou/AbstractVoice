@@ -153,19 +153,9 @@ class F5TTSVoiceCloningEngine:
     def _resolve_device(self) -> str:
         if self._device_pref and self._device_pref != "auto":
             return str(self._device_pref)
-        # Match f5_tts default device logic.
-        try:
-            import torch
+        from ..compute import best_torch_device
 
-            if torch.cuda.is_available():
-                return "cuda"
-            if hasattr(torch, "xpu") and torch.xpu.is_available():
-                return "xpu"
-            if torch.backends.mps.is_available():
-                return "mps"
-        except Exception:
-            pass
-        return "cpu"
+        return best_torch_device()
 
     def _ensure_model_loaded(self) -> None:
         """Load vocoder + model once (expensive)."""

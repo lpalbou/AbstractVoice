@@ -48,7 +48,7 @@ class FasterWhisperAdapter(STTAdapter):
     def __init__(
         self,
         model_size: str = "base",
-        device: str = "cpu",
+        device: str = "auto",
         compute_type: str = "int8",
         *,
         allow_downloads: bool = True,
@@ -88,7 +88,7 @@ class FasterWhisperAdapter(STTAdapter):
                 "This will enable 4x faster STT with same accuracy."
             )
     
-    def _load_model(self, model_size: str, device: str = "cpu", compute_type: str = "int8") -> bool:
+    def _load_model(self, model_size: str, device: str = "auto", compute_type: str = "int8") -> bool:
         """Load Faster-Whisper model.
         
         Args:
@@ -107,7 +107,12 @@ class FasterWhisperAdapter(STTAdapter):
             model_size = 'base'
         
         try:
-            logger.info(f"⬇️  Loading Faster-Whisper model: {model_size} ({self.MODELS[model_size]['params']})")
+            from ..compute import best_faster_whisper_device
+
+            if device == "auto":
+                device = best_faster_whisper_device()
+
+            logger.info(f"⬇️  Loading Faster-Whisper model: {model_size} ({self.MODELS[model_size]['params']}) on {device}")
 
             # Load model (may auto-download if not cached).
             # When downloads are not allowed, force HF offline mode so we never pull
