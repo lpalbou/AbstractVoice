@@ -95,7 +95,14 @@ class SttMixin:
                 debug_mode=self.debug_mode,
                 aec_enabled=bool(getattr(self, "_aec_enabled", False)),
                 aec_stream_delay_ms=int(getattr(self, "_aec_stream_delay_ms", 0)),
+                language=getattr(self, "language", None),
+                allow_downloads=bool(getattr(self, "allow_downloads", True)),
             )
+            try:
+                if hasattr(self.voice_recognizer, "set_profile"):
+                    self.voice_recognizer.set_profile(getattr(self, "_voice_mode", "stop"))
+            except Exception:
+                pass
 
         return self.voice_recognizer.start(tts_interrupt_callback=self.stop_speaking)
 
@@ -135,6 +142,12 @@ class SttMixin:
     def set_voice_mode(self, mode):
         if mode in ["full", "wait", "stop", "ptt"]:
             self._voice_mode = mode
+            # Keep recognizer thresholds aligned with interaction mode.
+            try:
+                if self.voice_recognizer and hasattr(self.voice_recognizer, "set_profile"):
+                    self.voice_recognizer.set_profile(mode)
+            except Exception:
+                pass
             return True
         return False
 

@@ -155,7 +155,15 @@ class FasterWhisperAdapter(STTAdapter):
                 logger.info(f"ℹ️ Faster-Whisper model '{model_size}' not available locally (offline mode).")
             return False
     
-    def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
+    def transcribe(
+        self,
+        audio_path: str,
+        language: Optional[str] = None,
+        *,
+        hotwords: Optional[str] = None,
+        initial_prompt: Optional[str] = None,
+        condition_on_previous_text: bool = True,
+    ) -> str:
         """Transcribe audio file to text.
         
         Args:
@@ -180,6 +188,9 @@ class FasterWhisperAdapter(STTAdapter):
                 temperature=0.0,
                 vad_filter=True,  # Use Voice Activity Detection
                 vad_parameters=dict(min_silence_duration_ms=500),
+                hotwords=hotwords,
+                initial_prompt=initial_prompt,
+                condition_on_previous_text=bool(condition_on_previous_text),
             )
             
             # Combine all segments
@@ -194,7 +205,15 @@ class FasterWhisperAdapter(STTAdapter):
             logger.error(f"❌ Faster-Whisper transcription failed: {e}")
             raise RuntimeError(f"Transcription failed: {e}") from e
     
-    def transcribe_from_bytes(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
+    def transcribe_from_bytes(
+        self,
+        audio_bytes: bytes,
+        language: Optional[str] = None,
+        *,
+        hotwords: Optional[str] = None,
+        initial_prompt: Optional[str] = None,
+        condition_on_previous_text: bool = True,
+    ) -> str:
         """Transcribe audio from bytes (network use case).
         
         Args:
@@ -210,7 +229,13 @@ class FasterWhisperAdapter(STTAdapter):
             tmp_path = tmp_file.name
         
         try:
-            return self.transcribe(tmp_path, language=language)
+            return self.transcribe(
+                tmp_path,
+                language=language,
+                hotwords=hotwords,
+                initial_prompt=initial_prompt,
+                condition_on_previous_text=bool(condition_on_previous_text),
+            )
         finally:
             # Clean up temp file
             try:
@@ -218,8 +243,16 @@ class FasterWhisperAdapter(STTAdapter):
             except:
                 pass
     
-    def transcribe_from_array(self, audio_array: np.ndarray, sample_rate: int,
-                             language: Optional[str] = None) -> str:
+    def transcribe_from_array(
+        self,
+        audio_array: np.ndarray,
+        sample_rate: int,
+        language: Optional[str] = None,
+        *,
+        hotwords: Optional[str] = None,
+        initial_prompt: Optional[str] = None,
+        condition_on_previous_text: bool = True,
+    ) -> str:
         """Transcribe audio from numpy array.
         
         Args:
@@ -234,7 +267,13 @@ class FasterWhisperAdapter(STTAdapter):
         audio_bytes = self._array_to_wav_bytes(audio_array, sample_rate)
         
         # Transcribe from bytes
-        return self.transcribe_from_bytes(audio_bytes, language=language)
+        return self.transcribe_from_bytes(
+            audio_bytes,
+            language=language,
+            hotwords=hotwords,
+            initial_prompt=initial_prompt,
+            condition_on_previous_text=bool(condition_on_previous_text),
+        )
     
     def _array_to_wav_bytes(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
         """Convert numpy array to WAV bytes.

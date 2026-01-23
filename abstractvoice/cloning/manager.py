@@ -35,6 +35,12 @@ class VoiceCloner:
             self._engine = F5TTSVoiceCloningEngine(whisper_model=self._whisper_model, debug=self.debug)
         return self._engine
 
+    def set_quality_preset(self, preset: str) -> None:
+        self._get_engine().set_quality_preset(preset)
+
+    def get_runtime_info(self) -> Dict[str, Any]:
+        return self._get_engine().runtime_info()
+
     def clone_voice(self, reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None) -> str:
         """Create a new cloned voice from a file or directory.
 

@@ -81,8 +81,14 @@ class VoiceREPL(cmd.Cmd):
         
         # Settings
         self.use_tts = True
-        self.voice_mode = "off"  # off, full, wait, stop, ptt
+        # Default voice mode: STOP.
+        # Rationale: users can interrupt TTS with "ok stop"/"okay stop" without
+        # self-feedback loops, and keep the conversation going hands-free.
+        self.voice_mode = "stop"  # off, full, wait, stop, ptt
         self.voice_mode_active = False  # Is voice recognition running?
+        self._ptt_session_active = False
+        self._ptt_recording = False
+        self._ptt_busy = False
         
         # System prompt
         self.system_prompt = """
@@ -103,6 +109,14 @@ class VoiceREPL(cmd.Cmd):
             print(f"Initialized with API URL: {api_url}")
             print(f"Using model: {model}")
         
+        # Try to auto-enable voice input in STOP mode (best-effort).
+        if self.voice_manager:
+            try:
+                self.do_voice("stop")
+            except Exception:
+                # Never block REPL start.
+                pass
+
         # Set intro with help information
         self.intro = self._get_intro()
         
@@ -116,7 +130,8 @@ class VoiceREPL(cmd.Cmd):
             intro += f"API: {self.api_url} | Model: {self.model} | Voice: Disabled\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
         intro += "  • Type messages to chat with the LLM\n"
-        intro += "  • Use /voice <mode> to enable voice input\n"
+        intro += "  • Voice input: enabled by default (STOP mode). Use /voice off to disable.\n"
+        intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
         intro += "  • Use /language <lang> to switch voice language\n"
         intro += "  • Use /clones and /tts_voice to use cloned voices\n"
         intro += "  • Type /help for full command list\n"
@@ -133,14 +148,11 @@ class VoiceREPL(cmd.Cmd):
         Override to handle / prefix for commands. This ensures /voice, /help, etc.
         are recognized as commands by stripping the leading / before parsing.
         """
-        line = line.strip()
-        
-        # If line starts with /, remove it for command processing
-        if line.startswith('/'):
-            line = line[1:].strip()
-        
-        # Call parent parseline to do the actual parsing
-        return super().parseline(line)
+        # Commands still use leading "/". In PTT mode we don't accept typed input.
+        s = line.strip()
+        if s.startswith("/"):
+            return super().parseline(s[1:].strip())
+        return super().parseline(line.strip())
         
     def default(self, line):
         """Handle regular text input.
@@ -152,14 +164,15 @@ class VoiceREPL(cmd.Cmd):
         if not line.strip():
             return
         
-        # ONLY 'stop' is recognized without / (for voice mode convenience)
-        if line.strip().lower() == "stop":
-            return self.do_stop("")
-        
+        # In PTT mode we do not accept typed input.
+        if self.voice_mode == "ptt":
+            print("PTT mode: press SPACE to speak, ESC to exit.")
+            return
+
         # Check if in voice mode - don't send to LLM
         if self.voice_mode_active:
             if self.debug_mode:
-                print(f"Voice mode active ({self.voice_mode}). Use /voice off or say 'stop' to exit.")
+                print(f"Voice mode active ({self.voice_mode}). Use /voice off to disable.")
             return
 
         # Interrupt any ongoing TTS playback immediately when the user types.
@@ -172,6 +185,8 @@ class VoiceREPL(cmd.Cmd):
         
         # Everything else goes to LLM
         self.process_query(line.strip())
+
+    # NOTE: PTT is implemented as a dedicated key-loop session (no typing).
         
     def process_query(self, query):
         """Process a query and get a response from the LLM."""
@@ -560,67 +575,294 @@ class VoiceREPL(cmd.Cmd):
           off  - Disable voice input
           full - Continuous listening, interrupts TTS on speech detection
           wait - Pause listening while TTS is speaking (recommended)
-          stop - Only stops TTS on 'stop' keyword (planned)
-          ptt  - Push-to-talk mode (planned)
+          stop - Keep listening while speaking, but only stop TTS on stop phrase
+          ptt  - Push-to-talk (use /ptt to record one utterance)
         """
-        arg = arg.lower().strip()
+        arg = (arg or "").lower().strip()
         
         # Handle legacy "on" argument
         if arg == "on":
             arg = "wait"
         
         if arg in ["off", "full", "wait", "stop", "ptt"]:
-            # If switching from one mode to another, stop current mode first
-            if self.voice_mode_active and arg != "off":
-                self._voice_stop_callback()
-            
+            if not self.voice_manager:
+                print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+                return
+
+            # Exit PTT session if running.
+            if self._ptt_session_active:
+                self._ptt_session_active = False
+                self._ptt_recording = False
+                self._ptt_busy = False
+
+            # Stop any ongoing mic session.
+            try:
+                self.voice_manager.stop_listening()
+            except Exception:
+                pass
+            self.voice_mode_active = False
+
             self.voice_mode = arg
             self.voice_manager.set_voice_mode(arg)
-            
+
             if arg == "off":
-                if self.voice_mode_active:
-                    self._voice_stop_callback()
-            else:
-                # Start voice recognition for non-off modes
-                self.voice_mode_active = True
-                
-                # Start listening with callbacks
+                print("Voice mode disabled.")
+                return
+
+            if arg == "ptt":
+                # PTT is a dedicated session: no text entry.
+                print("Voice mode: PTT - Push-to-talk (no typing).")
+                print("SPACE: start/stop recording (transcribe on stop)")
+                print("ESC:   exit PTT mode")
+                self._run_ptt_session()
+                return
+
+            # Continuous listening modes.
+            try:
                 self.voice_manager.listen(
                     on_transcription=self._voice_callback,
-                    on_stop=lambda: self._voice_stop_callback()
+                    # Stop phrase interrupts TTS; keep listening.
+                    on_stop=lambda: print("\n⏹️  Stopped speaking.\n"),
                 )
-                
-                # Print mode-specific instructions
-                if arg == "full":
-                    print("Voice mode: FULL - Continuous listening, interrupts TTS on speech.")
-                    print("Say 'stop' to exit.")
-                elif arg == "wait":
-                    print("Voice mode: WAIT - Pauses listening while speaking (recommended).")
-                    print("Say 'stop' to exit.")
-                elif arg == "stop":
-                    print("Voice mode: STOP (Planned) - Only stops TTS on 'stop' keyword.")
-                    print("Currently same as WAIT mode.")
-                elif arg == "ptt":
-                    print("Voice mode: PTT (Planned) - Push-to-talk functionality.")
-                    print("Currently same as WAIT mode.")
+                self.voice_mode_active = True
+            except Exception as e:
+                self.voice_mode_active = False
+                self.voice_mode = "off"
+                print(f"❌ Failed to start microphone listening: {e}")
+                print("   Tip: check microphone permissions/device availability.")
+                return
+
+            if arg == "wait":
+                print("Voice mode: WAIT - Listens continuously except while speaking.")
+                print("Use /voice off to disable.")
+            elif arg == "stop":
+                print("Voice mode: STOP - Always listens; stop phrase stops TTS.")
+                print("Use /voice off to disable.")
+            elif arg == "full":
+                print("Voice mode: FULL - Interrupts TTS on any speech (best with AEC/headset).")
+                print("Use /voice off to disable.")
         else:
             print("Usage: /voice off | full | wait | stop | ptt")
             print("  off  - Disable voice input")
             print("  full - Continuous listening, interrupts TTS on speech")
-            print("  wait - Pause listening while speaking (recommended)")
-            print("  stop - Only stop TTS on 'stop' keyword (planned)")
-            print("  ptt  - Push-to-talk mode (planned)")
+            print("  wait - Listen except while speaking")
+            print("  stop - Always listen; stop phrase stops TTS")
+            print("  ptt  - Push-to-talk (no typing; SPACE triggers capture)")
+
+    def do_ptt(self, arg):
+        """Push-to-talk: record a single utterance, then process it.
+
+        Usage:
+          /ptt
+        """
+        if not self.voice_manager:
+            print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+            return
+        print("❌ /ptt is deprecated. Use: /voice ptt (then SPACE)")
+        return
+
+        # Ensure we are not already listening.
+        try:
+            self.voice_manager.stop_listening()
+        except Exception:
+            pass
+
+        return
+
+    def _run_ptt_session(self) -> None:
+        """PTT mode key loop (no typing).
+
+        Clean semantics:
+        - SPACE toggles recording (start/stop)
+        - on stop: transcribe immediately and send to the LLM
+        - ESC exits PTT mode (returns to STOP mode)
+
+        This avoids relying on VAD end-of-utterance, which is fragile when speaker
+        echo is present (common on laptop speakers).
+        """
+        if not self.voice_manager:
+            return
+        self._ptt_session_active = True
+        self._ptt_recording = False
+        self._ptt_busy = False
+
+        # Lazy imports: keep REPL startup snappy.
+        import io
+        import wave
+
+        try:
+            import sounddevice as sd
+        except Exception as e:
+            print(f"❌ PTT requires sounddevice: {e}")
+            self._ptt_session_active = False
+            return
+
+        sr = 16000
+        frames: list[bytes] = []
+        stream = {"obj": None}
+
+        def _status_line(msg: str) -> None:
+            try:
+                sys.stdout.write("\r" + (" " * 80) + "\r")
+                sys.stdout.write(msg)
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        def _clear_status() -> None:
+            try:
+                sys.stdout.write("\r" + (" " * 80) + "\r")
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        def _start_recording() -> None:
+            nonlocal frames
+            if self._ptt_recording:
+                return
+            if self._ptt_busy:
+                return
+            frames = []
+
+            # Interrupt any speech immediately.
+            try:
+                self.voice_manager.stop_speaking()
+            except Exception:
+                pass
+
+            def _cb(indata, _frames, _time, status):
+                if status and self.debug_mode:
+                    pass
+                try:
+                    frames.append(indata.copy().tobytes())
+                except Exception:
+                    pass
+
+            try:
+                stream["obj"] = sd.InputStream(
+                    samplerate=sr,
+                    channels=1,
+                    dtype="int16",
+                    callback=_cb,
+                    blocksize=int(sr * 0.03),
+                )
+                stream["obj"].start()
+                self._ptt_recording = True
+                _status_line("🎙️  Recording… (SPACE to send, ESC to exit)")
+            except Exception as e:
+                self._ptt_recording = False
+                stream["obj"] = None
+                _clear_status()
+                print(f"\n❌ Failed to start microphone stream: {e}\n")
+
+        def _stop_recording_and_send() -> None:
+            if not self._ptt_recording:
+                return
+            self._ptt_recording = False
+            _clear_status()
+
+            try:
+                if stream["obj"] is not None:
+                    try:
+                        stream["obj"].stop()
+                    except Exception:
+                        pass
+                    try:
+                        stream["obj"].close()
+                    except Exception:
+                        pass
+            finally:
+                stream["obj"] = None
+
+            pcm = b"".join(frames)
+            if len(pcm) < int(sr * 0.25) * 2:
+                print("\n…(too short, try again)\n")
+                return
+
+            buf = io.BytesIO()
+            with wave.open(buf, "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(sr)
+                w.writeframes(pcm)
+            wav_bytes = buf.getvalue()
+
+            self._ptt_busy = True
+            try:
+                text = (self.voice_manager.transcribe_from_bytes(wav_bytes, language=self.current_language) or "").strip()
+            except Exception as e:
+                self._ptt_busy = False
+                print(f"\n❌ Transcription failed: {e}\n")
+                return
+            self._ptt_busy = False
+
+            if not text:
+                print("\n…(no transcription)\n")
+                return
+
+            print(f"\n> {text}\n")
+            self.process_query(text)
+
+        # Platform key read.
+        import sys
+        if sys.platform == "win32":
+            import msvcrt
+
+            while self._ptt_session_active:
+                ch = msvcrt.getwch()
+                if ch == "\x1b":  # ESC
+                    break
+                if self._ptt_busy:
+                    continue
+                if ch == " ":
+                    if not self._ptt_recording:
+                        _start_recording()
+                    else:
+                        _stop_recording_and_send()
+        else:
+            import termios
+            import tty
+
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                while self._ptt_session_active:
+                    ch = sys.stdin.read(1)
+                    if ch == "\x1b":  # ESC
+                        break
+                    if self._ptt_busy:
+                        continue
+                    if ch == " ":
+                        if not self._ptt_recording:
+                            _start_recording()
+                        else:
+                            _stop_recording_and_send()
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+        self._ptt_session_active = False
+        self._ptt_recording = False
+        self._ptt_busy = False
+        try:
+            if stream["obj"] is not None:
+                stream["obj"].stop()
+                stream["obj"].close()
+        except Exception:
+            pass
+        _clear_status()
+        # Restore to STOP after exiting PTT.
+        try:
+            self.do_voice("stop")
+        except Exception:
+            pass
     
     def _voice_callback(self, text):
         """Callback for voice recognition."""
         # Print what the user said
         print(f"\n> {text}")
-        
-        # Check if the user said 'stop' to exit voice mode
-        if text.lower() == "stop":
-            self._voice_stop_callback()
-            # Don't process "stop" as a query
-            return
+        # NOTE: stop phrases are handled by the stop_callback path (interrupt TTS).
+        # We do not use "stop" to exit voice mode; use /voice off explicitly.
         
         # Mode-specific handling
         if self.voice_mode == "stop":
@@ -769,6 +1011,14 @@ class VoiceREPL(cmd.Cmd):
         finally:
             try:
                 ind.stop()
+            except Exception:
+                pass
+            # After audio starts (or we give up), show a prompt line so users know
+            # they can type to interrupt / ask another question immediately.
+            try:
+                if is_clone:
+                    sys.stdout.write("\n" + self.prompt)
+                    sys.stdout.flush()
             except Exception:
                 pass
 
@@ -1162,6 +1412,34 @@ class VoiceREPL(cmd.Cmd):
         else:
             print("ℹ️  OpenF5 artifacts: not present (will require ~5.4GB download)")
             print("Run: /cloning_download")
+        try:
+            if self.voice_manager:
+                info = self.voice_manager.get_cloning_runtime_info()
+                if info:
+                    print(f"cloning_resolved_device: {info.get('resolved_device')}")
+                    print(f"cloning_model_param_device: {info.get('model_param_device','?')}")
+                    print(f"cloning_quality_preset: {info.get('quality_preset')}")
+        except Exception:
+            pass
+
+    def do_clone_quality(self, arg):
+        """Set cloned TTS quality preset (speed/quality tradeoff).
+
+        Usage:
+          /clone_quality fast|balanced|high
+        """
+        if not self.voice_manager:
+            print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+            return
+        preset = (arg or "").strip().lower()
+        if preset not in ("fast", "balanced", "high"):
+            print("Usage: /clone_quality fast|balanced|high")
+            return
+        try:
+            self.voice_manager.set_cloned_tts_quality(preset)
+            print(f"✅ Cloned TTS quality preset: {preset}")
+        except Exception as e:
+            print(f"❌ Failed to set preset: {e}")
 
     def do_cloning_download(self, arg):
         """Explicitly download cloning artifacts (this may take a long time)."""
@@ -1482,6 +1760,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /clear              Clear history")
         print("  /tts on|off         Toggle TTS")
         print("  /voice <mode>       Voice input: off|full|wait|stop|ptt")
+        print("  /voice ptt          Push-to-talk session (SPACE captures, ESC exits)")
         print("  /language <lang>    Switch voice language (en, fr, es, de, ru, zh)")
         print("  /setvoice [id]      List Piper voices or set one (lang.voice_id)")
         print("  /lang_info          Show current language information")
@@ -1513,16 +1792,17 @@ class VoiceREPL(cmd.Cmd):
         print("  /tts_voice clone X  Speak with a cloned voice (requires cloning runtime + cache)")
         print("  /cloning_status     Show cloning readiness (no downloads)")
         print("  /cloning_download   Explicitly download OpenF5 artifacts (~5.4GB)")
+        print("  /clone_quality      Set cloned TTS speed/quality: fast|balanced|high")
         print("  /save <filename>    Save chat history to file")
         print("  /load <filename>    Load chat history from file")
         print("  /model <name>       Change the LLM model")
         print("  /temperature <val>  Set temperature (0.0-2.0, default: 0.7)")
         print("  /max_tokens <num>   Set max tokens (default: 4096)")
-        print("  stop                Stop voice mode or TTS (voice command)")
+        print("  stop                (deprecated) use /voice off or say 'stop' during STOP mode")
         print("  <message>           Send to LLM (text mode)")
         print()
         print("Note: ALL commands must start with / except 'stop'")
-        print("In voice mode, say 'stop' to exit voice mode.")
+        print("In STOP mode, say 'stop' / 'ok stop' to stop speaking (does not exit voice mode).")
     
     def emptyline(self):
         """Handle empty line input."""

@@ -63,11 +63,55 @@ class F5TTSVoiceCloningEngine:
         self._vocoder_name = str(vocoder_name)
         self._target_rms = float(target_rms)
         self._cross_fade_duration = float(cross_fade_duration)
+        self._quality_preset = "balanced"
 
         # Lazy heavy objects (loaded on first inference).
         self._f5_model = None
         self._f5_vocoder = None
         self._f5_device = None
+
+    def runtime_info(self) -> dict:
+        """Return best-effort runtime info for debugging/perf validation."""
+        info = {"requested_device": self._device_pref, "resolved_device": self._f5_device, "quality_preset": self._quality_preset}
+        try:
+            m = self._f5_model
+            if m is not None and hasattr(m, "parameters"):
+                p = next(iter(m.parameters()), None)
+                if p is not None and hasattr(p, "device"):
+                    info["model_param_device"] = str(p.device)
+        except Exception:
+            pass
+        try:
+            import torch
+
+            info["torch_version"] = getattr(torch, "__version__", "?")
+            info["cuda_available"] = bool(torch.cuda.is_available())
+            try:
+                info["mps_available"] = bool(torch.backends.mps.is_available())
+            except Exception:
+                info["mps_available"] = False
+        except Exception:
+            pass
+        return info
+
+    def set_quality_preset(self, preset: str) -> None:
+        """Set speed/quality preset.
+
+        Presets tune diffusion steps; lower steps are faster but can reduce quality.
+        """
+        p = (preset or "").strip().lower()
+        if p not in ("fast", "balanced", "high"):
+            raise ValueError("preset must be one of: fast|balanced|high")
+        self._quality_preset = p
+        if p == "fast":
+            self._nfe_step = 8
+            self._cfg_strength = 1.8
+        elif p == "balanced":
+            self._nfe_step = 16
+            self._cfg_strength = 2.0
+        else:
+            self._nfe_step = 24
+            self._cfg_strength = 2.2
 
     def _get_stt(self):
         """Lazy-load STT to avoid surprise model downloads."""
