@@ -16,6 +16,8 @@ import logging
 import warnings
 import re
 import queue
+import atexit
+import weakref
 
 # Lazy imports for heavy dependencies
 def _import_tts():
@@ -62,44 +64,42 @@ def _import_tts():
                 f"Original error: {e}"
             ) from e
 
-def _import_audio_deps():
-    """Import audio dependencies with helpful error message if missing."""
+def _import_sounddevice():
+    """Import sounddevice with a helpful error message if missing.
+
+    Note: sounddevice is required for audio playback, but audio playback should
+    *not* require librosa. Speed/pitch processing is the part that needs librosa.
+    """
     try:
         import sounddevice as sd
-        import librosa
-        return sd, librosa
+        return sd
     except ImportError as e:
-        error_msg = str(e).lower()
+        raise ImportError(
+            "Audio playback requires sounddevice. Install with:\n"
+            "  pip install abstractvoice[audio-only]  # For audio processing only\n"
+            "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
+            "  pip install abstractvoice[all]         # For all features\n\n"
+            "On some systems, you may need system audio libraries:\n"
+            "  Ubuntu/Debian: sudo apt-get install portaudio19-dev\n"
+            "  macOS: brew install portaudio\n"
+            "  Windows: Usually works out of the box\n\n"
+            f"Original error: {e}"
+        ) from e
 
-        if "sounddevice" in error_msg:
-            raise ImportError(
-                "Audio playback requires sounddevice. Install with:\n"
-                "  pip install abstractvoice[audio-only]  # For audio processing only\n"
-                "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
-                "  pip install abstractvoice[all]         # For all features\n\n"
-                "On some systems, you may need system audio libraries:\n"
-                "  Ubuntu/Debian: sudo apt-get install portaudio19-dev\n"
-                "  macOS: brew install portaudio\n"
-                "  Windows: Usually works out of the box\n\n"
-                f"Original error: {e}"
-            ) from e
-        elif "librosa" in error_msg:
-            raise ImportError(
-                "Audio processing requires librosa. Install with:\n"
-                "  pip install abstractvoice[tts]         # For TTS functionality\n"
-                "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
-                "  pip install abstractvoice[all]         # For all features\n\n"
-                f"Original error: {e}"
-            ) from e
-        else:
-            # Generic audio import error
-            raise ImportError(
-                "Audio functionality requires optional dependencies. Install with:\n"
-                "  pip install abstractvoice[audio-only]  # For audio processing only\n"
-                "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
-                "  pip install abstractvoice[all]         # For all features\n\n"
-                f"Original error: {e}"
-            ) from e
+
+def _import_librosa():
+    """Import librosa with a helpful error message if missing."""
+    try:
+        import librosa
+        return librosa
+    except ImportError as e:
+        raise ImportError(
+            "Audio processing requires librosa. Install with:\n"
+            "  pip install abstractvoice[tts]         # For TTS functionality\n"
+            "  pip install abstractvoice[voice-full]  # For complete voice functionality\n"
+            "  pip install abstractvoice[all]         # For all features\n\n"
+            f"Original error: {e}"
+        ) from e
 
 # Suppress the PyTorch FutureWarning about torch.load
 warnings.filterwarnings(
@@ -130,6 +130,22 @@ warnings.filterwarnings(
 # Suppress macOS audio warnings (harmless but annoying)
 import os
 os.environ['PYTHONWARNINGS'] = 'ignore'
+
+# Track active audio players to ensure streams are closed at process exit.
+# This avoids rare but real crashes when PortAudio callbacks outlive Python
+# objects (common in "fresh install" smoke tests that don't await playback).
+_ACTIVE_AUDIO_PLAYERS: "weakref.WeakSet[NonBlockingAudioPlayer]" = weakref.WeakSet()
+
+
+def _cleanup_active_audio_players() -> None:
+    for player in list(_ACTIVE_AUDIO_PLAYERS):
+        try:
+            player.stop_stream()
+        except Exception:
+            pass
+
+
+atexit.register(_cleanup_active_audio_players)
 
 def preprocess_text(text):
     """Preprocess text for better TTS synthesis.
@@ -184,7 +200,7 @@ def apply_speed_without_pitch_change(audio, speed, sr=22050):
     # rate < 1.0 makes audio slower (longer)
     # This matches our speed semantics
     try:
-        _, librosa = _import_audio_deps()
+        librosa = _import_librosa()
         stretched_audio = librosa.effects.time_stretch(audio, rate=speed)
         return stretched_audio
     except Exception as e:
@@ -290,7 +306,7 @@ class NonBlockingAudioPlayer:
         """Start the audio stream."""
         if self.stream is None:
             try:
-                sd, _ = _import_audio_deps()
+                sd = _import_sounddevice()
                 self.stream = sd.OutputStream(
                     samplerate=self.sample_rate,
                     channels=1,  # Mono output
@@ -299,6 +315,7 @@ class NonBlockingAudioPlayer:
                     dtype=np.float32
                 )
                 self.stream.start()
+                _ACTIVE_AUDIO_PLAYERS.add(self)
                 if self.debug_mode:
                     print(" > Audio stream started")
             except Exception as e:
@@ -310,6 +327,15 @@ class NonBlockingAudioPlayer:
         """Stop the audio stream."""
         if self.stream:
             try:
+                # Abort first to minimize callback re-entrancy issues.
+                # Some PortAudio backends can behave poorly if `stop()` is
+                # called while callbacks are active.
+                if hasattr(self.stream, "abort"):
+                    try:
+                        self.stream.abort()
+                    except Exception:
+                        pass
+
                 self.stream.stop()
                 self.stream.close()
                 if self.debug_mode:
@@ -319,6 +345,10 @@ class NonBlockingAudioPlayer:
                     print(f"Error stopping audio stream: {e}")
             finally:
                 self.stream = None
+                try:
+                    _ACTIVE_AUDIO_PLAYERS.discard(self)
+                except Exception:
+                    pass
 
         self.is_playing = False
         with self.pause_lock:
@@ -1037,7 +1067,7 @@ class TTSEngine:
             
             def _audio_playback():
                 # Import sounddevice at runtime to avoid loading heavy dependencies
-                sd, _ = _import_audio_deps()
+                sd = _import_sounddevice()
 
                 try:
                     self.is_playing = True

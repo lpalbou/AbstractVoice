@@ -1,5 +1,7 @@
 """Main Voice Manager class for coordinating TTS and STT components."""
 
+from typing import Optional
+
 # Lazy imports - heavy dependencies are only imported when needed
 def _import_tts_engine():
     """Import TTSEngine with helpful error message if dependencies missing."""
@@ -187,14 +189,16 @@ class VoiceManager:
         }
     }
 
-    def __init__(self, language='en', tts_model=None, whisper_model="tiny", debug_mode=False):
+    def __init__(self, language='en', tts_model=None, whisper_model="tiny", debug_mode=False, tts_engine='auto', stt_engine: str = 'auto'):
         """Initialize the Voice Manager with language support.
 
         Args:
-            language: Language code ('en', 'fr', 'es', 'de', 'it')
+            language: Language code ('en', 'fr', 'es', 'de', 'it', 'ru', 'zh')
             tts_model: Specific TTS model name or None for language default
             whisper_model: Whisper model name to use
             debug_mode: Enable debug logging
+            tts_engine: TTS engine to use ('auto', 'piper', 'vits'). Default: 'auto' (try Piper first)
+            stt_engine: STT engine to use ('auto', 'faster_whisper', 'whisper'). Default: 'auto' (try faster-whisper first)
         """
         self.debug_mode = debug_mode
         self.speed = 1.0
@@ -207,39 +211,61 @@ class VoiceManager:
                 print(f"⚠️ Unsupported language '{language}', using English. Available: {available}")
             language = 'en'
         self.language = language
-
-        # Select TTS model with smart detection
-        if tts_model is None:
-            tts_model = self._select_best_model(self.language)
-            if debug_mode:
-                lang_name = self.LANGUAGES[self.language]['name']
-                print(f"🌍 Using {lang_name} voice: {tts_model}")
-
-        # Initialize TTS engine with instant setup for new users
-        from .instant_setup import ensure_instant_tts, get_instant_model, is_model_cached
-
-        # If using default VITS model but it's not cached, use instant setup
-        if tts_model == "tts_models/en/ljspeech/vits" and not is_model_cached(tts_model):
-            if debug_mode:
-                print("🚀 First-time setup: ensuring instant TTS availability...")
-
-            # Try instant setup with lightweight model
-            if ensure_instant_tts():
-                tts_model = get_instant_model()  # Use fast_pitch instead
-                if debug_mode:
-                    print(f"✅ Using essential model: {tts_model}")
-
-        # Initialize TTS engine using lazy import
-        TTSEngine = _import_tts_engine()
-        self.tts_engine = TTSEngine(
-            model_name=tts_model,
-            debug_mode=debug_mode
-        )
         
-        # Set up callbacks to pause/resume voice recognition during TTS playback
-        # This prevents the system from interrupting its own speech
-        self.tts_engine.on_playback_start = self._on_tts_start
-        self.tts_engine.on_playback_end = self._on_tts_end
+        # Store engine preference
+        self._tts_engine_preference = tts_engine
+        self._stt_engine_preference = stt_engine
+
+        # Try to initialize TTS with adapter pattern (Piper first, then VITS fallback)
+        self.tts_adapter = None
+        self._tts_engine_name = None
+        
+        if tts_engine in ('auto', 'piper'):
+            # Try Piper first (no system dependencies)
+            self.tts_adapter = self._try_init_piper(language)
+            if self.tts_adapter and self.tts_adapter.is_available():
+                self._tts_engine_name = 'piper'
+                if debug_mode:
+                    print(f"✅ Using Piper TTS for {language}")
+        
+        # Fallback to legacy VITS engine if Piper unavailable or explicitly requested
+        if self.tts_adapter is None and tts_engine in ('auto', 'vits'):
+            # Select TTS model with smart detection
+            if tts_model is None:
+                tts_model = self._select_best_model(self.language)
+                if debug_mode:
+                    lang_name = self.LANGUAGES[self.language]['name']
+                    print(f"🌍 Using {lang_name} voice: {tts_model}")
+
+            # Initialize legacy TTS engine with instant setup for new users
+            from .instant_setup import ensure_instant_tts, get_instant_model, is_model_cached
+
+            # If using default VITS model but it's not cached, use instant setup
+            if tts_model == "tts_models/en/ljspeech/vits" and not is_model_cached(tts_model):
+                if debug_mode:
+                    print("🚀 First-time setup: ensuring instant TTS availability...")
+
+                # Try instant setup with lightweight model
+                if ensure_instant_tts():
+                    tts_model = get_instant_model()  # Use fast_pitch instead
+                    if debug_mode:
+                        print(f"✅ Using essential model: {tts_model}")
+
+            # Initialize legacy TTS engine using lazy import
+            TTSEngine = _import_tts_engine()
+            self.tts_engine = TTSEngine(
+                model_name=tts_model,
+                debug_mode=debug_mode
+            )
+            self._tts_engine_name = 'vits'
+        else:
+            # Using Piper adapter - wrap it in a TTSEngine-compatible facade
+            if self.tts_adapter and self.tts_adapter.is_available():
+                from .tts.adapter_tts_engine import AdapterTTSEngine
+                self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=debug_mode)
+                self._tts_engine_name = 'piper'
+            else:
+                self.tts_engine = None
         
         # NEW: Enhanced audio lifecycle callbacks (v0.5.1)
         self.on_audio_start = None      # Called when first audio sample plays
@@ -247,20 +273,48 @@ class VoiceManager:
         self.on_audio_pause = None      # Called when audio is paused
         self.on_audio_resume = None     # Called when audio is resumed
         
-        # Wire callbacks directly to audio player (skip TTSEngine layer)
-        self.tts_engine.audio_player.on_audio_start = self._on_audio_start
-        self.tts_engine.audio_player.on_audio_end = self._on_audio_end
-        self.tts_engine.audio_player.on_audio_pause = self._on_audio_pause
-        self.tts_engine.audio_player.on_audio_resume = self._on_audio_resume
+        # Set up callbacks for legacy TTS engine (if using VITS)
+        if self.tts_engine is not None:
+            # Set up callbacks to pause/resume voice recognition during TTS playback
+            # This prevents the system from interrupting its own speech
+            self.tts_engine.on_playback_start = self._on_tts_start
+            self.tts_engine.on_playback_end = self._on_tts_end
+            
+            # Wire callbacks directly to audio player (skip TTSEngine layer)
+            self.tts_engine.audio_player.on_audio_start = self._on_audio_start
+            self.tts_engine.audio_player.on_audio_end = self._on_audio_end
+            self.tts_engine.audio_player.on_audio_pause = self._on_audio_pause
+            self.tts_engine.audio_player.on_audio_resume = self._on_audio_resume
         
         # Voice recognizer is initialized on demand
         self.voice_recognizer = None
         self.whisper_model = whisper_model
+        self.stt_adapter = None  # lazily initialized (faster-whisper)
         
         # State tracking
         self._transcription_callback = None
         self._stop_callback = None
         self._voice_mode = "full"  # full, wait, stop, ptt
+    
+    def _try_init_piper(self, language: str):
+        """Try to initialize Piper TTS adapter.
+        
+        Args:
+            language: Language code
+            
+        Returns:
+            PiperTTSAdapter instance if successful, None otherwise
+        """
+        try:
+            from .adapters.tts_piper import PiperTTSAdapter
+            adapter = PiperTTSAdapter(language=language)
+            if adapter.is_available():
+                return adapter
+            return None
+        except Exception as e:
+            if self.debug_mode:
+                print(f"⚠️  Piper TTS not available: {e}")
+            return None
     
     def _on_tts_start(self):
         """Called when TTS playback starts - handle based on voice mode."""
@@ -303,6 +357,9 @@ class VoiceManager:
         else:
             sp = self.speed
         
+        if not self.tts_engine:
+            raise RuntimeError("No TTS engine available")
+
         return self.tts_engine.speak(text, sp, callback)
     
     def stop_speaking(self):
@@ -311,6 +368,8 @@ class VoiceManager:
         Returns:
             True if stopped, False if no playback was active
         """
+        if not self.tts_engine:
+            return False
         return self.tts_engine.stop()
     
     def pause_speaking(self):
@@ -321,6 +380,8 @@ class VoiceManager:
         Returns:
             True if paused, False if no playback was active
         """
+        if not self.tts_engine:
+            return False
         return self.tts_engine.pause()
     
     def resume_speaking(self):
@@ -329,6 +390,8 @@ class VoiceManager:
         Returns:
             True if resumed, False if not paused or no playback active
         """
+        if not self.tts_engine:
+            return False
         return self.tts_engine.resume()
     
     def is_paused(self):
@@ -337,6 +400,8 @@ class VoiceManager:
         Returns:
             True if paused, False otherwise
         """
+        if not self.tts_engine:
+            return False
         return self.tts_engine.is_paused()
     
     def is_speaking(self):
@@ -345,7 +410,151 @@ class VoiceManager:
         Returns:
             True if speaking, False otherwise
         """
-        return self.tts_engine.is_active()
+        if self.tts_engine:
+            return self.tts_engine.is_active()
+        return False
+    
+    # Network-friendly methods (NEW in v0.6.0)
+    def speak_to_bytes(self, text: str, format: str = 'wav') -> bytes:
+        """Convert text to audio bytes for network transmission.
+        
+        This method enables client-server architectures where the backend generates
+        speech and sends it to clients for playback (e.g., mobile apps, web clients).
+        
+        Args:
+            text: The text to synthesize
+            format: Audio format ('wav', 'mp3', 'ogg'). Default: 'wav'
+            
+        Returns:
+            Audio data as bytes
+            
+        Example:
+            # Server-side (backend)
+            audio_bytes = voice_manager.speak_to_bytes("Hello from server")
+            send_to_client(audio_bytes)
+            
+            # Client-side (mobile/web)
+            # Play audio_bytes directly
+        """
+        if self.tts_adapter and self.tts_adapter.is_available():
+            return self.tts_adapter.synthesize_to_bytes(text, format=format)
+        elif self.tts_engine:
+            # Legacy TTS engine doesn't support this yet
+            raise NotImplementedError(
+                "speak_to_bytes() requires Piper TTS. "
+                "Install with: pip install piper-tts>=1.2.0"
+            )
+        else:
+            raise RuntimeError("No TTS engine available")
+    
+    def speak_to_file(self, text: str, output_path: str, format: Optional[str] = None) -> str:
+        """Convert text to audio file for offline use or network delivery.
+        
+        Args:
+            text: The text to synthesize
+            output_path: Path to save the audio file
+            format: Audio format (optional, inferred from file extension)
+            
+        Returns:
+            Path to the saved audio file
+            
+        Example:
+            voice_manager.speak_to_file("Hello world", "output.wav")
+            # Send file to client or use later
+        """
+        if self.tts_adapter and self.tts_adapter.is_available():
+            return self.tts_adapter.synthesize_to_file(text, output_path, format=format)
+        elif self.tts_engine:
+            # Legacy TTS engine doesn't support this yet
+            raise NotImplementedError(
+                "speak_to_file() requires Piper TTS. "
+                "Install with: pip install piper-tts>=1.2.0"
+            )
+        else:
+            raise RuntimeError("No TTS engine available")
+    
+    def transcribe_from_bytes(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
+        """Transcribe audio from bytes (network use case).
+        
+        This method enables client-server architectures where clients record audio
+        and send it to the backend for transcription.
+        
+        Args:
+            audio_bytes: Audio data as bytes (WAV format)
+            language: Target language (optional, auto-detect if not provided)
+            
+        Returns:
+            Transcribed text
+            
+        Example:
+            # Client-side (mobile/web)
+            audio_bytes = record_audio()
+            send_to_server(audio_bytes)
+            
+            # Server-side (backend)
+            text = voice_manager.transcribe_from_bytes(audio_bytes)
+            process_text(text)
+        """
+        # Save bytes to temp file and transcribe
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+            tmp_file.write(audio_bytes)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Use transcribe_file method
+            return self.transcribe_file(tmp_path, language=language)
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+    
+    def transcribe_file(self, audio_path: str, language: Optional[str] = None) -> str:
+        """Transcribe audio from file.
+        
+        Args:
+            audio_path: Path to audio file
+            language: Target language (optional, auto-detect if not provided)
+            
+        Returns:
+            Transcribed text
+        """
+        # Prefer the core adapter-based STT (faster-whisper) when available.
+        # This keeps `pip install abstractvoice` functional without legacy `openai-whisper`.
+        stt = self._get_stt_adapter()
+        if stt is not None:
+            return stt.transcribe(audio_path, language=language)
+
+        # Fallback to legacy Whisper Transcriber (optional dependency).
+        from .stt import Transcriber
+        transcriber = Transcriber(model_name=self.whisper_model, debug_mode=self.debug_mode)
+        result = transcriber.transcribe(audio_path)
+        return result['text'] if result and 'text' in result else ""
+
+    def _get_stt_adapter(self):
+        """Lazily initialize and return an STT adapter if possible."""
+        if self.stt_adapter is not None:
+            return self.stt_adapter if self.stt_adapter.is_available() else None
+
+        if self._stt_engine_preference not in ("auto", "faster_whisper"):
+            return None
+
+        try:
+            from .adapters.stt_faster_whisper import FasterWhisperAdapter
+            # Reuse whisper_model naming (tiny/base/small/medium/...) for adapter sizing.
+            self.stt_adapter = FasterWhisperAdapter(model_size=self.whisper_model, device="cpu", compute_type="int8")
+            if self.stt_adapter.is_available():
+                return self.stt_adapter
+            return None
+        except Exception as e:
+            if self.debug_mode:
+                print(f"⚠️  Faster-Whisper STT not available: {e}")
+            self.stt_adapter = None
+            return None
     
     def listen(self, on_transcription, on_stop=None):
         """Start listening for speech with callbacks.
@@ -558,7 +767,37 @@ class VoiceManager:
         if self.voice_recognizer:
             self.voice_recognizer.stop()
 
-        # Select best model for this language
+        # Prefer Piper for supported languages when allowed.
+        if self._tts_engine_preference in ("auto", "piper"):
+            try:
+                if self.tts_adapter is None:
+                    self.tts_adapter = self._try_init_piper(language)
+                else:
+                    self.tts_adapter.set_language(language)
+
+                if self.tts_adapter and self.tts_adapter.is_available():
+                    # Ensure we have a compatible engine facade.
+                    if self._tts_engine_name != "piper" or self.tts_engine is None:
+                        from .tts.adapter_tts_engine import AdapterTTSEngine
+                        self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=self.debug_mode)
+                        self._tts_engine_name = "piper"
+
+                        # Wire callbacks (same as legacy engine)
+                        self.tts_engine.on_playback_start = self._on_tts_start
+                        self.tts_engine.on_playback_end = self._on_tts_end
+                        self.tts_engine.audio_player.on_audio_start = self._on_audio_start
+                        self.tts_engine.audio_player.on_audio_end = self._on_audio_end
+                        self.tts_engine.audio_player.on_audio_pause = self._on_audio_pause
+                        self.tts_engine.audio_player.on_audio_resume = self._on_audio_resume
+
+                    self.language = language
+                    self.speed = 1.0
+                    return True
+            except Exception as e:
+                if self.debug_mode:
+                    print(f"⚠️ Piper language switch failed, falling back: {e}")
+
+        # Select best legacy model for this language
         selected_model = self._select_best_model(language)
 
         # CRITICAL FIX: Check if model is available, download if not
@@ -592,9 +831,10 @@ class VoiceManager:
                     lang_name = self.LANGUAGES[language]['name']
                     print(f"🌍 Loading {lang_name} voice: {model_name}")
 
-                # Reinitialize TTS engine
+                # Reinitialize legacy TTS engine
                 TTSEngine = _import_tts_engine()
                 self.tts_engine = TTSEngine(model_name=model_name, debug_mode=self.debug_mode)
+                self._tts_engine_name = "vits"
 
                 # Restore callbacks
                 self.tts_engine.on_playback_start = self._on_tts_start
@@ -884,6 +1124,40 @@ class VoiceManager:
             vm.set_voice('fr', 'css10_vits')  # Use CSS10 French VITS voice
             vm.set_voice('it', 'mai_female_vits')  # Use female Italian VITS voice
         """
+        # In adapter mode (Piper), we may not have per-voice IDs yet.
+        # Treat `set_voice(lang, voice_id)` as a best-effort request:
+        # - If Piper supports the language, switch language and return True.
+        # - Otherwise fall back to legacy voice catalog.
+        if self._tts_engine_preference in ("auto", "piper"):
+            try:
+                if self.tts_adapter is None:
+                    self.tts_adapter = self._try_init_piper(language)
+                else:
+                    self.tts_adapter.set_language(language)
+
+                if self.tts_adapter and self.tts_adapter.is_available():
+                    if self._tts_engine_name != "piper" or self.tts_engine is None:
+                        from .tts.adapter_tts_engine import AdapterTTSEngine
+                        self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=self.debug_mode)
+                        self._tts_engine_name = "piper"
+
+                        # Wire callbacks
+                        self.tts_engine.on_playback_start = self._on_tts_start
+                        self.tts_engine.on_playback_end = self._on_tts_end
+                        self.tts_engine.audio_player.on_audio_start = self._on_audio_start
+                        self.tts_engine.audio_player.on_audio_end = self._on_audio_end
+                        self.tts_engine.audio_player.on_audio_pause = self._on_audio_pause
+                        self.tts_engine.audio_player.on_audio_resume = self._on_audio_resume
+
+                    self.language = language
+                    self.speed = 1.0
+                    if self.debug_mode:
+                        print(f"🎭 Piper voice selection: using default {language} voice (requested: {voice_id})")
+                    return True
+            except Exception as e:
+                if self.debug_mode:
+                    print(f"⚠️ Piper voice selection failed, falling back: {e}")
+
         if language not in self.VOICE_CATALOG:
             if self.debug_mode:
                 print(f"⚠️ Language '{language}' not available")
@@ -1041,7 +1315,18 @@ class VoiceManager:
         if self.voice_recognizer:
             self.voice_recognizer.stop()
 
+        # Stop any active playback.
         self.stop_speaking()
+
+        # Best-effort: fully release audio resources to prevent crashes at process exit.
+        try:
+            if self.tts_engine is not None:
+                if hasattr(self.tts_engine, "cleanup"):
+                    self.tts_engine.cleanup()
+                elif hasattr(self.tts_engine, "audio_player") and self.tts_engine.audio_player:
+                    self.tts_engine.audio_player.cleanup()
+        except Exception:
+            pass
         return True
     
     def _on_audio_start(self):

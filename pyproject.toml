@@ -27,12 +27,12 @@ dependencies = [
     "numpy>=1.24.0",
     "requests>=2.31.0",
     "appdirs>=1.4.0",
-    # Essential TTS dependencies for immediate functionality
-    "coqui-tts>=0.27.0,<0.30.0",
-    "torch>=2.1.0,<2.9.0",
-    "torchvision>=0.16.0,<1.0.0",
-    "torchaudio>=2.1.0,<2.9.0",
-    "librosa>=0.10.0",
+    # Core TTS: Piper (lightweight, no system dependencies)
+    "piper-tts>=1.2.0",
+    "huggingface_hub>=0.20.0",
+    # Core STT: faster-whisper (4x faster than openai-whisper)
+    "faster-whisper>=0.10.0",
+    # Core audio
     "sounddevice>=0.4.6",
     "soundfile>=0.12.1",
 ]
@@ -46,7 +46,7 @@ voice = [
     "soundfile>=0.12.1",
 ]
 
-# Text-to-Speech functionality
+# Text-to-Speech functionality (legacy VITS engine for premium voices)
 tts = [
     "coqui-tts>=0.27.0,<0.30.0",
     "torch>=2.1.0,<2.9.0",
@@ -54,6 +54,9 @@ tts = [
     "torchaudio>=2.1.0,<2.9.0",
     "librosa>=0.10.0",
 ]
+
+# Lightweight TTS-only (Piper, already in core)
+tts-lite = []
 
 # Speech-to-Text functionality
 stt = [
@@ -66,8 +69,9 @@ web = [
     "flask>=2.0.0",
 ]
 
-# All features combined
+# All features combined (Piper + VITS + Whisper + Web)
 all = [
+    "piper-tts>=1.2.0",
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
     "PyAudio>=0.2.13",

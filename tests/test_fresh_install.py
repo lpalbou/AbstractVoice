@@ -11,14 +11,19 @@ def test_language_switching():
     print("🧪 Testing Language Switching (Fresh Install Simulation)")
     print("=" * 60)
 
-    vm = VoiceManager(debug_mode=True)
+    # IMPORTANT:
+    # This is a "fresh install" simulation test and must be stable in CI/headless
+    # environments. We validate functionality via network-safe methods (bytes/file)
+    # instead of real audio playback (which can be flaky due to OS audio backends).
+    vm = VoiceManager(debug_mode=True, tts_engine="piper")
 
     # Test languages
     test_languages = [
         ('fr', 'Bonjour, ceci est un test.', 'French'),
         ('es', 'Hola, esta es una prueba.', 'Spanish'),
         ('de', 'Hallo, das ist ein Test.', 'German'),
-        ('it', 'Ciao, questo è un test.', 'Italian'),
+        ('ru', 'Привет, это тест.', 'Russian'),
+        ('zh', '你好，这是一个测试。', 'Chinese'),
         ('en', 'Back to English.', 'English'),
     ]
 
@@ -28,7 +33,9 @@ def test_language_switching():
 
         if success:
             print(f"✅ {name}: Successfully loaded")
-            vm.speak(text, speed=1.0)
+            audio_bytes = vm.speak_to_bytes(text, format="wav")
+            assert isinstance(audio_bytes, (bytes, bytearray))
+            assert audio_bytes[:4] == b"RIFF"
         else:
             print(f"❌ {name}: Failed to load")
             print(f"   Run: abstractvoice download-models --language {lang}")
@@ -44,14 +51,15 @@ def test_voice_switching():
     print("\n🎭 Testing Voice Switching (Fresh Install Simulation)")
     print("=" * 60)
 
-    vm = VoiceManager(debug_mode=True)
+    vm = VoiceManager(debug_mode=True, tts_engine="piper")
 
-    # Test different voices
+    # Piper currently selects a default voice per language.
+    # We still validate that `set_voice()` is robust and does not crash even if
+    # voice IDs are treated as best-effort hints.
     test_voices = [
-        ('en', 'tacotron2', 'This is Linda voice.'),
-        ('en', 'jenny', 'This is Jenny voice.'),
-        ('en', 'ek1', 'This is Edward voice.'),
-        ('fr', 'css10_vits', 'Voix française.'),
+        ('en', 'amy', 'This is a test voice.'),
+        ('fr', 'siwis', 'Voix française.'),
+        ('de', 'thorsten', 'Das ist ein Test.'),
     ]
 
     for lang, voice_id, text in test_voices:
@@ -60,7 +68,9 @@ def test_voice_switching():
 
         if success:
             print(f"✅ {voice_id}: Successfully loaded")
-            vm.speak(text)
+            audio_bytes = vm.speak_to_bytes(text, format="wav")
+            assert isinstance(audio_bytes, (bytes, bytearray))
+            assert audio_bytes[:4] == b"RIFF"
         else:
             print(f"❌ {voice_id}: Failed to load")
 
@@ -77,13 +87,16 @@ def test_cli_commands():
 
     cli = VoiceREPL()
 
+    # Disable TTS so this test is stable in CI/headless environments.
+    cli.onecmd('/tts off')
+
     # Test /language command
     print("\n📝 Testing /language fr")
     cli.onecmd('/language fr')
 
-    # Test /setvoice command
-    print("\n📝 Testing /setvoice en.jenny")
-    cli.onecmd('/setvoice en.jenny')
+    # Test /setvoice command (listing only; avoids optional legacy downloads)
+    print("\n📝 Testing /setvoice (list)")
+    cli.onecmd('/setvoice')
 
     print("\n✅ CLI commands test complete!")
 
