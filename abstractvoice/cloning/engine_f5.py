@@ -127,11 +127,19 @@ class F5TTSVoiceCloningEngine:
                 "Install with: pip install huggingface_hub"
             ) from e
 
-        snapshot_download(
-            repo_id="mrfakename/OpenF5-TTS-Base",
-            local_dir=str(self._artifact_root()),
-            local_dir_use_symlinks=False,
-        )
+        import warnings
+
+        with warnings.catch_warnings():
+            # huggingface_hub deprecated `local_dir_use_symlinks`; keep prefetch UX clean.
+            warnings.filterwarnings(
+                "ignore",
+                category=UserWarning,
+                message=r".*local_dir_use_symlinks.*deprecated.*",
+            )
+            snapshot_download(
+                repo_id="mrfakename/OpenF5-TTS-Base",
+                local_dir=str(self._artifact_root()),
+            )
         return self._resolve_openf5_artifacts_local()
 
     def are_openf5_artifacts_available(self) -> bool:
@@ -258,10 +266,12 @@ class F5TTSVoiceCloningEngine:
         ref_wav = self._prepare_reference_wav(reference_paths)
         try:
             if not reference_text:
-                stt = self._get_stt()
-                if not stt.is_available():
-                    raise RuntimeError("STT (faster-whisper) is required to auto-transcribe reference audio.")
-                reference_text = stt.transcribe(str(ref_wav))
+                # Deliberately do NOT auto-transcribe in the engine layer:
+                # it can implicitly download STT weights and pollute interactive UX.
+                raise RuntimeError(
+                    "Missing reference_text for cloning.\n"
+                    "Provide reference_text when cloning, or set it via the voice store."
+                )
 
             from f5_tts.infer.utils_infer import infer_process, preprocess_ref_audio_text
             import contextlib
@@ -343,6 +353,116 @@ class F5TTSVoiceCloningEngine:
             buf = io.BytesIO()
             sf.write(buf, audio_segment, int(final_sr), format="WAV", subtype="PCM_16")
             return buf.getvalue()
+        finally:
+            try:
+                Path(ref_wav).unlink(missing_ok=True)  # type: ignore[arg-type]
+            except Exception:
+                pass
+
+    def infer_to_audio_chunks(
+        self,
+        *,
+        text: str,
+        reference_paths: Iterable[str | Path],
+        reference_text: Optional[str] = None,
+        speed: Optional[float] = None,
+        max_chars: int = 120,
+        chunk_size: int = 2048,
+    ):
+        """Yield (audio_chunk, sample_rate) for progressive playback.
+
+        Note: F5 sampling itself is not truly streaming mid-step. This yields chunks
+        after each batch completes, which is still valuable for perceived latency.
+        """
+        self._ensure_model_loaded()
+
+        ref_wav = self._prepare_reference_wav(reference_paths)
+        try:
+            if not reference_text:
+                raise RuntimeError(
+                    "Missing reference_text for cloning.\n"
+                    "Provide reference_text when cloning, or set it via the voice store."
+                )
+
+            import warnings
+            with warnings.catch_warnings():
+                # Keep REPL and API logs clean.
+                warnings.filterwarnings("ignore", category=UserWarning, module=r"torchaudio\..*")
+                warnings.filterwarnings("ignore", category=UserWarning, message=r".*TorchCodec.*")
+
+                ref_text = str(reference_text or "").strip()
+                if ref_text and not (ref_text.endswith(". ") or ref_text.endswith("。") or ref_text.endswith(".")):
+                    ref_text = ref_text + ". "
+                elif ref_text.endswith("."):
+                    ref_text = ref_text + " "
+
+                # Prefer sentence boundaries to reduce audible "cuts".
+                import re
+
+                def _split_batches(s: str, limit: int) -> List[str]:
+                    s = " ".join(str(s).replace("\n", " ").split()).strip()
+                    if not s:
+                        return []
+                    sentences = re.split(r"(?<=[\.\!\?\。])\s+", s)
+                    out: List[str] = []
+                    cur_s = ""
+                    for sent in sentences:
+                        sent = sent.strip()
+                        if not sent:
+                            continue
+                        if len(sent) > limit:
+                            # Fallback: word-based chunking for very long sentences.
+                            words = sent.split(" ")
+                            tmp = ""
+                            for w in words:
+                                cand = (tmp + " " + w).strip()
+                                if len(cand) <= limit:
+                                    tmp = cand
+                                else:
+                                    if tmp:
+                                        out.append(tmp)
+                                    tmp = w
+                            if tmp:
+                                out.append(tmp)
+                            continue
+                        cand = (cur_s + " " + sent).strip()
+                        if len(cand) <= limit:
+                            cur_s = cand
+                        else:
+                            if cur_s:
+                                out.append(cur_s)
+                            cur_s = sent
+                    if cur_s:
+                        out.append(cur_s)
+                    return out
+
+                batches = _split_batches(text, int(max_chars)) or [" "]
+
+                from f5_tts.infer.utils_infer import infer_batch_process
+                import torchaudio
+
+                audio, sr = torchaudio.load(str(ref_wav))
+
+                for chunk, sr_out in infer_batch_process(
+                    (audio, sr),
+                    ref_text if ref_text else " ",
+                    batches,
+                    self._f5_model,
+                    self._f5_vocoder,
+                    mel_spec_type=self._vocoder_name,
+                    progress=None,
+                    target_rms=self._target_rms,
+                    cross_fade_duration=self._cross_fade_duration,
+                    nfe_step=self._nfe_step,
+                    cfg_strength=self._cfg_strength,
+                    sway_sampling_coef=self._sway_sampling_coef,
+                    speed=float(speed) if speed is not None else 1.0,
+                    fix_duration=None,
+                    device=self._f5_device,
+                    streaming=True,
+                    chunk_size=int(chunk_size),
+                ):
+                    yield np.asarray(chunk, dtype=np.float32), int(sr_out)
         finally:
             try:
                 Path(ref_wav).unlink(missing_ok=True)  # type: ignore[arg-type]

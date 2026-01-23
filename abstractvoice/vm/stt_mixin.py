@@ -46,7 +46,12 @@ class SttMixin:
         try:
             from ..adapters.stt_faster_whisper import FasterWhisperAdapter
 
-            self.stt_adapter = FasterWhisperAdapter(model_size=self.whisper_model, device="cpu", compute_type="int8")
+            self.stt_adapter = FasterWhisperAdapter(
+                model_size=self.whisper_model,
+                device="cpu",
+                compute_type="int8",
+                allow_downloads=bool(getattr(self, "allow_downloads", True)),
+            )
             if self.stt_adapter.is_available():
                 return self.stt_adapter
             return None

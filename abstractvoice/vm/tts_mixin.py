@@ -6,6 +6,8 @@ behind adapters.
 
 from __future__ import annotations
 
+import threading
+
 
 class TtsMixin:
     def _get_voice_cloner(self):
@@ -19,7 +21,13 @@ class TtsMixin:
                     f"Original error: {e}"
                 ) from e
 
-            self._voice_cloner = VoiceCloner(debug=bool(getattr(self, "debug_mode", False)), whisper_model=getattr(self, "whisper_model", "tiny"))
+            # Use a slightly larger STT model for one-time reference-text auto-fallback.
+            self._voice_cloner = VoiceCloner(
+                debug=bool(getattr(self, "debug_mode", False)),
+                whisper_model=getattr(self, "whisper_model", "tiny"),
+                reference_text_whisper_model="small",
+                allow_downloads=bool(getattr(self, "allow_downloads", True)),
+            )
         return self._voice_cloner
 
     def clone_voice(self, reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None) -> str:
@@ -27,6 +35,9 @@ class TtsMixin:
 
     def list_cloned_voices(self):
         return self._get_voice_cloner().list_cloned_voices()
+
+    def get_cloned_voice(self, voice_id: str):
+        return self._get_voice_cloner().get_cloned_voice(voice_id)
 
     def set_cloned_voice_reference_text(self, voice_id: str, reference_text: str) -> bool:
         """Update a cloned voice's reference transcript (quality fix).
@@ -41,38 +52,117 @@ class TtsMixin:
 
     def import_voice(self, path: str) -> str:
         return self._get_voice_cloner().import_voice(path)
+
+    def rename_cloned_voice(self, voice_id: str, new_name: str) -> bool:
+        self._get_voice_cloner().rename_cloned_voice(voice_id, new_name)
+        return True
+
+    def delete_cloned_voice(self, voice_id: str) -> bool:
+        self._get_voice_cloner().delete_cloned_voice(voice_id)
+        return True
     def speak(self, text, speed=1.0, callback=None, voice: str | None = None):
         sp = speed if speed != 1.0 else self.speed
         if not self.tts_engine:
             raise RuntimeError("No TTS engine available")
 
-        # Optional cloned voice playback: synthesize to WAV bytes, decode to mono,
-        # resample to current audio player sample rate, and play.
+        # Optional cloned voice playback:
+        # - stream chunks to the player for better perceived latency
+        # - support cancellation on stop_speaking() / new input (best-effort)
         if voice:
-            import io
-            import soundfile as sf
             import numpy as np
 
             from ..audio.resample import linear_resample_mono
 
-            wav = self.speak_to_bytes(str(text), format="wav", voice=voice)
-            audio, sr = sf.read(io.BytesIO(wav), always_2d=True, dtype="float32")
-            mono = np.mean(audio, axis=1).astype(np.float32)
+            # Stop any current speech and reset cancel token.
+            try:
+                self.stop_speaking()
+            except Exception:
+                pass
 
-            target_sr = int(getattr(getattr(self.tts_engine, "audio_player", None), "sample_rate", sr))
-            if sr != target_sr:
-                mono = linear_resample_mono(mono, int(sr), target_sr)
+            # IMPORTANT: cancellation must be per-utterance.
+            # If we reuse/clear the same Event, an old synthesis thread could resume
+            # after a new request starts (race), causing "old audio" to continue.
+            try:
+                old = getattr(self, "_cloned_cancel_event", None)
+                if old is not None:
+                    old.set()
+            except Exception:
+                pass
+            cancel = threading.Event()
+            setattr(self, "_cloned_cancel_event", cancel)
 
-            # Reuse the engine's playback pipeline/callbacks.
-            if hasattr(self.tts_engine, "play_audio_array"):
-                return self.tts_engine.play_audio_array(mono, callback=callback)
+            cloner = self._get_voice_cloner()
+            # Prefer playing cloned audio at its native rate (F5 is typically 24kHz).
+            target_sr = 24000
 
-            # Fallback: play directly.
-            if hasattr(self.tts_engine, "audio_player") and self.tts_engine.audio_player:
-                self.tts_engine.audio_player.play_audio(mono)
-                return True
+            def _worker():
+                try:
+                    synth_active = getattr(self, "_cloned_synthesis_active", None)
+                    if synth_active is not None:
+                        try:
+                            synth_active.set()
+                        except Exception:
+                            pass
 
-            raise RuntimeError("No audio player available for cloned voice playback")
+                    # Option: generate full audio first (smooth playback) vs streaming (faster TTFB).
+                    if not bool(getattr(self, "cloned_tts_streaming", True)):
+                        import io
+                        import soundfile as sf
+
+                        wav_bytes = cloner.speak_to_bytes(str(text), voice_id=voice, format="wav", speed=sp)
+                        if cancel.is_set():
+                            return
+                        audio, sr = sf.read(io.BytesIO(wav_bytes), dtype="float32", always_2d=True)
+                        mono = np.mean(audio, axis=1).astype(np.float32).reshape(-1)
+                        sr = int(sr)
+                        if hasattr(self.tts_engine, "begin_playback"):
+                            self.tts_engine.begin_playback(callback=callback, sample_rate=sr)
+                        if cancel.is_set():
+                            return
+                        if hasattr(self.tts_engine, "enqueue_audio"):
+                            self.tts_engine.enqueue_audio(mono)
+                        elif hasattr(self.tts_engine, "audio_player") and self.tts_engine.audio_player:
+                            self.tts_engine.audio_player.play_audio(mono)
+                        return
+
+                    # Streaming path: fewer, larger batches reduce audible cuts and overhead.
+                    chunks_iter = cloner.speak_to_audio_chunks(
+                        str(text),
+                        voice_id=voice,
+                        speed=sp,
+                        max_chars=240,
+                    )
+
+                    # Begin a playback session once (so TTS lifecycle hooks are correct).
+                    if hasattr(self.tts_engine, "begin_playback"):
+                        self.tts_engine.begin_playback(callback=callback, sample_rate=target_sr)
+
+                    for chunk, sr in chunks_iter:
+                        if cancel.is_set():
+                            break
+                        mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
+                        if int(sr) != target_sr:
+                            mono = linear_resample_mono(mono, int(sr), target_sr)
+
+                        if hasattr(self.tts_engine, "enqueue_audio"):
+                            self.tts_engine.enqueue_audio(mono)
+                        elif hasattr(self.tts_engine, "audio_player") and self.tts_engine.audio_player:
+                            self.tts_engine.audio_player.play_audio(mono)
+                        else:
+                            break
+                except Exception:
+                    # Best-effort: never crash caller thread.
+                    pass
+                finally:
+                    try:
+                        synth_active = getattr(self, "_cloned_synthesis_active", None)
+                        if synth_active is not None:
+                            synth_active.clear()
+                    except Exception:
+                        pass
+
+            threading.Thread(target=_worker, daemon=True).start()
+            return True
 
         return self.tts_engine.speak(text, sp, callback)
 
@@ -110,6 +200,13 @@ class TtsMixin:
     def stop_speaking(self):
         if not self.tts_engine:
             return False
+        # Best-effort cancel ongoing cloned synthesis.
+        try:
+            cancel = getattr(self, "_cloned_cancel_event", None)
+            if cancel is not None:
+                cancel.set()
+        except Exception:
+            pass
         return self.tts_engine.stop()
 
     def pause_speaking(self):

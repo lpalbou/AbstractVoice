@@ -91,6 +91,32 @@ class AdapterTTSEngine:
         self.audio_player.play_audio(audio)
         return True
 
+    def begin_playback(self, callback=None, *, sample_rate: int | None = None) -> None:
+        """Begin a playback session without synthesizing.
+
+        Used for streaming/chunked playback where audio is enqueued progressively.
+        """
+        if sample_rate is not None:
+            # For streaming audio produced externally (e.g. cloning), prefer
+            # playing at the native sample rate to avoid resampling artifacts.
+            sr = int(sample_rate)
+            if getattr(self.audio_player, "sample_rate", None) != sr:
+                try:
+                    self.audio_player.stop_stream()
+                except Exception:
+                    pass
+                self.audio_player.sample_rate = sr
+        else:
+            self._sync_sample_rate()
+        if callback is not None:
+            self._user_callback = callback
+        if self.on_playback_start:
+            threading.Thread(target=self.on_playback_start, daemon=True).start()
+
+    def enqueue_audio(self, audio: np.ndarray) -> None:
+        """Enqueue audio into the underlying player (no extra callbacks)."""
+        self.audio_player.play_audio(audio)
+
     def play_audio_array(self, audio: np.ndarray, callback=None) -> bool:
         """Play already-synthesized audio through the same playback pipeline.
 

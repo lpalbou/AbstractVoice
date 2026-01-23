@@ -66,13 +66,17 @@ class VoiceREPL(cmd.Cmd):
             self.voice_manager = VoiceManager(
                 language=language,
                 tts_model=tts_model,
-                debug_mode=debug_mode
+                debug_mode=debug_mode,
+                allow_downloads=False,
+                cloned_tts_streaming=False,
             )
 
         # Current speaking voice:
         # - None => Piper (default, language-driven)
         # - str  => cloned voice_id
         self.current_tts_voice: str | None = None
+        self._tts_indicator = None
+        self._tts_indicator_lock = threading.Lock()
 
         # Seed a default cloned voice (HAL9000) if samples are present.
         self._seed_hal9000_voice()
@@ -165,6 +169,7 @@ class VoiceREPL(cmd.Cmd):
         try:
             if self.voice_manager:
                 self.voice_manager.stop_speaking()
+                self._stop_tts_indicator()
         except Exception:
             pass
         
@@ -181,6 +186,7 @@ class VoiceREPL(cmd.Cmd):
         try:
             if self.voice_manager:
                 self.voice_manager.stop_speaking()
+                self._stop_tts_indicator()
         except Exception:
             pass
             
@@ -278,8 +284,9 @@ class VoiceREPL(cmd.Cmd):
                             "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
                         )
                     else:
-                        with self._busy_indicator(enabled=bool(self.current_tts_voice)):
-                            self.voice_manager.speak(response_text, voice=self.current_tts_voice)
+                        if self.current_tts_voice:
+                            self._start_tts_indicator()
+                        self.voice_manager.speak(response_text, voice=self.current_tts_voice)
                 except Exception as e:
                     print(f"❌ TTS failed: {e}")
                 
@@ -652,7 +659,9 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager = VoiceManager(
                     language=self.current_language,
                     tts_model=self._initial_tts_model,
-                    debug_mode=self.debug_mode
+                    debug_mode=self.debug_mode,
+                    allow_downloads=False,
+                    cloned_tts_streaming=False,
                 )
             print("TTS enabled" if self.debug_mode else "")
         elif arg == "off":
@@ -716,8 +725,9 @@ class VoiceREPL(cmd.Cmd):
             return
 
         try:
-            with self._busy_indicator(enabled=bool(self.current_tts_voice)):
-                self.voice_manager.speak(text, voice=self.current_tts_voice)
+            if self.current_tts_voice:
+                self._start_tts_indicator()
+            self.voice_manager.speak(text, voice=self.current_tts_voice)
         except Exception as e:
             print(f"❌ Speak failed: {e}")
             if self.debug_mode:
@@ -732,9 +742,11 @@ class VoiceREPL(cmd.Cmd):
             self._stop = threading.Event()
             self._thread = None
 
-        def __enter__(self):
+        def start(self):
             if not self.enabled:
-                return self
+                return
+            if self._thread and self._thread.is_alive():
+                return
 
             def _run():
                 frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -759,11 +771,10 @@ class VoiceREPL(cmd.Cmd):
 
             self._thread = threading.Thread(target=_run, daemon=True)
             self._thread.start()
-            return self
 
-        def __exit__(self, exc_type, exc, tb):
+        def stop(self):
             if not self.enabled:
-                return False
+                return
             self._stop.set()
             try:
                 if self._thread:
@@ -771,14 +782,59 @@ class VoiceREPL(cmd.Cmd):
             except Exception:
                 pass
             # Clear spinner line.
-            sys.stdout.write("\r" + (" " * 40) + "\r")
-            # Restore cursor.
             try:
+                sys.stdout.write("\r" + (" " * 60) + "\r")
+                # Restore cursor.
                 sys.stdout.write("\033[?25h")
+                sys.stdout.flush()
             except Exception:
                 pass
-            sys.stdout.flush()
+
+        def __enter__(self):
+            self.start()
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            self.stop()
             return False
+
+    def _start_tts_indicator(self):
+        """Start a non-blocking spinner while cloned TTS is active."""
+        if not self.voice_manager:
+            return
+
+        with self._tts_indicator_lock:
+            try:
+                if self._tts_indicator is not None:
+                    self._tts_indicator.stop()
+            except Exception:
+                pass
+            self._tts_indicator = self._busy_indicator(enabled=True)
+            self._tts_indicator.start()
+
+        def _monitor():
+            vm = self.voice_manager
+            while True:
+                try:
+                    synth = bool(getattr(vm, "_cloned_synthesis_active", None) and vm._cloned_synthesis_active.is_set())
+                    playing = bool(vm.is_speaking())
+                except Exception:
+                    synth, playing = False, False
+                if not (synth or playing):
+                    break
+                time.sleep(0.05)
+            self._stop_tts_indicator()
+
+        threading.Thread(target=_monitor, daemon=True).start()
+
+    def _stop_tts_indicator(self):
+        with self._tts_indicator_lock:
+            try:
+                if self._tts_indicator is not None:
+                    self._tts_indicator.stop()
+            except Exception:
+                pass
+            self._tts_indicator = None
 
     def do_clones(self, arg):
         """List cloned voices in the local store."""
@@ -794,9 +850,155 @@ class VoiceREPL(cmd.Cmd):
             for v in voices:
                 vid = v.get("voice_id") or v.get("voice", "")
                 name = v.get("name", "")
-                print(f"  - {name}: {vid}")
+                src = (v.get("meta") or {}).get("reference_text_source", "")
+                src_txt = f" [{src}]" if src else ""
+                current = " (current)" if self.current_tts_voice == vid else ""
+                print(f"  - {name}: {vid}{src_txt}{current}")
         except Exception as e:
             print(f"❌ Error listing cloned voices: {e}")
+
+    def _resolve_clone_id(self, wanted: str) -> str | None:
+        voices = self.voice_manager.list_cloned_voices()
+        for v in voices:
+            vid = v.get("voice_id") or ""
+            name = v.get("name") or ""
+            if wanted == vid or vid.startswith(wanted) or wanted == name:
+                return vid
+        return None
+
+    def do_clone_info(self, arg):
+        """Show details for a cloned voice.
+
+        Usage:
+          /clone_info <id-or-name>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        wanted = arg.strip()
+        if not wanted:
+            print("Usage: /clone_info <id-or-name>")
+            return
+        vid = self._resolve_clone_id(wanted)
+        if not vid:
+            print(f"❌ Unknown cloned voice: {wanted}. Use /clones to list.")
+            return
+        try:
+            info = self.voice_manager.get_cloned_voice(vid)
+            meta = info.get("meta") or {}
+            print(f"\n{Colors.CYAN}Cloned voice info:{Colors.END}")
+            print(f"  id:   {info.get('voice_id')}")
+            print(f"  name: {info.get('name')}")
+            print(f"  engine: {info.get('engine')}")
+            print(f"  refs: {len(info.get('reference_files') or [])}")
+            print(f"  ref_text_source: {meta.get('reference_text_source','')}")
+            rt = (info.get('reference_text') or '').strip()
+            if rt:
+                short = (rt[:200] + "…") if len(rt) > 200 else rt
+                print(f"  reference_text: {short}")
+            else:
+                print("  reference_text: (missing)")
+        except Exception as e:
+            print(f"❌ Error: {e}")
+
+    def do_clone_ref(self, arg):
+        """Print the full reference_text for a cloned voice.
+
+        Usage:
+          /clone_ref <id-or-name>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        wanted = arg.strip()
+        if not wanted:
+            print("Usage: /clone_ref <id-or-name>")
+            return
+        vid = self._resolve_clone_id(wanted)
+        if not vid:
+            print(f"❌ Unknown cloned voice: {wanted}. Use /clones to list.")
+            return
+        info = self.voice_manager.get_cloned_voice(vid)
+        print((info.get("reference_text") or "").strip())
+
+    def do_clone_rename(self, arg):
+        """Rename a cloned voice.
+
+        Usage:
+          /clone_rename <id-or-name> <new_name>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        parts = arg.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            print("Usage: /clone_rename <id-or-name> <new_name>")
+            return
+        vid = self._resolve_clone_id(parts[0])
+        if not vid:
+            print(f"❌ Unknown cloned voice: {parts[0]}. Use /clones to list.")
+            return
+        self.voice_manager.rename_cloned_voice(vid, parts[1])
+        print("✅ Renamed.")
+
+    def do_clone_rm(self, arg):
+        """Remove a cloned voice from the store.
+
+        Usage:
+          /clone_rm <id-or-name>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        wanted = arg.strip()
+        if not wanted:
+            print("Usage: /clone_rm <id-or-name>")
+            return
+        vid = self._resolve_clone_id(wanted)
+        if not vid:
+            print(f"❌ Unknown cloned voice: {wanted}. Use /clones to list.")
+            return
+        # If currently selected, switch back to Piper.
+        if self.current_tts_voice == vid:
+            self.current_tts_voice = None
+        self.voice_manager.delete_cloned_voice(vid)
+        print("✅ Deleted.")
+
+    def do_clone_export(self, arg):
+        """Export a cloned voice bundle (.zip).
+
+        Usage:
+          /clone_export <id-or-name> <path.zip>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        parts = arg.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            print("Usage: /clone_export <id-or-name> <path.zip>")
+            return
+        vid = self._resolve_clone_id(parts[0])
+        if not vid:
+            print(f"❌ Unknown cloned voice: {parts[0]}. Use /clones to list.")
+            return
+        out = self.voice_manager.export_voice(vid, parts[1])
+        print(f"✅ Exported: {out}")
+
+    def do_clone_import(self, arg):
+        """Import a cloned voice bundle (.zip).
+
+        Usage:
+          /clone_import <path.zip>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+        path = arg.strip()
+        if not path:
+            print("Usage: /clone_import <path.zip>")
+            return
+        vid = self.voice_manager.import_voice(path)
+        print(f"✅ Imported as: {vid}")
 
     def do_clone(self, arg):
         """Clone a voice from a reference file or folder.
@@ -817,6 +1019,8 @@ class VoiceREPL(cmd.Cmd):
             voice_id = self.voice_manager.clone_voice(path, name=name)
             print(f"✅ Cloned voice created: {voice_id}")
             print("   Use /tts_voice clone <id-or-name> to select it.")
+            print("   Tip: set reference text for best quality:")
+            print("     /clone_set_ref_text <id-or-name> \"...\"")
             if not self._is_cloning_runtime_ready():
                 print("   (Cloning runtime not ready yet; run /cloning_status and /cloning_download first.)")
         except Exception as e:
@@ -884,14 +1088,7 @@ class VoiceREPL(cmd.Cmd):
             return
 
         wanted = parts[1]
-        voices = self.voice_manager.list_cloned_voices()
-        match = None
-        for v in voices:
-            vid = v.get("voice_id") or ""
-            name = v.get("name") or ""
-            if wanted == vid or vid.startswith(wanted) or wanted == name:
-                match = vid
-                break
+        match = self._resolve_clone_id(wanted)
         if not match:
             print(f"❌ Unknown cloned voice: {wanted}. Use /clones to list.")
             return
@@ -901,6 +1098,20 @@ class VoiceREPL(cmd.Cmd):
             print("❌ Cloning runtime is not ready (would trigger large downloads).")
             print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
             return
+
+        # Do not allow selecting a voice that would require implicit STT downloads
+        # (e.g. missing reference_text triggers auto-fallback).
+        try:
+            info = self.voice_manager.get_cloned_voice(match)
+            if not (info.get("reference_text") or "").strip():
+                print("❌ This cloned voice has no reference_text stored.")
+                print("   Fix:")
+                print("     - Provide reference_text when cloning, or")
+                print("     - Set it manually: /clone_set_ref_text <id> \"...\"")
+                return
+        except Exception:
+            # If inspection fails, selection is allowed; speaking may still fail.
+            pass
 
         self.current_tts_voice = match
         print(f"✅ Using cloned voice: {match}")
@@ -1039,6 +1250,8 @@ class VoiceREPL(cmd.Cmd):
             tts_model=self._initial_tts_model,
             debug_mode=self.debug_mode,
             tts_engine=engine,
+            allow_downloads=False,
+            cloned_tts_streaming=False,
         )
         print(f"✅ TTS engine set to: {engine}")
 
@@ -1117,6 +1330,8 @@ class VoiceREPL(cmd.Cmd):
             debug_mode=self.debug_mode,
             tts_engine=tts_engine,
             stt_engine=engine,
+            allow_downloads=False,
+            cloned_tts_streaming=False,
         )
         print(f"✅ STT engine set to: {engine}")
 
@@ -1279,6 +1494,12 @@ class VoiceREPL(cmd.Cmd):
         print("  /tokens             Display token usage stats")
         print("  /help               Show this help")
         print("  /clones             List cloned voices")
+        print("  /clone_info <id>    Show cloned voice details")
+        print("  /clone_ref <id>     Show cloned voice reference text")
+        print("  /clone_rename ...   Rename a cloned voice")
+        print("  /clone_rm <id>      Delete a cloned voice")
+        print("  /clone_export ...   Export a cloned voice (.zip)")
+        print("  /clone_import ...   Import a cloned voice (.zip)")
         print("  /clone <path> [nm]  Add a cloned voice from WAV/FLAC/OGG")
         print("  /clone-my-voice     Record a short prompt and clone it")
         print("  /tts_voice piper    Speak with Piper (default)")

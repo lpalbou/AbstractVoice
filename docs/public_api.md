@@ -60,6 +60,10 @@ In both modes, the stop phrase remains available as a safe “barge-in” substi
 - `set_whisper(model_name: str) -> bool`
   - Controls STT model sizing (used for faster‑whisper adapter sizing).
 
+- `enable_aec(enabled: bool = True, stream_delay_ms: int = 0) -> bool`
+  - Opt-in acoustic echo cancellation support for true barge-in (requires `abstractvoice[aec]`).
+  - Intended for `voice_mode="full"`.
+
 ## Callbacks
 
 VoiceManager exposes audio lifecycle hooks:

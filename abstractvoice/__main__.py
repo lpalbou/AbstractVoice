@@ -16,6 +16,7 @@ def print_examples():
     print("  web       - Web API example")
     print("  simple    - Simple usage example")
     print("  check-deps - Check dependency compatibility")
+    print("  download  - Explicitly prefetch model artifacts")
     print("\nUsage: python -m abstractvoice <example> [--language <lang>] [args...]")
     print("\nSupported languages: en, fr, es, de, it, ru, multilingual")
     print("\nExamples:")
@@ -117,6 +118,47 @@ def main():
         except Exception as e:
             print(f"❌ Error running dependency check: {e}")
             print("This might indicate a dependency issue.")
+        return
+
+    if args.example == "download":
+        dl = argparse.ArgumentParser(description="AbstractVoice explicit downloads")
+        dl.add_argument("--stt", dest="stt_model", default=None, help="Prefetch faster-whisper model (e.g. small)")
+        dl.add_argument(
+            "--openf5",
+            action="store_true",
+            help="Prefetch OpenF5 artifacts for cloning (~5.4GB, requires abstractvoice[cloning])",
+        )
+        dl_args = dl.parse_args(remaining)
+
+        if not dl_args.stt_model and not dl_args.openf5:
+            print("Nothing to download. Examples:")
+            print("  python -m abstractvoice download --stt small")
+            print("  python -m abstractvoice download --openf5")
+            return
+
+        if dl_args.stt_model:
+            try:
+                from abstractvoice.adapters.stt_faster_whisper import FasterWhisperAdapter
+
+                model = str(dl_args.stt_model).strip()
+                print(f"Downloading STT model (faster-whisper): {model}")
+                stt = FasterWhisperAdapter(model_size=model, device="cpu", compute_type="int8", allow_downloads=True)
+                if not stt.is_available():
+                    raise RuntimeError("Model download/load failed.")
+                print("✅ STT model ready.")
+            except Exception as e:
+                print(f"❌ STT download failed: {e}")
+
+        if dl_args.openf5:
+            try:
+                from abstractvoice.cloning.engine_f5 import F5TTSVoiceCloningEngine
+
+                print("Downloading OpenF5 artifacts (cloning)…")
+                engine = F5TTSVoiceCloningEngine(debug=True)
+                engine.ensure_openf5_artifacts_downloaded()
+                print("✅ OpenF5 artifacts ready.")
+            except Exception as e:
+                print(f"❌ OpenF5 download failed: {e}")
         return
 
     # Set remaining args as sys.argv for the examples, including language
