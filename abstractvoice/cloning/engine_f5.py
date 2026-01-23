@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import os
-import shutil
-import subprocess
-import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,15 +27,47 @@ class OpenF5Artifacts:
 
 
 class F5TTSVoiceCloningEngine:
-    """Wraps `f5-tts_infer-cli` for voice cloning (optional extra).
+    """In-process F5-TTS voice cloning engine (optional extra).
 
-    Uses our STT (faster-whisper) to auto-generate ref_text when not provided.
+    Why in-process
+    --------------
+    The CLI approach re-loads a multi-GB model on every utterance (very slow).
+    Running in-process allows:
+    - one-time model/vocoder load
+    - per-voice reference preprocessing cache
+    - much lower latency per utterance
     """
 
-    def __init__(self, *, whisper_model: str = "tiny", debug: bool = False):
+    def __init__(
+        self,
+        *,
+        whisper_model: str = "tiny",
+        debug: bool = False,
+        device: str = "auto",
+        nfe_step: int = 16,
+        cfg_strength: float = 2.0,
+        sway_sampling_coef: float = -1.0,
+        vocoder_name: str = "vocos",
+        target_rms: float = 0.1,
+        cross_fade_duration: float = 0.15,
+    ):
         self.debug = debug
         self._whisper_model = whisper_model
         self._stt = None
+        self._device_pref = device
+
+        # Speed/quality knobs (lower nfe_step = faster, usually lower quality).
+        self._nfe_step = int(nfe_step)
+        self._cfg_strength = float(cfg_strength)
+        self._sway_sampling_coef = float(sway_sampling_coef)
+        self._vocoder_name = str(vocoder_name)
+        self._target_rms = float(target_rms)
+        self._cross_fade_duration = float(cross_fade_duration)
+
+        # Lazy heavy objects (loaded on first inference).
+        self._f5_model = None
+        self._f5_vocoder = None
+        self._f5_device = None
 
     def _get_stt(self):
         """Lazy-load STT to avoid surprise model downloads."""
@@ -52,12 +81,7 @@ class F5TTSVoiceCloningEngine:
             )
         return self._stt
 
-    def _ensure_infer_runner(self) -> List[str]:
-        """Return a command prefix to run the F5 inference CLI in *this* environment.
-
-        We intentionally avoid relying on global shims (pyenv) because they can point
-        to a different Python environment than the running process.
-        """
+    def _ensure_f5_runtime(self) -> None:
         try:
             import importlib.util
 
@@ -71,21 +95,29 @@ class F5TTSVoiceCloningEngine:
                 f"Original error: {e}"
             ) from e
 
-        # Prefer the script installed alongside the current interpreter.
-        venv_exe = Path(sys.executable).resolve().parent / "f5-tts_infer-cli"
-        if venv_exe.exists():
-            return [str(venv_exe)]
-
-        # Fallback: run as a module (works as long as f5_tts is installed).
-        # Ref: python -m f5_tts.infer.infer_cli
-        return [sys.executable, "-m", "f5_tts.infer.infer_cli"]
-
     def _artifact_root(self) -> Path:
         cache_dir = Path(os.path.expanduser("~/.cache/abstractvoice/openf5"))
         cache_dir.mkdir(parents=True, exist_ok=True)
         return cache_dir
 
-    def _resolve_openf5_artifacts(self, *, local_files_only: bool = False) -> OpenF5Artifacts:
+    def _resolve_openf5_artifacts_local(self) -> OpenF5Artifacts:
+        """Resolve artifacts from the local cache directory without any network calls."""
+        root = self._artifact_root()
+        cfg = next(iter(root.rglob("*.yaml")), None) or next(iter(root.rglob("*.yml")), None)
+        ckpt = next(iter(root.rglob("*.pt")), None)
+        vocab = next(iter(root.rglob("vocab*.txt")), None) or next(iter(root.rglob("*.txt")), None)
+        if not (cfg and ckpt and vocab):
+            raise RuntimeError(
+                "OpenF5 artifacts are not present locally.\n"
+                "In the REPL run: /cloning_download\n"
+                f"Looked under: {root}"
+            )
+        return OpenF5Artifacts(model_cfg=cfg, ckpt_file=ckpt, vocab_file=vocab)
+
+    def ensure_openf5_artifacts_downloaded(self) -> OpenF5Artifacts:
+        """Explicit prefetch entry point (REPL should call this, not speak())."""
+        # Keep output quiet in interactive contexts.
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
         # Lazy import: keep core install light.
         try:
             from huggingface_hub import snapshot_download
@@ -95,28 +127,12 @@ class F5TTSVoiceCloningEngine:
                 "Install with: pip install huggingface_hub"
             ) from e
 
-        local_dir = snapshot_download(
+        snapshot_download(
             repo_id="mrfakename/OpenF5-TTS-Base",
             local_dir=str(self._artifact_root()),
-            local_files_only=bool(local_files_only),
+            local_dir_use_symlinks=False,
         )
-        root = Path(local_dir)
-
-        # Heuristic selection.
-        cfg = next(iter(root.rglob("*.yaml")), None) or next(iter(root.rglob("*.yml")), None)
-        ckpt = next(iter(root.rglob("*.pt")), None)
-        vocab = next(iter(root.rglob("vocab*.txt")), None) or next(iter(root.rglob("*.txt")), None)
-
-        if not (cfg and ckpt and vocab):
-            raise RuntimeError(f"Could not locate OpenF5 artifacts under {root}")
-
-        return OpenF5Artifacts(model_cfg=cfg, ckpt_file=ckpt, vocab_file=vocab)
-
-    def ensure_openf5_artifacts_downloaded(self) -> OpenF5Artifacts:
-        """Explicit prefetch entry point (REPL should call this, not speak())."""
-        # Keep output quiet in interactive contexts.
-        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-        return self._resolve_openf5_artifacts(local_files_only=False)
+        return self._resolve_openf5_artifacts_local()
 
     def are_openf5_artifacts_available(self) -> bool:
         """Return True if artifacts are already present locally (no downloads)."""
@@ -125,6 +141,76 @@ class F5TTSVoiceCloningEngine:
         ckpt = next(iter(root.rglob("*.pt")), None)
         vocab = next(iter(root.rglob("vocab*.txt")), None) or next(iter(root.rglob("*.txt")), None)
         return bool(cfg and ckpt and vocab)
+
+    def _resolve_device(self) -> str:
+        if self._device_pref and self._device_pref != "auto":
+            return str(self._device_pref)
+        # Match f5_tts default device logic.
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                return "cuda"
+            if hasattr(torch, "xpu") and torch.xpu.is_available():
+                return "xpu"
+            if torch.backends.mps.is_available():
+                return "mps"
+        except Exception:
+            pass
+        return "cpu"
+
+    def _ensure_model_loaded(self) -> None:
+        """Load vocoder + model once (expensive)."""
+        if self._f5_model is not None and self._f5_vocoder is not None and self._f5_device is not None:
+            return
+
+        self._ensure_f5_runtime()
+        artifacts = self._resolve_openf5_artifacts_local()
+
+        # Silence HF progress bars during internal downloads (REPL UX).
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+
+        # Some f5_tts utilities print; keep it quiet unless debug.
+        import contextlib
+        import io
+
+        from omegaconf import OmegaConf
+        from hydra.utils import get_class
+
+        from f5_tts.infer.utils_infer import load_model, load_vocoder
+
+        device = self._resolve_device()
+
+        model_cfg = OmegaConf.load(str(artifacts.model_cfg))
+        model_cls = get_class(f"f5_tts.model.{model_cfg.model.backbone}")
+        model_arc = model_cfg.model.arch
+
+        # load vocoder + model
+        if self.debug:
+            self._f5_vocoder = load_vocoder(vocoder_name=self._vocoder_name, device=device)
+            self._f5_model = load_model(
+                model_cls,
+                model_arc,
+                str(artifacts.ckpt_file),
+                mel_spec_type=self._vocoder_name,
+                vocab_file=str(artifacts.vocab_file),
+                device=device,
+            )
+        else:
+            buf_out = io.StringIO()
+            buf_err = io.StringIO()
+            with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
+                self._f5_vocoder = load_vocoder(vocoder_name=self._vocoder_name, device=device)
+                self._f5_model = load_model(
+                    model_cls,
+                    model_arc,
+                    str(artifacts.ckpt_file),
+                    mel_spec_type=self._vocoder_name,
+                    vocab_file=str(artifacts.vocab_file),
+                    device=device,
+                )
+
+        self._f5_device = device
 
     def _prepare_reference_wav(
         self, reference_paths: Iterable[str | Path], *, target_sr: int = 24000, max_seconds: float = 15.0
@@ -167,13 +253,7 @@ class F5TTSVoiceCloningEngine:
         reference_text: Optional[str] = None,
         speed: Optional[float] = None,
     ) -> bytes:
-        runner = self._ensure_infer_runner()
-
-        # Silence HF progress bars during inference (REPL UX).
-        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-
-        # If already cached, never hit the network / print download status.
-        artifacts = self._resolve_openf5_artifacts(local_files_only=self.are_openf5_artifacts_available())
+        self._ensure_model_loaded()
 
         ref_wav = self._prepare_reference_wav(reference_paths)
         try:
@@ -183,43 +263,49 @@ class F5TTSVoiceCloningEngine:
                     raise RuntimeError("STT (faster-whisper) is required to auto-transcribe reference audio.")
                 reference_text = stt.transcribe(str(ref_wav))
 
-            out_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-            out_wav.close()
+            from f5_tts.infer.utils_infer import infer_process, preprocess_ref_audio_text
+            import contextlib
+            import io
+            import warnings
 
-            cmd = [
-                *runner,
-                "-mc",
-                str(artifacts.model_cfg),
-                "-p",
-                str(artifacts.ckpt_file),
-                "-v",
-                str(artifacts.vocab_file),
-                "-r",
-                str(ref_wav),
-                "-s",
-                str(reference_text),
-                "-t",
-                str(text),
-                "-w",
-                str(out_wav.name),
-            ]
-            if speed is not None:
-                cmd.extend(["--speed", str(speed)])
+            # f5_tts prints a lot (progress bars, ref_text, batching info).
+            # Keep default UX clean unless debug is enabled.
+            out_buf = io.StringIO()
+            err_buf = io.StringIO()
+            stdout_cm = contextlib.nullcontext() if self.debug else contextlib.redirect_stdout(out_buf)
+            stderr_cm = contextlib.nullcontext() if self.debug else contextlib.redirect_stderr(err_buf)
 
-            if self.debug:
-                print("F5 CLI:", " ".join(cmd))
+            with warnings.catch_warnings():
+                # Torchaudio emits noisy deprecation warnings; they don't help users here.
+                warnings.filterwarnings("ignore", category=UserWarning, module=r"torchaudio\..*")
+                with stdout_cm, stderr_cm:
+                    ref_audio_path, ref_text = preprocess_ref_audio_text(
+                        str(ref_wav),
+                        str(reference_text),
+                        show_info=(print if self.debug else (lambda *_a, **_k: None)),
+                    )
+                    audio_segment, final_sr, _spec = infer_process(
+                        ref_audio_path,
+                        ref_text,
+                        str(text),
+                        self._f5_model,
+                        self._f5_vocoder,
+                        mel_spec_type=self._vocoder_name,
+                        show_info=(print if self.debug else (lambda *_a, **_k: None)),
+                        progress=None,  # disable tqdm
+                        target_rms=self._target_rms,
+                        cross_fade_duration=self._cross_fade_duration,
+                        nfe_step=self._nfe_step,
+                        cfg_strength=self._cfg_strength,
+                        sway_sampling_coef=self._sway_sampling_coef,
+                        speed=float(speed) if speed is not None else 1.0,
+                        fix_duration=None,
+                        device=self._f5_device,
+                    )
 
-            try:
-                subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            except subprocess.CalledProcessError as e:
-                stderr = ""
-                try:
-                    stderr = (e.stderr or b"").decode("utf-8", errors="replace")
-                except Exception:
-                    stderr = str(e.stderr)
-                raise RuntimeError(f"F5 inference failed (exit={e.returncode}).\n{stderr}") from e
-            data = Path(out_wav.name).read_bytes()
-            return data
+            buf = io.BytesIO()
+            sf.write(buf, audio_segment, int(final_sr), format="WAV", subtype="PCM_16")
+            return buf.getvalue()
         finally:
             try:
                 Path(ref_wav).unlink(missing_ok=True)  # type: ignore[arg-type]
