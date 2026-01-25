@@ -49,7 +49,7 @@ process_query():
 
 **API Integration**: `cli_repl.py:process_query()` (lines 160-172)
 
-**Default Model**: `granite3.3:2b` (fast, 2GB, good quality)
+**Default Model**: `cogito:3b` (fast, 3GB, good quality)
 
 ---
 
@@ -62,7 +62,7 @@ process_query():
 **Request Format**:
 ```json
 {
-  "model": "granite3.3:2b",
+  "model": "cogito:3b",
   "messages": [
     {"role": "system", "content": "System prompt..."},
     {"role": "user", "content": "User input..."}
@@ -230,7 +230,7 @@ Three comprehensive guides have been created:
 1. Use `python -m abstractvoice check-deps` before first use
 2. Ensure Ollama is running: `ollama serve &`
 3. Use `--debug` flag for troubleshooting
-4. Start with default model (`granite3.3:2b`) for testing
+4. Start with default model (`cogito:3b`) for testing
 
 ### For Maintainers
 1. Consider consolidating `check-deps` to both entry points
@@ -261,7 +261,7 @@ User Command
       │                     │
       ↓                     ↓
   LLM Models         Audio I/O
-  (granite3.3:2b)    (Coqui-TTS
+  (cogito:3b)    (Coqui-TTS
    etc.)             Whisper, VAD)
 ```
 

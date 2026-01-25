@@ -189,6 +189,13 @@ class VoiceRecognizer:
             self.listening_paused = False
             return
 
+        if p == "full":
+            # Make FULL responsive: start recording sooner, end sooner.
+            # This improves "didn't recognize me" reports on headsets.
+            self.min_speech_chunks = max(3, int(round(180.0 / float(self.chunk_duration))))
+            self.silence_timeout_chunks = max(12, int(round(900.0 / float(self.chunk_duration))))
+            return
+
         # Default/conservative for continuous modes.
         self.min_speech_chunks = int(self._default_min_speech_chunks)
         self.silence_timeout_chunks = int(self._default_silence_timeout_chunks)
