@@ -27,7 +27,9 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         self,
         language: str = "en",
         tts_model: Optional[str] = None,
-        whisper_model: str = "tiny",
+        # Default STT model: "base" is a better out-of-box quality baseline than "tiny",
+        # especially for short commands and non-ideal microphone conditions.
+        whisper_model: str = "base",
         debug_mode: bool = False,
         tts_engine: str = "auto",
         stt_engine: str = "auto",

@@ -111,8 +111,9 @@ class VoiceRecognizer:
         # window transcription ONLY for stop-phrase detection when transcriptions are paused.
         self._stop_ring = bytearray()
         self._stop_last_check = 0.0
-        self._stop_check_interval_s = 0.9
-        self._stop_window_s = 1.6
+        # Faster checks help catch "ok stop" early during playback.
+        self._stop_check_interval_s = 0.6
+        self._stop_window_s = 2.0
         self._stop_hit_count = 0
         self._stop_hit_deadline = 0.0
         

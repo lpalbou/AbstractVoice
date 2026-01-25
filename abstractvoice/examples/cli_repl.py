@@ -42,7 +42,7 @@ class VoiceREPL(cmd.Cmd):
     use_rawinput = True
     
     def __init__(self, api_url="http://localhost:11434/api/chat",
-                 model="granite3.3:2b", debug_mode=False, language="en", tts_model=None, disable_tts=False):
+                 model="cogito:3b", debug_mode=False, language="en", tts_model=None, disable_tts=False):
         super().__init__()
 
         # Debug mode
@@ -2107,7 +2107,7 @@ def parse_args():
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--api", default="http://localhost:11434/api/chat",
                       help="LLM API URL")
-    parser.add_argument("--model", default="granite3.3:2b",
+    parser.add_argument("--model", default="cogito:3b",
                       help="LLM model name")
     parser.add_argument("--language", "--lang", default="en",
                       choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
