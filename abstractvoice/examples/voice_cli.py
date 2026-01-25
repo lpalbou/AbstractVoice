@@ -106,7 +106,7 @@ def parse_args():
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--api", default="http://localhost:11434/api/chat",
                       help="LLM API URL")
-    parser.add_argument("--model", default="granite3.3:2b",
+    parser.add_argument("--model", default="cogito:3b",
                       help="LLM model name")
     parser.add_argument("--whisper", default="tiny",
                       help="Whisper model to use (tiny, base, small, medium, large)")

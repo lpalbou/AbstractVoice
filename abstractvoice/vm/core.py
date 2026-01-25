@@ -45,11 +45,14 @@ class VoiceManagerCore:
             return
 
         if self._voice_mode == "full":
-            # Full mode: allow real barge-in ONLY if AEC is enabled.
-            # Without AEC, pausing TTS interrupt avoids self-interruption.
+            # Full mode is intended for headsets (minimal echo) OR AEC-enabled setups.
+            #
+            # - Always allow speech-triggered TTS interruption (barge-in).
+            # - If AEC is not enabled, suppress transcriptions while speaking to avoid
+            #   self-feedback (but still allow the user to interrupt by voice).
             if not bool(getattr(self.voice_recognizer, "aec_enabled", False)):
-                self.voice_recognizer.pause_tts_interrupt()
-            # In full mode we keep transcriptions enabled for headset/echo-controlled setups.
+                if hasattr(self.voice_recognizer, "pause_transcriptions"):
+                    self.voice_recognizer.pause_transcriptions()
             return
 
         if self._voice_mode == "wait":
@@ -82,6 +85,10 @@ class VoiceManagerCore:
 
         if self._voice_mode == "full":
             self.voice_recognizer.resume_tts_interrupt()
+            # If we suppressed transcriptions during playback (no AEC), restore them now.
+            if not bool(getattr(self.voice_recognizer, "aec_enabled", False)):
+                if hasattr(self.voice_recognizer, "resume_transcriptions"):
+                    self.voice_recognizer.resume_transcriptions()
             return
 
         if self._voice_mode == "wait":

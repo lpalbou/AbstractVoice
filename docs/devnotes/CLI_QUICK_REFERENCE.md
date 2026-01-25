@@ -15,7 +15,7 @@
 
 ### Pattern 1: Default Voice Mode
 ```bash
-# Prerequisites: Ollama running with default model (granite3.3:2b)
+# Prerequisites: Ollama running with default model (cogito:3b)
 abstractvoice
 
 # Then in the REPL:
@@ -66,7 +66,7 @@ abstractvoice --api http://192.168.1.100:11434/api/chat --model mistral
 ## Parameter Reference
 
 ### Model Parameters
-- `--model <name>` - LLM model name (default: granite3.3:2b)
+- `--model <name>` - LLM model name (default: cogito:3b)
 - `--api <url>` - Ollama endpoint (default: http://localhost:11434/api/chat)
 - `--temperature <0.0-2.0>` - Creativity level (default: 0.4)
 - `--max-tokens <int>` - Max response length (default: 4096)
@@ -167,7 +167,7 @@ pip install abstractvoice[all]
 ### Faster Responses
 ```bash
 # Use smaller/faster model
-abstractvoice --model granite3.3:2b    # 2GB, fastest
+abstractvoice --model cogito:3b    # 2GB, fastest
 abstractvoice --model neural-chat      # 12GB, faster
 ```
 
@@ -189,7 +189,7 @@ abstractvoice --temperature 1.5        # Creative, varied
 
 | Use Case | Model | Command |
 |----------|-------|---------|
-| **Testing** | granite3.3:2b | `abstractvoice` |
+| **Testing** | cogito:3b | `abstractvoice` |
 | **General Chat** | neural-chat | `--model neural-chat` |
 | **Quality** | mistral | `--model mistral` |
 | **Best Quality** | openhermes:34b | `--model openhermes:34b` |

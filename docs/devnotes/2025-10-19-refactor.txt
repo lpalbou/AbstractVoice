@@ -262,7 +262,7 @@ This typically means:
 
 Run 'abstractvoice download-models' when you have internet access.
    Try running with --debug for more details
-   Note: Your Ollama model 'granite3.3:2b' appears to be available
+   Note: Your Ollama model 'cogito:3b' appears to be available
 (.avoice) (base) alboul@alboul-FKY4CV tests % rm -rf ~/.cache/tts ~/.local/share/tts
 (.avoice) (base) alboul@alboul-FKY4CV tests % abstractvoice download-models         
 
@@ -292,7 +292,7 @@ This typically means:
 
 Run 'abstractvoice download-models' when you have internet access.
    Try running with --debug for more details
-   Note: Your Ollama model 'granite3.3:2b' appears to be available
+   Note: Your Ollama model 'cogito:3b' appears to be available
 """ 
 
 ⏺ I can see the issue! There are two main problems:

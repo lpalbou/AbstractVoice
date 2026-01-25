@@ -94,7 +94,7 @@
 - Graceful API error handling
 
 ### Model Parameter
-- Default: `granite3.3:2b`
+- Default: `cogito:3b`
 - Configurable via: `--model <name>`
 - Passed directly to Ollama in API requests
 - No pre-validation (Ollama validates)
@@ -290,7 +290,7 @@ abstractvoice --model mistral --debug
 - **Investigation Date**: October 19, 2024
 - **Platforms Covered**: macOS, Linux, Windows
 - **Python Compatibility**: 3.8+
-- **Default Ollama Model**: granite3.3:2b
+- **Default Ollama Model**: cogito:3b
 
 ---
 
@@ -313,7 +313,7 @@ These documents are accurate as of **October 19, 2024** for AbstractVoice **v0.2
 For future versions, please verify:
 - CLI entry points in pyproject.toml remain unchanged
 - Ollama API endpoint remains http://localhost:11434/api/chat
-- Default model remains granite3.3:2b
+- Default model remains cogito:3b
 - REPL commands remain consistent
 
 ---

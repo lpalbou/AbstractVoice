@@ -36,7 +36,7 @@ Result: Launches interactive voice-enabled REPL with Ollama integration
 **Supported Arguments**:
 - `--debug` - Enable debug output
 - `--api <url>` - Ollama API endpoint (default: http://localhost:11434/api/chat)
-- `--model <name>` - LLM model (default: granite3.3:2b)
+- `--model <name>` - LLM model (default: cogito:3b)
 - `--whisper <model>` - Whisper model (tiny, base, small, medium, large)
 - `--no-listening` - Disable speech-to-text
 - `--system <prompt>` - Custom system prompt
@@ -84,17 +84,17 @@ Result: Same as Path 2 (examples dispatcher)
 **Voice CLI (abstractvoice command)**:
 ```
 voice_cli.py:parse_args()
-    ↓ --model granite3.3:2b
+    ↓ --model cogito:3b
 cli_repl.py:VoiceREPL.__init__(model=args.model)
     ↓
-self.model = "granite3.3:2b"
+self.model = "cogito:3b"
     ↓
 process_query() → POST request to Ollama API with model name
 ```
 
 **Code Path** (voice_cli.py lines 18-19):
 ```python
-parser.add_argument("--model", default="granite3.3:2b",
+parser.add_argument("--model", default="cogito:3b",
                   help="LLM model name")
 ```
 
@@ -148,7 +148,7 @@ AbstractVoice (Voice I/O)
        ↓
     Ollama API (http://localhost:11434/api/chat)
        ↓
-    LLM Model (granite3.3:2b by default)
+    LLM Model (cogito:3b by default)
 ```
 
 ### B. Integration Points
@@ -445,7 +445,7 @@ python -m abstractvoice check-deps
                                          │
                          ┌───────────────▼───────────┐
                          │  Ollama LLM Models        │
-                         │  (granite3.3:2b default) │
+                         │  (cogito:3b default) │
                          └──────────────────────────┘
 ```
 
@@ -521,7 +521,7 @@ python -m abstractvoice check-deps
 
 ```bash
 # Direct voice mode (Ollama required, running on localhost:11434)
-abstractvoice                           # Default: granite3.3:2b model
+abstractvoice                           # Default: cogito:3b model
 abstractvoice --model mistral           # Use Mistral model
 abstractvoice --language fr             # French voice
 
@@ -555,7 +555,7 @@ ollama pull openhermes          # ~34GB
 
 | Model | Size | Speed | Quality | Use Case |
 |-------|------|-------|---------|----------|
-| granite3.3:2b | 2GB | Very Fast | Good | Fast responses |
+| cogito:3b | 3GB | Very Fast | Good | Fast responses |
 | mistral:7b | 26GB | Fast | Excellent | Default quality |
 | neural-chat | 12GB | Fast | Good | Conversational |
 | openhermes:34b | 34GB | Slow | Excellent | Complex queries |
@@ -588,7 +588,7 @@ abstractvoice/
 ### Ollama Response (Current)
 ```json
 {
-  "model": "granite3.3:2b",
+  "model": "cogito:3b",
   "created_at": "2024-10-19T12:34:56Z",
   "message": {
     "role": "assistant",
