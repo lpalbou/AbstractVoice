@@ -10,6 +10,7 @@ import argparse
 import cmd
 import json
 import re
+import shlex
 import shutil
 import sys
 import importlib.util
@@ -41,8 +42,16 @@ class VoiceREPL(cmd.Cmd):
     ruler = ""  # No horizontal rule line
     use_rawinput = True
     
-    def __init__(self, api_url="http://localhost:11434/api/chat",
-                 model="cogito:3b", debug_mode=False, language="en", tts_model=None, disable_tts=False):
+    def __init__(
+        self,
+        api_url="http://localhost:11434/api/chat",
+        model="cogito:3b",
+        debug_mode=False,
+        language="en",
+        tts_model=None,
+        disable_tts=False,
+        cloning_engine: str = "f5_tts",
+    ):
         super().__init__()
 
         # Debug mode
@@ -57,6 +66,7 @@ class VoiceREPL(cmd.Cmd):
         # Language settings
         self.current_language = language
         self._initial_tts_model = tts_model
+        self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
 
         # Initialize voice manager with language support
         if disable_tts:
@@ -69,6 +79,7 @@ class VoiceREPL(cmd.Cmd):
                 debug_mode=debug_mode,
                 allow_downloads=False,
                 cloned_tts_streaming=False,
+                cloning_engine=self.cloning_engine,
             )
 
         # Current speaking voice:
@@ -125,7 +136,7 @@ class VoiceREPL(cmd.Cmd):
         intro = f"\n{Colors.BOLD}Welcome to AbstractVoice CLI REPL{Colors.END}\n"
         if self.voice_manager:
             lang_name = self.voice_manager.get_language_name()
-            intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name}\n"
+            intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name} | Cloning: {self.cloning_engine}\n"
         else:
             intro += f"API: {self.api_url} | Model: {self.model} | Voice: Disabled\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
@@ -161,7 +172,8 @@ class VoiceREPL(cmd.Cmd):
         All other commands MUST use / prefix.
         """
         # Skip empty lines
-        if not line.strip():
+        text = line.strip()
+        if not text:
             return
         
         # In PTT mode we do not accept typed input.
@@ -182,11 +194,78 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager.stop_speaking()
         except Exception:
             pass
+
+        # Shortcut: paste a reference audio path to clone+use a voice.
+        # Examples:
+        #   audio_samples/hal9000/hal9000_hello.wav
+        #   audio_samples/hal9000/hal9000_hello.wav | Hello, Dave.
+        if self._maybe_handle_clone_shortcut(text):
+            return
         
         # Everything else goes to LLM
-        self.process_query(line.strip())
+        self.process_query(text)
 
     # NOTE: PTT is implemented as a dedicated key-loop session (no typing).
+
+    def _maybe_handle_clone_shortcut(self, text: str) -> bool:
+        """Best-effort: treat a pasted WAV/FLAC/OGG path as `/clone_use`."""
+        if not self.voice_manager:
+            return False
+
+        raw = (text or "").strip()
+        if not raw:
+            return False
+        if raw.startswith("/"):
+            return False
+
+        # Optional transcript with a simple pipe syntax:
+        #   path.wav | Hello.
+        left, sep, right = raw.partition("|")
+        path_str = left.strip()
+        ref_text = right.strip() if sep else ""
+        reference_text = ref_text or None
+
+        # Strip naive wrapping quotes.
+        if (path_str.startswith('"') and path_str.endswith('"')) or (path_str.startswith("'") and path_str.endswith("'")):
+            path_str = path_str[1:-1].strip()
+
+        try:
+            from pathlib import Path
+
+            p = Path(path_str).expanduser()
+        except Exception:
+            return False
+
+        if not p.exists():
+            return False
+
+        exts = {".wav", ".flac", ".ogg"}
+        if p.is_file() and p.suffix.lower() not in exts:
+            return False
+        if p.is_dir():
+            try:
+                has_audio = any(x.is_file() and x.suffix.lower() in exts for x in p.iterdir())
+            except Exception:
+                has_audio = False
+            if not has_audio:
+                return False
+
+        # Build a `/clone_use` call with a stable name.
+        import shlex as _shlex
+
+        default_name = p.stem if p.is_file() else p.name
+        args = f"{_shlex.quote(str(p))} {_shlex.quote(default_name)}"
+        if reference_text:
+            args += f" --text {_shlex.quote(reference_text)}"
+        try:
+            self.do_clone_use(args)
+        except Exception as e:
+            print(f"❌ Clone shortcut failed: {e}")
+            if self.debug_mode:
+                import traceback
+
+                traceback.print_exc()
+        return True
         
     def process_query(self, query):
         """Process a query and get a response from the LLM."""
@@ -289,7 +368,7 @@ class VoiceREPL(cmd.Cmd):
             if self.voice_manager and self.use_tts:
                 try:
                     # UX guard: never trigger big cloning downloads during normal chat.
-                    if self.current_tts_voice and not self._is_cloning_runtime_ready():
+                    if self.current_tts_voice and not self._is_cloning_runtime_ready(voice_id=self.current_tts_voice):
                         print(
                             "ℹ️  Cloned voice selected but cloning runtime is not ready.\n"
                             "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
@@ -1165,6 +1244,51 @@ class VoiceREPL(cmd.Cmd):
                 return vid
         return None
 
+    def _resolve_clone_id_by_source(self, source: str, *, engine: str | None = None) -> str | None:
+        """Find a cloned voice by its stored meta.source (best-effort)."""
+        if not self.voice_manager:
+            return None
+
+        try:
+            from pathlib import Path
+
+            target = Path(str(source)).expanduser()
+            try:
+                target_norm = str(target.resolve())
+            except Exception:
+                target_norm = str(target)
+        except Exception:
+            target_norm = str(source)
+
+        try:
+            voices = self.voice_manager.list_cloned_voices()
+        except Exception:
+            return None
+
+        wanted_engine = (str(engine).strip().lower() if engine else None) or None
+        for v in voices:
+            meta = v.get("meta") or {}
+            src = meta.get("source")
+            if not src:
+                continue
+            try:
+                from pathlib import Path
+
+                p = Path(str(src)).expanduser()
+                try:
+                    src_norm = str(p.resolve())
+                except Exception:
+                    src_norm = str(p)
+            except Exception:
+                src_norm = str(src)
+
+            if src_norm != target_norm:
+                continue
+            if wanted_engine and (str(v.get("engine") or "").strip().lower() != wanted_engine):
+                continue
+            return str(v.get("voice_id") or "").strip() or None
+        return None
+
     def do_clone_info(self, arg):
         """Show details for a cloned voice.
 
@@ -1303,27 +1427,159 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice from a reference file or folder.
 
         Usage:
-          /clone <path> [name]
+          /clone <path> [name] [--engine f5_tts|chroma] [--text "reference transcript"]
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
             return
-        parts = arg.strip().split()
-        if not parts:
-            print("Usage: /clone <path> [name]")
-            return
-        path = parts[0]
-        name = parts[1] if len(parts) > 1 else None
+
         try:
-            voice_id = self.voice_manager.clone_voice(path, name=name)
+            parts = shlex.split(arg.strip())
+        except ValueError as e:
+            print(f"Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]  (parse error: {e})")
+            return
+
+        if not parts:
+            print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            return
+
+        engine = None
+        reference_text = None
+        pos = []
+        i = 0
+        while i < len(parts):
+            tok = parts[i]
+            if tok in ("--engine",):
+                if i + 1 >= len(parts):
+                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    return
+                engine = parts[i + 1]
+                i += 2
+                continue
+            if tok in ("--text", "--reference-text", "--reference_text"):
+                if i + 1 >= len(parts):
+                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    return
+                reference_text = parts[i + 1]
+                i += 2
+                continue
+            pos.append(tok)
+            i += 1
+
+        if not pos:
+            print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            return
+
+        path = pos[0]
+        name = pos[1] if len(pos) > 1 else None
+        try:
+            voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine)
             print(f"✅ Cloned voice created: {voice_id}")
             print("   Use /tts_voice clone <id-or-name> to select it.")
             print("   Tip: set reference text for best quality:")
             print("     /clone_set_ref_text <id-or-name> \"...\"")
-            if not self._is_cloning_runtime_ready():
+            if not self._is_cloning_runtime_ready(voice_id=voice_id):
                 print("   (Cloning runtime not ready yet; run /cloning_status and /cloning_download first.)")
         except Exception as e:
             print(f"❌ Clone failed: {e}")
+
+    def do_clone_use(self, arg):
+        """Clone a voice (or reuse an existing one) and immediately select it.
+
+        Usage:
+          /clone_use <path> [name] [--engine f5_tts|chroma] [--text "reference transcript"]
+
+        Shortcut:
+          - Paste a WAV/FLAC/OGG path directly (optionally: `path.wav | transcript`).
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        try:
+            parts = shlex.split(arg.strip())
+        except ValueError as e:
+            print(f"Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]  (parse error: {e})")
+            return
+
+        if not parts:
+            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            return
+
+        engine = None
+        reference_text = None
+        pos = []
+        i = 0
+        while i < len(parts):
+            tok = parts[i]
+            if tok in ("--engine",):
+                if i + 1 >= len(parts):
+                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    return
+                engine = parts[i + 1]
+                i += 2
+                continue
+            if tok in ("--text", "--reference-text", "--reference_text"):
+                if i + 1 >= len(parts):
+                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    return
+                reference_text = parts[i + 1]
+                i += 2
+                continue
+            pos.append(tok)
+            i += 1
+
+        if not pos:
+            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            return
+
+        path = pos[0]
+        name = pos[1] if len(pos) > 1 else None
+
+        engine_name = str(engine or self.cloning_engine or "f5_tts").strip().lower()
+
+        # If name isn't provided, use something stable for UX.
+        if not name:
+            try:
+                from pathlib import Path
+
+                p = Path(path)
+                name = p.stem if p.is_file() else p.name
+            except Exception:
+                name = None
+
+        # Reuse a prior clone created from the same source path + engine.
+        voice_id = self._resolve_clone_id_by_source(path, engine=engine_name)
+        if voice_id:
+            if reference_text:
+                try:
+                    self.voice_manager.set_cloned_voice_reference_text(voice_id, reference_text)
+                    print("✅ Reusing cloned voice and updating reference text.")
+                except Exception:
+                    print("✅ Reusing cloned voice.")
+            else:
+                print("✅ Reusing cloned voice.")
+        else:
+            try:
+                voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine_name)
+                print(f"✅ Cloned voice created: {voice_id}")
+                if reference_text:
+                    print("   (Reference text provided)")
+                else:
+                    print("   Tip: set reference text for best quality:")
+                    print("     /clone_set_ref_text <id-or-name> \"...\"")
+            except Exception as e:
+                print(f"❌ Clone failed: {e}")
+                return
+
+        # Select if runtime is ready (no surprise downloads).
+        if not self._is_cloning_runtime_ready(voice_id=voice_id):
+            print("ℹ️  Cloning runtime is not ready (would trigger large downloads).")
+            print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
+            return
+
+        self.current_tts_voice = voice_id
+        print(f"✅ Using cloned voice: {voice_id}")
 
     def do_clone_set_ref_text(self, arg):
         """Set the reference transcript for a cloned voice (quality fix).
@@ -1393,7 +1649,7 @@ class VoiceREPL(cmd.Cmd):
             return
 
         # Do not allow selecting a cloned voice unless the runtime is ready.
-        if not self._is_cloning_runtime_ready():
+        if not self._is_cloning_runtime_ready(voice_id=match):
             print("❌ Cloning runtime is not ready (would trigger large downloads).")
             print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
             return
@@ -1434,10 +1690,6 @@ class VoiceREPL(cmd.Cmd):
 
     def do_cloning_status(self, arg):
         """Show whether cloning runtime is ready locally (no downloads)."""
-        if importlib.util.find_spec("f5_tts") is None:
-            print("Cloning runtime not installed in this environment (missing: f5_tts).")
-            print("Install: pip install \"abstractvoice[cloning]\"")
-            return
         try:
             import torch
 
@@ -1451,11 +1703,28 @@ class VoiceREPL(cmd.Cmd):
             print(f"mps_available:  {mps}")
         except Exception:
             pass
-        if self._is_openf5_cached():
-            print("✅ OpenF5 artifacts: present (cached)")
+
+        print(f"default_cloning_engine: {self.cloning_engine}")
+
+        if importlib.util.find_spec("f5_tts") is None:
+            print("ℹ️  OpenF5 runtime: not installed (missing: f5_tts)")
+            print("   Install: pip install \"abstractvoice[cloning]\"")
         else:
-            print("ℹ️  OpenF5 artifacts: not present (will require ~5.4GB download)")
-            print("Run: /cloning_download")
+            if self._is_openf5_cached():
+                print("✅ OpenF5 artifacts: present (cached)")
+            else:
+                print("ℹ️  OpenF5 artifacts: not present (will require ~5.4GB download)")
+                print("   Run: /cloning_download f5_tts")
+
+        if importlib.util.find_spec("transformers") is None or importlib.util.find_spec("torch") is None:
+            print("ℹ️  Chroma runtime: not installed (missing: transformers/torch)")
+            print("   Install: pip install \"abstractvoice[chroma]\"")
+        else:
+            if self._is_chroma_cached():
+                print("✅ Chroma artifacts: present (cached)")
+            else:
+                print("ℹ️  Chroma artifacts: not present (will require a large download + HF access)")
+                print("   Run: /cloning_download chroma")
         try:
             if self.voice_manager:
                 info = self.voice_manager.get_cloning_runtime_info()
@@ -1490,15 +1759,33 @@ class VoiceREPL(cmd.Cmd):
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
             return
-        if importlib.util.find_spec("f5_tts") is None:
-            print("❌ Cloning runtime not installed in this environment (missing: f5_tts).")
-            print("   Install: pip install \"abstractvoice[cloning]\"")
+
+        target = (arg or "").strip().lower() or self.cloning_engine
+        engine_name = "f5_tts" if target in ("openf5", "f5", "f5_tts") else target
+        if engine_name == "f5_tts":
+            if importlib.util.find_spec("f5_tts") is None:
+                print("❌ OpenF5 runtime not installed in this environment (missing: f5_tts).")
+                print("   Install: pip install \"abstractvoice[cloning]\"")
+                return
+        elif engine_name == "chroma":
+            # Artifacts download uses huggingface_hub and does not require loading the model.
+            if importlib.util.find_spec("huggingface_hub") is None:
+                print("❌ huggingface_hub is required to download Chroma artifacts.")
+                print("   Install: pip install huggingface_hub")
+                return
+        else:
+            print("Usage: /cloning_download [f5_tts|chroma]")
             return
+
         try:
             cloner = self.voice_manager._get_voice_cloner()  # REPL convenience
-            engine = cloner._get_engine()  # explicit download is an engine concern
-            print("Downloading OpenF5 artifacts (~5.4GB). This is a one-time cache per machine.")
-            engine.ensure_openf5_artifacts_downloaded()
+            engine = cloner._get_engine(engine_name)  # explicit download is an engine concern
+            if engine_name == "f5_tts":
+                print("Downloading OpenF5 artifacts (~5.4GB). This is a one-time cache per machine.")
+                engine.ensure_openf5_artifacts_downloaded()
+            else:
+                print("Downloading Chroma artifacts (very large; requires HF access). This is a one-time cache per machine.")
+                engine.ensure_chroma_artifacts_downloaded()
             print("✅ Download complete.")
         except Exception as e:
             print(f"❌ Download failed: {e}")
@@ -1516,7 +1803,42 @@ class VoiceREPL(cmd.Cmd):
         vocab = next(iter(root.rglob("vocab*.txt")), None) or next(iter(root.rglob("*.txt")), None)
         return bool(cfg and ckpt and vocab)
 
-    def _is_cloning_runtime_ready(self) -> bool:
+    def _is_chroma_cached(self) -> bool:
+        """Heuristic local check that avoids importing huggingface_hub."""
+        from pathlib import Path
+        import os
+
+        root = Path(os.path.expanduser("~/.cache/abstractvoice/chroma"))
+        if not root.exists():
+            return False
+        required = [
+            "config.json",
+            "processor_config.json",
+            "model.safetensors.index.json",
+            "modeling_chroma.py",
+            "processing_chroma.py",
+            "configuration_chroma.py",
+        ]
+        return all((root / name).exists() for name in required)
+
+    def _is_cloning_runtime_ready(self, *, voice_id: str | None = None, engine: str | None = None) -> bool:
+        """Return whether the selected cloning engine is ready locally (no downloads)."""
+        eng = str(engine or "").strip().lower()
+        if not eng and voice_id and self.voice_manager:
+            try:
+                info = self.voice_manager.get_cloned_voice(voice_id)
+                eng = str((info or {}).get("engine") or "").strip().lower()
+            except Exception:
+                eng = ""
+        if not eng:
+            eng = str(getattr(self, "cloning_engine", "f5_tts") or "f5_tts").strip().lower()
+
+        if eng == "chroma":
+            return (
+                importlib.util.find_spec("torch") is not None
+                and importlib.util.find_spec("transformers") is not None
+                and self._is_chroma_cached()
+            )
         return importlib.util.find_spec("f5_tts") is not None and self._is_openf5_cached()
 
     def _seed_hal9000_voice(self):
@@ -1694,6 +2016,25 @@ class VoiceREPL(cmd.Cmd):
     
     def do_clear(self, arg):
         """Clear chat history."""
+        self._clear_history()
+        print("History cleared")
+
+    def do_reset(self, arg):
+        """Reset the session (history + current voice selection)."""
+        try:
+            if self.voice_manager:
+                self.voice_manager.stop_speaking()
+        except Exception:
+            pass
+
+        # Reset voice selection back to Piper (default).
+        self.current_tts_voice = None
+
+        # Clear chat history.
+        self._clear_history()
+        print("✅ Reset.")
+
+    def _clear_history(self) -> None:
         self.messages = [{"role": "system", "content": self.system_prompt}]
         # Reset token counters
         self.system_tokens = 0
@@ -1701,7 +2042,6 @@ class VoiceREPL(cmd.Cmd):
         self.assistant_tokens = 0
         # Recalculate system tokens
         self._count_system_tokens()
-        print("History cleared")
     
     def do_system(self, arg):
         """Set the system prompt."""
@@ -1802,6 +2142,7 @@ class VoiceREPL(cmd.Cmd):
         print("Commands:")
         print("  /exit, /q, /quit    Exit REPL")
         print("  /clear              Clear history")
+        print("  /reset              Reset (history + voice)")
         print("  /tts on|off         Toggle TTS")
         print("  /voice <mode>       Voice input: off|full|wait|stop|ptt")
         print("  /voice ptt          Push-to-talk session (SPACE captures, ESC exits)")
@@ -1831,6 +2172,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /clone_export ...   Export a cloned voice (.zip)")
         print("  /clone_import ...   Import a cloned voice (.zip)")
         print("  /clone <path> [nm]  Add a cloned voice from WAV/FLAC/OGG")
+        print("  /clone_use <path>   Clone+select voice (or reuse)")
         print("  /clone-my-voice     Record a short prompt and clone it")
         print("  /tts_voice piper    Speak with Piper (default)")
         print("  /tts_voice clone X  Speak with a cloned voice (requires cloning runtime + cache)")
@@ -1847,6 +2189,7 @@ class VoiceREPL(cmd.Cmd):
         print()
         print("Note: ALL commands must start with / except 'stop'")
         print("In STOP mode, say 'stop' / 'ok stop' to stop speaking (does not exit voice mode).")
+        print("Shortcut: paste a WAV/FLAC/OGG path to clone+select (optionally: `path | transcript`).")
     
     def emptyline(self):
         """Handle empty line input."""
@@ -2109,6 +2452,12 @@ def parse_args():
                       help="LLM API URL")
     parser.add_argument("--model", default="cogito:3b",
                       help="LLM model name")
+    parser.add_argument(
+        "--cloning-engine",
+        default="f5_tts",
+        choices=["f5_tts", "chroma"],
+        help="Default cloning backend for new voices (f5_tts|chroma)",
+    )
     parser.add_argument("--language", "--lang", default="en",
                       choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
                       help="Voice language (en=English, fr=French, es=Spanish, de=German, it=Italian, ru=Russian, multilingual=All)")
@@ -2129,7 +2478,8 @@ def main():
             model=args.model,
             debug_mode=args.debug,
             language=args.language,
-            tts_model=args.tts_model
+            tts_model=args.tts_model,
+            cloning_engine=args.cloning_engine,
         )
         repl.cmdloop()
     except KeyboardInterrupt:

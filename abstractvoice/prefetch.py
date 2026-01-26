@@ -22,9 +22,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Prefetch OpenF5 artifacts for cloning (~5.4GB, requires abstractvoice[cloning])",
     )
+    parser.add_argument(
+        "--chroma",
+        action="store_true",
+        help="Prefetch Chroma-4B artifacts (~14GB+, requires HF access; install abstractvoice[chroma] to run inference)",
+    )
     args = parser.parse_args(argv)
 
-    if not args.stt_model and not args.openf5:
+    if not args.stt_model and not args.openf5 and not args.chroma:
         parser.print_help()
         return 2
 
@@ -46,9 +51,16 @@ def main(argv: list[str] | None = None) -> int:
         engine.ensure_openf5_artifacts_downloaded()
         print("✅ OpenF5 artifacts ready.")
 
+    if args.chroma:
+        from abstractvoice.cloning.engine_chroma import ChromaVoiceCloningEngine
+
+        print("Downloading Chroma artifacts (cloning)…")
+        engine = ChromaVoiceCloningEngine(debug=True)
+        engine.ensure_chroma_artifacts_downloaded()
+        print("✅ Chroma artifacts ready.")
+
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

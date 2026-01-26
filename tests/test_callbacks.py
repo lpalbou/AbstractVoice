@@ -6,8 +6,39 @@ This script demonstrates the precise timing of the new callback system.
 """
 
 import time
+import pytest
 from abstractvoice import VoiceManager
 
+
+def _default_output_device_available() -> bool:
+    try:
+        import sounddevice as sd
+
+        default = getattr(sd, "default", None)
+        dev = getattr(default, "device", None) if default is not None else None
+        out_dev = None
+        if isinstance(dev, (list, tuple)) and len(dev) >= 2:
+            out_dev = dev[1]
+        elif dev is not None:
+            out_dev = dev
+
+        if out_dev is None:
+            return False
+        try:
+            out_dev = int(out_dev)
+        except Exception:
+            return False
+        if out_dev < 0:
+            return False
+
+        # Validate that PortAudio can query the default output device.
+        sd.query_devices(out_dev, kind="output")
+        return True
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(not _default_output_device_available(), reason="No default audio output device available")
 def test_audio_callbacks():
     """Test the new audio lifecycle callbacks."""
     

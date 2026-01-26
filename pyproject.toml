@@ -57,6 +57,20 @@ cloning = [
     "f5-tts>=1.1.0",
 ]
 
+# Chroma (optional; GPU-heavy end-to-end speech model).
+chroma = [
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "torchvision>=0.15.0",
+    "transformers>=5.0.0rc0",
+    "accelerate>=1.0.0",
+    "av>=14.0.0",
+    "librosa>=0.11.0",
+    "audioread>=3.0.0",
+    "pillow>=11.0.0",
+    "safetensors>=0.5.0",
+]
+
 # Optional AEC (Acoustic Echo Cancellation) for true barge-in.
 # This is intentionally opt-in because platform support/toolchain requirements vary.
 aec = [
