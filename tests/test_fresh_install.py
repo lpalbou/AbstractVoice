@@ -98,6 +98,10 @@ def test_cli_commands():
     print("\n📝 Testing /setvoice (list)")
     cli.onecmd('/setvoice')
 
+    # Clone management (safe: requires explicit confirmation to delete all).
+    print("\n📝 Testing /clone_rm_all (no confirmation)")
+    cli.onecmd('/clone_rm_all')
+
     print("\n✅ CLI commands test complete!")
 
 

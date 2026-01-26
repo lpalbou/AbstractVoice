@@ -1232,6 +1232,7 @@ class VoiceREPL(cmd.Cmd):
                 src_txt = f" [{src}]" if src else ""
                 current = " (current)" if self.current_tts_voice == vid else ""
                 print(f"  - {name}: {vid}{src_txt}{current}")
+            print("Tip: /clone_rm <id-or-name> deletes one; /clone_rm_all --yes deletes all.")
         except Exception as e:
             print(f"❌ Error listing cloned voices: {e}")
 
@@ -1386,6 +1387,55 @@ class VoiceREPL(cmd.Cmd):
             self.current_tts_voice = None
         self.voice_manager.delete_cloned_voice(vid)
         print("✅ Deleted.")
+
+    def do_clone_rm_all(self, arg):
+        """Remove ALL cloned voices from the local store.
+
+        Usage:
+          /clone_rm_all --yes
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        confirm = (arg or "").strip().lower()
+        if confirm not in ("--yes", "-y", "yes"):
+            try:
+                n = len(self.voice_manager.list_cloned_voices() or [])
+            except Exception:
+                n = 0
+            if n <= 0:
+                print("No cloned voices to delete.")
+                return
+            print(f"⚠️  This will permanently delete {n} cloned voice(s).")
+            print("Re-run with: /clone_rm_all --yes")
+            return
+
+        # If currently selected, switch back to Piper.
+        self.current_tts_voice = None
+
+        deleted = 0
+        failed = 0
+        try:
+            voices = list(self.voice_manager.list_cloned_voices() or [])
+        except Exception as e:
+            print(f"❌ Error listing cloned voices: {e}")
+            return
+
+        for v in voices:
+            vid = str(v.get("voice_id") or v.get("voice") or "").strip()
+            if not vid:
+                continue
+            try:
+                self.voice_manager.delete_cloned_voice(vid)
+                deleted += 1
+            except Exception:
+                failed += 1
+
+        if failed:
+            print(f"✅ Deleted {deleted} cloned voice(s). ⚠️ Failed: {failed}")
+        else:
+            print(f"✅ Deleted {deleted} cloned voice(s).")
 
     def do_clone_export(self, arg):
         """Export a cloned voice bundle (.zip).
@@ -2169,6 +2219,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /clone_ref <id>     Show cloned voice reference text")
         print("  /clone_rename ...   Rename a cloned voice")
         print("  /clone_rm <id>      Delete a cloned voice")
+        print("  /clone_rm_all --yes Delete ALL cloned voices")
         print("  /clone_export ...   Export a cloned voice (.zip)")
         print("  /clone_import ...   Import a cloned voice (.zip)")
         print("  /clone <path> [nm]  Add a cloned voice from WAV/FLAC/OGG")
