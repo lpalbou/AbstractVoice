@@ -35,6 +35,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         stt_engine: str = "auto",
         allow_downloads: bool = True,
         cloned_tts_streaming: bool = True,
+        cloning_engine: str = "f5_tts",
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
@@ -44,6 +45,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Cloned TTS can either stream batches (lower time-to-first-audio, but may
         # introduce gaps if generation can't stay ahead) or generate full audio first.
         self.cloned_tts_streaming = bool(cloned_tts_streaming)
+        self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
 
         language = (language or "en").lower()
         if language not in self.LANGUAGES:
@@ -97,4 +99,3 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Default to "wait" for robustness without echo cancellation.
         # "full" is intended for headset / echo-controlled environments.
         self._voice_mode = "wait"
-

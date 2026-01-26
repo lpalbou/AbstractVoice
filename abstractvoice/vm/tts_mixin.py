@@ -27,11 +27,24 @@ class TtsMixin:
                 whisper_model=getattr(self, "whisper_model", "tiny"),
                 reference_text_whisper_model="small",
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
+                default_engine=str(getattr(self, "cloning_engine", "f5_tts") or "f5_tts"),
             )
         return self._voice_cloner
 
-    def clone_voice(self, reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None) -> str:
-        return self._get_voice_cloner().clone_voice(reference_audio_path, name=name, reference_text=reference_text)
+    def clone_voice(
+        self,
+        reference_audio_path: str,
+        name: str | None = None,
+        *,
+        reference_text: str | None = None,
+        engine: str | None = None,
+    ) -> str:
+        return self._get_voice_cloner().clone_voice(
+            reference_audio_path,
+            name=name,
+            reference_text=reference_text,
+            engine=engine,
+        )
 
     def list_cloned_voices(self):
         return self._get_voice_cloner().list_cloned_voices()
@@ -158,9 +171,10 @@ class TtsMixin:
                             self.tts_engine.audio_player.play_audio(mono)
                         else:
                             break
-                except Exception:
+                except Exception as e:
                     # Best-effort: never crash caller thread.
-                    pass
+                    if bool(getattr(self, "debug_mode", False)):
+                        print(f"⚠️  Cloned TTS failed: {e}")
                 finally:
                     try:
                         synth_active = getattr(self, "_cloned_synthesis_active", None)
@@ -357,4 +371,3 @@ class TtsMixin:
             return True
         except Exception:
             return False
-
