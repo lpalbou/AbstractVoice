@@ -22,7 +22,7 @@ def test_full_mode_does_not_pause_tts_interrupt_when_aec_enabled():
     assert calls["pause_transcriptions"] == 0
 
 
-def test_full_mode_pauses_transcriptions_when_aec_disabled():
+def test_full_mode_does_not_pause_transcriptions_when_aec_disabled():
     vm = VoiceManager()
     vm.set_voice_mode("full")
 
@@ -40,5 +40,5 @@ def test_full_mode_pauses_transcriptions_when_aec_disabled():
     vm.voice_recognizer = FakeVoiceRecognizer()
     vm._on_tts_start()
     assert calls["pause"] == 0
-    assert calls["pause_transcriptions"] == 1
+    assert calls["pause_transcriptions"] == 0
 

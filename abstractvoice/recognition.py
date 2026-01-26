@@ -161,6 +161,9 @@ class VoiceRecognizer:
         self._aec = None
         self._far_end_lock = threading.Lock()
         self._far_end_pcm16 = bytearray()
+        # Lightweight echo gating (for full-mode barge-in without AEC).
+        self._echo_gate_enabled = False
+        self._echo_corr_threshold = 0.72
         if aec_enabled:
             self.enable_aec(True, stream_delay_ms=aec_stream_delay_ms)
 
@@ -194,11 +197,14 @@ class VoiceRecognizer:
             # This improves "didn't recognize me" reports on headsets.
             self.min_speech_chunks = max(3, int(round(180.0 / float(self.chunk_duration))))
             self.silence_timeout_chunks = max(12, int(round(900.0 / float(self.chunk_duration))))
+            # Echo gating is useful when AEC is not enabled.
+            self._echo_gate_enabled = True
             return
 
         # Default/conservative for continuous modes.
         self.min_speech_chunks = int(self._default_min_speech_chunks)
         self.silence_timeout_chunks = int(self._default_silence_timeout_chunks)
+        self._echo_gate_enabled = False
 
     def enable_aec(self, enabled: bool = True, *, stream_delay_ms: int = 0) -> bool:
         """Enable/disable acoustic echo cancellation (optional).
@@ -224,8 +230,7 @@ class VoiceRecognizer:
 
         audio_chunk: mono float32 in [-1, 1] (as written to speaker output)
         """
-        if not self.aec_enabled:
-            return
+        # Store far-end audio for AEC and/or echo gating.
         if audio_chunk is None or len(audio_chunk) == 0:
             return
 
@@ -238,6 +243,34 @@ class VoiceRecognizer:
 
         with self._far_end_lock:
             self._far_end_pcm16.extend(pcm16)
+            # Cap buffer to a few seconds to avoid unbounded growth.
+            max_bytes = int(self.sample_rate * 3.0) * 2
+            if len(self._far_end_pcm16) > max_bytes:
+                del self._far_end_pcm16[: len(self._far_end_pcm16) - max_bytes]
+
+    def _is_likely_echo(self, near_pcm16: bytes) -> bool:
+        """Return True if near-end chunk looks like far-end echo.
+
+        This is a lightweight correlation gate (not AEC). It reduces false barge-in
+        triggers in FULL mode when AEC is not enabled.
+        """
+        try:
+            far = self._pop_far_end_pcm16(len(near_pcm16))
+            if not far or far == b"\x00" * len(far):
+                return False
+            n = np.frombuffer(near_pcm16, dtype=np.int16).astype(np.float32)
+            f = np.frombuffer(far, dtype=np.int16).astype(np.float32)
+            if n.size < 32:
+                return False
+            # Normalize.
+            n = n - float(np.mean(n))
+            f = f - float(np.mean(f))
+            nn = float(np.linalg.norm(n)) + 1e-6
+            fn = float(np.linalg.norm(f)) + 1e-6
+            corr = float(np.dot(n, f) / (nn * fn))
+            return corr >= float(self._echo_corr_threshold)
+        except Exception:
+            return False
 
     def _pop_far_end_pcm16(self, nbytes: int) -> bytes:
         if nbytes <= 0:
@@ -480,7 +513,16 @@ class VoiceRecognizer:
                         self.tts_interrupt_enabled and
                         speech_count >= self.min_speech_chunks and 
                         not recording):
-                        self.tts_interrupt_callback()
+                        # In FULL mode without AEC, avoid false barge-in from echo by
+                        # gating on near/far correlation.
+                        if self._profile == "full" and self._echo_gate_enabled and not self.aec_enabled:
+                            if self._is_likely_echo(audio_data):
+                                if self.debug_mode:
+                                    print(" > Echo-gated barge-in (ignored)")
+                            else:
+                                self.tts_interrupt_callback()
+                        else:
+                            self.tts_interrupt_callback()
                         if self.debug_mode:
                             print(" > TTS interrupted by user speech")
                     
