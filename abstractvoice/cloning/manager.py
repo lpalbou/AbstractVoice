@@ -90,15 +90,22 @@ class VoiceCloner:
         if not p.exists():
             raise FileNotFoundError(str(p))
 
+        supported = {".wav", ".flac", ".ogg"}
+
         engine_name = str(engine or self._default_engine).strip().lower()
         if engine_name not in ("f5_tts", "chroma"):
             raise ValueError("engine must be one of: f5_tts|chroma")
 
         if p.is_dir():
-            refs = sorted([x for x in p.glob("*") if x.suffix.lower() in {".wav", ".flac", ".ogg"}])
+            refs = sorted([x for x in p.glob("*") if x.suffix.lower() in supported])
             if not refs:
                 raise ValueError(f"No supported reference audio files found in: {p}")
         else:
+            if p.suffix.lower() not in supported:
+                raise ValueError(
+                    f"Unsupported reference audio format: {p.suffix}. "
+                    f"Provide WAV/FLAC/OGG (got: {p})."
+                )
             refs = [p]
 
         if engine_name == "chroma" and len(refs) != 1:
@@ -195,6 +202,12 @@ class VoiceCloner:
             raise ValueError("Voice cloning currently supports WAV output only.")
 
         voice = self.store.get_voice(voice_id)
+        # Best-effort: normalize stored references (e.g. MP3-in-WAV) to avoid noisy
+        # native decoder stderr output during synthesis.
+        try:
+            self.store.normalize_reference_audio(voice_id)
+        except Exception:
+            pass
         ref_paths = self.store.resolve_reference_paths(voice_id)
         ref_text = self._ensure_reference_text(voice_id)
         eng = self._get_engine(getattr(voice, "engine", None) or "f5_tts")
@@ -209,6 +222,10 @@ class VoiceCloner:
         max_chars: int = 120,
     ):
         voice = self.store.get_voice(voice_id)
+        try:
+            self.store.normalize_reference_audio(voice_id)
+        except Exception:
+            pass
         ref_paths = self.store.resolve_reference_paths(voice_id)
         ref_text = self._ensure_reference_text(voice_id)
         eng = self._get_engine(getattr(voice, "engine", None) or "f5_tts")

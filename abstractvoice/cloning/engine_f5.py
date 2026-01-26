@@ -19,6 +19,24 @@ def _load_as_mono_float(path: Path) -> Tuple[np.ndarray, int]:
     return mono, int(sr)
 
 
+def _load_as_torch_channels_first(path: Path):
+    """Load audio as a float32 torch Tensor shaped (channels, frames).
+
+    We prefer `soundfile` over `torchaudio.load()` because torchaudio's I/O backend
+    can vary by version (e.g. TorchCodec requirements) and may emit noisy stderr
+    logs during decode that corrupt interactive CLI output.
+    """
+    try:
+        import torch
+    except Exception as e:  # pragma: no cover - torch is required by f5_tts runtime anyway
+        raise RuntimeError("torch is required for F5 cloning inference") from e
+
+    audio, sr = sf.read(str(path), always_2d=True, dtype="float32")
+    # soundfile: (frames, channels) -> torch: (channels, frames)
+    arr = np.ascontiguousarray(audio.T, dtype=np.float32)
+    return torch.from_numpy(arr), int(sr)
+
+
 @dataclass(frozen=True)
 class OpenF5Artifacts:
     model_cfg: Path
@@ -356,9 +374,7 @@ class F5TTSVoiceCloningEngine:
 
                 from f5_tts.infer.utils_infer import infer_batch_process
                 import numpy as _np
-                import torchaudio
-
-                audio, sr = torchaudio.load(ref_audio_path)
+                audio, sr = _load_as_torch_channels_first(Path(ref_audio_path))
                 # infer_batch_process returns a generator yielding final_wave at the end.
                 final_wave, final_sr, _spec = next(
                     infer_batch_process(
@@ -473,9 +489,7 @@ class F5TTSVoiceCloningEngine:
                 batches = _split_batches(text, int(max_chars)) or [" "]
 
                 from f5_tts.infer.utils_infer import infer_batch_process
-                import torchaudio
-
-                audio, sr = torchaudio.load(str(ref_wav))
+                audio, sr = _load_as_torch_channels_first(Path(ref_wav))
 
                 for chunk, sr_out in infer_batch_process(
                     (audio, sr),
@@ -502,4 +516,3 @@ class F5TTSVoiceCloningEngine:
                 Path(ref_wav).unlink(missing_ok=True)  # type: ignore[arg-type]
             except Exception:
                 pass
-

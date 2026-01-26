@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 
 def test_voice_cloner_dispatches_by_engine(tmp_path: Path):
     import numpy as np
@@ -39,3 +41,16 @@ def test_voice_cloner_dispatches_by_engine(tmp_path: Path):
     assert sr == 24000
     assert len(audio) == 10
 
+
+def test_voice_cloner_rejects_unsupported_reference_file(tmp_path: Path):
+    from abstractvoice.cloning.manager import VoiceCloner
+    from abstractvoice.cloning.store import VoiceCloneStore
+
+    ref = tmp_path / "ref.mp3"
+    ref.write_bytes(b"not audio")
+
+    store = VoiceCloneStore(base_dir=tmp_path / "store")
+    cloner = VoiceCloner(store=store, allow_downloads=False)
+
+    with pytest.raises(ValueError, match=r"Unsupported reference audio format"):
+        cloner.clone_voice(str(ref), name="v", reference_text="hello.", engine="chroma")
