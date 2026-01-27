@@ -102,10 +102,7 @@ class VoiceREPL(cmd.Cmd):
         self._ptt_busy = False
         
         # System prompt
-        self.system_prompt = """
-                You are a Helpful Voice Assistant. By design, your answers are short and more conversational, unless specifically asked to detail something.
-                You only speak, so never use any text formatting or markdown. Write for a speaker.
-                """
+        self.system_prompt = """You are a Helpful Voice Assistant. By design, your answers are short and conversational, unless specifically asked to detail something. You only speak, so never use any text formatting, hinting or markdown."""
         
         # Message history
         self.messages = [{"role": "system", "content": self.system_prompt}]

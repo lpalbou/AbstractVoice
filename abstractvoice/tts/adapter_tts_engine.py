@@ -55,19 +55,14 @@ class AdapterTTSEngine:
         if getattr(self.audio_player, "sample_rate", None) == sr:
             return
 
-        # Changing sample rate requires restarting the underlying stream.
-        was_playing = bool(getattr(self.audio_player, "is_playing", False))
-        try:
-            self.audio_player.stop_stream()
-        except Exception:
-            # Best-effort; don't crash on cleanup issues.
-            pass
+        # If a stream is already open, keep it stable and rely on resampling at
+        # enqueue time (see `NonBlockingAudioPlayer.play_audio(sample_rate=...)`).
+        # This avoids frequent close/reopen cycles that can be flaky on some
+        # PortAudio/CoreAudio device configurations.
+        if getattr(self.audio_player, "stream", None) is not None:
+            return
 
         self.audio_player.sample_rate = sr
-
-        # If we were mid-playback we cannot safely resume; callers can re-speak.
-        if was_playing and self.debug_mode:
-            print(f"⚠️  Audio sample rate changed to {sr}Hz; playback was stopped")
 
     def speak(self, text: str, speed: float = 1.0, callback=None) -> bool:
         """Synthesize and enqueue audio for playback (non-blocking)."""
@@ -88,7 +83,7 @@ class AdapterTTSEngine:
         if speed and speed != 1.0:
             audio = apply_speed_without_pitch_change(audio, speed, sr=self._safe_sample_rate())
 
-        self.audio_player.play_audio(audio)
+        self.audio_player.play_audio(audio, sample_rate=self._safe_sample_rate())
         return True
 
     def begin_playback(self, callback=None, *, sample_rate: int | None = None) -> None:
@@ -97,14 +92,11 @@ class AdapterTTSEngine:
         Used for streaming/chunked playback where audio is enqueued progressively.
         """
         if sample_rate is not None:
-            # For streaming audio produced externally (e.g. cloning), prefer
-            # playing at the native sample rate to avoid resampling artifacts.
+            # For externally-produced audio (e.g. cloning), prefer native sample
+            # rate when we haven't opened an output stream yet. If a stream is
+            # already open, keep it stable and resample on enqueue.
             sr = int(sample_rate)
-            if getattr(self.audio_player, "sample_rate", None) != sr:
-                try:
-                    self.audio_player.stop_stream()
-                except Exception:
-                    pass
+            if getattr(self.audio_player, "stream", None) is None:
                 self.audio_player.sample_rate = sr
         else:
             self._sync_sample_rate()
@@ -113,9 +105,9 @@ class AdapterTTSEngine:
         if self.on_playback_start:
             threading.Thread(target=self.on_playback_start, daemon=True).start()
 
-    def enqueue_audio(self, audio: np.ndarray) -> None:
+    def enqueue_audio(self, audio: np.ndarray, *, sample_rate: int | None = None) -> None:
         """Enqueue audio into the underlying player (no extra callbacks)."""
-        self.audio_player.play_audio(audio)
+        self.audio_player.play_audio(audio, sample_rate=sample_rate)
 
     def play_audio_array(self, audio: np.ndarray, callback=None) -> bool:
         """Play already-synthesized audio through the same playback pipeline.
@@ -128,7 +120,7 @@ class AdapterTTSEngine:
         if self.on_playback_start:
             threading.Thread(target=self.on_playback_start, daemon=True).start()
 
-        self.audio_player.play_audio(audio)
+        self.audio_player.play_audio(audio, sample_rate=self._safe_sample_rate())
         return True
 
     def _on_playback_complete(self) -> None:
@@ -140,18 +132,39 @@ class AdapterTTSEngine:
             threading.Thread(target=self._user_callback, daemon=True).start()
             self._user_callback = None
 
-    def stop(self) -> bool:
-        """Stop playback immediately and clear queued audio."""
-        # Even if `is_playing` is False, an OutputStream may still be alive.
-        # Always stop the stream if it exists to avoid leaving PortAudio
-        # resources around (which can crash on interpreter shutdown).
+    def stop(self, *, close_stream: bool = True) -> bool:
+        """Stop playback immediately and clear queued audio.
+
+        By default we close the underlying output stream. Some interactive
+        environments (macOS AUHAL in particular) can be flaky when repeatedly
+        closing/reopening streams; callers can pass close_stream=False to keep
+        the stream open and just flush playback state.
+        """
         stream_exists = getattr(self.audio_player, "stream", None) is not None
         was_playing = bool(getattr(self.audio_player, "is_playing", False))
 
         if not (stream_exists or was_playing):
             return False
 
-        self.audio_player.stop_stream()
+        if close_stream:
+            self.audio_player.stop_stream()
+            return True
+
+        # Keep stream open; just stop playback and clear buffers.
+        try:
+            self.audio_player.clear_queue()
+            self.audio_player.is_playing = False
+            self.audio_player._audio_started = False  # noqa: SLF001 (internal flag; best-effort)
+            self.audio_player.current_audio = None
+            self.audio_player.current_position = 0
+            try:
+                with self.audio_player._pause_lock:  # noqa: SLF001
+                    self.audio_player._paused = False  # noqa: SLF001
+            except Exception:
+                pass
+        except Exception:
+            # Best-effort; never crash caller during stop.
+            pass
         return True
 
     def pause(self) -> bool:
@@ -171,4 +184,3 @@ class AdapterTTSEngine:
             self.audio_player.cleanup()
         except Exception:
             pass
-
