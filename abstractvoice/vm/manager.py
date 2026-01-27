@@ -93,6 +93,10 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Tracks whether cloned TTS synthesis is currently running (separate from playback).
         self._cloned_synthesis_active = threading.Event()
 
+        # Best-effort last TTS metrics (used by verbose REPL output).
+        self._last_tts_metrics = None
+        self._last_tts_metrics_lock = threading.Lock()
+
         # State tracking
         self._transcription_callback = None
         self._stop_callback = None

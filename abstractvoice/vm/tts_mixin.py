@@ -7,9 +7,37 @@ behind adapters.
 from __future__ import annotations
 
 import threading
+import time
 
 
 class TtsMixin:
+    def _set_last_tts_metrics(self, metrics: dict | None) -> None:
+        lock = getattr(self, "_last_tts_metrics_lock", None)
+        if lock is None:
+            setattr(self, "_last_tts_metrics", metrics)
+            return
+        try:
+            with lock:
+                setattr(self, "_last_tts_metrics", metrics)
+        except Exception:
+            setattr(self, "_last_tts_metrics", metrics)
+
+    def pop_last_tts_metrics(self) -> dict | None:
+        lock = getattr(self, "_last_tts_metrics_lock", None)
+        if lock is None:
+            m = getattr(self, "_last_tts_metrics", None)
+            setattr(self, "_last_tts_metrics", None)
+            return m
+        try:
+            with lock:
+                m = getattr(self, "_last_tts_metrics", None)
+                setattr(self, "_last_tts_metrics", None)
+                return m
+        except Exception:
+            m = getattr(self, "_last_tts_metrics", None)
+            setattr(self, "_last_tts_metrics", None)
+            return m
+
     def _get_voice_cloner(self):
         if getattr(self, "_voice_cloner", None) is None:
             try:
@@ -94,6 +122,9 @@ class TtsMixin:
 
             from ..audio.resample import linear_resample_mono
 
+            # Clear prior metrics for this new utterance.
+            self._set_last_tts_metrics(None)
+
             # Stop any current speech and reset cancel token.
             try:
                 self.stop_speaking()
@@ -115,6 +146,12 @@ class TtsMixin:
             cloner = self._get_voice_cloner()
             # Prefer playing cloned audio at its native rate (F5 is typically 24kHz).
             target_sr = 24000
+            clone_engine_name = ""
+            try:
+                info = cloner.get_cloned_voice(str(voice)) or {}
+                clone_engine_name = str(info.get("engine") or "").strip().lower()
+            except Exception:
+                clone_engine_name = ""
 
             def _worker():
                 try:
@@ -130,12 +167,36 @@ class TtsMixin:
                         import io
                         import soundfile as sf
 
+                        t0 = time.monotonic()
                         wav_bytes = cloner.speak_to_bytes(str(text), voice_id=voice, format="wav", speed=sp)
+                        t1 = time.monotonic()
                         if cancel.is_set():
                             return
                         audio, sr = sf.read(io.BytesIO(wav_bytes), dtype="float32", always_2d=True)
                         mono = np.mean(audio, axis=1).astype(np.float32).reshape(-1)
                         sr = int(sr)
+
+                        try:
+                            audio_samples = int(len(mono))
+                        except Exception:
+                            audio_samples = 0
+                        audio_s = (float(audio_samples) / float(sr)) if sr and audio_samples else 0.0
+                        synth_s = float(t1 - t0)
+                        self._set_last_tts_metrics(
+                            {
+                                "engine": "clone",
+                                "clone_engine": clone_engine_name or None,
+                                "voice_id": str(voice),
+                                "streaming": False,
+                                "synth_s": synth_s,
+                                "audio_s": float(audio_s),
+                                "rtf": (synth_s / float(audio_s)) if audio_s else None,
+                                "sample_rate": int(sr) if sr else None,
+                                "audio_samples": int(audio_samples),
+                                "ts": time.time(),
+                            }
+                        )
+
                         if hasattr(self.tts_engine, "begin_playback"):
                             self.tts_engine.begin_playback(callback=callback, sample_rate=sr)
                         if cancel.is_set():
@@ -153,6 +214,10 @@ class TtsMixin:
                         return
 
                     # Streaming path: fewer, larger batches reduce audible cuts and overhead.
+                    t0 = time.monotonic()
+                    first_chunk_t = None
+                    total_samples = 0
+                    chunks = 0
                     chunks_iter = cloner.speak_to_audio_chunks(
                         str(text),
                         voice_id=voice,
@@ -167,9 +232,16 @@ class TtsMixin:
                     for chunk, sr in chunks_iter:
                         if cancel.is_set():
                             break
+                        if first_chunk_t is None:
+                            first_chunk_t = time.monotonic()
                         mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
                         if int(sr) != target_sr:
                             mono = linear_resample_mono(mono, int(sr), target_sr)
+                        try:
+                            total_samples += int(len(mono))
+                            chunks += 1
+                        except Exception:
+                            pass
 
                         if hasattr(self.tts_engine, "enqueue_audio"):
                             try:
@@ -183,6 +255,28 @@ class TtsMixin:
                                 self.tts_engine.audio_player.play_audio(mono)
                         else:
                             break
+
+                    t1 = time.monotonic()
+                    audio_s = (float(total_samples) / float(target_sr)) if total_samples else 0.0
+                    synth_s = float(t1 - t0)
+                    ttfb_s = (float(first_chunk_t - t0) if first_chunk_t is not None else None)
+                    self._set_last_tts_metrics(
+                        {
+                            "engine": "clone",
+                            "clone_engine": clone_engine_name or None,
+                            "voice_id": str(voice),
+                            "streaming": True,
+                            "cancelled": bool(cancel.is_set()),
+                            "synth_s": synth_s,
+                            "ttfb_s": ttfb_s,
+                            "audio_s": float(audio_s),
+                            "rtf": (synth_s / float(audio_s)) if audio_s else None,
+                            "sample_rate": int(target_sr),
+                            "audio_samples": int(total_samples),
+                            "chunks": int(chunks),
+                            "ts": time.time(),
+                        }
+                    )
                 except Exception as e:
                     # Best-effort: never crash caller thread.
                     if bool(getattr(self, "debug_mode", False)):
@@ -198,7 +292,16 @@ class TtsMixin:
             threading.Thread(target=_worker, daemon=True).start()
             return True
 
-        return self.tts_engine.speak(text, sp, callback)
+        ok = self.tts_engine.speak(text, sp, callback)
+        # Mirror adapter metrics into the manager for a single "last TTS metrics"
+        # source of truth (used by the verbose REPL).
+        try:
+            m = getattr(self.tts_engine, "last_tts_metrics", None)
+            if isinstance(m, dict) and m:
+                self._set_last_tts_metrics(dict(m))
+        except Exception:
+            pass
+        return ok
 
     # Network/headless-friendly methods
     def speak_to_bytes(self, text: str, format: str = "wav", voice: str | None = None) -> bytes:
