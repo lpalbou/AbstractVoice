@@ -9,11 +9,69 @@ logic. This module contains only reusable audio utilities:
 from __future__ import annotations
 
 import logging
+import os
 import queue
 import threading
 from typing import Callable, Optional
 
 import numpy as np
+
+from ..audio.resample import linear_resample_mono
+
+
+_STDERR_FD_LOCK = threading.Lock()
+
+
+class _SilenceStderrFD:
+    """Temporarily redirect OS-level stderr (fd=2) to /dev/null.
+
+    PortAudio (and some underlying CoreAudio/AUHAL code paths) can emit warnings
+    directly to stderr, bypassing Python's `sys.stderr`. In interactive REPL
+    contexts this can corrupt the prompt/spinner UI.
+    """
+
+    def __init__(self, enabled: bool = True):
+        self.enabled = bool(enabled)
+        self._devnull_fd = None
+        self._saved_stderr_fd = None
+
+    def __enter__(self):
+        if not self.enabled:
+            return self
+        _STDERR_FD_LOCK.acquire()
+        try:
+            self._devnull_fd = os.open(os.devnull, os.O_WRONLY)
+            self._saved_stderr_fd = os.dup(2)
+            os.dup2(self._devnull_fd, 2)
+        except Exception:
+            self.__exit__(None, None, None)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if not self.enabled:
+            return False
+        try:
+            if self._saved_stderr_fd is not None:
+                try:
+                    os.dup2(self._saved_stderr_fd, 2)
+                except Exception:
+                    pass
+        finally:
+            try:
+                if self._saved_stderr_fd is not None:
+                    os.close(self._saved_stderr_fd)
+            except Exception:
+                pass
+            try:
+                if self._devnull_fd is not None:
+                    os.close(self._devnull_fd)
+            except Exception:
+                pass
+            try:
+                _STDERR_FD_LOCK.release()
+            except Exception:
+                pass
+        return False
 
 
 def _import_sounddevice():
@@ -155,14 +213,54 @@ class NonBlockingAudioPlayer:
         if self.stream is not None:
             return
         sd = _import_sounddevice()
-        self.stream = sd.OutputStream(
-            samplerate=self.sample_rate,
-            channels=1,
-            callback=self._audio_callback,
-            blocksize=1024,
-            dtype=np.float32,
-        )
-        self.stream.start()
+
+        desired_sr = int(self.sample_rate)
+        candidates: list[int] = [desired_sr]
+        try:
+            dev = sd.query_devices(None, "output")  # default output device
+            default_sr = int(round(float(dev.get("default_samplerate", 0) or 0)))
+            if default_sr and default_sr not in candidates:
+                candidates.append(default_sr)
+        except Exception:
+            default_sr = 0
+
+        # Common output rates (keep short; we already prefer desired/default).
+        for sr in (48000, 44100, 24000, 22050, 16000):
+            if sr not in candidates:
+                candidates.append(sr)
+
+        last_err: Exception | None = None
+        for sr in candidates:
+            for blocksize in (1024, 0):  # 0 => PortAudio decides (often most compatible)
+                stream = None
+                try:
+                    with _SilenceStderrFD(enabled=not self.debug_mode):
+                        stream = sd.OutputStream(
+                            samplerate=int(sr),
+                            channels=1,
+                            callback=self._audio_callback,
+                            blocksize=int(blocksize),
+                            dtype=np.float32,
+                        )
+                        stream.start()
+                    self.stream = stream
+                    self.sample_rate = int(sr)
+                    if self.debug_mode and int(sr) != desired_sr:
+                        print(f"⚠️  Output device rejected {desired_sr}Hz; using {sr}Hz (resampling)")
+                    return
+                except Exception as e:
+                    last_err = e
+                    try:
+                        if stream is not None:
+                            stream.close()
+                    except Exception:
+                        pass
+                    continue
+
+        # If we couldn't start, surface the last error.
+        if last_err is not None:
+            raise last_err
+        raise RuntimeError("Failed to start audio output stream")
 
     def stop_stream(self):
         if self.stream:
@@ -186,12 +284,27 @@ class NonBlockingAudioPlayer:
         self.current_audio = None
         self.playback_complete_callback = None
 
-    def play_audio(self, audio_array: np.ndarray):
+    def play_audio(self, audio_array: np.ndarray, *, sample_rate: int | None = None):
         if audio_array is None or len(audio_array) == 0:
             return
 
-        if audio_array.dtype != np.float32:
-            audio_array = audio_array.astype(np.float32)
+        # Ensure mono float32 vector.
+        try:
+            if hasattr(audio_array, "ndim") and int(audio_array.ndim) > 1:
+                audio_array = np.mean(audio_array, axis=1).astype(np.float32)
+        except Exception:
+            pass
+        audio_array = np.asarray(audio_array, dtype=np.float32).reshape(-1)
+
+        # If we haven't started the output stream yet, do so first. This allows
+        # `start_stream()` to fall back to a compatible device sample rate.
+        if self.stream is None:
+            self.start_stream()
+
+        sr_in = int(sample_rate) if sample_rate is not None else int(self.sample_rate)
+        sr_out = int(self.sample_rate)
+        if sr_in != sr_out:
+            audio_array = linear_resample_mono(audio_array, sr_in, sr_out)
 
         max_abs = float(np.max(np.abs(audio_array))) if len(audio_array) else 0.0
         if max_abs > 1.0:
@@ -199,8 +312,7 @@ class NonBlockingAudioPlayer:
 
         self.audio_queue.put(audio_array)
         self.is_playing = True
-        if self.stream is None:
-            self.start_stream()
+        # Stream should already be started above when needed.
 
     def pause(self) -> bool:
         with self._pause_lock:
@@ -232,4 +344,3 @@ class NonBlockingAudioPlayer:
                 break
         self.current_audio = None
         self.current_position = 0
-

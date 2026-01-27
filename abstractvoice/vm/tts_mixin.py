@@ -141,9 +141,15 @@ class TtsMixin:
                         if cancel.is_set():
                             return
                         if hasattr(self.tts_engine, "enqueue_audio"):
-                            self.tts_engine.enqueue_audio(mono)
+                            try:
+                                self.tts_engine.enqueue_audio(mono, sample_rate=sr)
+                            except TypeError:
+                                self.tts_engine.enqueue_audio(mono)
                         elif hasattr(self.tts_engine, "audio_player") and self.tts_engine.audio_player:
-                            self.tts_engine.audio_player.play_audio(mono)
+                            try:
+                                self.tts_engine.audio_player.play_audio(mono, sample_rate=sr)
+                            except TypeError:
+                                self.tts_engine.audio_player.play_audio(mono)
                         return
 
                     # Streaming path: fewer, larger batches reduce audible cuts and overhead.
@@ -166,9 +172,15 @@ class TtsMixin:
                             mono = linear_resample_mono(mono, int(sr), target_sr)
 
                         if hasattr(self.tts_engine, "enqueue_audio"):
-                            self.tts_engine.enqueue_audio(mono)
+                            try:
+                                self.tts_engine.enqueue_audio(mono, sample_rate=target_sr)
+                            except TypeError:
+                                self.tts_engine.enqueue_audio(mono)
                         elif hasattr(self.tts_engine, "audio_player") and self.tts_engine.audio_player:
-                            self.tts_engine.audio_player.play_audio(mono)
+                            try:
+                                self.tts_engine.audio_player.play_audio(mono, sample_rate=target_sr)
+                            except TypeError:
+                                self.tts_engine.audio_player.play_audio(mono)
                         else:
                             break
                 except Exception as e:
@@ -231,7 +243,12 @@ class TtsMixin:
             pass
         ok = False
         try:
-            ok = bool(self.tts_engine.stop())
+            # Keep the output stream open when possible; repeatedly reopening
+            # PortAudio streams can be flaky on some macOS AUHAL setups.
+            try:
+                ok = bool(self.tts_engine.stop(close_stream=False))
+            except TypeError:
+                ok = bool(self.tts_engine.stop())
         finally:
             # CRITICAL: stopping playback abruptly may not trigger the normal
             # playback-end callbacks (PortAudio stream is just closed).
