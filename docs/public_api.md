@@ -54,6 +54,10 @@ In both modes, the stop phrase remains available as a safe “barge-in” substi
 
 ## Configuration
 
+- `VoiceManager(..., allow_downloads: bool = True)`
+  - Controls whether model weights may be downloaded implicitly.
+  - The REPL sets this to `False` (offline-first; no surprise downloads).
+
 - `set_language(language: str) -> bool`
   - For default engines, supported language codes include: `en, fr, de, es, ru, zh`.
 
@@ -79,3 +83,13 @@ VoiceManager exposes audio lifecycle hooks:
 
 Those can exist, but should not define the library’s integration story.
 
+## Explicit downloads (recommended)
+
+For offline deployments, prefetch explicitly:
+
+```bash
+python -m abstractvoice download --piper en
+python -m abstractvoice download --stt small
+python -m abstractvoice download --openf5
+python -m abstractvoice download --chroma
+```

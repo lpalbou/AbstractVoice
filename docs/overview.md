@@ -30,5 +30,5 @@ See `docs/acronyms.md` for acronyms used in documentation.
 
 ### 3) Manual validation (REPL)
 
-- `abstractvoice cli` is the fastest end‑to‑end smoke test.
-
+- `python -m abstractvoice cli` is the fastest end‑to‑end smoke test.
+  - The REPL is offline-first: no implicit model downloads.

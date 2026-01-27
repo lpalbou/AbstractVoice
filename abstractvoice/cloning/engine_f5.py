@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import os
 import tempfile
 from dataclasses import dataclass
@@ -87,6 +88,33 @@ class F5TTSVoiceCloningEngine:
         self._f5_model = None
         self._f5_vocoder = None
         self._f5_device = None
+
+    def unload(self) -> None:
+        """Best-effort release of loaded model/vocoder to free memory."""
+        self._f5_model = None
+        self._f5_vocoder = None
+        self._f5_device = None
+        # STT adapter can also hold memory; drop references.
+        self._stt = None
+        try:
+            gc.collect()
+        except Exception:
+            pass
+        try:
+            import torch
+
+            try:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+            try:
+                if hasattr(torch, "mps") and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def runtime_info(self) -> dict:
         """Return best-effort runtime info for debugging/perf validation."""

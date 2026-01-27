@@ -19,7 +19,15 @@ pytest -q
 ## Run the local voice assistant
 
 ```bash
-abstractvoice cli --debug
+python -m abstractvoice cli --debug
+python -m abstractvoice cli --verbose
+```
+
+The REPL is **offline-first** (no implicit model downloads). Prefetch what you need:
+
+```bash
+python -m abstractvoice download --piper en
+python -m abstractvoice download --stt small
 ```
 
 ## Common checks
@@ -27,4 +35,3 @@ abstractvoice cli --debug
 - **TTS**: use `/speak hello` in the REPL
 - **STT from file**: use `/transcribe path/to/audio.wav`
 - **Stop phrase**: say **"ok stop"** while listening to stop voice mode safely
-

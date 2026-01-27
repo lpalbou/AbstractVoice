@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import gc
 import io
 import os
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import soundfile as sf
+
+from ..tts.tts_engine import _SilenceStderrFD
 
 
 @dataclass(frozen=True)
@@ -56,6 +60,32 @@ class ChromaVoiceCloningEngine:
         self._model = None
         self._processor = None
         self._resolved_device = None
+
+    def unload(self) -> None:
+        """Best-effort release of loaded model/processor to free memory."""
+        self._model = None
+        self._processor = None
+        self._resolved_device = None
+        try:
+            gc.collect()
+        except Exception:
+            pass
+        try:
+            import torch
+
+            # Best-effort GPU/MPS cache release.
+            try:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+            try:
+                if hasattr(torch, "mps") and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def runtime_info(self) -> Dict[str, object]:
         info: Dict[str, object] = {
@@ -189,6 +219,16 @@ class ChromaVoiceCloningEngine:
         self._ensure_chroma_runtime()
         artifacts = self._resolve_chroma_artifacts_local()
 
+        # Keep interactive UX quiet by default (the REPL provides its own spinner).
+        try:
+            from transformers.utils import logging as hf_logging
+
+            hf_logging.disable_progress_bar()
+            if not self.debug:
+                hf_logging.set_verbosity_error()
+        except Exception:
+            pass
+
         import torch
         from transformers import AutoModelForCausalLM, AutoProcessor
 
@@ -207,23 +247,32 @@ class ChromaVoiceCloningEngine:
             device_map = "auto"
 
         # transformers 5.0.0 deprecates `torch_dtype` in favor of `dtype`.
-        try:
-            model = AutoModelForCausalLM.from_pretrained(
-                str(artifacts.root),
-                trust_remote_code=True,
-                device_map=device_map,
-                dtype=torch_dtype,
-            )
-        except TypeError:
-            model = AutoModelForCausalLM.from_pretrained(
-                str(artifacts.root),
-                trust_remote_code=True,
-                device_map=device_map,
-                torch_dtype=torch_dtype,
-            )
+        with warnings.catch_warnings():
+            # Torch/Torchaudio/Transformers often emit noisy warnings that are not actionable
+            # for interactive users. Keep them hidden unless debug is enabled.
+            if not self.debug:
+                warnings.filterwarnings("ignore", category=UserWarning, module=r"torchaudio\..*")
+                warnings.filterwarnings("ignore", category=UserWarning, message=r".*TorchCodec.*")
+                warnings.filterwarnings("ignore", category=UserWarning, message=r".*output_attentions.*")
+            with _SilenceStderrFD(enabled=not self.debug):
+                try:
+                    model = AutoModelForCausalLM.from_pretrained(
+                        str(artifacts.root),
+                        trust_remote_code=True,
+                        device_map=device_map,
+                        dtype=torch_dtype,
+                    )
+                except TypeError:
+                    model = AutoModelForCausalLM.from_pretrained(
+                        str(artifacts.root),
+                        trust_remote_code=True,
+                        device_map=device_map,
+                        torch_dtype=torch_dtype,
+                    )
         model.eval()
 
-        processor = AutoProcessor.from_pretrained(str(artifacts.root), trust_remote_code=True)
+        with _SilenceStderrFD(enabled=not self.debug):
+            processor = AutoProcessor.from_pretrained(str(artifacts.root), trust_remote_code=True)
 
         if device != "cuda" and device_map is None:
             try:
@@ -249,6 +298,13 @@ class ChromaVoiceCloningEngine:
                     if bw is not None and dw is not None and hasattr(bw, "weight") and hasattr(dw, "weight"):
                         if getattr(bw.weight, "shape", None) == getattr(dw.weight, "shape", None):
                             bw.weight.data.copy_(dw.weight.data)
+                    # Prefer a hard tie (shared module) to avoid one side staying randomly
+                    # initialized when the checkpoint omits a tied key.
+                    try:
+                        if bw is not None and dw is not None and bw is not dw:
+                            b.embed_audio_tokens = dw
+                    except Exception:
+                        pass
         except Exception:
             pass
 
@@ -256,6 +312,49 @@ class ChromaVoiceCloningEngine:
 
         self._model = model
         self._processor = processor
+
+    def _estimate_max_new_tokens(self, text: str, model) -> int:
+        """Estimate a safe `max_new_tokens` (audio frames) for a text batch.
+
+        Chroma audio frames decode at roughly:
+          frames_per_second = sampling_rate / audio_frame_freq
+        For the default config this is ~12.5 fps, so `512` frames ~= 41s.
+        Without a good stopping signal, the model may generate until `max_new_tokens`,
+        so we cap it based on expected speech duration to avoid long noisy tails.
+        """
+        s = " ".join(str(text or "").split()).strip()
+        words = len(s.split()) if s else 0
+        if words <= 0:
+            # Fallback: roughly 5 chars/word in English.
+            words = max(1, int(round(len(s) / 5.0))) if s else 1
+
+        # Conservative speech-rate assumption (words/sec).
+        wps = 3.2
+        est_s = float(words) / float(wps)
+        # Small pad to avoid truncation on short utterances.
+        est_s += 0.4
+
+        sr = 24000
+        frame_freq = 1920
+        try:
+            cfg = getattr(model, "config", None)
+            if cfg is not None:
+                frame_freq = int(getattr(cfg, "audio_frame_freq", frame_freq) or frame_freq)
+                codec_cfg = getattr(cfg, "codec_config", None)
+                if codec_cfg is not None:
+                    if isinstance(codec_cfg, dict):
+                        sr = int(codec_cfg.get("sampling_rate", sr) or sr)
+                    else:
+                        sr = int(getattr(codec_cfg, "sampling_rate", sr) or sr)
+        except Exception:
+            pass
+
+        fps = float(sr) / float(frame_freq) if frame_freq else 12.5
+        # Add slack so we still have room for slower speech.
+        frames = int(round(est_s * fps * 1.25))
+        frames = max(64, frames)
+        cap = int(self._max_new_tokens_per_chunk) if self._max_new_tokens_per_chunk else frames
+        return int(min(frames, cap))
 
     def _patch_generation_compat(self, model) -> None:
         """Patch known transformers incompatibilities for Chroma remote code.
@@ -463,13 +562,18 @@ class ChromaVoiceCloningEngine:
 
         for batch_text in batches:
             conversation = self._build_conversation(batch_text)
-            inputs = processor(
-                conversation,
-                add_generation_prompt=True,
-                tokenize=False,
-                prompt_audio=[str(prompt_audio)],
-                prompt_text=[prompt_text],
-            )
+            with warnings.catch_warnings():
+                if not self.debug:
+                    warnings.filterwarnings("ignore", category=UserWarning, module=r"torchaudio\..*")
+                    warnings.filterwarnings("ignore", category=UserWarning, message=r".*TorchCodec.*")
+                with _SilenceStderrFD(enabled=not self.debug):
+                    inputs = processor(
+                        conversation,
+                        add_generation_prompt=True,
+                        tokenize=False,
+                        prompt_audio=[str(prompt_audio)],
+                        prompt_text=[prompt_text],
+                    )
             device = getattr(model, "device", None) or torch.device("cpu")
             try:
                 param_dtype = next(model.parameters()).dtype
@@ -485,16 +589,22 @@ class ChromaVoiceCloningEngine:
                 except Exception:
                     moved[k] = v
 
-            out = model.generate(
-                **moved,
-                max_new_tokens=int(self._max_new_tokens_per_chunk),
-                do_sample=bool(self._do_sample),
-                temperature=float(self._temperature),
-                top_k=int(self._top_k),
-                use_cache=True,
-                output_attentions=False,
-                output_audio=True,
-            )
+            max_new = self._estimate_max_new_tokens(batch_text, model)
+            with warnings.catch_warnings():
+                if not self.debug:
+                    warnings.filterwarnings("ignore", category=UserWarning, message=r".*output_attentions.*")
+                    warnings.filterwarnings("ignore", category=UserWarning, message=r".*sdp attention.*")
+                with _SilenceStderrFD(enabled=not self.debug):
+                    out = model.generate(
+                        **moved,
+                        max_new_tokens=int(max_new),
+                        do_sample=bool(self._do_sample),
+                        temperature=float(self._temperature),
+                        top_k=int(self._top_k),
+                        use_cache=True,
+                        output_attentions=False,
+                        output_audio=True,
+                    )
             audio_list = out.audio if hasattr(out, "audio") else out
             if not audio_list:
                 continue
@@ -517,12 +627,24 @@ class ChromaVoiceCloningEngine:
                 except Exception:
                     pass
 
+            # Sanitize before any normalization (NaNs/Infs produce loud artifacts).
+            try:
+                mono = np.nan_to_num(mono, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+            except Exception:
+                pass
+
             # Chroma's codec output can exceed [-1, 1] slightly; normalize to avoid
             # hard clipping/distortion in playback and PCM encoders.
             try:
                 peak = float(np.max(np.abs(mono))) if mono.size else 0.0
                 if peak > 1.0:
                     mono = mono / peak
+            except Exception:
+                pass
+
+            # Final clamp for safety (avoids stray overs on some backends).
+            try:
+                mono = np.clip(mono, -1.0, 1.0).astype(np.float32)
             except Exception:
                 pass
 

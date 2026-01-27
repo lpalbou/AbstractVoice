@@ -4,6 +4,10 @@
 **Version**: v0.5.2  
 **Purpose**: Technology assessment + actionable recommendations
 
+> Note: This report is historical and includes pre-v0.6 assumptions (VITS/XTTS, implicit downloads).
+> Current behavior is Piper-first, the REPL is offline-first, and cloning is implemented via optional
+> engines (`f5_tts` / `chroma`).
+
 ---
 
 ## Executive Summary

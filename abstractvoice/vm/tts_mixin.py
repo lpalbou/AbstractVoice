@@ -109,6 +109,43 @@ class TtsMixin:
     def delete_cloned_voice(self, voice_id: str) -> bool:
         self._get_voice_cloner().delete_cloned_voice(voice_id)
         return True
+
+    def unload_cloning_engines(self, *, keep_engine: str | None = None) -> int:
+        """Best-effort free memory held by loaded cloning engines.
+
+        This is critical for large backends (e.g. Chroma). It does NOT delete any
+        cloned voices; it only releases in-memory model weights.
+        """
+        try:
+            cloner = self._get_voice_cloner()
+        except Exception:
+            return 0
+        try:
+            if keep_engine:
+                return int(cloner.unload_engines_except(str(keep_engine)))
+            return int(cloner.unload_all_engines())
+        except Exception:
+            return 0
+
+    def unload_piper_voice(self) -> bool:
+        """Best-effort release of Piper voice weights/session (keeps audio output ready).
+
+        This helps reduce memory pressure when switching to large cloning backends.
+        """
+        try:
+            adapter = getattr(self, "tts_adapter", None)
+            if adapter is None:
+                return False
+            if hasattr(adapter, "unload"):
+                adapter.unload()
+                return True
+            # Back-compat: drop voice object if present.
+            if hasattr(adapter, "_voice"):
+                setattr(adapter, "_voice", None)
+                return True
+        except Exception:
+            return False
+        return False
     def speak(self, text, speed=1.0, callback=None, voice: str | None = None):
         sp = speed if speed != 1.0 else self.speed
         if not self.tts_engine:
@@ -397,10 +434,14 @@ class TtsMixin:
     def _try_init_piper(self, language: str):
         try:
             from ..adapters.tts_piper import PiperTTSAdapter
-            adapter = PiperTTSAdapter(language=language)
-            if adapter.is_available():
-                return adapter
-            return None
+            adapter = PiperTTSAdapter(
+                language=language,
+                allow_downloads=bool(getattr(self, "allow_downloads", True)),
+                auto_load=True,
+            )
+            # Return the adapter even if a voice is not yet loaded. This keeps audio
+            # playback available for cloning backends while remaining offline-first.
+            return adapter if bool(getattr(adapter, "_piper_available", False)) else None
         except Exception as e:
             if self.debug_mode:
                 print(f"⚠️  Piper TTS not available: {e}")
@@ -422,7 +463,11 @@ class TtsMixin:
         try:
             from ..adapters.tts_piper import PiperTTSAdapter
 
-            return PiperTTSAdapter(language=(language or "en")).list_available_models(language=language)
+            return PiperTTSAdapter(
+                language=(language or "en"),
+                allow_downloads=False,
+                auto_load=False,
+            ).list_available_models(language=language)
         except Exception:
             return {}
 
