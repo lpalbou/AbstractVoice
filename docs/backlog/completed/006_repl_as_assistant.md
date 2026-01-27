@@ -8,11 +8,11 @@
 
 ## What was delivered
 
-The REPL (`abstractvoice cli`) now exposes explicit commands mapping to the integrator API:
+The REPL (`python -m abstractvoice cli`) now exposes explicit commands mapping to the integrator API:
 
 - `/speak <text>`: TTS without calling the LLM
 - `/transcribe <path>`: STT from file via `VoiceManager.transcribe_file()` (faster-whisper default)
-- `/tts_engine <auto|piper|vits>`: select TTS engine
+- `/tts_engine <auto|piper>`: select TTS engine
 - `/stt_engine <auto|faster_whisper|whisper>`: select STT engine
 
 And it remains usable in text-only mode without crashing.
@@ -28,4 +28,3 @@ And it remains usable in text-only mode without crashing.
 ## Verification
 
 - Full test suite: **26 passed, 1 skipped**
-

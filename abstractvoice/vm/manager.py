@@ -68,7 +68,10 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
 
         if tts_engine in ("auto", "piper"):
             self.tts_adapter = self._try_init_piper(language)
-            if self.tts_adapter and self.tts_adapter.is_available():
+            # Create the playback engine as long as Piper runtime is importable.
+            # This keeps audio output available for cloning backends even when no
+            # Piper voice model is cached locally (offline-first).
+            if self.tts_adapter:
                 self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=debug_mode)
                 self._tts_engine_name = "piper"
 

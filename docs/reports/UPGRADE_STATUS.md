@@ -3,6 +3,9 @@
 **Date**: January 21, 2026  
 **Current Version**: v0.5.2 → **v0.6.0 (in progress)**
 
+> Note: This is a historical report. AbstractVoice core is now Piper-first, the REPL is offline-first
+> (no implicit downloads), and voice cloning is implemented via optional engines (`f5_tts` / `chroma`).
+
 ---
 
 ## 📊 Overall Progress
@@ -35,7 +38,7 @@ Phase 1: Core TTS/STT Upgrade
 - ✅ 10/10 tests passing (all real functional tests, no mocking)
 - ✅ 6 languages working (EN, FR, DE, ES, RU, ZH)
 - ✅ Network methods implemented (speak_to_bytes, speak_to_file)
-- ✅ Auto-downloads models from Hugging Face
+- ✅ Downloads gated by `allow_downloads` (REPL is offline-first); prefetch with `python -m abstractvoice download --piper <lang>`
 - ✅ No breaking changes (100% backward compatible)
 
 **Files Created**:

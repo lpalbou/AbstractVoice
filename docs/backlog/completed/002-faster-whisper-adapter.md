@@ -310,7 +310,7 @@ This implementation enables:
 - ✅ Lower memory usage for embedded systems
 - ✅ Network transcription for client-server apps
 - ✅ Multi-language support
-- 🔄 Ready for voice cloning integration (Phase 2: XTTS-v2)
+- 🔄 Ready for voice cloning integration (optional engines: f5_tts / chroma)
 
 #### Breaking Changes
 

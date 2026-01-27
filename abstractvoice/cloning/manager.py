@@ -59,6 +59,40 @@ class VoiceCloner:
             except Exception:
                 pass
 
+    def unload_engine(self, engine: str) -> bool:
+        """Best-effort unload a loaded engine to free memory.
+
+        This does NOT delete any cloned voices on disk; it only releases runtime
+        model weights/processors kept in memory.
+        """
+        name = str(engine or "").strip().lower()
+        if not name:
+            return False
+        inst = self._engines.pop(name, None)
+        if inst is None:
+            return False
+        try:
+            if hasattr(inst, "unload"):
+                inst.unload()
+        except Exception:
+            pass
+        return True
+
+    def unload_engines_except(self, keep_engine: str | None = None) -> int:
+        """Unload all loaded engines except `keep_engine` (if provided)."""
+        keep = str(keep_engine or "").strip().lower() or None
+        removed = 0
+        for name in list(self._engines.keys()):
+            if keep and name == keep:
+                continue
+            if self.unload_engine(name):
+                removed += 1
+        return int(removed)
+
+    def unload_all_engines(self) -> int:
+        """Unload all loaded engines."""
+        return self.unload_engines_except(None)
+
     def get_runtime_info(self) -> Dict[str, Any]:
         # Keep backward compatibility: return a single flat dict.
         # Prefer F5 when available, otherwise return any loaded engine info.

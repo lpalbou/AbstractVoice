@@ -133,13 +133,20 @@ def main():
             action="store_true",
             help="Prefetch Chroma-4B artifacts (~14GB+, requires HF access; install abstractvoice[chroma] to run inference)",
         )
+        dl.add_argument(
+            "--piper",
+            dest="piper_language",
+            default=None,
+            help="Prefetch Piper voice model for a language (e.g. en/fr/de).",
+        )
         dl_args = dl.parse_args(remaining)
 
-        if not dl_args.stt_model and not dl_args.openf5 and not dl_args.chroma:
+        if not dl_args.stt_model and not dl_args.openf5 and not dl_args.chroma and not dl_args.piper_language:
             print("Nothing to download. Examples:")
             print("  python -m abstractvoice download --stt small")
             print("  python -m abstractvoice download --openf5")
             print("  python -m abstractvoice download --chroma")
+            print("  python -m abstractvoice download --piper en")
             return
 
         if dl_args.stt_model:
@@ -176,6 +183,19 @@ def main():
                 print("✅ Chroma artifacts ready.")
             except Exception as e:
                 print(f"❌ Chroma download failed: {e}")
+
+        if dl_args.piper_language:
+            try:
+                from abstractvoice.adapters.tts_piper import PiperTTSAdapter
+
+                lang = str(dl_args.piper_language).strip().lower()
+                print(f"Downloading Piper voice model: {lang}")
+                piper = PiperTTSAdapter(language=lang, allow_downloads=True, auto_load=False)
+                if not piper.ensure_model_downloaded(lang):
+                    raise RuntimeError("Piper model download failed.")
+                print("✅ Piper model ready.")
+            except Exception as e:
+                print(f"❌ Piper download failed: {e}")
         return
 
     # Set remaining args as sys.argv for the examples, including language

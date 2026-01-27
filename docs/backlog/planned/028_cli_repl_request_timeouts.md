@@ -79,5 +79,4 @@
 
 - `pytest -q`
 - Manual:
-  - Run `abstractvoice cli` with an invalid `--api-url` and confirm it errors quickly.
-
+  - Run `python -m abstractvoice cli` with an invalid `--api` and confirm it errors quickly.

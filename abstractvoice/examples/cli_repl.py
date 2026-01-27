@@ -8,6 +8,7 @@ that interacts with an LLM API for text generation.
 
 import argparse
 import cmd
+import atexit
 import json
 import re
 import shlex
@@ -36,7 +37,7 @@ class VoiceREPL(cmd.Cmd):
     """Voice-enabled REPL for LLM interaction."""
     
     intro = ""  # Will be set in __init__ to include help
-    prompt = f"{Colors.GREEN}> {Colors.END}"
+    prompt = "> "
     
     # Override cmd module settings
     ruler = ""  # No horizontal rule line
@@ -54,6 +55,11 @@ class VoiceREPL(cmd.Cmd):
         cloning_engine: str = "f5_tts",
     ):
         super().__init__()
+
+        # Best-effort: enable proper line editing + history (Up/Down arrows).
+        # Some Python builds (notably when built without readline/libedit) will
+        # otherwise treat arrow keys as escape sequences and corrupt the prompt.
+        self._init_readline()
 
         # Debug mode
         self.debug_mode = debug_mode
@@ -127,6 +133,71 @@ class VoiceREPL(cmd.Cmd):
 
         # Best-effort metrics captured from voice input paths.
         self._pending_stt_metrics: dict | None = None
+
+    def _init_readline(self) -> None:
+        """Initialize readline history + make ANSI prompts safe (best-effort)."""
+        rl = None
+        try:
+            import readline as _readline  # type: ignore
+
+            rl = _readline
+        except Exception:
+            # Windows users may have pyreadline3 installed.
+            try:
+                import pyreadline3 as _readline  # type: ignore
+
+                rl = _readline
+            except Exception:
+                rl = None
+
+        if rl is None:
+            # Keep prompt simple and avoid ANSI; prevents strange cursor behavior
+            # when arrow keys emit escape codes in cooked terminals.
+            self.prompt = "> "
+            return
+
+        # Readline-compatible prompt: wrap ANSI sequences in markers so line
+        # editing/history redraw doesn't corrupt the input line.
+        try:
+            self.prompt = f"\001{Colors.GREEN}\002> \001{Colors.END}\002"
+        except Exception:
+            self.prompt = "> "
+
+        # Persist history across sessions (best-effort).
+        try:
+            from pathlib import Path
+
+            try:
+                import appdirs
+
+                hist_dir = Path(appdirs.user_data_dir("abstractvoice"))
+            except Exception:
+                hist_dir = Path.home() / ".abstractvoice"
+
+            hist_dir.mkdir(parents=True, exist_ok=True)
+            hist_path = hist_dir / "repl_history"
+
+            try:
+                rl.read_history_file(str(hist_path))
+            except FileNotFoundError:
+                pass
+            except Exception:
+                pass
+
+            try:
+                rl.set_history_length(2000)
+            except Exception:
+                pass
+
+            def _save_history():
+                try:
+                    rl.write_history_file(str(hist_path))
+                except Exception:
+                    pass
+
+            atexit.register(_save_history)
+        except Exception:
+            pass
         
         if self.debug_mode:
             print(f"Initialized with API URL: {api_url}")
@@ -301,12 +372,13 @@ class VoiceREPL(cmd.Cmd):
                 stt_txt += f" rtf{self._fmt_num(stt_rtf, digits=2)}"
             parts1.append(stt_txt)
 
-        llm_txt = f"LLM {self._fmt_s(llm_s)}"
-        if api_prompt_tok is not None or api_out_tok is not None:
-            p = str(api_prompt_tok) if api_prompt_tok is not None else "--"
-            o = str(api_out_tok) if api_out_tok is not None else "--"
-            llm_txt += f" (api p{p} o{o})"
-        parts1.append(llm_txt)
+        if llm_s is not None or api_prompt_tok is not None or api_out_tok is not None:
+            llm_txt = f"LLM {self._fmt_s(llm_s)}"
+            if api_prompt_tok is not None or api_out_tok is not None:
+                p = str(api_prompt_tok) if api_prompt_tok is not None else "--"
+                o = str(api_out_tok) if api_out_tok is not None else "--"
+                llm_txt += f" (api p{p} o{o})"
+            parts1.append(llm_txt)
 
         in_txt = f"in {self._fmt_wtok(in_w, in_t)}"
         out_txt = f"out {self._fmt_wtok(out_w, out_t)}"
@@ -1413,6 +1485,35 @@ class VoiceREPL(cmd.Cmd):
 
         try:
             self._speak_with_spinner_until_audio_starts(text)
+            if self.verbose_mode:
+                out_words = self._count_words(text)
+                out_tokens = None
+                try:
+                    enc = self._get_tiktoken_encoding()
+                    if enc is not None:
+                        out_tokens = int(len(enc.encode(str(text or ""))))
+                except Exception:
+                    out_tokens = None
+
+                tts_metrics = None
+                try:
+                    if hasattr(self.voice_manager, "pop_last_tts_metrics"):
+                        tts_metrics = self.voice_manager.pop_last_tts_metrics()
+                except Exception:
+                    tts_metrics = None
+
+                turn = {
+                    "stt": None,
+                    "llm": {},
+                    "counts": {
+                        "in_words": 0,
+                        "out_words": int(out_words),
+                        "in_tokens": None,
+                        "out_tokens": out_tokens,
+                    },
+                    "tts": tts_metrics,
+                }
+                self._print_verbose_turn_stats(turn)
         except Exception as e:
             print(f"❌ Speak failed: {e}")
             if self.debug_mode:
@@ -1430,6 +1531,21 @@ class VoiceREPL(cmd.Cmd):
             return
 
         is_clone = bool(self.current_tts_voice)
+        if not is_clone:
+            # Offline-first: Piper voices must be explicitly cached. Provide a clear
+            # message instead of hanging on implicit downloads.
+            try:
+                a = getattr(self.voice_manager, "tts_adapter", None)
+                if a is not None and hasattr(a, "is_available") and not bool(a.is_available()):
+                    lang = str(getattr(self, "current_language", "en") or "en").strip().lower()
+                    raise RuntimeError(
+                        f"Piper voice model for '{lang}' is not available locally.\n"
+                        f"Run: python -m abstractvoice download --piper {lang}"
+                    )
+            except RuntimeError:
+                raise
+            except Exception:
+                pass
         ind = self._busy_indicator(enabled=is_clone)
         try:
             if is_clone:
@@ -2005,6 +2121,18 @@ class VoiceREPL(cmd.Cmd):
         print(f"✅ Using cloned voice: {voice_id}{eng_txt}")
         if eng and str(eng).strip().lower() != str(self.cloning_engine).strip().lower():
             print(f"ℹ️  Default cloning engine is {self.cloning_engine}; this voice uses {eng}.")
+        # Free memory from other cloning engines (important for large backends like Chroma).
+        try:
+            if hasattr(self.voice_manager, "unload_cloning_engines"):
+                self.voice_manager.unload_cloning_engines(keep_engine=str(eng or "").strip().lower() or None)
+        except Exception:
+            pass
+        # Piper is not needed while speaking with a cloned voice; unload it to reduce memory pressure.
+        try:
+            if hasattr(self.voice_manager, "unload_piper_voice"):
+                self.voice_manager.unload_piper_voice()
+        except Exception:
+            pass
 
     def do_clone_set_ref_text(self, arg):
         """Set the reference transcript for a cloned voice (quality fix).
@@ -2071,6 +2199,20 @@ class VoiceREPL(cmd.Cmd):
 
         if parts[0] == "piper":
             self.current_tts_voice = None
+            # Free any heavy cloning engines when switching back to Piper.
+            try:
+                if hasattr(self.voice_manager, "unload_cloning_engines"):
+                    self.voice_manager.unload_cloning_engines()
+            except Exception:
+                pass
+            # If Piper was previously unloaded to save memory, reload it now (offline-first).
+            try:
+                if self.voice_manager and getattr(self.voice_manager, "tts_adapter", None):
+                    a = getattr(self.voice_manager, "tts_adapter", None)
+                    if hasattr(a, "is_available") and not bool(a.is_available()):
+                        self.voice_manager.set_language(self.current_language)
+            except Exception:
+                pass
             print("✅ Using Piper (default) voice")
             return
 
@@ -2104,6 +2246,18 @@ class VoiceREPL(cmd.Cmd):
         print(f"✅ Using cloned voice: {match}{eng_txt}")
         if eng and str(eng).strip().lower() != str(self.cloning_engine).strip().lower():
             print(f"ℹ️  Default cloning engine is {self.cloning_engine}; this voice uses {eng}.")
+        # Free memory from other cloning engines (e.g. unloading Chroma when switching to F5, or vice-versa).
+        try:
+            if hasattr(self.voice_manager, "unload_cloning_engines"):
+                self.voice_manager.unload_cloning_engines(keep_engine=str(eng or "").strip().lower() or None)
+        except Exception:
+            pass
+        # Piper is not needed while speaking with a cloned voice; unload it to reduce memory pressure.
+        try:
+            if hasattr(self.voice_manager, "unload_piper_voice"):
+                self.voice_manager.unload_piper_voice()
+        except Exception:
+            pass
 
     def do_clone_my_voice(self, arg):
         """Interactive voice cloning from microphone.
@@ -2476,6 +2630,20 @@ class VoiceREPL(cmd.Cmd):
 
         # Reset voice selection back to Piper (default).
         self.current_tts_voice = None
+        # Free any heavy cloning engines as part of reset.
+        try:
+            if self.voice_manager and hasattr(self.voice_manager, "unload_cloning_engines"):
+                self.voice_manager.unload_cloning_engines()
+        except Exception:
+            pass
+        # Ensure Piper is ready (in case it was unloaded to save memory).
+        try:
+            if self.voice_manager and getattr(self.voice_manager, "tts_adapter", None):
+                a = getattr(self.voice_manager, "tts_adapter", None)
+                if hasattr(a, "is_available") and not bool(a.is_available()):
+                    self.voice_manager.set_language(self.current_language)
+        except Exception:
+            pass
 
         # Clear chat history.
         self._clear_history()
@@ -2506,7 +2674,30 @@ class VoiceREPL(cmd.Cmd):
     
     def do_exit(self, arg):
         """Exit the REPL."""
-        self.voice_manager.cleanup()
+        # Stop any PTT session cleanly.
+        self._ptt_session_active = False
+        self._ptt_recording = False
+        self._ptt_busy = False
+
+        # Stop voice mode / audio best-effort.
+        try:
+            if self.voice_manager:
+                try:
+                    self.voice_manager.stop_listening()
+                except Exception:
+                    pass
+                try:
+                    self.voice_manager.stop_speaking()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        try:
+            if self.voice_manager:
+                self.voice_manager.cleanup()
+        except Exception:
+            pass
         if self.debug_mode:
             print("Goodbye!")
         return True
@@ -2673,7 +2864,7 @@ class VoiceREPL(cmd.Cmd):
         """Display token usage information."""
         try:
             if self._get_tiktoken_encoding() is None:
-                print("Token counting is not available (install: pip install \"abstractvoice[stt]\").")
+                print("Token counting is not available (install: pip install tiktoken).")
                 return
 
             # Always recalculate tokens to ensure accuracy
