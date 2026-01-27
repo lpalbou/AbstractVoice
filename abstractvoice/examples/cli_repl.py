@@ -134,6 +134,21 @@ class VoiceREPL(cmd.Cmd):
         # Best-effort metrics captured from voice input paths.
         self._pending_stt_metrics: dict | None = None
 
+        if self.debug_mode:
+            print(f"Initialized with API URL: {api_url}")
+            print(f"Using model: {model}")
+
+        # Try to auto-enable voice input in STOP mode (best-effort).
+        if self.voice_manager:
+            try:
+                self.do_voice("stop")
+            except Exception:
+                # Never block REPL start.
+                pass
+
+        # Set intro with help information
+        self.intro = self._get_intro()
+
     def _init_readline(self) -> None:
         """Initialize readline history + make ANSI prompts safe (best-effort)."""
         rl = None
@@ -156,12 +171,9 @@ class VoiceREPL(cmd.Cmd):
             self.prompt = "> "
             return
 
-        # Readline-compatible prompt: wrap ANSI sequences in markers so line
-        # editing/history redraw doesn't corrupt the input line.
-        try:
-            self.prompt = f"\001{Colors.GREEN}\002> \001{Colors.END}\002"
-        except Exception:
-            self.prompt = "> "
+        # Keep prompt plain when readline is enabled. ANSI prompts are fragile
+        # across readline/libedit builds and can corrupt redraw/history behavior.
+        self.prompt = "> "
 
         # Persist history across sessions (best-effort).
         try:
@@ -198,21 +210,6 @@ class VoiceREPL(cmd.Cmd):
             atexit.register(_save_history)
         except Exception:
             pass
-        
-        if self.debug_mode:
-            print(f"Initialized with API URL: {api_url}")
-            print(f"Using model: {model}")
-        
-        # Try to auto-enable voice input in STOP mode (best-effort).
-        if self.voice_manager:
-            try:
-                self.do_voice("stop")
-            except Exception:
-                # Never block REPL start.
-                pass
-
-        # Set intro with help information
-        self.intro = self._get_intro()
         
     def _get_intro(self):
         """Generate intro message with help."""
@@ -1632,7 +1629,8 @@ class VoiceREPL(cmd.Cmd):
                 pass
             # Clear spinner line.
             try:
-                sys.stdout.write("\r" + (" " * 60) + "\r")
+                # `\033[2K` clears the entire line (more robust than fixed spaces).
+                sys.stdout.write("\r\033[2K\r")
                 # Restore cursor.
                 sys.stdout.write("\033[?25h")
                 sys.stdout.flush()
