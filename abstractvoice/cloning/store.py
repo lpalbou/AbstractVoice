@@ -220,6 +220,11 @@ class VoiceCloneStore:
             shutil.copy2(p, dest)
             copied.append(dest.name)
 
+        meta_out = dict(meta or {})
+        if (reference_text or "").strip() and not meta_out.get("reference_text_source"):
+            # Keep metadata consistent with `set_reference_text(..., source="manual")`.
+            meta_out["reference_text_source"] = "manual"
+
         record = ClonedVoice(
             voice_id=voice_id,
             name=name or f"voice_{voice_id[:8]}",
@@ -227,7 +232,7 @@ class VoiceCloneStore:
             reference_files=copied,
             reference_text=reference_text,
             engine=engine,
-            meta=meta or {},
+            meta=meta_out,
         )
 
         index = self._read_index()

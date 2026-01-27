@@ -47,6 +47,7 @@ class VoiceREPL(cmd.Cmd):
         api_url="http://localhost:11434/api/chat",
         model="cogito:3b",
         debug_mode=False,
+        verbose_mode: bool = False,
         language="en",
         tts_model=None,
         disable_tts=False,
@@ -56,6 +57,7 @@ class VoiceREPL(cmd.Cmd):
 
         # Debug mode
         self.debug_mode = debug_mode
+        self.verbose_mode = bool(verbose_mode)
 
         # API settings
         self.api_url = api_url
@@ -111,7 +113,20 @@ class VoiceREPL(cmd.Cmd):
         self.system_tokens = 0
         self.user_tokens = 0
         self.assistant_tokens = 0
+        # LLM token totals (best-effort, Ollama API `eval_count`).
+        self.total_llm_out_tokens = 0
+        # Word counting
+        self.system_words = 0
+        self.user_words = 0
+        self.assistant_words = 0
+        # Best-effort tokenizer cache (tiktoken optional).
+        self._tiktoken_encoding = None
+        self._tiktoken_unavailable = False
         self._count_system_tokens()
+        self._count_system_words()
+
+        # Best-effort metrics captured from voice input paths.
+        self._pending_stt_metrics: dict | None = None
         
         if self.debug_mode:
             print(f"Initialized with API URL: {api_url}")
@@ -149,6 +164,227 @@ class VoiceREPL(cmd.Cmd):
     def _count_system_tokens(self):
         """Count tokens in the system prompt."""
         self._count_tokens(self.system_prompt, "system")
+
+    def _count_system_words(self):
+        self.system_words = self._count_words(self.system_prompt)
+
+    def _count_words(self, text: str) -> int:
+        s = str(text or "").strip()
+        if not s:
+            return 0
+        # A "word" here is whitespace-delimited for simplicity across languages.
+        return len([w for w in re.split(r"\s+", s) if w])
+
+    def _get_tiktoken_encoding(self):
+        if getattr(self, "_tiktoken_unavailable", False):
+            return None
+        enc = getattr(self, "_tiktoken_encoding", None)
+        if enc is not None:
+            return enc
+        try:
+            import tiktoken
+        except ImportError:
+            self._tiktoken_unavailable = True
+            return None
+
+        try:
+            enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        except Exception:
+            try:
+                enc = tiktoken.get_encoding("cl100k_base")
+            except Exception:
+                self._tiktoken_unavailable = True
+                return None
+
+        self._tiktoken_encoding = enc
+        return enc
+
+    def _fmt_s(self, seconds: float | None) -> str:
+        try:
+            if seconds is None:
+                return "--"
+            s = float(seconds)
+            if s < 0:
+                return "--"
+            # Keep it compact but readable.
+            if s < 10:
+                return f"{s:.2f}s"
+            return f"{s:.1f}s"
+        except Exception:
+            return "--"
+
+    def _fmt_num(self, x: float | None, *, digits: int = 2) -> str:
+        try:
+            if x is None:
+                return "--"
+            return f"{float(x):.{int(digits)}f}"
+        except Exception:
+            return "--"
+
+    def _fmt_wtok(self, words: int | None, tokens: int | None) -> str:
+        w = int(words) if isinstance(words, int) else (int(words) if words is not None else 0)
+        if isinstance(tokens, int):
+            return f"{w}w/{int(tokens)}tok"
+        return f"{w}w/--tok"
+
+    def _summarize_audio_source(self, source: str) -> tuple[int | None, float | None]:
+        """Best-effort: return (file_count, total_seconds) for an audio source path."""
+        try:
+            from pathlib import Path
+
+            p = Path(str(source)).expanduser()
+        except Exception:
+            return None, None
+
+        try:
+            import soundfile as sf
+        except Exception:
+            return None, None
+
+        supported = {".wav", ".flac", ".ogg"}
+        files = []
+        try:
+            if p.is_file():
+                files = [p]
+            elif p.is_dir():
+                files = sorted([x for x in p.iterdir() if x.is_file() and x.suffix.lower() in supported])
+            else:
+                return None, None
+        except Exception:
+            return None, None
+
+        total_s = 0.0
+        max_files = 25
+        for fp in files[:max_files]:
+            try:
+                info = sf.info(str(fp))
+                d = float(getattr(info, "duration", 0.0) or 0.0)
+                if d > 0:
+                    total_s += d
+            except Exception:
+                continue
+
+        # If there are too many files, the displayed duration is a lower bound.
+        return (int(len(files)) if files else 0), (float(total_s) if total_s > 0 else None)
+
+    def _print_verbose_turn_stats(self, turn: dict) -> None:
+        if not bool(getattr(self, "verbose_mode", False)):
+            return
+        if not isinstance(turn, dict):
+            return
+
+        stt = turn.get("stt") if isinstance(turn.get("stt"), dict) else None
+        llm = turn.get("llm") if isinstance(turn.get("llm"), dict) else {}
+        counts = turn.get("counts") if isinstance(turn.get("counts"), dict) else {}
+        tts = turn.get("tts") if isinstance(turn.get("tts"), dict) else None
+
+        in_w = counts.get("in_words")
+        out_w = counts.get("out_words")
+        in_t = counts.get("in_tokens")
+        out_t = counts.get("out_tokens")
+
+        llm_s = llm.get("s")
+        api = llm.get("api") if isinstance(llm.get("api"), dict) else {}
+        api_prompt_tok = api.get("prompt_eval_count") if isinstance(api.get("prompt_eval_count"), int) else None
+        api_out_tok = api.get("eval_count") if isinstance(api.get("eval_count"), int) else None
+
+        # Line 1: STT (if any) + LLM + in/out counts and written speed.
+        parts1 = []
+        if stt:
+            stt_s = stt.get("stt_s")
+            stt_a = stt.get("audio_s")
+            stt_rtf = stt.get("rtf")
+            stt_txt = f"STT {self._fmt_s(stt_s)}"
+            if stt_a:
+                stt_txt += f"(a{self._fmt_s(stt_a)})"
+            if stt_rtf is not None:
+                stt_txt += f" rtf{self._fmt_num(stt_rtf, digits=2)}"
+            parts1.append(stt_txt)
+
+        llm_txt = f"LLM {self._fmt_s(llm_s)}"
+        if api_prompt_tok is not None or api_out_tok is not None:
+            p = str(api_prompt_tok) if api_prompt_tok is not None else "--"
+            o = str(api_out_tok) if api_out_tok is not None else "--"
+            llm_txt += f" (api p{p} o{o})"
+        parts1.append(llm_txt)
+
+        in_txt = f"in {self._fmt_wtok(in_w, in_t)}"
+        out_txt = f"out {self._fmt_wtok(out_w, out_t)}"
+
+        wps_written = None
+        try:
+            if isinstance(out_w, int) and out_w > 0 and llm_s and float(llm_s) > 0:
+                wps_written = float(out_w) / float(llm_s)
+        except Exception:
+            wps_written = None
+
+        if wps_written is not None:
+            out_txt += f" ({self._fmt_num(wps_written, digits=1)}w/s)"
+
+        parts1.append(in_txt)
+        parts1.append(out_txt)
+
+        line1 = " | ".join(parts1)
+
+        # Line 2: TTS (if any) + spoken speed + totals.
+        parts2 = []
+        if self.voice_manager and self.use_tts:
+            if tts:
+                eng = str(tts.get("engine") or "").strip().lower()
+                if eng == "clone":
+                    ce = tts.get("clone_engine")
+                    label = f"clone[{ce}]" if ce else "clone"
+                elif eng:
+                    label = eng
+                else:
+                    label = "tts"
+
+                synth_s = tts.get("synth_s")
+                audio_s = tts.get("audio_s")
+                rtf = tts.get("rtf")
+                tts_txt = f"TTS {label} {self._fmt_s(synth_s)}→{self._fmt_s(audio_s)}"
+                if rtf is not None:
+                    tts_txt += f" rtf{self._fmt_num(rtf, digits=2)}"
+
+                # Extra clone streaming details when available.
+                if eng == "clone" and bool(tts.get("streaming")):
+                    ttfb_s = tts.get("ttfb_s")
+                    if ttfb_s is not None:
+                        tts_txt += f" ttfb{self._fmt_s(ttfb_s)}"
+                    ch = tts.get("chunks")
+                    if isinstance(ch, int):
+                        tts_txt += f" ch{ch}"
+
+                wps_spoken = None
+                try:
+                    if isinstance(out_w, int) and out_w > 0 and audio_s and float(audio_s) > 0:
+                        wps_spoken = float(out_w) / float(audio_s)
+                except Exception:
+                    wps_spoken = None
+                if wps_spoken is not None:
+                    tts_txt += f" ({self._fmt_num(wps_spoken, digits=1)}w/s)"
+
+                parts2.append(tts_txt)
+            else:
+                parts2.append("TTS --")
+        else:
+            parts2.append("TTS off")
+
+        total_words = int(getattr(self, "system_words", 0) + getattr(self, "user_words", 0) + getattr(self, "assistant_words", 0))
+        total_tokens = None
+        if self._get_tiktoken_encoding() is not None:
+            total_tokens = int(getattr(self, "system_tokens", 0) + getattr(self, "user_tokens", 0) + getattr(self, "assistant_tokens", 0))
+
+        tot_txt = f"tot {self._fmt_wtok(total_words, total_tokens)}"
+        if isinstance(getattr(self, "total_llm_out_tokens", None), int) and getattr(self, "total_llm_out_tokens") > 0:
+            tot_txt += f" (api out {int(getattr(self, 'total_llm_out_tokens'))}tok)"
+        parts2.append(tot_txt)
+
+        line2 = " | ".join(parts2)
+
+        # Keep it readable; two lines max.
+        print(f"{Colors.YELLOW}{line1}{Colors.END}")
+        print(f"{Colors.YELLOW}{line2}{Colors.END}")
     
     def parseline(self, line):
         """Parse the line to extract command and arguments.
@@ -200,6 +436,7 @@ class VoiceREPL(cmd.Cmd):
             return
         
         # Everything else goes to LLM
+        self._pending_stt_metrics = None
         self.process_query(text)
 
     # NOTE: PTT is implemented as a dedicated key-loop session (no typing).
@@ -269,6 +506,10 @@ class VoiceREPL(cmd.Cmd):
         if not query:
             return
 
+        # Consume any pending STT metrics for this turn (voice/PTT input).
+        stt_metrics = getattr(self, "_pending_stt_metrics", None)
+        self._pending_stt_metrics = None
+
         # If audio is currently playing, stop it so the new request can be handled
         # without overlapping speech.
         try:
@@ -277,8 +518,10 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             pass
             
-        # Count user message tokens
-        self._count_tokens(query, "user")
+        # Per-turn counts
+        user_words = self._count_words(query)
+        self.user_words += int(user_words)
+        user_tokens = self._count_tokens(query, "user")
         
         # Create the message
         user_message = {"role": "user", "content": query}
@@ -298,6 +541,7 @@ class VoiceREPL(cmd.Cmd):
             }
             
             # Make API request
+            llm_t0 = time.monotonic()
             response = requests.post(self.api_url, json=payload)
             response.raise_for_status()
             
@@ -305,6 +549,22 @@ class VoiceREPL(cmd.Cmd):
             try:
                 # First, try to parse as JSON
                 response_data = response.json()
+                api_llm_metrics = {}
+                try:
+                    # Ollama exposes timing + token counts (nanoseconds).
+                    # Keep best-effort: if fields are missing, we just omit them.
+                    for k in (
+                        "total_duration",
+                        "load_duration",
+                        "prompt_eval_count",
+                        "prompt_eval_duration",
+                        "eval_count",
+                        "eval_duration",
+                    ):
+                        if k in response_data:
+                            api_llm_metrics[k] = response_data.get(k)
+                except Exception:
+                    api_llm_metrics = {}
                 
                 # Check for different API formats
                 if "message" in response_data and "content" in response_data["message"]:
@@ -323,6 +583,7 @@ class VoiceREPL(cmd.Cmd):
                 
                 # Handle streaming or non-JSON response
                 response_text = response.text.strip()
+                api_llm_metrics = {}
                 
                 # Try to extract content from streaming format if possible
                 if response_text.startswith("{") and "content" in response_text:
@@ -351,9 +612,13 @@ class VoiceREPL(cmd.Cmd):
                     except Exception as e:
                         if self.debug_mode:
                             print(f"Error extracting content from streaming response: {e}")
+            llm_t1 = time.monotonic()
+            llm_s = float(llm_t1 - llm_t0)
             
-            # Count assistant message tokens
-            self._count_tokens(response_text, "assistant")
+            # Per-turn counts
+            assistant_words = self._count_words(response_text)
+            self.assistant_words += int(assistant_words)
+            assistant_tokens = self._count_tokens(response_text, "assistant")
             
             # Add to message history
             self.messages.append({"role": "assistant", "content": response_text})
@@ -361,6 +626,27 @@ class VoiceREPL(cmd.Cmd):
             # Display the response with color
             print(f"{Colors.CYAN}{response_text}{Colors.END}")
             
+            # Record last-turn stats (best-effort; printed only in verbose mode).
+            self._last_turn_metrics = {
+                "stt": stt_metrics,
+                "llm": {
+                    "s": llm_s,
+                    "api": api_llm_metrics,
+                },
+                "counts": {
+                    "in_words": int(user_words),
+                    "out_words": int(assistant_words),
+                    "in_tokens": int(user_tokens) if isinstance(user_tokens, int) else None,
+                    "out_tokens": int(assistant_tokens) if isinstance(assistant_tokens, int) else None,
+                },
+            }
+            try:
+                out_tok = api_llm_metrics.get("eval_count") if isinstance(api_llm_metrics, dict) else None
+                if isinstance(out_tok, int) and out_tok >= 0:
+                    self.total_llm_out_tokens += int(out_tok)
+            except Exception:
+                pass
+
             # Speak the response if voice manager is available
             if self.voice_manager and self.use_tts:
                 try:
@@ -374,6 +660,27 @@ class VoiceREPL(cmd.Cmd):
                         self._speak_with_spinner_until_audio_starts(response_text)
                 except Exception as e:
                     print(f"❌ TTS failed: {e}")
+
+            # Capture best-effort TTS metrics (Piper or cloned).
+            tts_metrics = None
+            try:
+                if self.voice_manager and hasattr(self.voice_manager, "pop_last_tts_metrics"):
+                    tts_metrics = self.voice_manager.pop_last_tts_metrics()
+            except Exception:
+                tts_metrics = None
+
+            try:
+                if isinstance(getattr(self, "_last_turn_metrics", None), dict):
+                    self._last_turn_metrics["tts"] = tts_metrics
+            except Exception:
+                pass
+
+            # Verbose stats (max 2 lines).
+            try:
+                if self.verbose_mode and isinstance(getattr(self, "_last_turn_metrics", None), dict):
+                    self._print_verbose_turn_stats(self._last_turn_metrics)
+            except Exception:
+                pass
                 
         except requests.exceptions.ConnectionError as e:
             print(f"❌ Cannot connect to Ollama API at {self.api_url}")
@@ -407,37 +714,29 @@ class VoiceREPL(cmd.Cmd):
     
     def _count_tokens(self, text, role):
         """Count tokens in text."""
+        encoding = self._get_tiktoken_encoding()
+        if encoding is None:
+            return None
         try:
-            import tiktoken
-            
-            # Initialize the tokenizer 
-            encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-            
-            # Count tokens
-            token_count = len(encoding.encode(text))
-            
-            # Update the token counts based on role
-            if role == "system":
-                self.system_tokens = token_count
-            elif role == "user":
-                self.user_tokens += token_count
-            elif role == "assistant":
-                self.assistant_tokens += token_count
-            
-            # Calculate total tokens
-            total_tokens = self.system_tokens + self.user_tokens + self.assistant_tokens
-            
-            if self.debug_mode:
-                print(f"{role.capitalize()} tokens: {token_count}")
-                print(f"Total tokens: {total_tokens}")
-                    
-        except ImportError:
-            # If tiktoken is not available, just don't count tokens
-            pass
+            token_count = len(encoding.encode(str(text or "")))
         except Exception as e:
             if self.debug_mode:
                 print(f"Error counting tokens: {e}")
-            pass
+            return None
+
+        # Update the token counts based on role
+        if role == "system":
+            self.system_tokens = int(token_count)
+        elif role == "user":
+            self.user_tokens += int(token_count)
+        elif role == "assistant":
+            self.assistant_tokens += int(token_count)
+
+        if self.debug_mode:
+            total_tokens = self.system_tokens + self.user_tokens + self.assistant_tokens
+            print(f"{role.capitalize()} tokens: {token_count}")
+            print(f"Total tokens: {total_tokens}")
+        return int(token_count)
     
     def _clean_response(self, text):
         """Clean LLM response text."""
@@ -883,7 +1182,27 @@ class VoiceREPL(cmd.Cmd):
 
             self._ptt_busy = True
             try:
+                audio_s = 0.0
+                try:
+                    if sr and sr > 0:
+                        audio_s = float(len(pcm)) / float(int(sr) * 2)
+                except Exception:
+                    audio_s = 0.0
+
+                t0 = time.monotonic()
                 text = (self.voice_manager.transcribe_from_bytes(wav_bytes, language=self.current_language) or "").strip()
+                t1 = time.monotonic()
+                stt_s = float(t1 - t0)
+                self._pending_stt_metrics = {
+                    "stt_s": stt_s,
+                    "audio_s": float(audio_s),
+                    "rtf": (stt_s / float(audio_s)) if audio_s else None,
+                    "sample_rate": int(sr),
+                    "chunks": None,
+                    "chunk_ms": None,
+                    "profile": "ptt",
+                    "ts": time.time(),
+                }
             except Exception as e:
                 self._ptt_busy = False
                 _println(f"❌ Transcription failed: {e}")
@@ -979,6 +1298,17 @@ class VoiceREPL(cmd.Cmd):
     
     def _voice_callback(self, text):
         """Callback for voice recognition."""
+        # Capture best-effort STT metrics from the recognizer (for verbose stats).
+        stt_metrics = None
+        try:
+            vm = self.voice_manager
+            rec = getattr(vm, "voice_recognizer", None) if vm else None
+            if rec is not None and hasattr(rec, "pop_last_stt_metrics"):
+                stt_metrics = rec.pop_last_stt_metrics()
+        except Exception:
+            stt_metrics = None
+        self._pending_stt_metrics = stt_metrics
+
         # Print what the user said
         print(f"\n> {text}")
         # NOTE: stop phrases are handled by the stop_callback path (interrupt TTS).
@@ -1018,6 +1348,7 @@ class VoiceREPL(cmd.Cmd):
                     debug_mode=self.debug_mode,
                     allow_downloads=False,
                     cloned_tts_streaming=False,
+                    cloning_engine=self.cloning_engine,
                 )
             print("TTS enabled" if self.debug_mode else "")
         elif arg == "off":
@@ -1133,14 +1464,8 @@ class VoiceREPL(cmd.Cmd):
                 ind.stop()
             except Exception:
                 pass
-            # After audio starts (or we give up), show a prompt line so users know
-            # they can type to interrupt / ask another question immediately.
-            try:
-                if is_clone:
-                    sys.stdout.write("\n" + self.prompt)
-                    sys.stdout.flush()
-            except Exception:
-                pass
+            # Do not print the prompt manually: `cmd` will render it on return,
+            # and printing here can result in duplicate prompts (`> >`).
 
     class _busy_indicator:
         """A minimal, discreet spinner (no extra lines)."""
@@ -1225,10 +1550,12 @@ class VoiceREPL(cmd.Cmd):
             for v in voices:
                 vid = v.get("voice_id") or v.get("voice", "")
                 name = v.get("name", "")
+                eng = (v.get("engine") or "").strip()
+                eng_txt = f" [{eng}]" if eng else ""
                 src = (v.get("meta") or {}).get("reference_text_source", "")
                 src_txt = f" [{src}]" if src else ""
                 current = " (current)" if self.current_tts_voice == vid else ""
-                print(f"  - {name}: {vid}{src_txt}{current}")
+                print(f"  - {name}: {vid}{eng_txt}{src_txt}{current}")
             print("Tip: /clone_rm <id-or-name> deletes one; /clone_rm_all --yes deletes all.")
         except Exception as e:
             print(f"❌ Error listing cloned voices: {e}")
@@ -1520,13 +1847,34 @@ class VoiceREPL(cmd.Cmd):
         path = pos[0]
         name = pos[1] if len(pos) > 1 else None
         try:
+            t0 = time.monotonic()
             voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine)
-            print(f"✅ Cloned voice created: {voice_id}")
+            t1 = time.monotonic()
+
+            eng = ""
+            ref_src = ""
+            try:
+                info = self.voice_manager.get_cloned_voice(voice_id) or {}
+                eng = str(info.get("engine") or "").strip()
+                ref_src = str((info.get("meta") or {}).get("reference_text_source") or "").strip()
+            except Exception:
+                eng = ""
+                ref_src = ""
+
+            eng_txt = f" (engine: {eng})" if eng else ""
+            print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
             print("   Use /tts_voice clone <id-or-name> to select it.")
             print("   Tip: set reference text for best quality:")
             print("     /clone_set_ref_text <id-or-name> \"...\"")
             if not self._is_cloning_runtime_ready(voice_id=voice_id):
                 print("   (Cloning runtime not ready yet; run /cloning_status and /cloning_download first.)")
+
+            if self.verbose_mode:
+                n_files, ref_audio_s = self._summarize_audio_source(path)
+                n_txt = str(n_files) if isinstance(n_files, int) else "--"
+                src_txt = ref_src or ("manual" if (reference_text or "").strip() else "--")
+                msg = f"CLONE {eng or (engine or self.cloning_engine)} | refs {n_txt} a{self._fmt_s(ref_audio_s)} | ref_text {src_txt} | {self._fmt_s(float(t1 - t0))}"
+                print(f"{Colors.YELLOW}{msg}{Colors.END}")
         except Exception as e:
             print(f"❌ Clone failed: {e}")
 
@@ -1608,13 +1956,34 @@ class VoiceREPL(cmd.Cmd):
                 print("✅ Reusing cloned voice.")
         else:
             try:
+                t0 = time.monotonic()
                 voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine_name)
-                print(f"✅ Cloned voice created: {voice_id}")
+                t1 = time.monotonic()
+
+                eng = ""
+                ref_src = ""
+                try:
+                    info = self.voice_manager.get_cloned_voice(voice_id) or {}
+                    eng = str(info.get("engine") or "").strip()
+                    ref_src = str((info.get("meta") or {}).get("reference_text_source") or "").strip()
+                except Exception:
+                    eng = ""
+                    ref_src = ""
+
+                eng_txt = f" (engine: {eng})" if eng else ""
+                print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
                 if reference_text:
                     print("   (Reference text provided)")
                 else:
                     print("   Tip: set reference text for best quality:")
                     print("     /clone_set_ref_text <id-or-name> \"...\"")
+
+                if self.verbose_mode:
+                    n_files, ref_audio_s = self._summarize_audio_source(path)
+                    n_txt = str(n_files) if isinstance(n_files, int) else "--"
+                    src_txt = ref_src or ("manual" if (reference_text or "").strip() else "--")
+                    msg = f"CLONE {eng or engine_name} | refs {n_txt} a{self._fmt_s(ref_audio_s)} | ref_text {src_txt} | {self._fmt_s(float(t1 - t0))}"
+                    print(f"{Colors.YELLOW}{msg}{Colors.END}")
             except Exception as e:
                 print(f"❌ Clone failed: {e}")
                 return
@@ -1626,7 +1995,16 @@ class VoiceREPL(cmd.Cmd):
             return
 
         self.current_tts_voice = voice_id
-        print(f"✅ Using cloned voice: {voice_id}")
+        eng = ""
+        try:
+            info = self.voice_manager.get_cloned_voice(voice_id) or {}
+            eng = str(info.get("engine") or "").strip()
+        except Exception:
+            eng = ""
+        eng_txt = f" (engine: {eng})" if eng else ""
+        print(f"✅ Using cloned voice: {voice_id}{eng_txt}")
+        if eng and str(eng).strip().lower() != str(self.cloning_engine).strip().lower():
+            print(f"ℹ️  Default cloning engine is {self.cloning_engine}; this voice uses {eng}.")
 
     def do_clone_set_ref_text(self, arg):
         """Set the reference transcript for a cloned voice (quality fix).
@@ -1675,8 +2053,19 @@ class VoiceREPL(cmd.Cmd):
 
         parts = arg.strip().split()
         if not parts:
-            current = self.current_tts_voice or "piper"
-            print(f"Current TTS voice: {current}")
+            if self.current_tts_voice:
+                vid = self.current_tts_voice
+                try:
+                    info = self.voice_manager.get_cloned_voice(vid) or {}
+                    name = (info.get("name") or "").strip()
+                    eng = (info.get("engine") or "").strip()
+                    label = name or vid
+                    suffix = f" (engine: {eng})" if eng else ""
+                    print(f"Current TTS voice: {label}{suffix}")
+                except Exception:
+                    print(f"Current TTS voice: {vid}")
+            else:
+                print("Current TTS voice: piper")
             print("Usage: /tts_voice piper | /tts_voice clone <id-or-name>")
             return
 
@@ -1705,7 +2094,16 @@ class VoiceREPL(cmd.Cmd):
         # if the STT model is already cached locally (no downloads in REPL).
 
         self.current_tts_voice = match
-        print(f"✅ Using cloned voice: {match}")
+        eng = ""
+        try:
+            info = self.voice_manager.get_cloned_voice(match) or {}
+            eng = (info.get("engine") or "").strip()
+        except Exception:
+            eng = ""
+        eng_txt = f" (engine: {eng})" if eng else ""
+        print(f"✅ Using cloned voice: {match}{eng_txt}")
+        if eng and str(eng).strip().lower() != str(self.cloning_engine).strip().lower():
+            print(f"ℹ️  Default cloning engine is {self.cloning_engine}; this voice uses {eng}.")
 
     def do_clone_my_voice(self, arg):
         """Interactive voice cloning from microphone.
@@ -1950,6 +2348,7 @@ class VoiceREPL(cmd.Cmd):
             tts_engine=engine,
             allow_downloads=False,
             cloned_tts_streaming=False,
+            cloning_engine=self.cloning_engine,
         )
         print(f"✅ TTS engine set to: {engine}")
 
@@ -2030,6 +2429,7 @@ class VoiceREPL(cmd.Cmd):
             stt_engine=engine,
             allow_downloads=False,
             cloned_tts_streaming=False,
+            cloning_engine=self.cloning_engine,
         )
         print(f"✅ STT engine set to: {engine}")
 
@@ -2087,14 +2487,19 @@ class VoiceREPL(cmd.Cmd):
         self.system_tokens = 0
         self.user_tokens = 0
         self.assistant_tokens = 0
+        # Reset word counters
+        self.system_words = 0
+        self.user_words = 0
+        self.assistant_words = 0
         # Recalculate system tokens
         self._count_system_tokens()
+        self._count_system_words()
     
     def do_system(self, arg):
         """Set the system prompt."""
         if arg.strip():
             self.system_prompt = arg.strip()
-            self.messages = [{"role": "system", "content": self.system_prompt}]
+            self._clear_history()
             print(f"System prompt set to: {self.system_prompt}")
         else:
             print(f"Current system prompt: {self.system_prompt}")
@@ -2183,6 +2588,25 @@ class VoiceREPL(cmd.Cmd):
             
         # If neither voice mode nor TTS is active - don't show any message
         pass
+
+    def do_verbose(self, arg):
+        """Toggle verbose per-turn performance stats.
+
+        Usage:
+          /verbose            (toggle)
+          /verbose on|off
+        """
+        s = (arg or "").strip().lower()
+        if s in ("", "toggle"):
+            self.verbose_mode = not bool(getattr(self, "verbose_mode", False))
+        elif s in ("on", "1", "true", "yes", "y"):
+            self.verbose_mode = True
+        elif s in ("off", "0", "false", "no", "n"):
+            self.verbose_mode = False
+        else:
+            print("Usage: /verbose [on|off]")
+            return
+        print(f"Verbose mode: {'on' if self.verbose_mode else 'off'}")
     
     def do_help(self, arg):
         """Show help information."""
@@ -2210,6 +2634,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /resume             Resume paused TTS playback")
         print("  /aec on|off         Optional echo cancellation for true barge-in (requires [aec])")
         print("  /tokens             Display token usage stats")
+        print("  /verbose [on|off]   Toggle verbose per-turn stats")
         print("  /help               Show this help")
         print("  /clones             List cloned voices")
         print("  /clone_info <id>    Show cloned voice details")
@@ -2247,6 +2672,10 @@ class VoiceREPL(cmd.Cmd):
     def do_tokens(self, arg):
         """Display token usage information."""
         try:
+            if self._get_tiktoken_encoding() is None:
+                print("Token counting is not available (install: pip install \"abstractvoice[stt]\").")
+                return
+
             # Always recalculate tokens to ensure accuracy
             self._reset_and_recalculate_tokens()
             
@@ -2424,15 +2853,26 @@ class VoiceREPL(cmd.Cmd):
             print(f"Failed to load chat history from {filename}")
     
     def _reset_and_recalculate_tokens(self):
-        """Reset token counts and recalculate for all messages."""
+        """Reset token/word counts and recalculate for all messages."""
         self.system_tokens = 0
         self.user_tokens = 0
         self.assistant_tokens = 0
+        self.system_words = 0
+        self.user_words = 0
+        self.assistant_words = 0
         
         # Count tokens for all messages
         for msg in self.messages:
             if isinstance(msg, dict) and "content" in msg and "role" in msg:
                 self._count_tokens(msg["content"], msg["role"])
+                w = self._count_words(msg["content"])
+                r = msg.get("role")
+                if r == "system":
+                    self.system_words = int(w)
+                elif r == "user":
+                    self.user_words += int(w)
+                elif r == "assistant":
+                    self.assistant_words += int(w)
     
     def _ensure_system_message(self):
         """Ensure there's a system message at the start of messages."""
@@ -2496,6 +2936,7 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="AbstractVoice CLI Example")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--verbose", action="store_true", help="Show per-turn performance stats")
     parser.add_argument("--api", default="http://localhost:11434/api/chat",
                       help="LLM API URL")
     parser.add_argument("--model", default="cogito:3b",
@@ -2525,6 +2966,7 @@ def main():
             api_url=args.api,
             model=args.model,
             debug_mode=args.debug,
+            verbose_mode=args.verbose,
             language=args.language,
             tts_model=args.tts_model,
             cloning_engine=args.cloning_engine,

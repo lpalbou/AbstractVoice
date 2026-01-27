@@ -156,6 +156,10 @@ class VoiceRecognizer:
         self.transcriptions_paused = False
         self._profile = "stop"
 
+        # Last STT metrics (best-effort; used by verbose REPL output).
+        # Populated only for "normal" transcriptions that invoke transcription_callback.
+        self.last_stt_metrics: dict | None = None
+
         # Optional AEC (echo cancellation) state.
         self.aec_enabled = False
         self._aec = None
@@ -355,6 +359,12 @@ class VoiceRecognizer:
             print(" > Voice recognition stopped")
         return True
 
+    def pop_last_stt_metrics(self) -> dict | None:
+        """Return and clear the most recent STT metrics (if any)."""
+        m = self.last_stt_metrics
+        self.last_stt_metrics = None
+        return m
+
     def _transcribe_pcm16(
         self,
         pcm16_bytes: bytes,
@@ -542,7 +552,26 @@ class VoiceRecognizer:
                                 print(f" > Speech detected ({len(speech_buffer)} chunks), transcribing...")
                                 
                             audio_bytes = b''.join(speech_buffer)
+                            audio_seconds = 0.0
+                            try:
+                                if self.sample_rate and self.sample_rate > 0:
+                                    audio_seconds = float(len(audio_bytes)) / float(int(self.sample_rate) * 2)
+                            except Exception:
+                                audio_seconds = 0.0
+
+                            t0 = time.monotonic()
                             text = self._transcribe_pcm16(audio_bytes)
+                            t1 = time.monotonic()
+                            stt_s = float(t1 - t0)
+                            metrics = {
+                                "stt_s": stt_s,
+                                "audio_s": float(audio_seconds),
+                                "rtf": (stt_s / float(audio_seconds)) if audio_seconds else None,
+                                "sample_rate": int(self.sample_rate),
+                                "chunks": int(len(speech_buffer)),
+                                "chunk_ms": int(self.chunk_duration),
+                                "ts": time.time(),
+                            }
                             
                             if text:
                                 # Check for stop command
@@ -555,6 +584,8 @@ class VoiceRecognizer:
                                 else:
                                     # Normal transcription (can be suppressed during TTS)
                                     if not self.transcriptions_paused:
+                                        # Record metrics only when this transcription is actually emitted.
+                                        self.last_stt_metrics = metrics
                                         self.transcription_callback(text)
                             
                             # Reset state

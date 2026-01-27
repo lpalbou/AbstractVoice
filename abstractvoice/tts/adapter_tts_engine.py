@@ -19,6 +19,7 @@ uses the existing `NonBlockingAudioPlayer` for playback control.
 from __future__ import annotations
 
 import threading
+import time
 from typing import Callable, Optional
 
 import numpy as np
@@ -42,6 +43,9 @@ class AdapterTTSEngine:
         sample_rate = self._safe_sample_rate()
         self.audio_player = NonBlockingAudioPlayer(sample_rate=sample_rate, debug_mode=debug_mode)
         self.audio_player.playback_complete_callback = self._on_playback_complete
+
+        # Best-effort last TTS metrics (used by verbose REPL output).
+        self.last_tts_metrics: dict | None = None
 
     def _safe_sample_rate(self) -> int:
         try:
@@ -76,14 +80,34 @@ class AdapterTTSEngine:
         if self.on_playback_start:
             threading.Thread(target=self.on_playback_start, daemon=True).start()
 
+        t0 = time.monotonic()
         audio: np.ndarray = self.adapter.synthesize(text)
+        t1 = time.monotonic()
 
         # Best-effort speed handling. If librosa isn't installed, the helper
         # falls back to original audio (no crash).
         if speed and speed != 1.0:
             audio = apply_speed_without_pitch_change(audio, speed, sr=self._safe_sample_rate())
 
-        self.audio_player.play_audio(audio, sample_rate=self._safe_sample_rate())
+        sr = self._safe_sample_rate()
+        try:
+            audio_samples = int(len(audio)) if audio is not None else 0
+        except Exception:
+            audio_samples = 0
+        audio_s = (float(audio_samples) / float(sr)) if sr and audio_samples else 0.0
+        synth_s = float(t1 - t0)
+        self.last_tts_metrics = {
+            "engine": "piper",
+            "synth_s": synth_s,
+            "audio_s": float(audio_s),
+            "rtf": (synth_s / float(audio_s)) if audio_s else None,
+            "sample_rate": int(sr),
+            "audio_samples": int(audio_samples),
+            "speed": float(speed or 1.0),
+            "ts": time.time(),
+        }
+
+        self.audio_player.play_audio(audio, sample_rate=sr)
         return True
 
     def begin_playback(self, callback=None, *, sample_rate: int | None = None) -> None:
