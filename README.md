@@ -18,7 +18,7 @@ A modular Python library for **voice I/O** around AI applications.
 pip install abstractvoice
 ```
 
-Optional extras (legacy engines / extra tooling):
+Optional extras (feature flags):
 
 ```bash
 pip install "abstractvoice[all]"
@@ -27,21 +27,29 @@ pip install "abstractvoice[all]"
 ### Explicit model downloads (recommended; never implicit in the REPL)
 
 Some features rely on large model weights/artifacts. AbstractVoice will **not**
-download these implicitly inside the REPL.
+download these implicitly inside the REPL (offline-first).
 
 After installing, prefetch explicitly (cross-platform):
 
 ```bash
 abstractvoice-prefetch --stt small
+abstractvoice-prefetch --piper en
 abstractvoice-prefetch --openf5
+abstractvoice-prefetch --chroma
 ```
 
 Or equivalently:
 
 ```bash
 python -m abstractvoice download --stt small
+python -m abstractvoice download --piper en
 python -m abstractvoice download --openf5
+python -m abstractvoice download --chroma
 ```
+
+Notes:
+- `--piper <lang>` downloads the Piper ONNX voice for that language into `~/.piper/models`.
+- `--openf5` is ~5.4GB. `--chroma` is very large (GPU-heavy).
 
 ---
 
@@ -50,8 +58,13 @@ python -m abstractvoice download --openf5
 ### REPL (fastest end-to-end)
 
 ```bash
-abstractvoice cli --debug
+python -m abstractvoice cli --debug
+python -m abstractvoice cli --verbose
 ```
+
+Notes:
+- Mic voice input is **off by default** for fast startup. Enable with `--voice-mode stop` (or in-session: `/voice stop`).
+- The REPL is **offline-first**: no implicit model downloads. Use the explicit download commands above.
 
 See `docs/repl_guide.md`.
 
@@ -95,4 +108,3 @@ At a glance:
 ## License
 
 MIT. See `LICENSE`.
-

@@ -8,6 +8,7 @@ Piper is a fast, local neural text-to-speech system that:
 - Has small model sizes (15-60MB vs 200-500MB VITS)
 """
 
+import gc
 import os
 import io
 import logging
@@ -50,7 +51,14 @@ class PiperTTSAdapter(TTSAdapter):
         'zh': '55MB',
     }
     
-    def __init__(self, language: str = 'en', model_dir: Optional[str] = None):
+    def __init__(
+        self,
+        language: str = "en",
+        model_dir: Optional[str] = None,
+        *,
+        allow_downloads: bool = True,
+        auto_load: bool = True,
+    ):
         """Initialize Piper TTS adapter.
         
         Args:
@@ -61,6 +69,7 @@ class PiperTTSAdapter(TTSAdapter):
         self._voice = None
         self._current_language = None
         self._sample_rate = 22050  # Piper default
+        self._allow_downloads = bool(allow_downloads)
         
         # Set model directory
         if model_dir is None:
@@ -78,8 +87,11 @@ class PiperTTSAdapter(TTSAdapter):
             self._piper_available = True
             logger.info("✅ Piper TTS initialized successfully")
             
-            # Load initial language model
-            self.set_language(language)
+            # Load initial language model (best-effort). In offline-first contexts
+            # `allow_downloads=False` prevents implicit downloads and will fail fast
+            # if models are not already cached locally.
+            if bool(auto_load):
+                self.set_language(language)
             
         except ImportError as e:
             logger.warning(f"⚠️  Piper TTS not available: {e}")
@@ -107,6 +119,29 @@ class PiperTTSAdapter(TTSAdapter):
         config_path = self._model_dir / f"{model_filename}.onnx.json"
         
         return model_path, config_path
+
+    def ensure_model_downloaded(self, language: str) -> bool:
+        """Explicitly download Piper model files for a language (no implicit calls).
+
+        This downloads the ONNX model + JSON config into the local cache directory.
+        """
+        try:
+            model_path, config_path = self._get_model_path(language)
+        except Exception:
+            return False
+
+        if model_path.exists() and config_path.exists():
+            return True
+
+        return bool(self._download_model(language))
+
+    def unload(self) -> None:
+        """Best-effort release of loaded voice/session to free memory."""
+        self._voice = None
+        try:
+            gc.collect()
+        except Exception:
+            pass
     
     def _download_model(self, language: str) -> bool:
         """Download Piper model for specified language using Hugging Face Hub.
@@ -118,6 +153,11 @@ class PiperTTSAdapter(TTSAdapter):
             True if successful, False otherwise
         """
         if not self._piper_available:
+            return False
+
+        if not bool(getattr(self, "_allow_downloads", True)):
+            # Offline-first: never hit the network implicitly.
+            logger.info(f"ℹ️ Piper model for '{language}' not cached locally (offline mode).")
             return False
         
         model_info = self.PIPER_MODELS.get(language)
@@ -204,6 +244,9 @@ class PiperTTSAdapter(TTSAdapter):
         # Download model if needed
         model_path, config_path = self._get_model_path(language)
         if not (model_path.exists() and config_path.exists()):
+            # Offline-first: do not attempt downloads unless explicitly allowed.
+            if not bool(getattr(self, "_allow_downloads", True)):
+                return False
             if not self._download_model(language):
                 return False
         

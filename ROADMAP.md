@@ -1,3 +1,4 @@
 - Explore and document the capabilities of the AbstractVoice server for audio streaming and serving.
 - Design and implement an OpenAI-compatible speech endpoint ([API reference](https://platform.openai.com/docs/api-reference/audio/createSpeech)) to enhance interoperability.
 - Ensure those new endpoints can enrich those of [AbstractCore](https://github.com/lpalbou/abstractcore) for expanded voice AI functionalities.
+- Speed parameter doesn't affect cloned voice at the moment (f5tts but not chroma); double check for regular voice

@@ -1,14 +1,65 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import tempfile
 import time
+import threading
 import uuid
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 import appdirs
+
+_STDERR_FD_LOCK = threading.Lock()
+
+
+class _SilenceStderrFD:
+    """Temporarily redirect OS-level stderr (fd=2) to /dev/null.
+
+    Some native decoders (e.g. mpg123 via libsndfile) write directly to fd=2,
+    bypassing Python's sys.stderr. We use this to keep interactive CLI output
+    clean when decoding odd inputs like MP3-in-WAV.
+    """
+
+    def __enter__(self):
+        self._lock = _STDERR_FD_LOCK
+        self._lock.acquire()
+        self._devnull_fd = None
+        self._saved_stderr_fd = None
+        try:
+            self._devnull_fd = os.open(os.devnull, os.O_WRONLY)
+            self._saved_stderr_fd = os.dup(2)
+            os.dup2(self._devnull_fd, 2)
+        except Exception:
+            self.__exit__(None, None, None)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if self._saved_stderr_fd is not None:
+                try:
+                    os.dup2(self._saved_stderr_fd, 2)
+                except Exception:
+                    pass
+        finally:
+            try:
+                if self._saved_stderr_fd is not None:
+                    os.close(self._saved_stderr_fd)
+            except Exception:
+                pass
+            try:
+                if self._devnull_fd is not None:
+                    os.close(self._devnull_fd)
+            except Exception:
+                pass
+            try:
+                self._lock.release()
+            except Exception:
+                pass
+        return False
 
 
 @dataclass(frozen=True)
@@ -59,6 +110,69 @@ class VoiceCloneStore:
         vdir = self._voice_dir(voice.voice_id)
         return [vdir / rel for rel in voice.reference_files]
 
+    def normalize_reference_audio(self, voice_id: str) -> int:
+        """Best-effort normalize stored references for a voice.
+
+        Currently converts WAV files that are actually MPEG-compressed (MP3-in-WAV)
+        into standard PCM16 WAVs. This prevents native decoder warnings like:
+          "Illegal Audio-MPEG-Header ... Trying to resync ..."
+        from polluting interactive CLI output during cloning synthesis.
+        """
+        try:
+            voice = self.get_voice(voice_id)
+        except Exception:
+            return 0
+
+        vdir = self._voice_dir(voice.voice_id)
+        converted = 0
+        for rel in (voice.reference_files or []):
+            p = vdir / str(rel)
+            try:
+                if self._normalize_wav_mpeg_to_pcm_inplace(p):
+                    converted += 1
+            except Exception:
+                # Normalization is best-effort; inference can still attempt decode.
+                continue
+        return converted
+
+    def _normalize_wav_mpeg_to_pcm_inplace(self, path: Path) -> bool:
+        if path.suffix.lower() != ".wav":
+            return False
+        if not path.exists():
+            return False
+        try:
+            import soundfile as sf
+        except Exception:
+            return False
+
+        try:
+            info = sf.info(str(path))
+        except Exception:
+            return False
+
+        # Example: format=WAV subtype=MPEG_LAYER_III
+        fmt = str(getattr(info, "format", "") or "").strip().upper()
+        subtype = str(getattr(info, "subtype", "") or "").strip().upper()
+        if fmt != "WAV" or not subtype.startswith("MPEG"):
+            return False
+
+        # Decode once (silencing native decoder stderr), then rewrite as PCM16 WAV.
+        with _SilenceStderrFD():
+            audio, sr = sf.read(str(path), always_2d=True, dtype="float32")
+
+        tmp = tempfile.NamedTemporaryFile(dir=str(path.parent), suffix=".wav", delete=False)
+        tmp_path = Path(tmp.name)
+        tmp.close()
+        try:
+            sf.write(str(tmp_path), audio, int(sr), format="WAV", subtype="PCM_16")
+            tmp_path.replace(path)
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)  # type: ignore[arg-type]
+            except Exception:
+                pass
+        return True
+
     def create_voice(
         self,
         reference_paths: Iterable[str | Path],
@@ -84,8 +198,32 @@ class VoiceCloneStore:
         copied: List[str] = []
         for i, p in enumerate(paths):
             dest = vdir / f"ref_{i}{p.suffix.lower()}"
+            if p.suffix.lower() == ".wav":
+                # If the WAV container is actually MPEG-compressed, normalize to PCM16 WAV
+                # to avoid noisy mpg123 "resync" messages later during synthesis.
+                try:
+                    import soundfile as sf
+
+                    info = sf.info(str(p))
+                    fmt = str(getattr(info, "format", "") or "").strip().upper()
+                    subtype = str(getattr(info, "subtype", "") or "").strip().upper()
+                    if fmt == "WAV" and subtype.startswith("MPEG"):
+                        with _SilenceStderrFD():
+                            audio, sr = sf.read(str(p), always_2d=True, dtype="float32")
+                        sf.write(str(dest), audio, int(sr), format="WAV", subtype="PCM_16")
+                        copied.append(dest.name)
+                        continue
+                except Exception:
+                    # Fall back to raw copy; synthesis may still attempt decode.
+                    pass
+
             shutil.copy2(p, dest)
             copied.append(dest.name)
+
+        meta_out = dict(meta or {})
+        if (reference_text or "").strip() and not meta_out.get("reference_text_source"):
+            # Keep metadata consistent with `set_reference_text(..., source="manual")`.
+            meta_out["reference_text_source"] = "manual"
 
         record = ClonedVoice(
             voice_id=voice_id,
@@ -94,7 +232,7 @@ class VoiceCloneStore:
             reference_files=copied,
             reference_text=reference_text,
             engine=engine,
-            meta=meta or {},
+            meta=meta_out,
         )
 
         index = self._read_index()
@@ -222,4 +360,3 @@ class VoiceCloneStore:
 
         del index[voice_id]
         self._write_index(index)
-

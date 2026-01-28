@@ -8,8 +8,10 @@ that interacts with an LLM API for text generation.
 
 import argparse
 import cmd
+import atexit
 import json
 import re
+import shlex
 import shutil
 import sys
 import importlib.util
@@ -35,18 +37,34 @@ class VoiceREPL(cmd.Cmd):
     """Voice-enabled REPL for LLM interaction."""
     
     intro = ""  # Will be set in __init__ to include help
-    prompt = f"{Colors.GREEN}> {Colors.END}"
+    prompt = "> "
     
     # Override cmd module settings
     ruler = ""  # No horizontal rule line
     use_rawinput = True
     
-    def __init__(self, api_url="http://localhost:11434/api/chat",
-                 model="cogito:3b", debug_mode=False, language="en", tts_model=None, disable_tts=False):
+    def __init__(
+        self,
+        api_url="http://localhost:11434/api/chat",
+        model="cogito:3b",
+        debug_mode=False,
+        verbose_mode: bool = False,
+        language="en",
+        tts_model=None,
+        voice_mode: str = "off",
+        disable_tts=False,
+        cloning_engine: str = "f5_tts",
+    ):
         super().__init__()
+
+        # Best-effort: enable proper line editing + history (Up/Down arrows).
+        # Some Python builds (notably when built without readline/libedit) will
+        # otherwise treat arrow keys as escape sequences and corrupt the prompt.
+        self._init_readline()
 
         # Debug mode
         self.debug_mode = debug_mode
+        self.verbose_mode = bool(verbose_mode)
 
         # API settings
         self.api_url = api_url
@@ -57,6 +75,7 @@ class VoiceREPL(cmd.Cmd):
         # Language settings
         self.current_language = language
         self._initial_tts_model = tts_model
+        self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
 
         # Initialize voice manager with language support
         if disable_tts:
@@ -69,6 +88,7 @@ class VoiceREPL(cmd.Cmd):
                 debug_mode=debug_mode,
                 allow_downloads=False,
                 cloned_tts_streaming=False,
+                cloning_engine=self.cloning_engine,
             )
 
         # Current speaking voice:
@@ -81,20 +101,16 @@ class VoiceREPL(cmd.Cmd):
         
         # Settings
         self.use_tts = True
-        # Default voice mode: STOP.
-        # Rationale: users can interrupt TTS with "ok stop"/"okay stop" without
-        # self-feedback loops, and keep the conversation going hands-free.
-        self.voice_mode = "stop"  # off, full, wait, stop, ptt
+        # Voice input mode (mic). Default: OFF for fast startup + offline-first.
+        # Use `--voice-mode stop` (or `/voice stop`) to enable hands-free.
+        self.voice_mode = (voice_mode or "off").strip().lower()  # off, full, wait, stop, ptt
         self.voice_mode_active = False  # Is voice recognition running?
         self._ptt_session_active = False
         self._ptt_recording = False
         self._ptt_busy = False
         
         # System prompt
-        self.system_prompt = """
-                You are a Helpful Voice Assistant. By design, your answers are short and more conversational, unless specifically asked to detail something.
-                You only speak, so never use any text formatting or markdown. Write for a speaker.
-                """
+        self.system_prompt = "You are a Helpful Voice Assistant. By design, your answers are short and conversational, unless specifically asked to detail something. You only speak, so never use any text formatting, hinting, *emotions*, emojis or markdown. Incarnate the speaker, never comment your instructions."
         
         # Message history
         self.messages = [{"role": "system", "content": self.system_prompt}]
@@ -103,34 +119,133 @@ class VoiceREPL(cmd.Cmd):
         self.system_tokens = 0
         self.user_tokens = 0
         self.assistant_tokens = 0
+        # LLM token totals (best-effort, Ollama API `eval_count`).
+        self.total_llm_out_tokens = 0
+        # Word counting
+        self.system_words = 0
+        self.user_words = 0
+        self.assistant_words = 0
+        # Best-effort tokenizer cache (tiktoken optional).
+        self._tiktoken_encoding = None
+        self._tiktoken_unavailable = False
         self._count_system_tokens()
-        
+        self._count_system_words()
+
+        # Best-effort metrics captured from voice input paths.
+        self._pending_stt_metrics: dict | None = None
+
         if self.debug_mode:
             print(f"Initialized with API URL: {api_url}")
             print(f"Using model: {model}")
-        
-        # Try to auto-enable voice input in STOP mode (best-effort).
-        if self.voice_manager:
+
+        # Optionally auto-start voice input (mic). Keep OFF by default to avoid
+        # loading STT models (slow) unless the user explicitly opts in.
+        if self.voice_manager and self.voice_mode and self.voice_mode != "off":
             try:
-                self.do_voice("stop")
+                self.do_voice(self.voice_mode)
             except Exception:
                 # Never block REPL start.
-                pass
+                self.voice_mode = "off"
+                self.voice_mode_active = False
 
         # Set intro with help information
         self.intro = self._get_intro()
+
+    def _init_readline(self) -> None:
+        """Initialize readline history + make ANSI prompts safe (best-effort)."""
+        rl = None
+        try:
+            import readline as _readline  # type: ignore
+
+            rl = _readline
+        except Exception:
+            # Windows users may have pyreadline3 installed.
+            try:
+                import pyreadline3 as _readline  # type: ignore
+
+                rl = _readline
+            except Exception:
+                rl = None
+
+        if rl is None:
+            # Keep prompt simple and avoid ANSI; prevents strange cursor behavior
+            # when arrow keys emit escape codes in cooked terminals.
+            self.prompt = "> "
+            return
+
+        # Keep prompt plain when readline is enabled. ANSI prompts are fragile
+        # across readline/libedit builds and can corrupt redraw/history behavior.
+        self.prompt = "> "
+
+        # Persist history across sessions (best-effort).
+        try:
+            from pathlib import Path
+
+            try:
+                import appdirs
+
+                hist_dir = Path(appdirs.user_data_dir("abstractvoice"))
+            except Exception:
+                hist_dir = Path.home() / ".abstractvoice"
+
+            hist_dir.mkdir(parents=True, exist_ok=True)
+            hist_path = hist_dir / "repl_history"
+
+            try:
+                rl.read_history_file(str(hist_path))
+            except FileNotFoundError:
+                pass
+            except Exception:
+                pass
+
+            try:
+                rl.set_history_length(2000)
+            except Exception:
+                pass
+
+            def _save_history():
+                try:
+                    rl.write_history_file(str(hist_path))
+                except Exception:
+                    pass
+
+            atexit.register(_save_history)
+        except Exception:
+            pass
+
+        # Ensure Up/Down arrows traverse history reliably across GNU readline and
+        # macOS libedit-backed readline. Some libedit defaults perform prefix
+        # search/completion, which can look like text is being appended.
+        try:
+            doc = getattr(rl, "__doc__", "") or ""
+            is_libedit = "libedit" in doc.lower()
+            if is_libedit:
+                # libedit syntax
+                rl.parse_and_bind("bind ^[[A ed-prev-history")
+                rl.parse_and_bind("bind ^[[B ed-next-history")
+                rl.parse_and_bind("bind ^[[OA ed-prev-history")
+                rl.parse_and_bind("bind ^[[OB ed-next-history")
+            else:
+                # GNU readline syntax
+                rl.parse_and_bind('"\\e[A": previous-history')
+                rl.parse_and_bind('"\\e[B": next-history')
+                rl.parse_and_bind('"\\eOA": previous-history')
+                rl.parse_and_bind('"\\eOB": next-history')
+        except Exception:
+            pass
         
     def _get_intro(self):
         """Generate intro message with help."""
         intro = f"\n{Colors.BOLD}Welcome to AbstractVoice CLI REPL{Colors.END}\n"
         if self.voice_manager:
             lang_name = self.voice_manager.get_language_name()
-            intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name}\n"
+            mic = (self.voice_mode or "off").upper()
+            intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name} | Mic: {mic} | Cloning: {self.cloning_engine}\n"
         else:
             intro += f"API: {self.api_url} | Model: {self.model} | Voice: Disabled\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
         intro += "  • Type messages to chat with the LLM\n"
-        intro += "  • Voice input: enabled by default (STOP mode). Use /voice off to disable.\n"
+        intro += "  • Voice input (mic): off by default. Enable: /voice stop  (or start with --voice-mode stop)\n"
         intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
         intro += "  • Use /language <lang> to switch voice language\n"
         intro += "  • Use /clones and /tts_voice to use cloned voices\n"
@@ -141,6 +256,236 @@ class VoiceREPL(cmd.Cmd):
     def _count_system_tokens(self):
         """Count tokens in the system prompt."""
         self._count_tokens(self.system_prompt, "system")
+
+    def _count_system_words(self):
+        self.system_words = self._count_words(self.system_prompt)
+
+    def _count_words(self, text: str) -> int:
+        s = str(text or "").strip()
+        if not s:
+            return 0
+        # A "word" here is whitespace-delimited for simplicity across languages.
+        return len([w for w in re.split(r"\s+", s) if w])
+
+    def _get_tiktoken_encoding(self):
+        if getattr(self, "_tiktoken_unavailable", False):
+            return None
+        enc = getattr(self, "_tiktoken_encoding", None)
+        if enc is not None:
+            return enc
+        try:
+            import tiktoken
+        except ImportError:
+            self._tiktoken_unavailable = True
+            return None
+
+        try:
+            enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        except Exception:
+            try:
+                enc = tiktoken.get_encoding("cl100k_base")
+            except Exception:
+                self._tiktoken_unavailable = True
+                return None
+
+        self._tiktoken_encoding = enc
+        return enc
+
+    def _fmt_s(self, seconds: float | None) -> str:
+        try:
+            if seconds is None:
+                return "--"
+            s = float(seconds)
+            if s < 0:
+                return "--"
+            # Keep it compact but readable.
+            if s < 10:
+                return f"{s:.2f}s"
+            return f"{s:.1f}s"
+        except Exception:
+            return "--"
+
+    def _fmt_num(self, x: float | None, *, digits: int = 2) -> str:
+        try:
+            if x is None:
+                return "--"
+            return f"{float(x):.{int(digits)}f}"
+        except Exception:
+            return "--"
+
+    def _fmt_wtok(self, words: int | None, tokens: int | None) -> str:
+        w = int(words) if isinstance(words, int) else (int(words) if words is not None else 0)
+        if isinstance(tokens, int):
+            return f"{w}w/{int(tokens)}tok"
+        return f"{w}w/--tok"
+
+    def _summarize_audio_source(self, source: str) -> tuple[int | None, float | None]:
+        """Best-effort: return (file_count, total_seconds) for an audio source path."""
+        try:
+            from pathlib import Path
+
+            p = Path(str(source)).expanduser()
+        except Exception:
+            return None, None
+
+        try:
+            import soundfile as sf
+        except Exception:
+            return None, None
+
+        supported = {".wav", ".flac", ".ogg"}
+        files = []
+        try:
+            if p.is_file():
+                files = [p]
+            elif p.is_dir():
+                files = sorted([x for x in p.iterdir() if x.is_file() and x.suffix.lower() in supported])
+            else:
+                return None, None
+        except Exception:
+            return None, None
+
+        total_s = 0.0
+        max_files = 25
+        for fp in files[:max_files]:
+            try:
+                info = sf.info(str(fp))
+                d = float(getattr(info, "duration", 0.0) or 0.0)
+                if d > 0:
+                    total_s += d
+            except Exception:
+                continue
+
+        # If there are too many files, the displayed duration is a lower bound.
+        return (int(len(files)) if files else 0), (float(total_s) if total_s > 0 else None)
+
+    def _print_verbose_turn_stats(self, turn: dict) -> None:
+        if not bool(getattr(self, "verbose_mode", False)):
+            return
+        if not isinstance(turn, dict):
+            return
+
+        stt = turn.get("stt") if isinstance(turn.get("stt"), dict) else None
+        llm = turn.get("llm") if isinstance(turn.get("llm"), dict) else {}
+        counts = turn.get("counts") if isinstance(turn.get("counts"), dict) else {}
+        tts = turn.get("tts") if isinstance(turn.get("tts"), dict) else None
+
+        in_w = counts.get("in_words")
+        out_w = counts.get("out_words")
+        in_t = counts.get("in_tokens")
+        out_t = counts.get("out_tokens")
+
+        llm_s = llm.get("s")
+        api = llm.get("api") if isinstance(llm.get("api"), dict) else {}
+        api_prompt_tok = api.get("prompt_eval_count") if isinstance(api.get("prompt_eval_count"), int) else None
+        api_out_tok = api.get("eval_count") if isinstance(api.get("eval_count"), int) else None
+
+        # Line 1: STT (if any) + LLM + in/out counts and written speed.
+        parts1 = []
+        if stt:
+            stt_s = stt.get("stt_s")
+            stt_a = stt.get("audio_s")
+            stt_rtf = stt.get("rtf")
+            stt_txt = f"STT {self._fmt_s(stt_s)}"
+            if stt_a:
+                stt_txt += f"(a{self._fmt_s(stt_a)})"
+            if stt_rtf is not None:
+                stt_txt += f" rtf{self._fmt_num(stt_rtf, digits=2)}"
+            parts1.append(stt_txt)
+
+        if llm_s is not None or api_prompt_tok is not None or api_out_tok is not None:
+            llm_txt = f"LLM {self._fmt_s(llm_s)}"
+            if api_prompt_tok is not None or api_out_tok is not None:
+                p = str(api_prompt_tok) if api_prompt_tok is not None else "--"
+                o = str(api_out_tok) if api_out_tok is not None else "--"
+                llm_txt += f" (api p{p} o{o})"
+            parts1.append(llm_txt)
+
+        in_txt = f"in {self._fmt_wtok(in_w, in_t)}"
+        out_txt = f"out {self._fmt_wtok(out_w, out_t)}"
+
+        wps_written = None
+        try:
+            if isinstance(out_w, int) and out_w > 0 and llm_s and float(llm_s) > 0:
+                wps_written = float(out_w) / float(llm_s)
+        except Exception:
+            wps_written = None
+
+        if wps_written is not None:
+            out_txt += f" ({self._fmt_num(wps_written, digits=1)}w/s)"
+
+        parts1.append(in_txt)
+        parts1.append(out_txt)
+
+        line1 = " | ".join(parts1)
+
+        # Line 2: TTS (if any) + spoken speed + totals.
+        parts2 = []
+        if self.voice_manager and self.use_tts:
+            if not tts:
+                parts2.append("TTS --")
+            else:
+                eng = str(tts.get("engine") or "").strip().lower()
+                if eng == "clone":
+                    ce = tts.get("clone_engine")
+                    label = f"clone[{ce}]" if ce else "clone"
+                elif eng:
+                    label = eng
+                else:
+                    label = "tts"
+
+                err = (tts.get("error") or "").strip()
+                if err:
+                    # Keep single-line and short.
+                    msg = " ".join(err.split())
+                    if len(msg) > 120:
+                        msg = msg[:120].rstrip() + "…"
+                    parts2.append(f"TTS {label} ERR {msg}")
+                else:
+                    synth_s = tts.get("synth_s")
+                    audio_s = tts.get("audio_s")
+                    rtf = tts.get("rtf")
+                    tts_txt = f"TTS {label} {self._fmt_s(synth_s)}→{self._fmt_s(audio_s)}"
+                    if rtf is not None:
+                        tts_txt += f" rtf{self._fmt_num(rtf, digits=2)}"
+
+                    # Extra clone streaming details when available.
+                    if eng == "clone" and bool(tts.get("streaming")):
+                        ttfb_s = tts.get("ttfb_s")
+                        if ttfb_s is not None:
+                            tts_txt += f" ttfb{self._fmt_s(ttfb_s)}"
+                        ch = tts.get("chunks")
+                        if isinstance(ch, int):
+                            tts_txt += f" ch{ch}"
+
+                    wps_spoken = None
+                    try:
+                        if isinstance(out_w, int) and out_w > 0 and audio_s and float(audio_s) > 0:
+                            wps_spoken = float(out_w) / float(audio_s)
+                    except Exception:
+                        wps_spoken = None
+                    if wps_spoken is not None:
+                        tts_txt += f" ({self._fmt_num(wps_spoken, digits=1)}w/s)"
+
+                    parts2.append(tts_txt)
+        else:
+            parts2.append("TTS off")
+
+        total_words = int(getattr(self, "system_words", 0) + getattr(self, "user_words", 0) + getattr(self, "assistant_words", 0))
+        total_tokens = None
+        if self._get_tiktoken_encoding() is not None:
+            total_tokens = int(getattr(self, "system_tokens", 0) + getattr(self, "user_tokens", 0) + getattr(self, "assistant_tokens", 0))
+
+        tot_txt = f"tot {self._fmt_wtok(total_words, total_tokens)}"
+        if isinstance(getattr(self, "total_llm_out_tokens", None), int) and getattr(self, "total_llm_out_tokens") > 0:
+            tot_txt += f" (api out {int(getattr(self, 'total_llm_out_tokens'))}tok)"
+        parts2.append(tot_txt)
+
+        line2 = " | ".join(parts2)
+
+        # Keep it readable; two lines max.
+        print(f"{Colors.YELLOW}{line1}{Colors.END}")
+        print(f"{Colors.YELLOW}{line2}{Colors.END}")
     
     def parseline(self, line):
         """Parse the line to extract command and arguments.
@@ -161,7 +506,8 @@ class VoiceREPL(cmd.Cmd):
         All other commands MUST use / prefix.
         """
         # Skip empty lines
-        if not line.strip():
+        text = line.strip()
+        if not text:
             return
         
         # In PTT mode we do not accept typed input.
@@ -182,16 +528,88 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager.stop_speaking()
         except Exception:
             pass
+
+        # Shortcut: paste a reference audio path to clone+use a voice.
+        # Examples:
+        #   audio_samples/hal9000/hal9000_hello.wav
+        #   audio_samples/hal9000/hal9000_hello.wav | Hello, Dave.
+        if self._maybe_handle_clone_shortcut(text):
+            return
         
         # Everything else goes to LLM
-        self.process_query(line.strip())
+        self._pending_stt_metrics = None
+        self.process_query(text)
 
     # NOTE: PTT is implemented as a dedicated key-loop session (no typing).
+
+    def _maybe_handle_clone_shortcut(self, text: str) -> bool:
+        """Best-effort: treat a pasted WAV/FLAC/OGG path as `/clone_use`."""
+        if not self.voice_manager:
+            return False
+
+        raw = (text or "").strip()
+        if not raw:
+            return False
+        if raw.startswith("/"):
+            return False
+
+        # Optional transcript with a simple pipe syntax:
+        #   path.wav | Hello.
+        left, sep, right = raw.partition("|")
+        path_str = left.strip()
+        ref_text = right.strip() if sep else ""
+        reference_text = ref_text or None
+
+        # Strip naive wrapping quotes.
+        if (path_str.startswith('"') and path_str.endswith('"')) or (path_str.startswith("'") and path_str.endswith("'")):
+            path_str = path_str[1:-1].strip()
+
+        try:
+            from pathlib import Path
+
+            p = Path(path_str).expanduser()
+        except Exception:
+            return False
+
+        if not p.exists():
+            return False
+
+        exts = {".wav", ".flac", ".ogg"}
+        if p.is_file() and p.suffix.lower() not in exts:
+            return False
+        if p.is_dir():
+            try:
+                has_audio = any(x.is_file() and x.suffix.lower() in exts for x in p.iterdir())
+            except Exception:
+                has_audio = False
+            if not has_audio:
+                return False
+
+        # Build a `/clone_use` call with a stable name.
+        import shlex as _shlex
+
+        default_name = p.stem if p.is_file() else p.name
+        args = f"{_shlex.quote(str(p))} {_shlex.quote(default_name)}"
+        if reference_text:
+            args += f" --text {_shlex.quote(reference_text)}"
+        try:
+            self.do_clone_use(args)
+        except Exception as e:
+            print(f"❌ Clone shortcut failed: {e}")
+            if self.debug_mode:
+                import traceback
+
+                traceback.print_exc()
+        return True
         
     def process_query(self, query):
         """Process a query and get a response from the LLM."""
         if not query:
             return
+
+        # Consume any pending STT metrics for this turn (voice/PTT input).
+        stt_metrics = getattr(self, "_pending_stt_metrics", None)
+        self._pending_stt_metrics = None
 
         # If audio is currently playing, stop it so the new request can be handled
         # without overlapping speech.
@@ -201,8 +619,10 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             pass
             
-        # Count user message tokens
-        self._count_tokens(query, "user")
+        # Per-turn counts
+        user_words = self._count_words(query)
+        self.user_words += int(user_words)
+        user_tokens = self._count_tokens(query, "user")
         
         # Create the message
         user_message = {"role": "user", "content": query}
@@ -222,6 +642,7 @@ class VoiceREPL(cmd.Cmd):
             }
             
             # Make API request
+            llm_t0 = time.monotonic()
             response = requests.post(self.api_url, json=payload)
             response.raise_for_status()
             
@@ -229,6 +650,22 @@ class VoiceREPL(cmd.Cmd):
             try:
                 # First, try to parse as JSON
                 response_data = response.json()
+                api_llm_metrics = {}
+                try:
+                    # Ollama exposes timing + token counts (nanoseconds).
+                    # Keep best-effort: if fields are missing, we just omit them.
+                    for k in (
+                        "total_duration",
+                        "load_duration",
+                        "prompt_eval_count",
+                        "prompt_eval_duration",
+                        "eval_count",
+                        "eval_duration",
+                    ):
+                        if k in response_data:
+                            api_llm_metrics[k] = response_data.get(k)
+                except Exception:
+                    api_llm_metrics = {}
                 
                 # Check for different API formats
                 if "message" in response_data and "content" in response_data["message"]:
@@ -247,6 +684,7 @@ class VoiceREPL(cmd.Cmd):
                 
                 # Handle streaming or non-JSON response
                 response_text = response.text.strip()
+                api_llm_metrics = {}
                 
                 # Try to extract content from streaming format if possible
                 if response_text.startswith("{") and "content" in response_text:
@@ -275,9 +713,13 @@ class VoiceREPL(cmd.Cmd):
                     except Exception as e:
                         if self.debug_mode:
                             print(f"Error extracting content from streaming response: {e}")
+            llm_t1 = time.monotonic()
+            llm_s = float(llm_t1 - llm_t0)
             
-            # Count assistant message tokens
-            self._count_tokens(response_text, "assistant")
+            # Per-turn counts
+            assistant_words = self._count_words(response_text)
+            self.assistant_words += int(assistant_words)
+            assistant_tokens = self._count_tokens(response_text, "assistant")
             
             # Add to message history
             self.messages.append({"role": "assistant", "content": response_text})
@@ -285,11 +727,32 @@ class VoiceREPL(cmd.Cmd):
             # Display the response with color
             print(f"{Colors.CYAN}{response_text}{Colors.END}")
             
+            # Record last-turn stats (best-effort; printed only in verbose mode).
+            self._last_turn_metrics = {
+                "stt": stt_metrics,
+                "llm": {
+                    "s": llm_s,
+                    "api": api_llm_metrics,
+                },
+                "counts": {
+                    "in_words": int(user_words),
+                    "out_words": int(assistant_words),
+                    "in_tokens": int(user_tokens) if isinstance(user_tokens, int) else None,
+                    "out_tokens": int(assistant_tokens) if isinstance(assistant_tokens, int) else None,
+                },
+            }
+            try:
+                out_tok = api_llm_metrics.get("eval_count") if isinstance(api_llm_metrics, dict) else None
+                if isinstance(out_tok, int) and out_tok >= 0:
+                    self.total_llm_out_tokens += int(out_tok)
+            except Exception:
+                pass
+
             # Speak the response if voice manager is available
             if self.voice_manager and self.use_tts:
                 try:
                     # UX guard: never trigger big cloning downloads during normal chat.
-                    if self.current_tts_voice and not self._is_cloning_runtime_ready():
+                    if self.current_tts_voice and not self._is_cloning_runtime_ready(voice_id=self.current_tts_voice):
                         print(
                             "ℹ️  Cloned voice selected but cloning runtime is not ready.\n"
                             "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
@@ -298,6 +761,27 @@ class VoiceREPL(cmd.Cmd):
                         self._speak_with_spinner_until_audio_starts(response_text)
                 except Exception as e:
                     print(f"❌ TTS failed: {e}")
+
+            # Capture best-effort TTS metrics (Piper or cloned).
+            tts_metrics = None
+            try:
+                if self.voice_manager and hasattr(self.voice_manager, "pop_last_tts_metrics"):
+                    tts_metrics = self.voice_manager.pop_last_tts_metrics()
+            except Exception:
+                tts_metrics = None
+
+            try:
+                if isinstance(getattr(self, "_last_turn_metrics", None), dict):
+                    self._last_turn_metrics["tts"] = tts_metrics
+            except Exception:
+                pass
+
+            # Verbose stats (max 2 lines).
+            try:
+                if self.verbose_mode and isinstance(getattr(self, "_last_turn_metrics", None), dict):
+                    self._print_verbose_turn_stats(self._last_turn_metrics)
+            except Exception:
+                pass
                 
         except requests.exceptions.ConnectionError as e:
             print(f"❌ Cannot connect to Ollama API at {self.api_url}")
@@ -331,37 +815,29 @@ class VoiceREPL(cmd.Cmd):
     
     def _count_tokens(self, text, role):
         """Count tokens in text."""
+        encoding = self._get_tiktoken_encoding()
+        if encoding is None:
+            return None
         try:
-            import tiktoken
-            
-            # Initialize the tokenizer 
-            encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-            
-            # Count tokens
-            token_count = len(encoding.encode(text))
-            
-            # Update the token counts based on role
-            if role == "system":
-                self.system_tokens = token_count
-            elif role == "user":
-                self.user_tokens += token_count
-            elif role == "assistant":
-                self.assistant_tokens += token_count
-            
-            # Calculate total tokens
-            total_tokens = self.system_tokens + self.user_tokens + self.assistant_tokens
-            
-            if self.debug_mode:
-                print(f"{role.capitalize()} tokens: {token_count}")
-                print(f"Total tokens: {total_tokens}")
-                    
-        except ImportError:
-            # If tiktoken is not available, just don't count tokens
-            pass
+            token_count = len(encoding.encode(str(text or "")))
         except Exception as e:
             if self.debug_mode:
                 print(f"Error counting tokens: {e}")
-            pass
+            return None
+
+        # Update the token counts based on role
+        if role == "system":
+            self.system_tokens = int(token_count)
+        elif role == "user":
+            self.user_tokens += int(token_count)
+        elif role == "assistant":
+            self.assistant_tokens += int(token_count)
+
+        if self.debug_mode:
+            total_tokens = self.system_tokens + self.user_tokens + self.assistant_tokens
+            print(f"{role.capitalize()} tokens: {token_count}")
+            print(f"Total tokens: {total_tokens}")
+        return int(token_count)
     
     def _clean_response(self, text):
         """Clean LLM response text."""
@@ -807,7 +1283,27 @@ class VoiceREPL(cmd.Cmd):
 
             self._ptt_busy = True
             try:
+                audio_s = 0.0
+                try:
+                    if sr and sr > 0:
+                        audio_s = float(len(pcm)) / float(int(sr) * 2)
+                except Exception:
+                    audio_s = 0.0
+
+                t0 = time.monotonic()
                 text = (self.voice_manager.transcribe_from_bytes(wav_bytes, language=self.current_language) or "").strip()
+                t1 = time.monotonic()
+                stt_s = float(t1 - t0)
+                self._pending_stt_metrics = {
+                    "stt_s": stt_s,
+                    "audio_s": float(audio_s),
+                    "rtf": (stt_s / float(audio_s)) if audio_s else None,
+                    "sample_rate": int(sr),
+                    "chunks": None,
+                    "chunk_ms": None,
+                    "profile": "ptt",
+                    "ts": time.time(),
+                }
             except Exception as e:
                 self._ptt_busy = False
                 _println(f"❌ Transcription failed: {e}")
@@ -903,6 +1399,17 @@ class VoiceREPL(cmd.Cmd):
     
     def _voice_callback(self, text):
         """Callback for voice recognition."""
+        # Capture best-effort STT metrics from the recognizer (for verbose stats).
+        stt_metrics = None
+        try:
+            vm = self.voice_manager
+            rec = getattr(vm, "voice_recognizer", None) if vm else None
+            if rec is not None and hasattr(rec, "pop_last_stt_metrics"):
+                stt_metrics = rec.pop_last_stt_metrics()
+        except Exception:
+            stt_metrics = None
+        self._pending_stt_metrics = stt_metrics
+
         # Print what the user said
         print(f"\n> {text}")
         # NOTE: stop phrases are handled by the stop_callback path (interrupt TTS).
@@ -942,6 +1449,7 @@ class VoiceREPL(cmd.Cmd):
                     debug_mode=self.debug_mode,
                     allow_downloads=False,
                     cloned_tts_streaming=False,
+                    cloning_engine=self.cloning_engine,
                 )
             print("TTS enabled" if self.debug_mode else "")
         elif arg == "off":
@@ -1006,6 +1514,35 @@ class VoiceREPL(cmd.Cmd):
 
         try:
             self._speak_with_spinner_until_audio_starts(text)
+            if self.verbose_mode:
+                out_words = self._count_words(text)
+                out_tokens = None
+                try:
+                    enc = self._get_tiktoken_encoding()
+                    if enc is not None:
+                        out_tokens = int(len(enc.encode(str(text or ""))))
+                except Exception:
+                    out_tokens = None
+
+                tts_metrics = None
+                try:
+                    if hasattr(self.voice_manager, "pop_last_tts_metrics"):
+                        tts_metrics = self.voice_manager.pop_last_tts_metrics()
+                except Exception:
+                    tts_metrics = None
+
+                turn = {
+                    "stt": None,
+                    "llm": {},
+                    "counts": {
+                        "in_words": 0,
+                        "out_words": int(out_words),
+                        "in_tokens": None,
+                        "out_tokens": out_tokens,
+                    },
+                    "tts": tts_metrics,
+                }
+                self._print_verbose_turn_stats(turn)
         except Exception as e:
             print(f"❌ Speak failed: {e}")
             if self.debug_mode:
@@ -1023,6 +1560,21 @@ class VoiceREPL(cmd.Cmd):
             return
 
         is_clone = bool(self.current_tts_voice)
+        if not is_clone:
+            # Offline-first: Piper voices must be explicitly cached. Provide a clear
+            # message instead of hanging on implicit downloads.
+            try:
+                a = getattr(self.voice_manager, "tts_adapter", None)
+                if a is not None and hasattr(a, "is_available") and not bool(a.is_available()):
+                    lang = str(getattr(self, "current_language", "en") or "en").strip().lower()
+                    raise RuntimeError(
+                        f"Piper voice model for '{lang}' is not available locally.\n"
+                        f"Run: python -m abstractvoice download --piper {lang}"
+                    )
+            except RuntimeError:
+                raise
+            except Exception:
+                pass
         ind = self._busy_indicator(enabled=is_clone)
         try:
             if is_clone:
@@ -1057,14 +1609,8 @@ class VoiceREPL(cmd.Cmd):
                 ind.stop()
             except Exception:
                 pass
-            # After audio starts (or we give up), show a prompt line so users know
-            # they can type to interrupt / ask another question immediately.
-            try:
-                if is_clone:
-                    sys.stdout.write("\n" + self.prompt)
-                    sys.stdout.flush()
-            except Exception:
-                pass
+            # Do not print the prompt manually: `cmd` will render it on return,
+            # and printing here can result in duplicate prompts (`> >`).
 
     class _busy_indicator:
         """A minimal, discreet spinner (no extra lines)."""
@@ -1115,7 +1661,8 @@ class VoiceREPL(cmd.Cmd):
                 pass
             # Clear spinner line.
             try:
-                sys.stdout.write("\r" + (" " * 60) + "\r")
+                # `\033[2K` clears the entire line (more robust than fixed spaces).
+                sys.stdout.write("\r\033[2K\r")
                 # Restore cursor.
                 sys.stdout.write("\033[?25h")
                 sys.stdout.flush()
@@ -1149,10 +1696,13 @@ class VoiceREPL(cmd.Cmd):
             for v in voices:
                 vid = v.get("voice_id") or v.get("voice", "")
                 name = v.get("name", "")
+                eng = (v.get("engine") or "").strip()
+                eng_txt = f" [{eng}]" if eng else ""
                 src = (v.get("meta") or {}).get("reference_text_source", "")
                 src_txt = f" [{src}]" if src else ""
                 current = " (current)" if self.current_tts_voice == vid else ""
-                print(f"  - {name}: {vid}{src_txt}{current}")
+                print(f"  - {name}: {vid}{eng_txt}{src_txt}{current}")
+            print("Tip: /clone_rm <id-or-name> deletes one; /clone_rm_all --yes deletes all.")
         except Exception as e:
             print(f"❌ Error listing cloned voices: {e}")
 
@@ -1163,6 +1713,51 @@ class VoiceREPL(cmd.Cmd):
             name = v.get("name") or ""
             if wanted == vid or vid.startswith(wanted) or wanted == name:
                 return vid
+        return None
+
+    def _resolve_clone_id_by_source(self, source: str, *, engine: str | None = None) -> str | None:
+        """Find a cloned voice by its stored meta.source (best-effort)."""
+        if not self.voice_manager:
+            return None
+
+        try:
+            from pathlib import Path
+
+            target = Path(str(source)).expanduser()
+            try:
+                target_norm = str(target.resolve())
+            except Exception:
+                target_norm = str(target)
+        except Exception:
+            target_norm = str(source)
+
+        try:
+            voices = self.voice_manager.list_cloned_voices()
+        except Exception:
+            return None
+
+        wanted_engine = (str(engine).strip().lower() if engine else None) or None
+        for v in voices:
+            meta = v.get("meta") or {}
+            src = meta.get("source")
+            if not src:
+                continue
+            try:
+                from pathlib import Path
+
+                p = Path(str(src)).expanduser()
+                try:
+                    src_norm = str(p.resolve())
+                except Exception:
+                    src_norm = str(p)
+            except Exception:
+                src_norm = str(src)
+
+            if src_norm != target_norm:
+                continue
+            if wanted_engine and (str(v.get("engine") or "").strip().lower() != wanted_engine):
+                continue
+            return str(v.get("voice_id") or "").strip() or None
         return None
 
     def do_clone_info(self, arg):
@@ -1263,6 +1858,55 @@ class VoiceREPL(cmd.Cmd):
         self.voice_manager.delete_cloned_voice(vid)
         print("✅ Deleted.")
 
+    def do_clone_rm_all(self, arg):
+        """Remove ALL cloned voices from the local store.
+
+        Usage:
+          /clone_rm_all --yes
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        confirm = (arg or "").strip().lower()
+        if confirm not in ("--yes", "-y", "yes"):
+            try:
+                n = len(self.voice_manager.list_cloned_voices() or [])
+            except Exception:
+                n = 0
+            if n <= 0:
+                print("No cloned voices to delete.")
+                return
+            print(f"⚠️  This will permanently delete {n} cloned voice(s).")
+            print("Re-run with: /clone_rm_all --yes")
+            return
+
+        # If currently selected, switch back to Piper.
+        self.current_tts_voice = None
+
+        deleted = 0
+        failed = 0
+        try:
+            voices = list(self.voice_manager.list_cloned_voices() or [])
+        except Exception as e:
+            print(f"❌ Error listing cloned voices: {e}")
+            return
+
+        for v in voices:
+            vid = str(v.get("voice_id") or v.get("voice") or "").strip()
+            if not vid:
+                continue
+            try:
+                self.voice_manager.delete_cloned_voice(vid)
+                deleted += 1
+            except Exception:
+                failed += 1
+
+        if failed:
+            print(f"✅ Deleted {deleted} cloned voice(s). ⚠️ Failed: {failed}")
+        else:
+            print(f"✅ Deleted {deleted} cloned voice(s).")
+
     def do_clone_export(self, arg):
         """Export a cloned voice bundle (.zip).
 
@@ -1303,27 +1947,228 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice from a reference file or folder.
 
         Usage:
-          /clone <path> [name]
+          /clone <path> [name] [--engine f5_tts|chroma] [--text "reference transcript"]
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
             return
-        parts = arg.strip().split()
-        if not parts:
-            print("Usage: /clone <path> [name]")
-            return
-        path = parts[0]
-        name = parts[1] if len(parts) > 1 else None
+
         try:
-            voice_id = self.voice_manager.clone_voice(path, name=name)
-            print(f"✅ Cloned voice created: {voice_id}")
+            parts = shlex.split(arg.strip())
+        except ValueError as e:
+            print(f"Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]  (parse error: {e})")
+            return
+
+        if not parts:
+            print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            return
+
+        engine = None
+        reference_text = None
+        pos = []
+        i = 0
+        while i < len(parts):
+            tok = parts[i]
+            if tok in ("--engine",):
+                if i + 1 >= len(parts):
+                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    return
+                engine = parts[i + 1]
+                i += 2
+                continue
+            if tok in ("--text", "--reference-text", "--reference_text"):
+                if i + 1 >= len(parts):
+                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    return
+                reference_text = parts[i + 1]
+                i += 2
+                continue
+            pos.append(tok)
+            i += 1
+
+        if not pos:
+            print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            return
+
+        path = pos[0]
+        name = pos[1] if len(pos) > 1 else None
+        try:
+            t0 = time.monotonic()
+            voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine)
+            t1 = time.monotonic()
+
+            eng = ""
+            ref_src = ""
+            try:
+                info = self.voice_manager.get_cloned_voice(voice_id) or {}
+                eng = str(info.get("engine") or "").strip()
+                ref_src = str((info.get("meta") or {}).get("reference_text_source") or "").strip()
+            except Exception:
+                eng = ""
+                ref_src = ""
+
+            eng_txt = f" (engine: {eng})" if eng else ""
+            print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
             print("   Use /tts_voice clone <id-or-name> to select it.")
             print("   Tip: set reference text for best quality:")
             print("     /clone_set_ref_text <id-or-name> \"...\"")
-            if not self._is_cloning_runtime_ready():
+            if not self._is_cloning_runtime_ready(voice_id=voice_id):
                 print("   (Cloning runtime not ready yet; run /cloning_status and /cloning_download first.)")
+            if str(eng or (engine or self.cloning_engine) or "").strip().lower() == "chroma" and not (reference_text or "").strip():
+                print("ℹ️  No reference transcript provided.")
+                print("   We will auto-generate it via STT on first speak (offline-first: requires cached STT model).")
+                print("   Optional (often best quality): /clone_set_ref_text <id-or-name> \"...\"  (or re-run /clone ... --text \"...\")")
+
+            if self.verbose_mode:
+                n_files, ref_audio_s = self._summarize_audio_source(path)
+                n_txt = str(n_files) if isinstance(n_files, int) else "--"
+                src_txt = ref_src or ("manual" if (reference_text or "").strip() else "--")
+                msg = f"CLONE {eng or (engine or self.cloning_engine)} | refs {n_txt} a{self._fmt_s(ref_audio_s)} | ref_text {src_txt} | {self._fmt_s(float(t1 - t0))}"
+                print(f"{Colors.YELLOW}{msg}{Colors.END}")
         except Exception as e:
             print(f"❌ Clone failed: {e}")
+
+    def do_clone_use(self, arg):
+        """Clone a voice (or reuse an existing one) and immediately select it.
+
+        Usage:
+          /clone_use <path> [name] [--engine f5_tts|chroma] [--text "reference transcript"]
+
+        Shortcut:
+          - Paste a WAV/FLAC/OGG path directly (optionally: `path.wav | transcript`).
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        try:
+            parts = shlex.split(arg.strip())
+        except ValueError as e:
+            print(f"Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]  (parse error: {e})")
+            return
+
+        if not parts:
+            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            return
+
+        engine = None
+        reference_text = None
+        pos = []
+        i = 0
+        while i < len(parts):
+            tok = parts[i]
+            if tok in ("--engine",):
+                if i + 1 >= len(parts):
+                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    return
+                engine = parts[i + 1]
+                i += 2
+                continue
+            if tok in ("--text", "--reference-text", "--reference_text"):
+                if i + 1 >= len(parts):
+                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    return
+                reference_text = parts[i + 1]
+                i += 2
+                continue
+            pos.append(tok)
+            i += 1
+
+        if not pos:
+            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            return
+
+        path = pos[0]
+        name = pos[1] if len(pos) > 1 else None
+
+        engine_name = str(engine or self.cloning_engine or "f5_tts").strip().lower()
+
+        # If name isn't provided, use something stable for UX.
+        if not name:
+            try:
+                from pathlib import Path
+
+                p = Path(path)
+                name = p.stem if p.is_file() else p.name
+            except Exception:
+                name = None
+
+        # Reuse a prior clone created from the same source path + engine.
+        voice_id = self._resolve_clone_id_by_source(path, engine=engine_name)
+        if voice_id:
+            if reference_text:
+                try:
+                    self.voice_manager.set_cloned_voice_reference_text(voice_id, reference_text)
+                    print("✅ Reusing cloned voice and updating reference text.")
+                except Exception:
+                    print("✅ Reusing cloned voice.")
+            else:
+                print("✅ Reusing cloned voice.")
+        else:
+            try:
+                t0 = time.monotonic()
+                voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine_name)
+                t1 = time.monotonic()
+
+                eng = ""
+                ref_src = ""
+                try:
+                    info = self.voice_manager.get_cloned_voice(voice_id) or {}
+                    eng = str(info.get("engine") or "").strip()
+                    ref_src = str((info.get("meta") or {}).get("reference_text_source") or "").strip()
+                except Exception:
+                    eng = ""
+                    ref_src = ""
+
+                eng_txt = f" (engine: {eng})" if eng else ""
+                print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
+                if reference_text:
+                    print("   (Reference text provided)")
+                else:
+                    print("   Tip: set reference text for best quality:")
+                    print("     /clone_set_ref_text <id-or-name> \"...\"")
+                    if str(eng or engine_name or "").strip().lower() == "chroma":
+                        print("   ℹ️  No transcript provided; STT auto-fallback runs on first speak (requires cached STT model).")
+
+                if self.verbose_mode:
+                    n_files, ref_audio_s = self._summarize_audio_source(path)
+                    n_txt = str(n_files) if isinstance(n_files, int) else "--"
+                    src_txt = ref_src or ("manual" if (reference_text or "").strip() else "--")
+                    msg = f"CLONE {eng or engine_name} | refs {n_txt} a{self._fmt_s(ref_audio_s)} | ref_text {src_txt} | {self._fmt_s(float(t1 - t0))}"
+                    print(f"{Colors.YELLOW}{msg}{Colors.END}")
+            except Exception as e:
+                print(f"❌ Clone failed: {e}")
+                return
+
+        # Select if runtime is ready (no surprise downloads).
+        if not self._is_cloning_runtime_ready(voice_id=voice_id):
+            print("ℹ️  Cloning runtime is not ready (would trigger large downloads).")
+            print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
+            return
+
+        self.current_tts_voice = voice_id
+        eng = ""
+        try:
+            info = self.voice_manager.get_cloned_voice(voice_id) or {}
+            eng = str(info.get("engine") or "").strip()
+        except Exception:
+            eng = ""
+        eng_txt = f" (engine: {eng})" if eng else ""
+        print(f"✅ Using cloned voice: {voice_id}{eng_txt}")
+        if eng and str(eng).strip().lower() != str(self.cloning_engine).strip().lower():
+            print(f"ℹ️  Default cloning engine is {self.cloning_engine}; this voice uses {eng}.")
+        # Free memory from other cloning engines (important for large backends like Chroma).
+        try:
+            if hasattr(self.voice_manager, "unload_cloning_engines"):
+                self.voice_manager.unload_cloning_engines(keep_engine=str(eng or "").strip().lower() or None)
+        except Exception:
+            pass
+        # Piper is not needed while speaking with a cloned voice; unload it to reduce memory pressure.
+        try:
+            if hasattr(self.voice_manager, "unload_piper_voice"):
+                self.voice_manager.unload_piper_voice()
+        except Exception:
+            pass
 
     def do_clone_set_ref_text(self, arg):
         """Set the reference transcript for a cloned voice (quality fix).
@@ -1372,13 +2217,38 @@ class VoiceREPL(cmd.Cmd):
 
         parts = arg.strip().split()
         if not parts:
-            current = self.current_tts_voice or "piper"
-            print(f"Current TTS voice: {current}")
+            if self.current_tts_voice:
+                vid = self.current_tts_voice
+                try:
+                    info = self.voice_manager.get_cloned_voice(vid) or {}
+                    name = (info.get("name") or "").strip()
+                    eng = (info.get("engine") or "").strip()
+                    label = name or vid
+                    suffix = f" (engine: {eng})" if eng else ""
+                    print(f"Current TTS voice: {label}{suffix}")
+                except Exception:
+                    print(f"Current TTS voice: {vid}")
+            else:
+                print("Current TTS voice: piper")
             print("Usage: /tts_voice piper | /tts_voice clone <id-or-name>")
             return
 
         if parts[0] == "piper":
             self.current_tts_voice = None
+            # Free any heavy cloning engines when switching back to Piper.
+            try:
+                if hasattr(self.voice_manager, "unload_cloning_engines"):
+                    self.voice_manager.unload_cloning_engines()
+            except Exception:
+                pass
+            # If Piper was previously unloaded to save memory, reload it now (offline-first).
+            try:
+                if self.voice_manager and getattr(self.voice_manager, "tts_adapter", None):
+                    a = getattr(self.voice_manager, "tts_adapter", None)
+                    if hasattr(a, "is_available") and not bool(a.is_available()):
+                        self.voice_manager.set_language(self.current_language)
+            except Exception:
+                pass
             print("✅ Using Piper (default) voice")
             return
 
@@ -1393,7 +2263,7 @@ class VoiceREPL(cmd.Cmd):
             return
 
         # Do not allow selecting a cloned voice unless the runtime is ready.
-        if not self._is_cloning_runtime_ready():
+        if not self._is_cloning_runtime_ready(voice_id=match):
             print("❌ Cloning runtime is not ready (would trigger large downloads).")
             print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
             return
@@ -1402,7 +2272,28 @@ class VoiceREPL(cmd.Cmd):
         # if the STT model is already cached locally (no downloads in REPL).
 
         self.current_tts_voice = match
-        print(f"✅ Using cloned voice: {match}")
+        eng = ""
+        try:
+            info = self.voice_manager.get_cloned_voice(match) or {}
+            eng = (info.get("engine") or "").strip()
+        except Exception:
+            eng = ""
+        eng_txt = f" (engine: {eng})" if eng else ""
+        print(f"✅ Using cloned voice: {match}{eng_txt}")
+        if eng and str(eng).strip().lower() != str(self.cloning_engine).strip().lower():
+            print(f"ℹ️  Default cloning engine is {self.cloning_engine}; this voice uses {eng}.")
+        # Free memory from other cloning engines (e.g. unloading Chroma when switching to F5, or vice-versa).
+        try:
+            if hasattr(self.voice_manager, "unload_cloning_engines"):
+                self.voice_manager.unload_cloning_engines(keep_engine=str(eng or "").strip().lower() or None)
+        except Exception:
+            pass
+        # Piper is not needed while speaking with a cloned voice; unload it to reduce memory pressure.
+        try:
+            if hasattr(self.voice_manager, "unload_piper_voice"):
+                self.voice_manager.unload_piper_voice()
+        except Exception:
+            pass
 
     def do_clone_my_voice(self, arg):
         """Interactive voice cloning from microphone.
@@ -1434,10 +2325,6 @@ class VoiceREPL(cmd.Cmd):
 
     def do_cloning_status(self, arg):
         """Show whether cloning runtime is ready locally (no downloads)."""
-        if importlib.util.find_spec("f5_tts") is None:
-            print("Cloning runtime not installed in this environment (missing: f5_tts).")
-            print("Install: pip install \"abstractvoice[cloning]\"")
-            return
         try:
             import torch
 
@@ -1451,11 +2338,28 @@ class VoiceREPL(cmd.Cmd):
             print(f"mps_available:  {mps}")
         except Exception:
             pass
-        if self._is_openf5_cached():
-            print("✅ OpenF5 artifacts: present (cached)")
+
+        print(f"default_cloning_engine: {self.cloning_engine}")
+
+        if importlib.util.find_spec("f5_tts") is None:
+            print("ℹ️  OpenF5 runtime: not installed (missing: f5_tts)")
+            print("   Install: pip install \"abstractvoice[cloning]\"")
         else:
-            print("ℹ️  OpenF5 artifacts: not present (will require ~5.4GB download)")
-            print("Run: /cloning_download")
+            if self._is_openf5_cached():
+                print("✅ OpenF5 artifacts: present (cached)")
+            else:
+                print("ℹ️  OpenF5 artifacts: not present (will require ~5.4GB download)")
+                print("   Run: /cloning_download f5_tts")
+
+        if importlib.util.find_spec("transformers") is None or importlib.util.find_spec("torch") is None:
+            print("ℹ️  Chroma runtime: not installed (missing: transformers/torch)")
+            print("   Install: pip install \"abstractvoice[chroma]\"")
+        else:
+            if self._is_chroma_cached():
+                print("✅ Chroma artifacts: present (cached)")
+            else:
+                print("ℹ️  Chroma artifacts: not present (will require a large download + HF access)")
+                print("   Run: /cloning_download chroma")
         try:
             if self.voice_manager:
                 info = self.voice_manager.get_cloning_runtime_info()
@@ -1490,15 +2394,33 @@ class VoiceREPL(cmd.Cmd):
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
             return
-        if importlib.util.find_spec("f5_tts") is None:
-            print("❌ Cloning runtime not installed in this environment (missing: f5_tts).")
-            print("   Install: pip install \"abstractvoice[cloning]\"")
+
+        target = (arg or "").strip().lower() or self.cloning_engine
+        engine_name = "f5_tts" if target in ("openf5", "f5", "f5_tts") else target
+        if engine_name == "f5_tts":
+            if importlib.util.find_spec("f5_tts") is None:
+                print("❌ OpenF5 runtime not installed in this environment (missing: f5_tts).")
+                print("   Install: pip install \"abstractvoice[cloning]\"")
+                return
+        elif engine_name == "chroma":
+            # Artifacts download uses huggingface_hub and does not require loading the model.
+            if importlib.util.find_spec("huggingface_hub") is None:
+                print("❌ huggingface_hub is required to download Chroma artifacts.")
+                print("   Install: pip install huggingface_hub")
+                return
+        else:
+            print("Usage: /cloning_download [f5_tts|chroma]")
             return
+
         try:
             cloner = self.voice_manager._get_voice_cloner()  # REPL convenience
-            engine = cloner._get_engine()  # explicit download is an engine concern
-            print("Downloading OpenF5 artifacts (~5.4GB). This is a one-time cache per machine.")
-            engine.ensure_openf5_artifacts_downloaded()
+            engine = cloner._get_engine(engine_name)  # explicit download is an engine concern
+            if engine_name == "f5_tts":
+                print("Downloading OpenF5 artifacts (~5.4GB). This is a one-time cache per machine.")
+                engine.ensure_openf5_artifacts_downloaded()
+            else:
+                print("Downloading Chroma artifacts (very large; requires HF access). This is a one-time cache per machine.")
+                engine.ensure_chroma_artifacts_downloaded()
             print("✅ Download complete.")
         except Exception as e:
             print(f"❌ Download failed: {e}")
@@ -1516,7 +2438,42 @@ class VoiceREPL(cmd.Cmd):
         vocab = next(iter(root.rglob("vocab*.txt")), None) or next(iter(root.rglob("*.txt")), None)
         return bool(cfg and ckpt and vocab)
 
-    def _is_cloning_runtime_ready(self) -> bool:
+    def _is_chroma_cached(self) -> bool:
+        """Heuristic local check that avoids importing huggingface_hub."""
+        from pathlib import Path
+        import os
+
+        root = Path(os.path.expanduser("~/.cache/abstractvoice/chroma"))
+        if not root.exists():
+            return False
+        required = [
+            "config.json",
+            "processor_config.json",
+            "model.safetensors.index.json",
+            "modeling_chroma.py",
+            "processing_chroma.py",
+            "configuration_chroma.py",
+        ]
+        return all((root / name).exists() for name in required)
+
+    def _is_cloning_runtime_ready(self, *, voice_id: str | None = None, engine: str | None = None) -> bool:
+        """Return whether the selected cloning engine is ready locally (no downloads)."""
+        eng = str(engine or "").strip().lower()
+        if not eng and voice_id and self.voice_manager:
+            try:
+                info = self.voice_manager.get_cloned_voice(voice_id)
+                eng = str((info or {}).get("engine") or "").strip().lower()
+            except Exception:
+                eng = ""
+        if not eng:
+            eng = str(getattr(self, "cloning_engine", "f5_tts") or "f5_tts").strip().lower()
+
+        if eng == "chroma":
+            return (
+                importlib.util.find_spec("torch") is not None
+                and importlib.util.find_spec("transformers") is not None
+                and self._is_chroma_cached()
+            )
         return importlib.util.find_spec("f5_tts") is not None and self._is_openf5_cached()
 
     def _seed_hal9000_voice(self):
@@ -1581,6 +2538,7 @@ class VoiceREPL(cmd.Cmd):
             tts_engine=engine,
             allow_downloads=False,
             cloned_tts_streaming=False,
+            cloning_engine=self.cloning_engine,
         )
         print(f"✅ TTS engine set to: {engine}")
 
@@ -1661,6 +2619,7 @@ class VoiceREPL(cmd.Cmd):
             stt_engine=engine,
             allow_downloads=False,
             cloned_tts_streaming=False,
+            cloning_engine=self.cloning_engine,
         )
         print(f"✅ STT engine set to: {engine}")
 
@@ -1694,27 +2653,87 @@ class VoiceREPL(cmd.Cmd):
     
     def do_clear(self, arg):
         """Clear chat history."""
+        self._clear_history()
+        print("History cleared")
+
+    def do_reset(self, arg):
+        """Reset the session (history + current voice selection)."""
+        try:
+            if self.voice_manager:
+                self.voice_manager.stop_speaking()
+        except Exception:
+            pass
+
+        # Reset voice selection back to Piper (default).
+        self.current_tts_voice = None
+        # Free any heavy cloning engines as part of reset.
+        try:
+            if self.voice_manager and hasattr(self.voice_manager, "unload_cloning_engines"):
+                self.voice_manager.unload_cloning_engines()
+        except Exception:
+            pass
+        # Ensure Piper is ready (in case it was unloaded to save memory).
+        try:
+            if self.voice_manager and getattr(self.voice_manager, "tts_adapter", None):
+                a = getattr(self.voice_manager, "tts_adapter", None)
+                if hasattr(a, "is_available") and not bool(a.is_available()):
+                    self.voice_manager.set_language(self.current_language)
+        except Exception:
+            pass
+
+        # Clear chat history.
+        self._clear_history()
+        print("✅ Reset.")
+
+    def _clear_history(self) -> None:
         self.messages = [{"role": "system", "content": self.system_prompt}]
         # Reset token counters
         self.system_tokens = 0
         self.user_tokens = 0
         self.assistant_tokens = 0
+        # Reset word counters
+        self.system_words = 0
+        self.user_words = 0
+        self.assistant_words = 0
         # Recalculate system tokens
         self._count_system_tokens()
-        print("History cleared")
+        self._count_system_words()
     
     def do_system(self, arg):
         """Set the system prompt."""
         if arg.strip():
             self.system_prompt = arg.strip()
-            self.messages = [{"role": "system", "content": self.system_prompt}]
+            self._clear_history()
             print(f"System prompt set to: {self.system_prompt}")
         else:
             print(f"Current system prompt: {self.system_prompt}")
     
     def do_exit(self, arg):
         """Exit the REPL."""
-        self.voice_manager.cleanup()
+        # Stop any PTT session cleanly.
+        self._ptt_session_active = False
+        self._ptt_recording = False
+        self._ptt_busy = False
+
+        # Stop voice mode / audio best-effort.
+        try:
+            if self.voice_manager:
+                try:
+                    self.voice_manager.stop_listening()
+                except Exception:
+                    pass
+                try:
+                    self.voice_manager.stop_speaking()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        try:
+            if self.voice_manager:
+                self.voice_manager.cleanup()
+        except Exception:
+            pass
         if self.debug_mode:
             print("Goodbye!")
         return True
@@ -1796,12 +2815,32 @@ class VoiceREPL(cmd.Cmd):
             
         # If neither voice mode nor TTS is active - don't show any message
         pass
+
+    def do_verbose(self, arg):
+        """Toggle verbose per-turn performance stats.
+
+        Usage:
+          /verbose            (toggle)
+          /verbose on|off
+        """
+        s = (arg or "").strip().lower()
+        if s in ("", "toggle"):
+            self.verbose_mode = not bool(getattr(self, "verbose_mode", False))
+        elif s in ("on", "1", "true", "yes", "y"):
+            self.verbose_mode = True
+        elif s in ("off", "0", "false", "no", "n"):
+            self.verbose_mode = False
+        else:
+            print("Usage: /verbose [on|off]")
+            return
+        print(f"Verbose mode: {'on' if self.verbose_mode else 'off'}")
     
     def do_help(self, arg):
         """Show help information."""
         print("Commands:")
         print("  /exit, /q, /quit    Exit REPL")
         print("  /clear              Clear history")
+        print("  /reset              Reset (history + voice)")
         print("  /tts on|off         Toggle TTS")
         print("  /voice <mode>       Voice input: off|full|wait|stop|ptt")
         print("  /voice ptt          Push-to-talk session (SPACE captures, ESC exits)")
@@ -1822,15 +2861,18 @@ class VoiceREPL(cmd.Cmd):
         print("  /resume             Resume paused TTS playback")
         print("  /aec on|off         Optional echo cancellation for true barge-in (requires [aec])")
         print("  /tokens             Display token usage stats")
+        print("  /verbose [on|off]   Toggle verbose per-turn stats")
         print("  /help               Show this help")
         print("  /clones             List cloned voices")
         print("  /clone_info <id>    Show cloned voice details")
         print("  /clone_ref <id>     Show cloned voice reference text")
         print("  /clone_rename ...   Rename a cloned voice")
         print("  /clone_rm <id>      Delete a cloned voice")
+        print("  /clone_rm_all --yes Delete ALL cloned voices")
         print("  /clone_export ...   Export a cloned voice (.zip)")
         print("  /clone_import ...   Import a cloned voice (.zip)")
         print("  /clone <path> [nm]  Add a cloned voice from WAV/FLAC/OGG")
+        print("  /clone_use <path>   Clone+select voice (or reuse)")
         print("  /clone-my-voice     Record a short prompt and clone it")
         print("  /tts_voice piper    Speak with Piper (default)")
         print("  /tts_voice clone X  Speak with a cloned voice (requires cloning runtime + cache)")
@@ -1847,6 +2889,7 @@ class VoiceREPL(cmd.Cmd):
         print()
         print("Note: ALL commands must start with / except 'stop'")
         print("In STOP mode, say 'stop' / 'ok stop' to stop speaking (does not exit voice mode).")
+        print("Shortcut: paste a WAV/FLAC/OGG path to clone+select (optionally: `path | transcript`).")
     
     def emptyline(self):
         """Handle empty line input."""
@@ -1856,6 +2899,10 @@ class VoiceREPL(cmd.Cmd):
     def do_tokens(self, arg):
         """Display token usage information."""
         try:
+            if self._get_tiktoken_encoding() is None:
+                print("Token counting is not available (install: pip install tiktoken).")
+                return
+
             # Always recalculate tokens to ensure accuracy
             self._reset_and_recalculate_tokens()
             
@@ -2033,15 +3080,26 @@ class VoiceREPL(cmd.Cmd):
             print(f"Failed to load chat history from {filename}")
     
     def _reset_and_recalculate_tokens(self):
-        """Reset token counts and recalculate for all messages."""
+        """Reset token/word counts and recalculate for all messages."""
         self.system_tokens = 0
         self.user_tokens = 0
         self.assistant_tokens = 0
+        self.system_words = 0
+        self.user_words = 0
+        self.assistant_words = 0
         
         # Count tokens for all messages
         for msg in self.messages:
             if isinstance(msg, dict) and "content" in msg and "role" in msg:
                 self._count_tokens(msg["content"], msg["role"])
+                w = self._count_words(msg["content"])
+                r = msg.get("role")
+                if r == "system":
+                    self.system_words = int(w)
+                elif r == "user":
+                    self.user_words += int(w)
+                elif r == "assistant":
+                    self.assistant_words += int(w)
     
     def _ensure_system_message(self):
         """Ensure there's a system message at the start of messages."""
@@ -2105,10 +3163,23 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="AbstractVoice CLI Example")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--verbose", action="store_true", help="Show per-turn performance stats")
     parser.add_argument("--api", default="http://localhost:11434/api/chat",
                       help="LLM API URL")
     parser.add_argument("--model", default="cogito:3b",
                       help="LLM model name")
+    parser.add_argument(
+        "--cloning-engine",
+        default="f5_tts",
+        choices=["f5_tts", "chroma"],
+        help="Default cloning backend for new voices (f5_tts|chroma)",
+    )
+    parser.add_argument(
+        "--voice-mode",
+        default="off",
+        choices=["off", "wait", "stop", "full", "ptt"],
+        help="Auto-start microphone voice mode (off|wait|stop|full|ptt). Default: off.",
+    )
     parser.add_argument("--language", "--lang", default="en",
                       choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
                       help="Voice language (en=English, fr=French, es=Spanish, de=German, it=Italian, ru=Russian, multilingual=All)")
@@ -2128,8 +3199,11 @@ def main():
             api_url=args.api,
             model=args.model,
             debug_mode=args.debug,
+            verbose_mode=args.verbose,
             language=args.language,
-            tts_model=args.tts_model
+            tts_model=args.tts_model,
+            voice_mode=args.voice_mode,
+            cloning_engine=args.cloning_engine,
         )
         repl.cmdloop()
     except KeyboardInterrupt:

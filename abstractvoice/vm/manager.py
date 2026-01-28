@@ -35,6 +35,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         stt_engine: str = "auto",
         allow_downloads: bool = True,
         cloned_tts_streaming: bool = True,
+        cloning_engine: str = "f5_tts",
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
@@ -44,6 +45,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Cloned TTS can either stream batches (lower time-to-first-audio, but may
         # introduce gaps if generation can't stay ahead) or generate full audio first.
         self.cloned_tts_streaming = bool(cloned_tts_streaming)
+        self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
 
         language = (language or "en").lower()
         if language not in self.LANGUAGES:
@@ -66,7 +68,10 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
 
         if tts_engine in ("auto", "piper"):
             self.tts_adapter = self._try_init_piper(language)
-            if self.tts_adapter and self.tts_adapter.is_available():
+            # Create the playback engine as long as Piper runtime is importable.
+            # This keeps audio output available for cloning backends even when no
+            # Piper voice model is cached locally (offline-first).
+            if self.tts_adapter:
                 self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=debug_mode)
                 self._tts_engine_name = "piper"
 
@@ -91,10 +96,13 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Tracks whether cloned TTS synthesis is currently running (separate from playback).
         self._cloned_synthesis_active = threading.Event()
 
+        # Best-effort last TTS metrics (used by verbose REPL output).
+        self._last_tts_metrics = None
+        self._last_tts_metrics_lock = threading.Lock()
+
         # State tracking
         self._transcription_callback = None
         self._stop_callback = None
         # Default to "wait" for robustness without echo cancellation.
         # "full" is intended for headset / echo-controlled environments.
         self._voice_mode = "wait"
-

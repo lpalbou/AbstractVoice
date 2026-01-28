@@ -128,5 +128,12 @@ class VoiceManagerCore:
         except Exception:
             pass
 
-        return True
+        # Best-effort: release any loaded cloning engine weights (GPU-heavy).
+        try:
+            unload = getattr(self, "unload_cloning_engines", None)
+            if callable(unload):
+                unload()
+        except Exception:
+            pass
 
+        return True
