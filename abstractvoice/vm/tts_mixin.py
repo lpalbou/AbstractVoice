@@ -316,6 +316,18 @@ class TtsMixin:
                     )
                 except Exception as e:
                     # Best-effort: never crash caller thread.
+                    try:
+                        self._set_last_tts_metrics(
+                            {
+                                "engine": "clone",
+                                "clone_engine": clone_engine_name or None,
+                                "voice_id": str(voice),
+                                "error": str(e),
+                                "ts": time.time(),
+                            }
+                        )
+                    except Exception:
+                        pass
                     if bool(getattr(self, "debug_mode", False)):
                         print(f"⚠️  Cloned TTS failed: {e}")
                 finally:

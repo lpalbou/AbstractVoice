@@ -7,10 +7,12 @@ The REPL is the quickest way to validate your installation end‑to‑end.
 ```bash
 python -m abstractvoice cli --debug
 python -m abstractvoice cli --verbose
+python -m abstractvoice cli --voice-mode stop   # enable mic voice input
 ```
 
 Notes:
 - The REPL is **offline-first**: it will not download model weights implicitly.
+- Mic voice input is **off by default** for fast startup. Enable with `--voice-mode stop` or in-session: `/voice stop`.
 - Default LLM API is Ollama at `http://localhost:11434/api/chat` (configure with `--api` / `--model`).
 
 ## Quick smoke test checklist
@@ -94,6 +96,7 @@ Commands:
 Notes:
 - Cloned voices are **engine-bound** (`f5_tts` vs `chroma`). Selecting a clone uses its stored engine.
 - The REPL auto-unloads other cloning engines (and unloads Piper voice) when you select a cloned voice to reduce OOM risk.
+- `reference_text` is optional: if missing, the REPL will auto-generate it via STT on first speak (requires cached STT model; prefetch with `python -m abstractvoice download --stt small`). You can also set it manually via `/clone_set_ref_text ...`.
 
 ## Verbose stats
 

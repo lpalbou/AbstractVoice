@@ -62,6 +62,10 @@ python -m abstractvoice cli --debug
 python -m abstractvoice cli --verbose
 ```
 
+Notes:
+- Mic voice input is **off by default** for fast startup. Enable with `--voice-mode stop` (or in-session: `/voice stop`).
+- The REPL is **offline-first**: no implicit model downloads. Use the explicit download commands above.
+
 See `docs/repl_guide.md`.
 
 ### Minimal Python

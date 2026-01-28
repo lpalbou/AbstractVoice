@@ -21,6 +21,12 @@ Operational notes:
 - The REPL is offline-first; downloads are explicit via:
   - `python -m abstractvoice download --openf5|--chroma`
   - REPL: `/cloning_download f5_tts|chroma`
+- `reference_text` is **optional**:
+  - If missing, AbstractVoice auto-generates it via STT (3-pass consensus) on first speak and persists it for the voice.
+  - In offline-first contexts, this requires a cached STT model (prefetch: `python -m abstractvoice download --stt small`).
+- For best quality, use a clean **6–10s** reference sample and (optionally) set an accurate `reference_text`.
+  - A bad transcript can noticeably degrade cloning quality.
+  - The Chroma backend normalizes prompt audio to **mono 24kHz** and trims very long prompts for stability.
 
 ---
 
