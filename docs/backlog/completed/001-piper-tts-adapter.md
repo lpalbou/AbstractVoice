@@ -1,9 +1,8 @@
 # Task 001: Piper TTS Adapter Implementation
 
-**Status**: Planned  
+**Status**: ✅ Completed (Piper-first core; offline-first REPL)  
 **Priority**: P0 (Critical - Foundation for v0.6.0)  
-**Estimated Effort**: 2-3 days  
-**Assigned**: Implementation Phase 1
+**Completed**: 2026-01-21 (with later offline-first hardening)
 
 ---
 
@@ -21,6 +20,10 @@ Current implementation uses Coqui VITS which requires espeak-ng system installat
 - 15% installation failure rate on Windows
 - Complex setup instructions
 - User frustration
+
+Note (current state): AbstractVoice core is now **Piper-only** for TTS, and the REPL is **offline-first**
+(`allow_downloads=False`). Any references below to “fallback to VITS” are historical and not part of the
+current behavior.
 
 Piper TTS:
 - Mature (Home Assistant, millions of users)
@@ -255,13 +258,13 @@ Successfully implemented Piper TTS adapter with full functionality:
 
 2. **Created: `abstractvoice/adapters/tts_piper.py`** (448 lines)
    - Full Piper TTS implementation
-   - Auto-downloads models from Hugging Face
+   - Downloads are gated by `allow_downloads` (REPL is offline-first)
    - Supports 6 languages: EN, FR, DE, ES, RU, ZH
    - Implements all adapter interface methods
-   - Uses Hugging Face Hub for reliable model downloading
+   - Uses direct HTTPS downloads for Piper voice files (explicit/opt-in)
 
 3. **Modified: `abstractvoice/voice_manager.py`**
-   - Added engine selection logic (auto/piper/vits)
+   - Added engine selection logic (auto/piper)
    - Integrated Piper adapter as default TTS engine
    - Added network methods:
      - `speak_to_bytes(text, format='wav') -> bytes`
@@ -273,7 +276,6 @@ Successfully implemented Piper TTS adapter with full functionality:
 4. **Modified: `pyproject.toml`**
    - Made `piper-tts>=1.2.0` a core dependency
    - Added `huggingface_hub>=0.20.0` as dependency
-   - Kept VITS as optional dependency for premium voices
 
 5. **Created: `tests/test_piper_adapter.py`** (270 lines)
    - Comprehensive test suite
@@ -357,18 +359,15 @@ This implementation enables:
 - ✅ Easy Windows/macOS/Linux installation (`pip install abstractvoice`)
 - ✅ Network/client-server use cases
 - ✅ Multi-language support
-- 🔄 Ready for voice cloning integration (Phase 2: XTTS-v2)
+   - 🔄 Ready for voice cloning integration (optional engines: f5_tts / chroma)
 
 #### Breaking Changes
 
-**None**. All existing code continues to work. Piper is used by default, but VITS can be explicitly requested:
+**None**. All existing code continues to work. AbstractVoice core is Piper-first.
 
 ```python
 # Use Piper (default)
 vm = VoiceManager(language='en')
-
-# Explicitly use VITS
-vm = VoiceManager(language='en', tts_engine='vits')
 ```
 
 ---

@@ -360,13 +360,13 @@ AbstractVoice supports different voice interaction modes:
 
 ## Error Handling and Fallbacks
 
-### TTS Model Fallbacks
-```python
-# Automatic fallback chain
-try:
-    tts = TTS("tts_models/en/ljspeech/vits")  # Best quality (needs espeak-ng)
-except:
-    tts = TTS("tts_models/en/ljspeech/fast_pitch")  # Fallback (pure Python)
+### TTS availability (Piper-first)
+
+AbstractVoice core uses Piper for TTS. In offline-first contexts (the REPL by default),
+Piper voice weights must be cached ahead of time:
+
+```bash
+python -m abstractvoice download --piper en
 ```
 
 ### Audio System Fallbacks
@@ -379,23 +379,21 @@ except:
 ### Model Selection
 ```python
 # Automatic (recommended)
-vm = VoiceManager()  # Uses best available model
+vm = VoiceManager()  # Piper TTS + faster-whisper STT (downloads allowed by default)
 
-# Explicit
-vm = VoiceManager(tts_model="tts_models/en/ljspeech/fast_pitch")
+# Offline-first (no implicit downloads)
+vm = VoiceManager(allow_downloads=False)
 ```
 
 ### Performance Tuning
 ```python
 # Development (fast)
 vm = VoiceManager(
-    tts_model="tts_models/en/ljspeech/fast_pitch",
     whisper_model="tiny"
 )
 
 # Production (quality)
 vm = VoiceManager(
-    tts_model="tts_models/en/ljspeech/vits",
     whisper_model="base"
 )
 ```

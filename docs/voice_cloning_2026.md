@@ -8,6 +8,28 @@ Add **near‑realtime voice cloning** while respecting:
 
 In practice, this almost certainly means **voice cloning is an optional extra** (GPU/torch-heavy), while the base install stays lightweight and cross‑platform.
 
+## Current status (implementation)
+
+As of late Jan 2026, AbstractVoice includes optional cloning backends:
+
+- `abstractvoice[cloning]` → `f5_tts` engine (OpenF5 artifacts)
+- `abstractvoice[chroma]` → `chroma` engine (Chroma-4B; GPU-heavy)
+
+Operational notes:
+
+- Cloned voices are **engine-bound** (`f5_tts` vs `chroma`); selecting a cloned voice uses its stored engine.
+- The REPL is offline-first; downloads are explicit via:
+  - `python -m abstractvoice download --openf5|--chroma`
+  - REPL: `/cloning_download f5_tts|chroma`
+- `reference_text` is **optional**:
+  - If missing, AbstractVoice auto-generates it via STT (3-pass consensus) on first speak and persists it for the voice.
+  - In offline-first contexts, this requires a cached STT model (prefetch: `python -m abstractvoice download --stt small`).
+- For best quality, use a clean reference sample and (optionally) set an accurate `reference_text`:
+  - `f5_tts`: **6–10s** often works well.
+  - `chroma`: upstream examples use longer prompts (≈ **15–30s**), and quality may degrade with very short prompts.
+  - A bad transcript can noticeably degrade cloning quality.
+  - The Chroma backend normalizes prompt audio to **mono 24kHz PCM16** and caps extreme prompt lengths for stability.
+
 ---
 
 ## What “voice cloning” can mean
@@ -84,4 +106,3 @@ For “clone in seconds”, we want (A) and/or (B), not (C).
 - Which candidate covers our target languages (EN/FR/DE/ES/RU/ZH) without restrictive licensing?
 - Can we support CPU-only “near realtime”, or is GPU a hard requirement?
 - Can we standardize “reference audio format” and required length?
-

@@ -28,8 +28,7 @@ def test_reference_text_autofallback_is_persisted(tmp_path: Path, monkeypatch: p
             assert reference_text == "Hello, Dave."
             return b"RIFFxxxxWAVE"
 
-    monkeypatch.setattr(cloner, "_get_engine", lambda: FakeEngine())
+    monkeypatch.setattr(cloner, "_get_engine", lambda _engine: FakeEngine())
 
     data = cloner.speak_to_bytes("test", voice_id=voice_id, format="wav")
     assert data.startswith(b"RIFF")
-

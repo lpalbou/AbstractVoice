@@ -4,6 +4,11 @@
 **Date**: January 21, 2026  
 **Status**: ✅ **TASKS 001 & 002 COMPLETE**
 
+> Note: This is a historical report. Current behavior differs in a few key ways:
+> - The REPL is offline-first (no implicit model downloads).
+> - Piper downloads are gated by `allow_downloads`; use `python -m abstractvoice download --piper <lang>`.
+> - Voice cloning is implemented via optional engines (`f5_tts` / `chroma`), not XTTS.
+
 ---
 
 ## Executive Summary
@@ -426,9 +431,10 @@ dependencies = [
 
 ### Optional Dependencies
 
-- **Legacy TTS**: `coqui-tts`, `torch` (for VITS models)
-- **Legacy STT**: `openai-whisper`, `tiktoken` (compatibility)
-- **Voice Cloning**: `TTS` (for XTTS-v2, pending Task 003)
+- **Legacy STT**: `openai-whisper`, `tiktoken` (compatibility / token stats)
+- **Voice cloning (optional)**:
+  - `abstractvoice[cloning]` (OpenF5 / `f5-tts`)
+  - `abstractvoice[chroma]` (Chroma-4B; torch/transformers)
 
 ---
 
@@ -454,7 +460,7 @@ text = vm.transcribe_from_bytes(audio_bytes)  # NEW
 
 **Recommended**: Let system auto-select best engines (default behavior)
 **Optional**: Explicitly request Piper TTS: `tts_engine='piper'`
-**Legacy**: Explicitly request VITS: `tts_engine='vits'`
+**Legacy**: Coqui/VITS is not part of the Piper-first core.
 
 ---
 
@@ -477,17 +483,11 @@ text = vm.transcribe_from_bytes(audio_bytes)  # NEW
 
 ### Remaining Tasks
 
-**Task 003**: XTTS-v2 Voice Cloning Adapter (pending)
-- Zero-shot voice cloning
-- 6-10 second samples
-- Multilingual support
-- Status: Not started
+**Task 003**: Voice cloning (optional engines)
+- Implemented via `f5_tts` and `chroma` backends (see `docs/voice_cloning_2026.md`)
 
-**Task 004**: Documentation Update (pending)
-- Update README.md
-- Update docs/ files
-- Migration guide
-- Status: Not started
+**Task 004**: Documentation update
+- Complete (see `README.md` + `docs/` folder)
 
 ### Immediate Actions
 
