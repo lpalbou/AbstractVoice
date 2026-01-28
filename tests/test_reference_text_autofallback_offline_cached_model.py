@@ -21,7 +21,7 @@ def test_reference_text_autofallback_offline_when_model_is_cached(tmp_path: Path
         def is_available(self):
             return True
 
-        def transcribe_from_array(self, *_args, **_kwargs):
+        def transcribe(self, *_args, **_kwargs):
             return "hello dave"
 
     # Patch the adapter import used by VoiceCloner to simulate cached offline availability.
@@ -35,4 +35,3 @@ def test_reference_text_autofallback_offline_when_model_is_cached(tmp_path: Path
     info = store.get_voice(voice_id)
     assert (info.reference_text or "").strip()
     assert (info.meta or {}).get("reference_text_source") == "asr"
-

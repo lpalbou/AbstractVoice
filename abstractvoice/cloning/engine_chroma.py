@@ -472,8 +472,9 @@ class ChromaVoiceCloningEngine:
     def _prepare_prompt_audio_for_processor(self, prompt_audio: Path) -> Path:
         """Best-effort prompt-audio normalization for Chroma.
 
-        Chroma's processor loads audio via torchaudio; feeding it a short, mono,
-        24kHz PCM16 WAV reduces backend variability and can improve stability.
+        Chroma's processor loads audio via torchaudio and resamples internally.
+        We keep this preprocessing minimal (mono + 24kHz + PCM16 WAV) to reduce
+        backend variability without altering voice characteristics.
         """
         try:
             if not prompt_audio.exists():
@@ -495,54 +496,26 @@ class ChromaVoiceCloningEngine:
             audio, sr = sf.read(str(prompt_audio), always_2d=True, dtype="float32")
             mono = np.mean(audio, axis=1).astype(np.float32).reshape(-1)
 
-            # Remove DC offset (helps some codec pipelines).
-            try:
-                if mono.size:
-                    mono = (mono - float(np.mean(mono))).astype(np.float32)
-            except Exception:
-                pass
-
             target_sr = 24000
             if int(sr) != int(target_sr):
-                from ..audio.resample import linear_resample_mono
+                # Prefer torchaudio's sinc-based resampling when available (better fidelity than linear).
+                try:
+                    import torch
+                    import torchaudio
 
-                mono = linear_resample_mono(mono, int(sr), int(target_sr))
+                    t = torch.from_numpy(mono).unsqueeze(0)
+                    t = torchaudio.functional.resample(t, orig_freq=int(sr), new_freq=int(target_sr))
+                    mono = t.squeeze(0).detach().cpu().numpy().astype(np.float32)
+                except Exception:
+                    from ..audio.resample import linear_resample_mono
 
-            # Trim long prompts (quality is usually best with ~6-10s).
-            max_seconds = 10.0
+                    mono = linear_resample_mono(mono, int(sr), int(target_sr))
+
+            # Cap extreme prompts for runtime stability; upstream examples go up to ~26s.
+            max_seconds = 30.0
             max_samples = int(round(float(max_seconds) * float(target_sr)))
             if mono.size > max_samples:
                 mono = mono[:max_samples]
-
-            # Optional silence trim (keep a bit of padding).
-            try:
-                peak = float(np.max(np.abs(mono))) if mono.size else 0.0
-                if peak > 0.0:
-                    thr = peak * (10.0 ** (-35.0 / 20.0))  # ~-35dB
-                    idx = np.where(np.abs(mono) > thr)[0]
-                    if idx.size:
-                        pad_pre = int(round(0.10 * float(target_sr)))
-                        pad_post = int(round(0.20 * float(target_sr)))
-                        start = max(0, int(idx[0]) - pad_pre)
-                        end = min(int(mono.size), int(idx[-1]) + pad_post)
-                        if (end - start) >= int(round(1.5 * float(target_sr))):
-                            mono = mono[start:end]
-            except Exception:
-                pass
-
-            # Normalize RMS to a sane level (avoid tiny amplitudes / clipping).
-            try:
-                if mono.size:
-                    rms = float(np.sqrt(np.mean(np.square(mono))))
-                    peak = float(np.max(np.abs(mono)))
-                    if rms > 0.0 and peak > 0.0:
-                        target_rms = 0.10
-                        scale = target_rms / rms
-                        if peak * scale > 0.98:
-                            scale = 0.98 / peak
-                        mono = (mono * float(scale)).astype(np.float32)
-            except Exception:
-                pass
 
             try:
                 mono = np.nan_to_num(mono, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
@@ -557,10 +530,11 @@ class ChromaVoiceCloningEngine:
             return prompt_audio
 
     def _build_conversation(self, text: str) -> List[List[dict]]:
+        # Match upstream framing ("Chroma" virtual human) while keeping strict TTS behavior.
         system_prompt = (
-            "You are a text-to-speech engine. "
-            "Speak the user's text aloud exactly as written, without adding, removing, or rephrasing words. "
-            "Do not answer the text; read it verbatim."
+            "You are Chroma, an advanced virtual human created by the FlashLabs. "
+            "You possess the ability to understand auditory inputs and generate both text and speech. "
+            "For this request, do not answer or paraphrase. Read the user's text aloud exactly as written."
         )
         return [[
             {"role": "system", "content": [{"type": "text", "text": system_prompt}]},

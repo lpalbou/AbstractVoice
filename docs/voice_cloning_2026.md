@@ -24,9 +24,11 @@ Operational notes:
 - `reference_text` is **optional**:
   - If missing, AbstractVoice auto-generates it via STT (3-pass consensus) on first speak and persists it for the voice.
   - In offline-first contexts, this requires a cached STT model (prefetch: `python -m abstractvoice download --stt small`).
-- For best quality, use a clean **6–10s** reference sample and (optionally) set an accurate `reference_text`.
+- For best quality, use a clean reference sample and (optionally) set an accurate `reference_text`:
+  - `f5_tts`: **6–10s** often works well.
+  - `chroma`: upstream examples use longer prompts (≈ **15–30s**), and quality may degrade with very short prompts.
   - A bad transcript can noticeably degrade cloning quality.
-  - The Chroma backend normalizes prompt audio to **mono 24kHz** and trims very long prompts for stability.
+  - The Chroma backend normalizes prompt audio to **mono 24kHz PCM16** and caps extreme prompt lengths for stability.
 
 ---
 
