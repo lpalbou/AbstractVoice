@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import gc
+import hashlib
 import io
 import os
 import warnings
@@ -220,6 +222,10 @@ class ChromaVoiceCloningEngine:
         artifacts = self._resolve_chroma_artifacts_local()
 
         # Keep interactive UX quiet by default (the REPL provides its own spinner).
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+        os.environ.setdefault("TRANSFORMERS_NO_TQDM", "1")
+
+        # Keep interactive UX quiet by default (the REPL provides its own spinner).
         try:
             from transformers.utils import logging as hf_logging
 
@@ -254,25 +260,29 @@ class ChromaVoiceCloningEngine:
                 warnings.filterwarnings("ignore", category=UserWarning, module=r"torchaudio\..*")
                 warnings.filterwarnings("ignore", category=UserWarning, message=r".*TorchCodec.*")
                 warnings.filterwarnings("ignore", category=UserWarning, message=r".*output_attentions.*")
-            with _SilenceStderrFD(enabled=not self.debug):
-                try:
-                    model = AutoModelForCausalLM.from_pretrained(
-                        str(artifacts.root),
-                        trust_remote_code=True,
-                        device_map=device_map,
-                        dtype=torch_dtype,
-                    )
-                except TypeError:
-                    model = AutoModelForCausalLM.from_pretrained(
-                        str(artifacts.root),
-                        trust_remote_code=True,
-                        device_map=device_map,
-                        torch_dtype=torch_dtype,
-                    )
+            stdout_ctx = contextlib.redirect_stdout(io.StringIO()) if not self.debug else contextlib.nullcontext()
+            with stdout_ctx:
+                with _SilenceStderrFD(enabled=not self.debug):
+                    try:
+                        model = AutoModelForCausalLM.from_pretrained(
+                            str(artifacts.root),
+                            trust_remote_code=True,
+                            device_map=device_map,
+                            dtype=torch_dtype,
+                        )
+                    except TypeError:
+                        model = AutoModelForCausalLM.from_pretrained(
+                            str(artifacts.root),
+                            trust_remote_code=True,
+                            device_map=device_map,
+                            torch_dtype=torch_dtype,
+                        )
         model.eval()
 
-        with _SilenceStderrFD(enabled=not self.debug):
-            processor = AutoProcessor.from_pretrained(str(artifacts.root), trust_remote_code=True)
+        stdout_ctx = contextlib.redirect_stdout(io.StringIO()) if not self.debug else contextlib.nullcontext()
+        with stdout_ctx:
+            with _SilenceStderrFD(enabled=not self.debug):
+                processor = AutoProcessor.from_pretrained(str(artifacts.root), trust_remote_code=True)
 
         if device != "cuda" and device_map is None:
             try:
@@ -459,6 +469,93 @@ class ChromaVoiceCloningEngine:
         # Chroma prompt_audio currently expects a single audio file.
         return paths[0]
 
+    def _prepare_prompt_audio_for_processor(self, prompt_audio: Path) -> Path:
+        """Best-effort prompt-audio normalization for Chroma.
+
+        Chroma's processor loads audio via torchaudio; feeding it a short, mono,
+        24kHz PCM16 WAV reduces backend variability and can improve stability.
+        """
+        try:
+            if not prompt_audio.exists():
+                return prompt_audio
+
+            # Cache by (path, size, mtime) to avoid recomputing every turn.
+            try:
+                st = prompt_audio.stat()
+                key = f"{prompt_audio.resolve()}|{st.st_size}|{st.st_mtime_ns}"
+            except Exception:
+                key = str(prompt_audio)
+            h = hashlib.sha1(key.encode("utf-8", errors="ignore")).hexdigest()[:16]
+            out_dir = self._artifact_root() / "prompt_cache"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / f"prompt_{h}.wav"
+            if out_path.exists():
+                return out_path
+
+            audio, sr = sf.read(str(prompt_audio), always_2d=True, dtype="float32")
+            mono = np.mean(audio, axis=1).astype(np.float32).reshape(-1)
+
+            # Remove DC offset (helps some codec pipelines).
+            try:
+                if mono.size:
+                    mono = (mono - float(np.mean(mono))).astype(np.float32)
+            except Exception:
+                pass
+
+            target_sr = 24000
+            if int(sr) != int(target_sr):
+                from ..audio.resample import linear_resample_mono
+
+                mono = linear_resample_mono(mono, int(sr), int(target_sr))
+
+            # Trim long prompts (quality is usually best with ~6-10s).
+            max_seconds = 10.0
+            max_samples = int(round(float(max_seconds) * float(target_sr)))
+            if mono.size > max_samples:
+                mono = mono[:max_samples]
+
+            # Optional silence trim (keep a bit of padding).
+            try:
+                peak = float(np.max(np.abs(mono))) if mono.size else 0.0
+                if peak > 0.0:
+                    thr = peak * (10.0 ** (-35.0 / 20.0))  # ~-35dB
+                    idx = np.where(np.abs(mono) > thr)[0]
+                    if idx.size:
+                        pad_pre = int(round(0.10 * float(target_sr)))
+                        pad_post = int(round(0.20 * float(target_sr)))
+                        start = max(0, int(idx[0]) - pad_pre)
+                        end = min(int(mono.size), int(idx[-1]) + pad_post)
+                        if (end - start) >= int(round(1.5 * float(target_sr))):
+                            mono = mono[start:end]
+            except Exception:
+                pass
+
+            # Normalize RMS to a sane level (avoid tiny amplitudes / clipping).
+            try:
+                if mono.size:
+                    rms = float(np.sqrt(np.mean(np.square(mono))))
+                    peak = float(np.max(np.abs(mono)))
+                    if rms > 0.0 and peak > 0.0:
+                        target_rms = 0.10
+                        scale = target_rms / rms
+                        if peak * scale > 0.98:
+                            scale = 0.98 / peak
+                        mono = (mono * float(scale)).astype(np.float32)
+            except Exception:
+                pass
+
+            try:
+                mono = np.nan_to_num(mono, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+                mono = np.clip(mono, -1.0, 1.0).astype(np.float32)
+            except Exception:
+                pass
+
+            sf.write(str(out_path), mono, int(target_sr), format="WAV", subtype="PCM_16")
+            return out_path
+        except Exception:
+            # If anything goes wrong, fall back to the original path.
+            return prompt_audio
+
     def _build_conversation(self, text: str) -> List[List[dict]]:
         system_prompt = (
             "You are a text-to-speech engine. "
@@ -507,10 +604,12 @@ class ChromaVoiceCloningEngine:
         if not reference_text or not str(reference_text).strip():
             raise RuntimeError(
                 "Missing reference_text for Chroma cloning.\n"
-                "Provide reference_text when cloning, or set it via the voice store."
+                "If you're using VoiceCloner/VoiceManager, reference_text should be auto-generated and cached.\n"
+                "If you're calling this engine directly, provide reference_text or set it via the voice store."
             )
 
         prompt_audio = self._select_prompt_audio(reference_paths)
+        prompt_audio = self._prepare_prompt_audio_for_processor(prompt_audio)
         prompt_text = str(reference_text).strip()
 
         import re
@@ -566,45 +665,59 @@ class ChromaVoiceCloningEngine:
                 if not self.debug:
                     warnings.filterwarnings("ignore", category=UserWarning, module=r"torchaudio\..*")
                     warnings.filterwarnings("ignore", category=UserWarning, message=r".*TorchCodec.*")
-                with _SilenceStderrFD(enabled=not self.debug):
-                    inputs = processor(
-                        conversation,
-                        add_generation_prompt=True,
-                        tokenize=False,
-                        prompt_audio=[str(prompt_audio)],
-                        prompt_text=[prompt_text],
-                    )
+                stdout_ctx = contextlib.redirect_stdout(io.StringIO()) if not self.debug else contextlib.nullcontext()
+                with stdout_ctx:
+                    with _SilenceStderrFD(enabled=not self.debug):
+                        inputs = processor(
+                            conversation,
+                            add_generation_prompt=True,
+                            tokenize=False,
+                            prompt_audio=[str(prompt_audio)],
+                            prompt_text=[prompt_text],
+                            return_tensors="pt",
+                        )
             device = getattr(model, "device", None) or torch.device("cpu")
+            # Match upstream usage: `processor(...).to(device)` (device move only).
+            # We'll cast floating-point inputs to the model's dtype right before
+            # generation to avoid fp16/bf16 dtype mismatches on GPU/MPS.
             try:
-                param_dtype = next(model.parameters()).dtype
+                inputs = inputs.to(device)
             except Exception:
-                param_dtype = None
-            moved = {}
-            for k, v in dict(inputs).items():
-                try:
-                    if isinstance(v, torch.Tensor) and v.is_floating_point() and param_dtype is not None:
-                        moved[k] = v.to(device=device, dtype=param_dtype)
-                    else:
-                        moved[k] = v.to(device)
-                except Exception:
-                    moved[k] = v
+                pass
+            moved = dict(inputs)
+            # Chroma weights often run in fp16/bf16 on GPU/MPS; ensure floating-point
+            # inputs match model weight dtype to avoid runtime dtype mismatches like:
+            # "Input type (float) and bias type (c10::Half) should be the same".
+            try:
+                target_dtype = getattr(model, "dtype", None)
+                if target_dtype is None:
+                    target_dtype = next(iter(model.parameters())).dtype  # type: ignore[assignment]
+                if target_dtype is not None:
+                    for k, v in list(moved.items()):
+                        if isinstance(v, torch.Tensor) and v.is_floating_point() and v.dtype != target_dtype:
+                            moved[k] = v.to(dtype=target_dtype)
+            except Exception:
+                pass
 
             max_new = self._estimate_max_new_tokens(batch_text, model)
             with warnings.catch_warnings():
                 if not self.debug:
                     warnings.filterwarnings("ignore", category=UserWarning, message=r".*output_attentions.*")
                     warnings.filterwarnings("ignore", category=UserWarning, message=r".*sdp attention.*")
-                with _SilenceStderrFD(enabled=not self.debug):
-                    out = model.generate(
-                        **moved,
-                        max_new_tokens=int(max_new),
-                        do_sample=bool(self._do_sample),
-                        temperature=float(self._temperature),
-                        top_k=int(self._top_k),
-                        use_cache=True,
-                        output_attentions=False,
-                        output_audio=True,
-                    )
+                stdout_ctx = contextlib.redirect_stdout(io.StringIO()) if not self.debug else contextlib.nullcontext()
+                with stdout_ctx:
+                    with _SilenceStderrFD(enabled=not self.debug):
+                        with torch.inference_mode():
+                            out = model.generate(
+                                **moved,
+                                max_new_tokens=int(max_new),
+                                do_sample=bool(self._do_sample),
+                                temperature=float(self._temperature),
+                                top_k=int(self._top_k),
+                                use_cache=True,
+                                output_attentions=False,
+                                output_audio=True,
+                            )
             audio_list = out.audio if hasattr(out, "audio") else out
             if not audio_list:
                 continue

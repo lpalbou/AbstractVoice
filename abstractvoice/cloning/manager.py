@@ -220,16 +220,80 @@ class VoiceCloner:
                 "  - Prefetch outside the REPL: abstractvoice-prefetch --stt small\n"
                 "  - Or set it manually: /clone_set_ref_text <id> \"...\""
             )
-        text = (stt.transcribe_from_array(clip, sample_rate=target_sr) or "").strip()
+        # 3-pass ASR consensus: reduces occasional non-determinism / decoding instability.
+        def _normalize_ref_text(s: str) -> str:
+            s = " ".join(str(s or "").strip().split())
+            if s and not (s.endswith(".") or s.endswith("!") or s.endswith("?") or s.endswith("。")):
+                s = s + "."
+            return s
 
-        # Conservative normalization: keep it short, end with punctuation.
-        text = " ".join(text.split())
-        if text and not (text.endswith(".") or text.endswith("!") or text.endswith("?") or text.endswith("。")):
-            text = text + "."
+        def _edit_distance(a: str, b: str) -> int:
+            # Levenshtein distance (iterative DP, O(len(a)*len(b))).
+            a = str(a or "")
+            b = str(b or "")
+            if a == b:
+                return 0
+            if not a:
+                return len(b)
+            if not b:
+                return len(a)
+            # Ensure `b` is the longer string to keep the inner list small.
+            if len(a) > len(b):
+                a, b = b, a
+            prev = list(range(len(b) + 1))
+            for i, ca in enumerate(a, start=1):
+                cur = [i]
+                for j, cb in enumerate(b, start=1):
+                    ins = cur[j - 1] + 1
+                    dele = prev[j] + 1
+                    sub = prev[j - 1] + (0 if ca == cb else 1)
+                    cur.append(min(ins, dele, sub))
+                prev = cur
+            return int(prev[-1])
+
+        candidates: List[str] = []
+        for _ in range(3):
+            t = (stt.transcribe_from_array(clip, sample_rate=target_sr) or "").strip()
+            candidates.append(_normalize_ref_text(t))
+
+        # Majority vote on normalized candidates.
+        counts: Dict[str, int] = {}
+        for c in candidates:
+            counts[c] = counts.get(c, 0) + 1
+        best = ""
+        best_n = -1
+        for c, n in counts.items():
+            if n > best_n:
+                best = c
+                best_n = int(n)
+
+        # No majority: choose the closest candidate (consensus by edit distance).
+        if best_n <= 1 and candidates:
+            best_sum = None
+            best_c = ""
+            for i, c in enumerate(candidates):
+                s = 0
+                for j, other in enumerate(candidates):
+                    if j == i:
+                        continue
+                    s += _edit_distance(c, other)
+                if best_sum is None or s < best_sum:
+                    best_sum = int(s)
+                    best_c = c
+            best = best_c
+
+        best = _normalize_ref_text(best)
+        if not best.strip():
+            raise RuntimeError(
+                "Failed to auto-generate reference_text from the reference audio.\n"
+                "Fix options:\n"
+                "  - Provide a clearer 6–10s reference sample\n"
+                "  - Or set it manually: /clone_set_ref_text <id> \"...\""
+            )
 
         # Persist so we never re-transcribe for this voice.
-        self.store.set_reference_text(voice_id, text, source="asr")
-        return text
+        self.store.set_reference_text(voice_id, best, source="asr")
+        return best
 
     def speak_to_bytes(self, text: str, *, voice_id: str, format: str = "wav", speed: Optional[float] = None) -> bytes:
         if format.lower() != "wav":

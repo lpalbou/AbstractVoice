@@ -51,6 +51,7 @@ class VoiceREPL(cmd.Cmd):
         verbose_mode: bool = False,
         language="en",
         tts_model=None,
+        voice_mode: str = "off",
         disable_tts=False,
         cloning_engine: str = "f5_tts",
     ):
@@ -100,10 +101,9 @@ class VoiceREPL(cmd.Cmd):
         
         # Settings
         self.use_tts = True
-        # Default voice mode: STOP.
-        # Rationale: users can interrupt TTS with "ok stop"/"okay stop" without
-        # self-feedback loops, and keep the conversation going hands-free.
-        self.voice_mode = "stop"  # off, full, wait, stop, ptt
+        # Voice input mode (mic). Default: OFF for fast startup + offline-first.
+        # Use `--voice-mode stop` (or `/voice stop`) to enable hands-free.
+        self.voice_mode = (voice_mode or "off").strip().lower()  # off, full, wait, stop, ptt
         self.voice_mode_active = False  # Is voice recognition running?
         self._ptt_session_active = False
         self._ptt_recording = False
@@ -138,13 +138,15 @@ class VoiceREPL(cmd.Cmd):
             print(f"Initialized with API URL: {api_url}")
             print(f"Using model: {model}")
 
-        # Try to auto-enable voice input in STOP mode (best-effort).
-        if self.voice_manager:
+        # Optionally auto-start voice input (mic). Keep OFF by default to avoid
+        # loading STT models (slow) unless the user explicitly opts in.
+        if self.voice_manager and self.voice_mode and self.voice_mode != "off":
             try:
-                self.do_voice("stop")
+                self.do_voice(self.voice_mode)
             except Exception:
                 # Never block REPL start.
-                pass
+                self.voice_mode = "off"
+                self.voice_mode_active = False
 
         # Set intro with help information
         self.intro = self._get_intro()
@@ -210,18 +212,40 @@ class VoiceREPL(cmd.Cmd):
             atexit.register(_save_history)
         except Exception:
             pass
+
+        # Ensure Up/Down arrows traverse history reliably across GNU readline and
+        # macOS libedit-backed readline. Some libedit defaults perform prefix
+        # search/completion, which can look like text is being appended.
+        try:
+            doc = getattr(rl, "__doc__", "") or ""
+            is_libedit = "libedit" in doc.lower()
+            if is_libedit:
+                # libedit syntax
+                rl.parse_and_bind("bind ^[[A ed-prev-history")
+                rl.parse_and_bind("bind ^[[B ed-next-history")
+                rl.parse_and_bind("bind ^[[OA ed-prev-history")
+                rl.parse_and_bind("bind ^[[OB ed-next-history")
+            else:
+                # GNU readline syntax
+                rl.parse_and_bind('"\\e[A": previous-history')
+                rl.parse_and_bind('"\\e[B": next-history')
+                rl.parse_and_bind('"\\eOA": previous-history')
+                rl.parse_and_bind('"\\eOB": next-history')
+        except Exception:
+            pass
         
     def _get_intro(self):
         """Generate intro message with help."""
         intro = f"\n{Colors.BOLD}Welcome to AbstractVoice CLI REPL{Colors.END}\n"
         if self.voice_manager:
             lang_name = self.voice_manager.get_language_name()
-            intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name} | Cloning: {self.cloning_engine}\n"
+            mic = (self.voice_mode or "off").upper()
+            intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name} | Mic: {mic} | Cloning: {self.cloning_engine}\n"
         else:
             intro += f"API: {self.api_url} | Model: {self.model} | Voice: Disabled\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
         intro += "  • Type messages to chat with the LLM\n"
-        intro += "  • Voice input: enabled by default (STOP mode). Use /voice off to disable.\n"
+        intro += "  • Voice input (mic): off by default. Enable: /voice stop  (or start with --voice-mode stop)\n"
         intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
         intro += "  • Use /language <lang> to switch voice language\n"
         intro += "  • Use /clones and /tts_voice to use cloned voices\n"
@@ -398,7 +422,9 @@ class VoiceREPL(cmd.Cmd):
         # Line 2: TTS (if any) + spoken speed + totals.
         parts2 = []
         if self.voice_manager and self.use_tts:
-            if tts:
+            if not tts:
+                parts2.append("TTS --")
+            else:
                 eng = str(tts.get("engine") or "").strip().lower()
                 if eng == "clone":
                     ce = tts.get("clone_engine")
@@ -408,34 +434,40 @@ class VoiceREPL(cmd.Cmd):
                 else:
                     label = "tts"
 
-                synth_s = tts.get("synth_s")
-                audio_s = tts.get("audio_s")
-                rtf = tts.get("rtf")
-                tts_txt = f"TTS {label} {self._fmt_s(synth_s)}→{self._fmt_s(audio_s)}"
-                if rtf is not None:
-                    tts_txt += f" rtf{self._fmt_num(rtf, digits=2)}"
+                err = (tts.get("error") or "").strip()
+                if err:
+                    # Keep single-line and short.
+                    msg = " ".join(err.split())
+                    if len(msg) > 120:
+                        msg = msg[:120].rstrip() + "…"
+                    parts2.append(f"TTS {label} ERR {msg}")
+                else:
+                    synth_s = tts.get("synth_s")
+                    audio_s = tts.get("audio_s")
+                    rtf = tts.get("rtf")
+                    tts_txt = f"TTS {label} {self._fmt_s(synth_s)}→{self._fmt_s(audio_s)}"
+                    if rtf is not None:
+                        tts_txt += f" rtf{self._fmt_num(rtf, digits=2)}"
 
-                # Extra clone streaming details when available.
-                if eng == "clone" and bool(tts.get("streaming")):
-                    ttfb_s = tts.get("ttfb_s")
-                    if ttfb_s is not None:
-                        tts_txt += f" ttfb{self._fmt_s(ttfb_s)}"
-                    ch = tts.get("chunks")
-                    if isinstance(ch, int):
-                        tts_txt += f" ch{ch}"
+                    # Extra clone streaming details when available.
+                    if eng == "clone" and bool(tts.get("streaming")):
+                        ttfb_s = tts.get("ttfb_s")
+                        if ttfb_s is not None:
+                            tts_txt += f" ttfb{self._fmt_s(ttfb_s)}"
+                        ch = tts.get("chunks")
+                        if isinstance(ch, int):
+                            tts_txt += f" ch{ch}"
 
-                wps_spoken = None
-                try:
-                    if isinstance(out_w, int) and out_w > 0 and audio_s and float(audio_s) > 0:
-                        wps_spoken = float(out_w) / float(audio_s)
-                except Exception:
                     wps_spoken = None
-                if wps_spoken is not None:
-                    tts_txt += f" ({self._fmt_num(wps_spoken, digits=1)}w/s)"
+                    try:
+                        if isinstance(out_w, int) and out_w > 0 and audio_s and float(audio_s) > 0:
+                            wps_spoken = float(out_w) / float(audio_s)
+                    except Exception:
+                        wps_spoken = None
+                    if wps_spoken is not None:
+                        tts_txt += f" ({self._fmt_num(wps_spoken, digits=1)}w/s)"
 
-                parts2.append(tts_txt)
-            else:
-                parts2.append("TTS --")
+                    parts2.append(tts_txt)
         else:
             parts2.append("TTS off")
 
@@ -1982,6 +2014,10 @@ class VoiceREPL(cmd.Cmd):
             print("     /clone_set_ref_text <id-or-name> \"...\"")
             if not self._is_cloning_runtime_ready(voice_id=voice_id):
                 print("   (Cloning runtime not ready yet; run /cloning_status and /cloning_download first.)")
+            if str(eng or (engine or self.cloning_engine) or "").strip().lower() == "chroma" and not (reference_text or "").strip():
+                print("ℹ️  No reference transcript provided.")
+                print("   We will auto-generate it via STT on first speak (offline-first: requires cached STT model).")
+                print("   Optional (often best quality): /clone_set_ref_text <id-or-name> \"...\"  (or re-run /clone ... --text \"...\")")
 
             if self.verbose_mode:
                 n_files, ref_audio_s = self._summarize_audio_source(path)
@@ -2091,6 +2127,8 @@ class VoiceREPL(cmd.Cmd):
                 else:
                     print("   Tip: set reference text for best quality:")
                     print("     /clone_set_ref_text <id-or-name> \"...\"")
+                    if str(eng or engine_name or "").strip().lower() == "chroma":
+                        print("   ℹ️  No transcript provided; STT auto-fallback runs on first speak (requires cached STT model).")
 
                 if self.verbose_mode:
                     n_files, ref_audio_s = self._summarize_audio_source(path)
@@ -3136,6 +3174,12 @@ def parse_args():
         choices=["f5_tts", "chroma"],
         help="Default cloning backend for new voices (f5_tts|chroma)",
     )
+    parser.add_argument(
+        "--voice-mode",
+        default="off",
+        choices=["off", "wait", "stop", "full", "ptt"],
+        help="Auto-start microphone voice mode (off|wait|stop|full|ptt). Default: off.",
+    )
     parser.add_argument("--language", "--lang", default="en",
                       choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
                       help="Voice language (en=English, fr=French, es=Spanish, de=German, it=Italian, ru=Russian, multilingual=All)")
@@ -3158,6 +3202,7 @@ def main():
             verbose_mode=args.verbose,
             language=args.language,
             tts_model=args.tts_model,
+            voice_mode=args.voice_mode,
             cloning_engine=args.cloning_engine,
         )
         repl.cmdloop()

@@ -17,7 +17,8 @@ When a cloned voice has no `reference_text`, we now generate it **once**, persis
 - `abstractvoice/cloning/manager.py`
   - Added `reference_text_whisper_model` (default `small`) for one-time ASR.
   - Added `_ensure_reference_text(voice_id)`:
-    - if missing: transcribe once (<=15s clip), normalize conservatively, persist.
+    - if missing: transcribe (<=15s clip), normalize conservatively, persist.
+    - (amended 2026-01-28) STT uses a 3-pass consensus strategy before persisting.
   - `speak_to_bytes()` and `speak_to_audio_chunks()` now call `_ensure_reference_text()` and pass the persisted text to the engine.
 
 - `abstractvoice/cloning/store.py`
@@ -34,4 +35,3 @@ When a cloned voice has no `reference_text`, we now generate it **once**, persis
 ## Validation
 
 - Tests: **34 passed, 2 skipped**
-
