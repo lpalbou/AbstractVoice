@@ -5,6 +5,128 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-01-28
+
+### 🎯 MAJOR: Chroma Voice Cloning Integration
+
+This release introduces Chroma-4B as an optional high-quality voice cloning engine, alongside significant enhancements to voice cloning functionality, audio processing, and the REPL experience.
+
+### ✨ Added
+
+#### **Chroma Voice Cloning Engine**
+- **NEW**: `abstractvoice[chroma]` optional dependency group for Chroma-4B integration
+- **NEW**: `ChromaVoiceCloningEngine` class providing high-fidelity zero-shot voice cloning
+- **NEW**: Chroma engine support in `VoiceCloner` with automatic engine selection
+- **NEW**: Explicit Chroma model prefetch via `abstractvoice download --chroma` or REPL `/cloning_download chroma`
+- **NEW**: `examples/chroma_clone_repl.py` demonstrating Chroma cloning workflow
+- **BENEFIT**: Alternative cloning engine with potentially higher quality than F5-TTS for certain use cases
+- **DESIGN**: Offline-first approach - no surprise downloads; explicit prefetch required
+
+#### **Enhanced Voice Cloning Functionality**
+- **Reference text autofallback**: Automatic STT-based reference text generation when missing (3-pass consensus)
+- **Engine-agnostic cloning API**: Cloned voices work seamlessly regardless of underlying engine (F5-TTS or Chroma)
+- **Improved audio normalization**: Better handling of reference audio loading and preprocessing
+- **Enhanced cloning store**: Improved voice clone metadata management and persistence
+
+#### **Audio Processing Improvements**
+- **Audio resampling enhancements**: Better handling of audio format conversions for cloning
+- **Normalization improvements**: More robust audio loading and normalization for voice cloning
+- **Playback stability**: Enhanced audio player teardown to prevent crashes during tests
+
+#### **Metrics and Monitoring**
+- **STT metrics tracking**: Enhanced speech-to-speech performance metrics
+- **TTS metrics tracking**: Improved text-to-speech performance insights
+- **Better observability**: More detailed metrics for debugging and optimization
+
+#### **REPL Enhancements**
+- **Improved system prompt**: Enhanced conversational clarity in CLI REPL
+- **Better audio feedback**: Improved REPL audio handling and user experience
+- **Chat history fixes**: Fixed chat history management issues
+
+### 📦 Changed
+
+#### **Voice Cloning Architecture**
+- **Multi-engine support**: `VoiceCloner` now supports multiple cloning engines (F5-TTS, Chroma)
+- **Engine selection**: Automatic engine selection based on cloned voice metadata
+- **Reference text handling**: Optional reference text with intelligent autofallback via STT
+
+#### **Documentation Updates**
+- **Voice cloning guide**: Comprehensive documentation for Chroma integration
+- **Model management**: Updated documentation for explicit model download mechanisms
+- **Roadmap updates**: Enhanced roadmap reflecting Chroma integration status
+- **Architecture docs**: Updated architecture documentation with cloning engine details
+
+#### **Dependencies**
+- **Optional Chroma dependencies**: Added `abstractvoice[chroma]` group with torch, transformers, and related packages
+- **No breaking changes**: Base package remains lightweight; Chroma is fully optional
+
+### 🔧 Fixed
+
+#### **Voice Cloning Stability**
+- **Audio loading**: Fixed audio loading and normalization issues in voice cloning
+- **Reference text handling**: Improved robustness of reference text autofallback mechanism
+- **Engine dispatch**: Fixed voice cloner engine selection and dispatch logic
+
+#### **Audio Processing**
+- **Resampling stability**: Improved audio resampling reliability
+- **Playback teardown**: Enhanced audio player shutdown to prevent crashes
+
+### 🎯 Technical Details
+
+#### **Chroma Integration**
+- **Model**: FlashLabs/Chroma-4B (pinned revision for stability)
+- **Requirements**: GPU recommended; requires `abstractvoice[chroma]` installation
+- **Offline-first**: No automatic downloads; explicit prefetch via CLI or REPL commands
+- **Audio format**: Handles mono 24kHz PCM16 audio normalization automatically
+
+#### **Voice Cloning Workflow**
+1. Clone voice with reference audio (and optional reference text)
+2. Engine automatically selected (F5-TTS or Chroma based on availability/preference)
+3. Reference text auto-generated via STT if missing (3-pass consensus)
+4. Cloned voice ready for use via `VoiceManager.speak(..., voice=voice_id)`
+
+#### **Backward Compatibility**
+- ✅ **Fully backward compatible** - All existing APIs unchanged
+- ✅ **Optional feature** - Chroma is opt-in via `abstractvoice[chroma]`
+- ✅ **Existing cloning works** - F5-TTS cloning unchanged and still default
+
+### 📚 Use Cases
+
+This release enables:
+- **High-quality voice cloning**: Chroma provides alternative to F5-TTS with potentially better quality
+- **Flexible cloning workflows**: Multiple engine options for different quality/speed trade-offs
+- **Offline-first deployments**: Explicit model management for controlled environments
+- **Better observability**: Enhanced metrics for performance monitoring and debugging
+
+### 🚀 Migration Guide
+
+**For End Users:**
+```bash
+# Base installation (unchanged)
+pip install abstractvoice
+
+# To use Chroma cloning (optional)
+pip install abstractvoice[chroma]
+
+# Prefetch Chroma models
+abstractvoice download --chroma
+```
+
+**For Developers:**
+- No code changes required - Chroma integration is transparent
+- Existing cloning code works unchanged
+- New cloned voices can use Chroma engine if available
+- Engine selection is automatic based on voice metadata
+
+**For Downstream Projects:**
+```toml
+# Base package (unchanged)
+abstractvoice = ">=0.6.0"
+
+# With Chroma support (optional)
+abstractvoice = {extras = ["chroma"], version = ">=0.6.0"}
+```
+
 ## [0.5.2] - 2025-11-11
 
 ### 🔧 Fixed
