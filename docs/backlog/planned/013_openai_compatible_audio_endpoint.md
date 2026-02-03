@@ -30,6 +30,13 @@ AbstractVoice will ultimately be integrated into AbstractFramework (which alread
 - compatibility checks
 - quick third-party integrations that expect `/v1/audio/speech`
 
+Coordination note (2026-01-29):
+- AbstractCore Server now ships OpenAI-compatible **vision generation** endpoints (`/v1/images/*`) by delegating to `abstractvision`.
+- We should decide whether OpenAI-compatible **audio** endpoints live:
+  - **inside AbstractVoice** (this task; Flask, minimal dependency footprint), or
+  - **inside AbstractCore Server** as an optional `audio_endpoints.py` router (FastAPI, keeps the “OpenAI-compatible gateway” surface unified).
+This task keeps the original “inside AbstractVoice” plan, but AbstractFramework integration work should reassess placement before implementation to avoid duplicating two HTTP stacks.
+
 ---
 
 ## Constraints
@@ -156,11 +163,8 @@ Goal: reduce “time to first audio” and avoid huge single-shot synthesis for 
 
 ---
 
-## Success criteria
-
-- `POST /v1/audio/speech` returns WAV bytes (`RIFF...WAVE`) for valid non-stream requests.
+## Success criteria- `POST /v1/audio/speech` returns WAV bytes (`RIFF...WAVE`) for valid non-stream requests.
 - Streaming speech returns a valid SSE stream with `speech.audio.delta` chunks and a final `speech.audio.done`.
 - `POST /v1/audio/transcriptions` returns valid outputs for `response_format=text|json`.
 - Unsupported `format` returns a clear 400 error.
 - Tests pass: `pytest -q`.
-

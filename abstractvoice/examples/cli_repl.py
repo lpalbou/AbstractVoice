@@ -96,6 +96,10 @@ class VoiceREPL(cmd.Cmd):
         # - str  => cloned voice_id
         self.current_tts_voice: str | None = None
 
+        # When reference_text is auto-generated via ASR ("asr" source), print a
+        # ready-to-copy `/clone_set_ref_text ...` hint once per voice for easy correction.
+        self._printed_asr_ref_text_hint: set[str] = set()
+
         # Seed a default cloned voice (HAL9000) if samples are present.
         self._seed_hal9000_voice()
         
@@ -1609,8 +1613,51 @@ class VoiceREPL(cmd.Cmd):
                 ind.stop()
             except Exception:
                 pass
+            # If ASR auto-generated the clone's reference_text, print an easy override command
+            # (once). We do this after stopping the spinner to avoid corrupting the prompt line.
+            try:
+                if is_clone and self.current_tts_voice:
+                    self._maybe_print_asr_ref_text_override(self.current_tts_voice)
+            except Exception:
+                pass
             # Do not print the prompt manually: `cmd` will render it on return,
             # and printing here can result in duplicate prompts (`> >`).
+
+    def _maybe_print_asr_ref_text_override(self, voice_id: str) -> None:
+        """If `reference_text` was auto-generated via ASR, print a paste-ready override hint.
+
+        Important: `/clone_set_ref_text` uses a simple `split(maxsplit=1)`, so quoting is not
+        interpreted. We therefore print the command *without* quotes to avoid storing them.
+        """
+        if not self.voice_manager:
+            return
+        vid = str(voice_id or "").strip()
+        if not vid:
+            return
+        if vid in self._printed_asr_ref_text_hint:
+            return
+        try:
+            info = self.voice_manager.get_cloned_voice(vid) or {}
+        except Exception:
+            return
+        meta = info.get("meta") or {}
+        src = str(meta.get("reference_text_source") or "").strip().lower()
+        ref_text = str(info.get("reference_text") or "").strip()
+        if not ref_text:
+            return
+        if src != "asr":
+            return
+
+        # Mark first so any printing errors won't cause repeated spam.
+        self._printed_asr_ref_text_hint.add(vid)
+
+        prefix = vid[:8] if len(vid) >= 8 else vid
+        name = str(info.get("name") or "").strip()
+        label = f"{name} ({prefix})" if name else prefix
+        print("ℹ️  Auto-generated reference transcript (ASR).")
+        print(f"   Voice: {label}")
+        print("   If you want to correct it, copy/paste and edit the text after the id:")
+        print(f"     /clone_set_ref_text {prefix} {ref_text}")
 
     class _busy_indicator:
         """A minimal, discreet spinner (no extra lines)."""

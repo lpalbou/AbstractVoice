@@ -83,9 +83,7 @@ VoiceManager exposes audio lifecycle hooks:
 
 Those can exist, but should not define the library’s integration story.
 
-## Explicit downloads (recommended)
-
-For offline deployments, prefetch explicitly:```bash
+## Explicit downloads (recommended)For offline deployments, prefetch explicitly:```bash
 python -m abstractvoice download --piper en
 python -m abstractvoice download --stt small
 python -m abstractvoice download --openf5

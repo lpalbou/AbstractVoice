@@ -33,6 +33,33 @@ AbstractVoice is designed as a modular voice interaction system that bridges tex
         └─────────────────────┘ └─────────────────┘
 ```
 
+## How AbstractVoice integrates with AbstractCore / AbstractFramework
+
+AbstractVoice is usable in two ways:
+
+1) **Standalone library** (direct Python use): you can use `VoiceManager` directly for STT/TTS.
+2) **AbstractCore capability plugin**: when installed alongside `abstractcore`, AbstractVoice registers:
+   - `core.voice` (speech-oriented UX surface: STT/TTS)
+   - `core.audio` (audio capability surface used by AbstractCore’s `audio_policy`)
+
+This integration is intentionally plugin-based (ADR-0028) so `abstractcore` stays dependency-light by default (ADR-0001).
+
+Implementation:
+- Plugin entry: `abstractvoice/abstractvoice/integrations/abstractcore_plugin.py`
+
+### Library mode vs framework mode
+
+- **Library mode**: calls return strings/bytes; the caller decides where to store outputs.
+- **Framework mode (runtime/gateway)**: when an `artifact_store` is provided, large audio outputs are stored durably and referenced by artifact id (`{"$artifact":"..."}`).
+
+User-facing policy note:
+- Audio input is not “just speech”; AbstractCore defaults to `audio_policy='native_only'` to avoid silent STT on music/signals.
+- STT is enabled explicitly via `audio_policy='speech_to_text'` (or configured `audio.strategy`).
+
+See also:
+- `docs/guide/capability-audio.md`
+- `docs/adr/0028-capabilities-plugins-and-library-framework-modes.md`
+
 ## Core Components
 
 ### 1. VoiceManager (Orchestrator)
