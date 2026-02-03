@@ -1,5 +1,6 @@
 # AbstractVoice (full)
 > Modular Python voice I/O around AI apps, focused on a clean integrator API and out-of-box local assistant behavior.
+> Optional voice cloning (F5-TTS + Chroma) while keeping the base install lightweight.
 
 Use `README.md` as the single human-facing entry point and `docs/public_api.md` as the supported integrator contract. Prefer small, focused modules and adapters; avoid expanding the public API without updating docs/backlog + ADRs when relevant.
 
@@ -19,6 +20,8 @@ Use `README.md` as the single human-facing entry point and `docs/public_api.md` 
 - [Acronyms](docs/acronyms.md)
 - [ADR 0001](docs/adr/0001-local_assistant_out_of_box.md)
 - [ADR 0002](docs/adr/0002_barge_in_interruption.md)
+- [ADR 0003 (cloning reference_text auto-fallback)](docs/adr/0003_cloning_reference_text_fallback.md)
+- [ADR 0004 (streaming + cancellation for cloned TTS)](docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md)
 
 ## Code map (start points)
 - [Package entry points](abstractvoice/__init__.py)
@@ -28,6 +31,28 @@ Use `README.md` as the single human-facing entry point and `docs/public_api.md` 
 - [VM core callbacks](abstractvoice/vm/core.py)
 - [VM TTS mixin](abstractvoice/vm/tts_mixin.py)
 - [VM STT mixin](abstractvoice/vm/stt_mixin.py)
+
+## Voice cloning (optional; heavy)
+Public surface:
+- `clone_voice(reference_audio_path, name=None, reference_text=None, engine=None) -> voice_id`
+- `speak(..., voice=voice_id)` / `speak_to_bytes(..., voice=voice_id)` / `speak_to_file(..., voice=voice_id)`
+- `list_cloned_voices()` and clone management helpers (see code map below)
+
+Key modules:
+- [VoiceCloner + engine dispatch](abstractvoice/cloning/manager.py)
+- [Store + reference bundles](abstractvoice/cloning/store.py)
+- [F5-TTS engine](abstractvoice/cloning/engine_f5.py)
+- [Chroma engine](abstractvoice/cloning/engine_chroma.py)
+
+Offline-first rule:
+- The REPL runs with `allow_downloads=False` and will not download weights implicitly.
+- Prefetch explicitly for offline deployments:
+```bash
+python -m abstractvoice download --stt small
+python -m abstractvoice download --piper en
+python -m abstractvoice download --openf5
+python -m abstractvoice download --chroma
+```
 
 ## Engines & adapters
 - [Adapters base types](abstractvoice/adapters/base.py)
@@ -41,12 +66,21 @@ Use `README.md` as the single human-facing entry point and `docs/public_api.md` 
 
 ## Tests
 - [tests/](tests/)
+  - `tests/test_voice_cloner_engine_dispatch.py`
+  - `tests/test_cloning_reference_text_autofallback.py`
+  - `tests/test_cloned_tts_cancellation.py`
+  - `tests/test_chroma_cloning_integration.py` (heavy; gated by env var and optional deps)
 
 ## Dependencies & licensing
 - [pyproject.toml](pyproject.toml)
 - [Acknowledgments](ACKNOWLEDGMENTS.md)
 - [License](LICENSE)
 - [Voices and licenses](docs/voices-and-licenses.md)
+
+Optional dependency groups (see `pyproject.toml`):
+- `abstractvoice[cloning]`: F5-TTS backend runtime (still requires OpenF5 artifacts download)
+- `abstractvoice[chroma]`: Chroma-4B runtime deps (GPU-heavy)
+- `abstractvoice[aec]`: optional acoustic echo cancellation
 
 ## Optional
 - [Multilingual notes](docs/multilingual.md)

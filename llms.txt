@@ -1,7 +1,7 @@
 # AbstractVoice
-> Modular Python voice I/O around AI apps (Piper TTS + faster-whisper STT by default).
+> Modular Python voice I/O around AI apps (Piper TTS + faster-whisper STT by default). Optional voice cloning: F5-TTS + Chroma.
 
-Start from `README.md` (single entry point) and treat `docs/public_api.md` as the supported integrator contract. Internals are split under `abstractvoice/vm/` to keep files small and responsibilities clear.
+Start from `README.md` (human entry point) and treat `docs/public_api.md` as the supported integrator contract.
 
 ## Start here
 - [README](README.md) - install + smoke tests
@@ -11,6 +11,8 @@ Start from `README.md` (single entry point) and treat `docs/public_api.md` as th
 ## Key design decisions
 - [ADR 0001 (out-of-box local assistant)](docs/adr/0001-local_assistant_out_of_box.md)
 - [ADR 0002 (barge-in + stop phrase + optional AEC)](docs/adr/0002_barge_in_interruption.md)
+- [ADR 0003 (cloning reference_text auto-fallback)](docs/adr/0003_cloning_reference_text_fallback.md)
+- [ADR 0004 (streaming + cancellation for cloned TTS)](docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md)
 
 ## Core code (orientation)
 - [VoiceManager façade](abstractvoice/voice_manager.py)
@@ -19,6 +21,20 @@ Start from `README.md` (single entry point) and treat `docs/public_api.md` as th
 - [STT faster-whisper adapter](abstractvoice/adapters/stt_faster_whisper.py)
 - [Mic/VAD/STT loop](abstractvoice/recognition.py)
 - [Stop phrase helper (no heavy deps)](abstractvoice/stop_phrase.py)
+
+## Voice cloning (optional; heavy)
+- [VoiceCloner + engine dispatch](abstractvoice/cloning/manager.py)
+- [F5-TTS engine](abstractvoice/cloning/engine_f5.py)
+- [Chroma engine](abstractvoice/cloning/engine_chroma.py)
+- [Store + reference bundles](abstractvoice/cloning/store.py)
+
+Offline-first: the REPL will not download weights implicitly. Prefetch explicitly:
+```bash
+python -m abstractvoice download --stt small
+python -m abstractvoice download --piper en
+python -m abstractvoice download --openf5
+python -m abstractvoice download --chroma
+```
 
 ## Tests
 - [tests/](tests/) - run `pytest -q`
