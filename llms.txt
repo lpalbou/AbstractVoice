@@ -7,6 +7,7 @@ Important notes:
 - The REPL is **offline-first** (`allow_downloads=False`): no implicit model downloads.
 - Keep the public API small; update `docs/api.md` (and ADRs in `docs/adr/` when relevant) when behavior changes.
 - Optional/heavy features are extras (`abstractvoice[cloning]`, `abstractvoice[chroma]`, `abstractvoice[aec]`).
+- AbstractCore integration is available via a capability plugin (exposes `core.voice` / `core.audio`): `abstractvoice/abstractvoice/integrations/abstractcore_plugin.py`.
 
 Quick commands (offline-first friendly):
 - Run tests: `python -m pytest -q`
