@@ -95,8 +95,6 @@ def simple_example():
 
 def parse_args():
     """Parse command line arguments."""
-    import sys
-
     parser = argparse.ArgumentParser(description="AbstractVoice - Voice interactions with AI")
 
     # Examples and special commands
@@ -104,14 +102,30 @@ def parse_args():
 
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--verbose", action="store_true", help="Show per-turn performance stats")
     parser.add_argument("--api", default="http://localhost:11434/api/chat",
                       help="LLM API URL")
     parser.add_argument("--model", default="cogito:3b",
                       help="LLM model name")
-    parser.add_argument("--whisper", default="tiny",
-                      help="Whisper model to use (tiny, base, small, medium, large)")
+    parser.add_argument(
+        "--whisper",
+        default="base",
+        help="STT model size for faster-whisper (e.g. tiny|base|small|medium|large-v3).",
+    )
+    parser.add_argument(
+        "--cloning-engine",
+        default="f5_tts",
+        choices=["f5_tts", "chroma"],
+        help="Default cloning backend for new voices (f5_tts|chroma).",
+    )
+    parser.add_argument(
+        "--voice-mode",
+        default="off",
+        choices=["off", "wait", "stop", "full", "ptt"],
+        help="Auto-start microphone voice mode (off|wait|stop|full|ptt). Default: off.",
+    )
     parser.add_argument("--no-listening", action="store_true",
-                      help="Disable speech-to-text (listening), TTS still works")
+                      help="Disable speech-to-text (listening). Alias for --voice-mode off.")
     parser.add_argument("--no-tts", action="store_true",
                       help="Disable text-to-speech (TTS), text-only mode")
     parser.add_argument("--system",
@@ -133,6 +147,10 @@ def main():
         # Parse command line arguments
         args = parse_args()
 
+        # Normalize aliases/compat flags.
+        if getattr(args, "no_listening", False):
+            args.voice_mode = "off"
+
         # Handle special commands and examples
         if args.command == "check-deps":
             from abstractvoice.dependency_check import check_dependencies
@@ -151,9 +169,19 @@ def main():
                 api_url=args.api,
                 model=args.model,
                 debug_mode=args.debug,
+                verbose_mode=args.verbose,
                 language=args.language,
-                tts_model=args.tts_model
+                tts_model=args.tts_model,
+                voice_mode=args.voice_mode,
+                disable_tts=args.no_tts,
+                cloning_engine=args.cloning_engine,
             )
+            # Apply requested STT model size (best-effort).
+            try:
+                if getattr(repl, "voice_manager", None) is not None:
+                    repl.voice_manager.set_whisper(str(args.whisper))
+            except Exception:
+                pass
             # Set temperature and max_tokens
             repl.temperature = args.temperature
             repl.max_tokens = args.max_tokens
@@ -177,23 +205,28 @@ def main():
             print_examples()
             return
 
-        # Show language information
-        language_names = {
-            'en': 'English', 'fr': 'French', 'es': 'Spanish',
-            'de': 'German', 'it': 'Italian', 'ru': 'Russian',
-            'multilingual': 'Multilingual'
-        }
-        lang_name = language_names.get(args.language, args.language)
-        print(f"Starting AbstractVoice voice interface ({lang_name})...")
-        
-        # Initialize REPL with language support
+        # Default behavior: start the REPL (mic OFF unless --voice-mode is set).
+        lang_name = {
+            "en": "English",
+            "fr": "French",
+            "de": "German",
+            "es": "Spanish",
+            "ru": "Russian",
+            "zh": "Chinese",
+        }.get(str(args.language), str(args.language))
+        print(f"Starting AbstractVoice ({lang_name})…")
+
+        # Initialize REPL.
         repl = VoiceREPL(
             api_url=args.api,
             model=args.model,
             debug_mode=args.debug,
+            verbose_mode=args.verbose,
             language=args.language,
             tts_model=args.tts_model,
-            disable_tts=args.no_tts
+            voice_mode=args.voice_mode,
+            disable_tts=args.no_tts,
+            cloning_engine=args.cloning_engine,
         )
         
         # Set custom system prompt if provided
@@ -210,17 +243,12 @@ def main():
             print(f"Temperature: {args.temperature}")
             print(f"Max tokens: {args.max_tokens}")
         
-        # Change Whisper model if specified
-        if args.whisper and args.whisper != "tiny":
-            if repl.voice_manager.set_whisper(args.whisper):
-                if args.debug:
-                    print(f"Using Whisper model: {args.whisper}")
-        
-        # Start in voice mode automatically unless --no-listening is specified
-        if not args.no_listening:
-            print("Activating voice mode. Say 'stop' to exit voice mode.")
-            # Use the existing voice mode method
-            repl.do_voice("on")
+        # Apply requested STT model size (best-effort).
+        try:
+            if getattr(repl, "voice_manager", None) is not None:
+                repl.voice_manager.set_whisper(str(args.whisper))
+        except Exception:
+            pass
         
         # Start the REPL
         repl.cmdloop()
@@ -244,11 +272,7 @@ def main():
         elif "importerror" in error_msg or "no module" in error_msg:
             print(f"❌ Missing dependencies")
             print(f"   Try running: abstractvoice check-deps")
-            print(f"   Or install dependencies: pip install abstractvoice[voice-full]")
-        elif "espeak" in error_msg or "phoneme" in error_msg:
-            print(f"❌ Voice synthesis setup issue")
-            print(f"   Install espeak-ng for better voice quality: brew install espeak-ng")
-            print(f"   Or this might be a TTS model download issue")
+            print(f"   Or install extras: pip install \"abstractvoice[all]\"")
         else:
             print(f"❌ Application error: {e}")
             print(f"   Try running with --debug for more details")

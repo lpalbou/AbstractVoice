@@ -5,9 +5,14 @@ The REPL is the quickest way to validate your installation end‑to‑end.
 ## Start
 
 ```bash
+abstractvoice --debug
+abstractvoice --verbose
+abstractvoice --voice-mode stop   # enable mic voice input
+
+# Or (from a source checkout):
 python -m abstractvoice cli --debug
 python -m abstractvoice cli --verbose
-python -m abstractvoice cli --voice-mode stop   # enable mic voice input
+python -m abstractvoice cli --voice-mode stop
 ```
 
 Notes:
@@ -58,12 +63,12 @@ python -m abstractvoice download --piper de
 - `/tts_engine piper`
 - `/stt_engine faster_whisper`
 
-### 4) Voice catalog (Piper)
+### 5) Voice catalog (Piper)
 
 - `/setvoice` lists voices.
-- `/setvoice fr.siwis` switches to French (voice id is best-effort).
+- `/setvoice fr.siwis` switches language; voice id is currently best-effort (one default Piper voice per language).
 
-### 5) Voice cloning (optional extra)
+### 6) Voice cloning (optional extra)
 
 Install:
 
@@ -106,3 +111,7 @@ Notes:
 ## Troubleshooting
 
 - If the REPL can’t connect to your LLM server, ensure it’s running and the `--api` URL is correct.
+
+See also:
+- `docs/installation.md` (audio devices, extras, common install issues)
+- `docs/public_api.md` (integrator contract; what the library supports)

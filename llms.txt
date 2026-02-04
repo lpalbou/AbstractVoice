@@ -3,10 +3,23 @@
 
 Start from `README.md` (human entry point) and treat `docs/public_api.md` as the supported integrator contract.
 
+Quick commands (offline-first friendly):
+- Run tests: `python -m pytest -q`
+- Start REPL smoke test: `abstractvoice --verbose` (or `python -m abstractvoice cli --verbose`)
+- Prefetch models/artifacts explicitly (the REPL will not download weights implicitly):
+```bash
+python -m abstractvoice download --stt small
+python -m abstractvoice download --piper en
+python -m abstractvoice download --openf5
+python -m abstractvoice download --chroma
+```
+
 ## Start here
-- [README](README.md) - install + smoke tests
-- [Public API (Integrator Contract)](docs/public_api.md) - stable surface area
-- [Getting started (dev + local testing)](docs/getting_started.md) - venv, pytest, REPL
+- [README](README.md): install + smoke tests
+- [Docs index](docs/README.md): map of user-facing vs internal docs
+- [Public API (Integrator Contract)](docs/public_api.md): stable surface area
+- [Getting started](docs/getting-started.md): recommended setup + first smoke tests
+- [Installation](docs/installation.md): platform notes + optional extras
 
 ## Key design decisions
 - [ADR 0001 (out-of-box local assistant)](docs/adr/0001-local_assistant_out_of_box.md)
@@ -15,31 +28,28 @@ Start from `README.md` (human entry point) and treat `docs/public_api.md` as the
 - [ADR 0004 (streaming + cancellation for cloned TTS)](docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md)
 
 ## Core code (orientation)
-- [VoiceManager façade](abstractvoice/voice_manager.py)
-- [VoiceManager implementation](abstractvoice/vm/manager.py)
-- [TTS Piper adapter](abstractvoice/adapters/tts_piper.py)
-- [STT faster-whisper adapter](abstractvoice/adapters/stt_faster_whisper.py)
-- [Mic/VAD/STT loop](abstractvoice/recognition.py)
-- [Stop phrase helper (no heavy deps)](abstractvoice/stop_phrase.py)
+- [VoiceManager façade](abstractvoice/voice_manager.py): public entry for integrators
+- [VoiceManager implementation](abstractvoice/vm/manager.py): constructor/wiring
+- [Voice-mode callbacks](abstractvoice/vm/core.py): behavior during TTS playback
+- [VM TTS mixin](abstractvoice/vm/tts_mixin.py): `speak*()` + cloning orchestration
+- [VM STT mixin](abstractvoice/vm/stt_mixin.py): `listen()` + transcribe helpers
+- [TTS Piper adapter](abstractvoice/adapters/tts_piper.py): Piper model selection + synthesis
+- [STT faster-whisper adapter](abstractvoice/adapters/stt_faster_whisper.py): STT backend
+- [Mic/VAD/STT loop](abstractvoice/recognition.py): listening thread + stop phrase handling
+- [Stop phrase helper (no heavy deps)](abstractvoice/stop_phrase.py): normalization/matching
 
 ## Voice cloning (optional; heavy)
-- [VoiceCloner + engine dispatch](abstractvoice/cloning/manager.py)
-- [F5-TTS engine](abstractvoice/cloning/engine_f5.py)
-- [Chroma engine](abstractvoice/cloning/engine_chroma.py)
-- [Store + reference bundles](abstractvoice/cloning/store.py)
-
-Offline-first: the REPL will not download weights implicitly. Prefetch explicitly:
-```bash
-python -m abstractvoice download --stt small
-python -m abstractvoice download --piper en
-python -m abstractvoice download --openf5
-python -m abstractvoice download --chroma
-```
+- [REPL cloning workflow](docs/repl_guide.md): user-facing commands
+- [VoiceCloner + engine dispatch](abstractvoice/cloning/manager.py): API + engine routing
+- [Store + reference bundles](abstractvoice/cloning/store.py): persisted clone metadata
+- [F5-TTS engine](abstractvoice/cloning/engine_f5.py): OpenF5 backend
+- [Chroma engine](abstractvoice/cloning/engine_chroma.py): Chroma-4B backend
 
 ## Tests
-- [tests/](tests/) - run `pytest -q`
+- [tests/](tests/): run `python -m pytest -q`
 
 ## Optional
-- [Backlog](docs/backlog/)
-- [Architecture (internal)](docs/architecture.md)
-- [Voice cloning investigation](docs/voice_cloning_2026.md)
+- [Architecture (internal)](docs/architecture.md): implementation map
+- [Backlog](docs/backlog/): internal planning (not an API contract)
+- [Reports](docs/reports/): historical snapshots
+- [Voice cloning investigation](docs/voice_cloning_2026.md): research notes

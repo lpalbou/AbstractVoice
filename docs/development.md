@@ -60,6 +60,5 @@ Core support:
 ## Tests
 
 ```bash
-pytest -q
+python -m pytest -q
 ```
-
