@@ -7,10 +7,11 @@ If you're discovering AbstractVoice for the first time, start with:
 1) `README.md` (install + quick smoke tests)  
 2) `docs/getting-started.md` (recommended setup + first smoke tests)  
 3) `docs/overview.md` (what the library is / common usage modes)  
-4) `docs/public_api.md` (supported integrator contract)
+4) `docs/api.md` (supported integrator contract)
 
 ## User-facing docs
 
+- **FAQ**: `docs/faq.md`
 - **Install & troubleshooting**: `docs/installation.md`
 - **REPL guide (voice assistant)**: `docs/repl_guide.md`
 - **Multilingual**: `docs/multilingual.md`
@@ -19,9 +20,17 @@ If you're discovering AbstractVoice for the first time, start with:
 
 ## For integrators
 
-- **Stable API surface**: `docs/public_api.md`
+- **Stable API surface**: `docs/api.md`
 - **Architecture (implementation map)**: `docs/architecture.md`
 - **ADRs (design decisions)**: `docs/adr/`
+
+## Project
+
+- **Changelog**: `CHANGELOG.md`
+- **Contributing**: `CONTRIBUTING.md`
+- **Security**: `SECURITY.md`
+- **Acknowledgments**: `ACKNOWLEDGMENTS.md`
+- **License**: `LICENSE`
 
 ## Internal / historical (not an API contract)
 

@@ -1,13 +1,24 @@
 # AbstractVoice
-> Modular Python voice I/O around AI apps (Piper TTS + faster-whisper STT by default). Optional voice cloning: F5-TTS + Chroma.
+> Modular Python voice I/O around AI apps (Piper TTS + faster-whisper STT by default), with optional voice cloning (F5-TTS / Chroma).
 
-Start from `README.md` (human entry point) and treat `docs/public_api.md` as the supported integrator contract.
+Start from `README.md` (human entry point) and treat `docs/api.md` as the supported integrator contract.
+
+Important notes:
+- The REPL is **offline-first** (`allow_downloads=False`): no implicit model downloads.
+- Keep the public API small; update `docs/api.md` (and ADRs in `docs/adr/` when relevant) when behavior changes.
+- Optional/heavy features are extras (`abstractvoice[cloning]`, `abstractvoice[chroma]`, `abstractvoice[aec]`).
 
 Quick commands (offline-first friendly):
 - Run tests: `python -m pytest -q`
 - Start REPL smoke test: `abstractvoice --verbose` (or `python -m abstractvoice cli --verbose`)
 - Prefetch models/artifacts explicitly (the REPL will not download weights implicitly):
 ```bash
+abstractvoice-prefetch --stt small
+abstractvoice-prefetch --piper en
+abstractvoice-prefetch --openf5
+abstractvoice-prefetch --chroma
+
+# Or (from a source checkout):
 python -m abstractvoice download --stt small
 python -m abstractvoice download --piper en
 python -m abstractvoice download --openf5
@@ -17,9 +28,17 @@ python -m abstractvoice download --chroma
 ## Start here
 - [README](README.md): install + smoke tests
 - [Docs index](docs/README.md): map of user-facing vs internal docs
-- [Public API (Integrator Contract)](docs/public_api.md): stable surface area
+- [Public API (Integrator Contract)](docs/api.md): stable surface area
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests
+- [FAQ](docs/faq.md): common install/runtime issues
 - [Installation](docs/installation.md): platform notes + optional extras
+- [Architecture](docs/architecture.md): implementation map (internal)
+- [Security policy](SECURITY.md): responsible disclosure
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
+- [Acknowledgments](ACKNOWLEDGMENTS.md)
+- [License](LICENSE)
+- [More (expanded)](llms-full.txt): additional repo map and constraints
 
 ## Key design decisions
 - [ADR 0001 (out-of-box local assistant)](docs/adr/0001-local_assistant_out_of_box.md)
@@ -49,7 +68,6 @@ python -m abstractvoice download --chroma
 - [tests/](tests/): run `python -m pytest -q`
 
 ## Optional
-- [Architecture (internal)](docs/architecture.md): implementation map
 - [Backlog](docs/backlog/): internal planning (not an API contract)
 - [Reports](docs/reports/): historical snapshots
 - [Voice cloning investigation](docs/voice_cloning_2026.md): research notes

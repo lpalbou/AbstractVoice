@@ -41,11 +41,10 @@ Closed two gaps:
     - Also requires `f5-tts_infer-cli` to be available (`abstractvoice[cloning]` installed).
 
 - **Docs**
-  - Updated `docs/repl_guide.md` and `docs/public_api.md` to reflect the optional `voice` parameter and the cloning workflow.
+  - Updated `docs/repl_guide.md` and `docs/api.md` (formerly `docs/public_api.md`) to reflect the optional `voice` parameter and the cloning workflow.
 
 ---
 
 ## Validation
 
 - Tests: **30 passed, 2 skipped**
-

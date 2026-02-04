@@ -30,7 +30,7 @@ This creates inconsistent onboarding and increases the risk of regressions by en
 
 ## Constraints
 
-- Keep the docs concise and aligned with the stable public API (`docs/public_api.md`).
+- Keep the docs concise and aligned with the stable public API (`docs/api.md`).
 - Preserve useful historical notes in `docs/devnotes/` if needed, but keep “current architecture” docs accurate.
 
 ---
@@ -46,7 +46,7 @@ This creates inconsistent onboarding and increases the risk of regressions by en
 
 References:
 - `docs/model-management.md` (already Piper-first and accurate)
-- `docs/public_api.md` (stable integrator contract)
+- `docs/api.md` (stable integrator contract)
 - `docs/adr/` (design rationale and constraints)
 
 ---
@@ -94,4 +94,3 @@ References:
 - `pytest -q`
 - Doc consistency checks:
   - `rg -n "TTS\\(\" docs/architecture.md docs/development.md || true`
-

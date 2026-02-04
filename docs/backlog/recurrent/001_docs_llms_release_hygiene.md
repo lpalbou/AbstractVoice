@@ -16,7 +16,7 @@ Keep the repository coherent across code, docs, and release metadata, so third-p
 
 - **Docs consistency**
   - Ensure `README.md` remains the single entry point and links remain accurate.
-  - Ensure any changed behavior is reflected in `docs/public_api.md` and relevant ADRs.
+  - Ensure any changed behavior is reflected in `docs/api.md` and relevant ADRs.
   - Scan for newly outdated docs and update them (keep the docs set minimal).
 
 - **Agent manifests (`llms*.txt`)**
@@ -33,4 +33,3 @@ Keep the repository coherent across code, docs, and release metadata, so third-p
 
 - **Versioning & changelog**
   - After completing one or more backlog items, bump semantic version and add a `CHANGELOG.md` entry.
-
