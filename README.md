@@ -1,4 +1,4 @@
-## AbstractVoice
+# AbstractVoice
 
 A modular Python library for **voice I/O** around AI applications.
 
@@ -6,6 +6,10 @@ A modular Python library for **voice I/O** around AI applications.
 - **STT (default)**: faster-whisper
 - **Local assistant**: `listen()` + `speak()` with playback/listening control
 - **Headless/server**: `speak_to_bytes()` / `speak_to_file()` and `transcribe_*`
+
+Status: **alpha** (`0.6.0`). The supported integrator surface is documented in `docs/public_api.md`.
+
+Next: `docs/getting-started.md` (recommended setup + first smoke tests).
 
 > AbstractVoice will ultimately be integrated as the voice modality of AbstractFramework.  
 > An OpenAI-compatible voice endpoint is an optional demo/integration layer (see backlog).
@@ -23,6 +27,10 @@ Optional extras (feature flags):
 ```bash
 pip install "abstractvoice[all]"
 ```
+
+Notes:
+- `abstractvoice[all]` enables most optional features (incl. cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime.
+- For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
 ### Explicit model downloads (recommended; never implicit in the REPL)
 
@@ -58,7 +66,8 @@ Notes:
 ### REPL (fastest end-to-end)
 
 ```bash
-python -m abstractvoice cli --debug
+abstractvoice --verbose
+# or (from a source checkout):
 python -m abstractvoice cli --verbose
 ```
 
@@ -92,6 +101,8 @@ At a glance:
 
 ## Documentation (minimal set)
 
+- **Docs index**: `docs/README.md`
+- **Getting started**: `docs/getting-started.md`
 - **Orientation**: `docs/overview.md`
 - **Acronyms**: `docs/acronyms.md`
 - **Public API**: `docs/public_api.md`
@@ -99,8 +110,7 @@ At a glance:
 - **Install troubleshooting**: `docs/installation.md`
 - **Multilingual support**: `docs/multilingual.md`
 - **Architecture (internal)**: `docs/architecture.md` + `docs/adr/`
-- **Legacy model management (Coqui)**: `docs/model-management.md`
-- **Voice cloning investigation**: `docs/voice_cloning_2026.md`
+- **Model management (Piper-first)**: `docs/model-management.md`
 - **Licensing notes**: `docs/voices-and-licenses.md`
 
 ---

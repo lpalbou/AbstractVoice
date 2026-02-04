@@ -3227,9 +3227,13 @@ def parse_args():
         choices=["off", "wait", "stop", "full", "ptt"],
         help="Auto-start microphone voice mode (off|wait|stop|full|ptt). Default: off.",
     )
-    parser.add_argument("--language", "--lang", default="en",
-                      choices=["en", "fr", "es", "de", "it", "ru", "multilingual"],
-                      help="Voice language (en=English, fr=French, es=Spanish, de=German, it=Italian, ru=Russian, multilingual=All)")
+    parser.add_argument(
+        "--language",
+        "--lang",
+        default="en",
+        choices=["en", "fr", "de", "es", "ru", "zh"],
+        help="Voice language for default Piper TTS (en|fr|de|es|ru|zh).",
+    )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
     return parser.parse_args()
