@@ -1,8 +1,9 @@
 # AbstractVoice (full)
-> Modular Python voice I/O around AI apps, focused on a clean integrator API and out-of-box local assistant behavior.
-> Optional voice cloning (F5-TTS + Chroma) while keeping the base install lightweight.
+> Modular Python voice I/O around AI apps, focused on a clean integrator API and out-of-box local assistant behavior (optional voice cloning via F5-TTS / Chroma).
 
-Use `README.md` as the single human-facing entry point and `docs/public_api.md` as the supported integrator contract.
+This is an expanded repo index for agentic workflows. For the short version, see `llms.txt`.
+
+Use `README.md` as the single human-facing entry point and `docs/api.md` as the supported integrator contract.
 
 Quick commands:
 - Run tests: `python -m pytest -q`
@@ -17,8 +18,9 @@ abstractvoice-prefetch --chroma
 
 Repo constraints / intent:
 - Prefer small, focused modules and adapters.
-- Avoid expanding the public API without updating `docs/public_api.md` and (when relevant) ADRs in `docs/adr/`.
+- Avoid expanding the public API without updating `docs/api.md` and (when relevant) ADRs in `docs/adr/`.
 - The REPL runs with `allow_downloads=False` (no implicit downloads). Downloads must be explicit.
+- For vulnerability reports, follow `SECURITY.md` (do not open public issues for suspected vulnerabilities).
 
 Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[cloning]`: F5-TTS backend runtime (still requires OpenF5 artifacts download)
@@ -31,13 +33,16 @@ Optional dependency groups (see `pyproject.toml`):
 - [README](README.md): install + smoke tests
 - [Docs index](docs/README.md): map of user-facing vs internal docs
 - [Overview](docs/overview.md): what the library is / common usage modes
-- [Public API (Integrator Contract)](docs/public_api.md): supported surface area
+- [Public API (Integrator Contract)](docs/api.md): supported surface area
+- [FAQ](docs/faq.md): common install/runtime issues
 
 ## How to work in this repo
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests
 - [Installation troubleshooting](docs/installation.md): platform notes + extras
 - [REPL guide](docs/repl_guide.md): end-to-end validation + commands
 - [Backlog workflow](docs/backlog/): internal planning / tasks
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
 
 ## Core architecture (internal)
 - [Architecture](docs/architecture.md): implementation map + key flows
@@ -88,6 +93,7 @@ Optional dependency groups (see `pyproject.toml`):
 ## Dependencies & licensing
 - [pyproject.toml](pyproject.toml): deps, extras, entry points
 - [Acknowledgments](ACKNOWLEDGMENTS.md)
+- [Security policy](SECURITY.md)
 - [License](LICENSE)
 - [Voices and licenses](docs/voices-and-licenses.md)
 

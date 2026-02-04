@@ -1,345 +1,67 @@
-# Contributing to AbstractVoice
+# Contributing
 
-Thank you for your interest in contributing to AbstractVoice! This document provides guidelines and best practices for contributors.
+Thanks for your interest in contributing to AbstractVoice.
 
-## Development Setup
+## Quick links
 
-### Prerequisites
-- Python 3.11.7+ (3.11 recommended)
+- User entry points: `README.md` → `docs/getting-started.md`
+- Integrator contract: `docs/api.md`
+- Implementation map: `docs/architecture.md`
+- Internal dev notes: `docs/development.md`
+- Security reports: `SECURITY.md`
+
+## Development setup
+
+### Requirements
+
+- Python `>=3.8` (recommended: latest 3.12.x)
 - Git
-- Virtual environment tool (venv, conda, etc.)
 
-### Installation for Development
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/lpalbou/abstractvoice.git
-   cd abstractvoice
-   ```
-
-2. **Create virtual environment:**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-3. **Install development dependencies:**
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-4. **Install espeak-ng (recommended for best TTS quality):**
-   - **macOS**: `brew install espeak-ng`
-   - **Linux**: `sudo apt-get install espeak-ng`
-   - **Windows**: See [installation guide](../README.md#installing-espeak-ng-recommended-for-best-quality)
-
-### Development Dependencies
-- `pytest>=7.0.0` - Testing framework
-- `black>=22.0.0` - Code formatting
-- `flake8>=5.0.0` - Code linting
-
-## Code Style and Standards
-
-### Python Code Style
-We follow PEP 8 with some modifications:
+### Install (editable)
 
 ```bash
-# Format code with black
-black abstractvoice/
+git clone https://github.com/lpalbou/abstractvoice.git
+cd abstractvoice
 
-# Check linting with flake8
-flake8 abstractvoice/
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+
+python -m pip install -U pip
+python -m pip install -e ".[dev]"
 ```
 
-### Code Organization Principles
-- **Single Responsibility**: One file = one responsibility
-- **Small Files**: Keep files under 600 lines when possible
-- **Clear Separation**: Separate concerns between modules
-- **OOP Design**: Follow SOLID principles (except "O" for pre-release)
+## Running tests
 
-### Documentation Standards
-- **Docstrings**: Use Google-style docstrings for all public methods
-- **Comments**: Explain "why", not just "what"
-- **Type Hints**: Use type hints for public APIs
-- **Examples**: Include usage examples in docstrings
+Fast suite:
 
-Example:
-```python
-def speak(self, text: str, speed: float = 1.0, callback: Optional[Callable] = None) -> bool:
-    """Convert text to speech and play audio.
-    
-    Args:
-        text: Text to convert to speech
-        speed: Speech speed multiplier (0.5-2.0, default 1.0)
-        callback: Optional callback function called when speech completes
-        
-    Returns:
-        True if speech started, False if text was empty
-        
-    Example:
-        >>> vm = VoiceManager()
-        >>> vm.speak("Hello world", speed=1.2)
-        True
-    """
-```
-
-## Testing Guidelines
-
-### Test Philosophy
-- **Tests illustrate desired behavior**
-- **Code must work for general cases**, not just test cases
-- **Never add special case handling** from test files in production code
-- **Design for robustness and generality**
-
-### Running Tests
 ```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=abstractvoice
-
-# Run specific test file
-pytest tests/test_voice_manager.py
-
-# Run with verbose output
-pytest -v
+python -m pytest -q
 ```
 
-### Writing Tests
-```python
-import pytest
-from abstractvoice import VoiceManager
+Heavy/optional integration tests (skipped by default):
 
-def test_voice_manager_initialization():
-    """Test that VoiceManager initializes correctly."""
-    vm = VoiceManager()
-    assert vm is not None
-    assert not vm.is_speaking()
-    assert not vm.is_paused()
+- Cloning (OpenF5): set `ABSTRACTVOICE_RUN_CLONING_TESTS=1` (also needs `pip install "abstractvoice[cloning]"`)
+- Chroma: set `ABSTRACTVOICE_RUN_CHROMA_TESTS=1` (also needs `pip install "abstractvoice[chroma]"`)
 
-def test_pause_resume_functionality():
-    """Test immediate pause/resume functionality."""
-    vm = VoiceManager()
-    
-    # Start speech
-    result = vm.speak("This is a test of pause and resume functionality.")
-    assert result is True
-    
-    # Pause should work immediately
-    pause_result = vm.pause_speaking()
-    assert pause_result is True
-    assert vm.is_paused()
-    
-    # Resume should work immediately
-    resume_result = vm.resume_speaking()
-    assert resume_result is True
-    assert not vm.is_paused()
-    
-    vm.cleanup()
+## Formatting and linting (optional but recommended)
+
+```bash
+python -m black abstractvoice tests
+python -m flake8 abstractvoice tests
 ```
 
-## Error Handling Best Practices
+## Documentation expectations
 
-### Error Handling Philosophy
-- **Consider multiple possible causes** before deciding
-- **Reason through root causes**, don't jump to conclusions
-- **Solutions must work for all inputs**, not just known test cases
-- **Fix issues without breaking existing functionality**
+- Keep the external user flow consistent: `README.md` → `docs/getting-started.md`.
+- If you change supported integrator behavior, update `docs/api.md` (source-of-truth methods live in `abstractvoice/vm/*`).
+- If you change interaction semantics (voice modes / stop phrase / offline-first), update `docs/architecture.md` and add or update an ADR in `docs/adr/` when it’s a design decision.
 
-### Exception Handling
-```python
-def robust_method(self, input_data):
-    """Example of robust error handling."""
-    try:
-        # Validate input
-        if not input_data:
-            return False
-            
-        # Main logic
-        result = self._process_data(input_data)
-        return result
-        
-    except SpecificException as e:
-        # Handle specific known issues
-        if self.debug_mode:
-            print(f"Known issue: {e}")
-        return self._fallback_method(input_data)
-        
-    except Exception as e:
-        # Handle unexpected issues
-        if self.debug_mode:
-            print(f"Unexpected error: {e}")
-            import traceback
-            traceback.print_exc()
-        return False
-```
+## Pull requests
 
-## Architecture Guidelines
+- Keep PRs focused and explain the user impact.
+- Add tests for new behavior when feasible.
+- Update `CHANGELOG.md` for user-visible changes.
 
-### Component Design
-- **Modular**: Each component should be independently testable
-- **Loosely Coupled**: Components communicate via well-defined interfaces
-- **Thread-Safe**: All public methods must be thread-safe
-- **Resource Management**: Proper cleanup and resource management
+## Reporting security issues
 
-### Threading Best Practices
-- **Use locks** for shared state
-- **Avoid blocking operations** in main thread
-- **Use queues** for thread communication
-- **Proper cleanup** of threads and resources
-
-Example:
-```python
-class ThreadSafeComponent:
-    def __init__(self):
-        self._lock = threading.Lock()
-        self._state = {}
-    
-    def update_state(self, key, value):
-        """Thread-safe state update."""
-        with self._lock:
-            self._state[key] = value
-    
-    def get_state(self, key):
-        """Thread-safe state access."""
-        with self._lock:
-            return self._state.get(key)
-```
-
-## Documentation Updates
-
-### When to Update Documentation
-- **New features**: Add examples and API documentation
-- **Bug fixes**: Update if behavior changes
-- **Breaking changes**: Update migration guides
-- **Performance improvements**: Update benchmarks
-
-### Documentation Files to Update
-- `README.md` - User-facing documentation
-- `CHANGELOG.md` - Version history and changes
-- `docs/architecture.md` - Technical architecture
-- `docs/DEVELOPMENT.md` - Development insights
-- Docstrings in code
-
-### Changelog Format
-```markdown
-## [0.2.1] - 2025-01-15
-
-### Added
-- New feature X with immediate response
-- Support for Y configuration
-
-### Changed
-- Improved performance of Z by 30%
-- Updated default behavior of W
-
-### Fixed
-- Fixed issue with A causing B
-- Resolved thread safety issue in C
-
-### Deprecated
-- Method D is deprecated, use E instead
-```
-
-## Pull Request Process
-
-### Before Submitting
-1. **Run tests**: Ensure all tests pass
-2. **Check formatting**: Run `black` and `flake8`
-3. **Update documentation**: Update relevant docs
-4. **Test manually**: Test your changes manually
-5. **Update changelog**: Add entry to `CHANGELOG.md`
-
-### Pull Request Template
-```markdown
-## Description
-Brief description of changes and motivation.
-
-## Type of Change
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-
-## Testing
-- [ ] Tests pass locally
-- [ ] Added tests for new functionality
-- [ ] Manual testing completed
-
-## Documentation
-- [ ] Updated README.md if needed
-- [ ] Updated CHANGELOG.md
-- [ ] Updated docstrings
-- [ ] Updated architecture docs if needed
-
-## Checklist
-- [ ] Code follows style guidelines
-- [ ] Self-review completed
-- [ ] Comments added for complex logic
-- [ ] No breaking changes (or properly documented)
-```
-
-### Review Process
-1. **Automated checks**: CI/CD runs tests and linting
-2. **Code review**: Maintainer reviews code quality and design
-3. **Testing**: Manual testing of new features
-4. **Documentation review**: Ensure docs are accurate and complete
-5. **Merge**: After approval, changes are merged
-
-## Release Process
-
-### Version Numbering
-We follow [Semantic Versioning](https://semver.org/):
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
-
-### Release Checklist
-1. **Update version** in `abstractvoice/__init__.py` and `pyproject.toml`
-2. **Update CHANGELOG.md** with release notes
-3. **Run full test suite**
-4. **Build and test package** locally
-5. **Create release tag**
-6. **Publish to PyPI**
-7. **Update documentation**
-
-## Getting Help
-
-### Resources
-- **GitHub Issues**: Report bugs and request features
-- **Discussions**: Ask questions and share ideas
-- **Documentation**: Check existing docs first
-- **Code Examples**: Look at examples in `abstractvoice/examples/`
-
-### Communication Guidelines
-- **Be respectful** and constructive
-- **Provide context** when asking questions
-- **Include code examples** when reporting issues
-- **Search existing issues** before creating new ones
-
-## Code of Conduct
-
-### Our Standards
-- **Respectful**: Treat all contributors with respect
-- **Inclusive**: Welcome diverse perspectives and backgrounds
-- **Collaborative**: Work together constructively
-- **Professional**: Maintain professional communication
-
-### Unacceptable Behavior
-- Harassment or discrimination
-- Trolling or inflammatory comments
-- Personal attacks
-- Spam or off-topic content
-
-### Enforcement
-Violations may result in temporary or permanent ban from the project.
-
-## Recognition
-
-Contributors are recognized in:
-- **ACKNOWLEDGMENTS.md**: All contributors listed
-- **Release notes**: Major contributors highlighted
-- **GitHub**: Contributor statistics and graphs
-
-Thank you for contributing to AbstractVoice! 🎉
+Do not open a public issue for suspected vulnerabilities. Follow `SECURITY.md`.

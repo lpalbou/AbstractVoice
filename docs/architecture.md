@@ -1,8 +1,8 @@
 # AbstractVoice architecture
 
-This document describes how AbstractVoice works internally (v`0.6.0`), and where to look in the code when you need to change behavior.
+This document describes how AbstractVoice works internally (v`0.6.1`), and where to look in the code when you need to change behavior.
 
-If you want the supported integrator contract, start with `docs/public_api.md`. For REPL behavior and commands, see `docs/repl_guide.md`.
+If you want the supported integrator contract, start with `docs/api.md`. For REPL behavior and commands, see `docs/repl_guide.md`.
 
 For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 

@@ -5,6 +5,26 @@ All notable changes to the AbstractVoice project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
+Older changelog entries may reference historical CLI commands or model choices.
+
+## [Unreleased]
+
+- TBD
+
+## [0.6.1] - 2026-02-04
+
+### Added
+- `SECURITY.md` with responsible vulnerability reporting instructions.
+- `docs/api.md` as the canonical integrator contract (with `docs/public_api.md` kept as a redirect stub).
+- `docs/faq.md` for first-time user + integrator troubleshooting.
+
+### Changed
+- Documentation refreshed and cross-linked for an external-user entry flow (`README.md` → `docs/getting-started.md`).
+
+### Fixed
+- Command examples aligned with real entry points (`abstractvoice-prefetch` and `python -m abstractvoice download ...`).
+
 ## [0.6.0] - 2026-01-28
 
 ### 🎯 MAJOR: Chroma Voice Cloning Integration
@@ -17,7 +37,7 @@ This release introduces Chroma-4B as an optional high-quality voice cloning engi
 - **NEW**: `abstractvoice[chroma]` optional dependency group for Chroma-4B integration
 - **NEW**: `ChromaVoiceCloningEngine` class providing high-fidelity zero-shot voice cloning
 - **NEW**: Chroma engine support in `VoiceCloner` with automatic engine selection
-- **NEW**: Explicit Chroma model prefetch via `abstractvoice download --chroma` or REPL `/cloning_download chroma`
+- **NEW**: Explicit Chroma artifact prefetch via `abstractvoice-prefetch --chroma` (or `python -m abstractvoice download --chroma`) or REPL `/cloning_download chroma`
 - **NEW**: `examples/chroma_clone_repl.py` demonstrating Chroma cloning workflow
 - **BENEFIT**: Alternative cloning engine with potentially higher quality than F5-TTS for certain use cases
 - **DESIGN**: Offline-first approach - no surprise downloads; explicit prefetch required
@@ -106,10 +126,10 @@ This release enables:
 pip install abstractvoice
 
 # To use Chroma cloning (optional)
-pip install abstractvoice[chroma]
+pip install "abstractvoice[chroma]"
 
-# Prefetch Chroma models
-abstractvoice download --chroma
+# Prefetch Chroma artifacts
+abstractvoice-prefetch --chroma
 ```
 
 **For Developers:**
@@ -172,44 +192,6 @@ Updated PyTorch constraints in all dependency groups:
 - ✅ Core functionality verified
 - ✅ Dependency resolution validated
 - ℹ️ Pre-existing test suite segfault issues (gruut library) remain unresolved
-
-## [Unreleased]
-
-### ✨ Added
-- **Piper TTSEngine facade**: `abstractvoice/tts/adapter_tts_engine.py` wraps adapter-based TTS behind a TTSEngine-compatible interface, preserving `VoiceManager.tts_engine` behavior (stop/pause/resume/callbacks).
-
-### 📦 Changed
-- **VoiceManager STT default**: `transcribe_file()` now prefers faster-whisper when available; legacy `openai-whisper` remains optional.
-- **CLI REPL robustness**: `/tts on` now re-enables voice features in “text-only” mode; commands that require voice features fail gracefully when disabled.
-
-### 🔧 Fixed
-- **Audio teardown stability**: hardening in audio player shutdown to prevent process-exit crashes during tests and short-playback scenarios.
-
-### 🎯 Migration Guide
-
-**For End Users:**
-```bash
-# Simply upgrade to the latest version
-pip install --upgrade abstractvoice
-```
-
-**For Downstream Projects:**
-```toml
-# If you were using version pinning, update to:
-abstractvoice = ">=0.5.2"
-
-# Or use compatible release specifier:
-abstractvoice = "~=0.5.2"
-```
-
-**For Projects Requiring PyTorch 2.6+:**
-```toml
-# AbstractVoice 0.5.2+ is now compatible with:
-dependencies = [
-    "abstractvoice>=0.5.2",
-    "torch>=2.6.0,<3.0.0",  # Now compatible!
-]
-```
 
 ## [0.5.1] - 2025-10-21
 

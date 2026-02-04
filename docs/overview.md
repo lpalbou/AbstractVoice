@@ -12,7 +12,7 @@ See `docs/acronyms.md` for acronyms used in documentation.
 Next reads:
 - `docs/getting-started.md` (recommended setup + first smoke tests)
 - `docs/installation.md` (platform notes + optional extras)
-- `docs/public_api.md` (supported integrator contract)
+- `docs/api.md` (supported integrator contract)
 - `docs/repl_guide.md` (end-to-end validation via CLI)
 
 ## What “clean” means in this project

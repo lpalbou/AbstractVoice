@@ -7,7 +7,7 @@ A modular Python library for **voice I/O** around AI applications.
 - **Local assistant**: `listen()` + `speak()` with playback/listening control
 - **Headless/server**: `speak_to_bytes()` / `speak_to_file()` and `transcribe_*`
 
-Status: **alpha** (`0.6.0`). The supported integrator surface is documented in `docs/public_api.md`.
+Status: **alpha** (`0.6.1`). The supported integrator surface is documented in `docs/api.md`.
 
 Next: `docs/getting-started.md` (recommended setup + first smoke tests).
 
@@ -90,7 +90,7 @@ vm.speak("Hello! This is AbstractVoice.")
 
 ## Public API (stable surface)
 
-See `docs/public_api.md` for the supported integrator contract.
+See `docs/api.md` for the supported integrator contract.
 
 At a glance:
 - **TTS**: `speak()`, `stop_speaking()`, `pause_speaking()`, `resume_speaking()`, `speak_to_bytes()`, `speak_to_file()`
@@ -103,9 +103,10 @@ At a glance:
 
 - **Docs index**: `docs/README.md`
 - **Getting started**: `docs/getting-started.md`
+- **FAQ**: `docs/faq.md`
 - **Orientation**: `docs/overview.md`
 - **Acronyms**: `docs/acronyms.md`
-- **Public API**: `docs/public_api.md`
+- **Public API**: `docs/api.md`
 - **REPL guide**: `docs/repl_guide.md`
 - **Install troubleshooting**: `docs/installation.md`
 - **Multilingual support**: `docs/multilingual.md`
@@ -114,6 +115,13 @@ At a glance:
 - **Licensing notes**: `docs/voices-and-licenses.md`
 
 ---
+
+## Project
+
+- **Changelog**: `CHANGELOG.md`
+- **Contributing**: `CONTRIBUTING.md`
+- **Security**: `SECURITY.md`
+- **Acknowledgments**: `ACKNOWLEDGMENTS.md`
 
 ## License
 

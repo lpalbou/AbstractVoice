@@ -114,4 +114,4 @@ Notes:
 
 See also:
 - `docs/installation.md` (audio devices, extras, common install issues)
-- `docs/public_api.md` (integrator contract; what the library supports)
+- `docs/api.md` (integrator contract; what the library supports)

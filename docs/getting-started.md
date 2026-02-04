@@ -2,7 +2,8 @@
 
 This is the recommended next step after `README.md`.
 
-If you want the supported integrator contract, see `docs/public_api.md`.
+If you want the supported integrator contract, see `docs/api.md`.
+If you get stuck, check `docs/faq.md` (common issues and troubleshooting).
 
 ## Requirements
 
@@ -92,4 +93,4 @@ pip install -e ".[dev]"
 python -m pytest -q
 ```
 
-Internal notes: `docs/development.md`.
+See also: `CONTRIBUTING.md`, `SECURITY.md`, and internal notes in `docs/development.md`.

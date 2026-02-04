@@ -69,3 +69,5 @@ Usually works out of the box. If device access fails, check OS microphone permis
 - **Cloning runtime not ready**: run `/cloning_status` then `/cloning_download f5_tts|chroma` in the REPL (or use `python -m abstractvoice download ...`).
 - **LLM API not reachable**: if you use the default Ollama endpoint, start it with `ollama serve`, or point the REPL at a different `--api`.
 - **Sanity-check your environment**: run `python -m abstractvoice check-deps` (or `abstractvoice check-deps`) to print a dependency report.
+
+See also: `docs/faq.md`.

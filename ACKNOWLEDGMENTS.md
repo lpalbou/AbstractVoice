@@ -1,62 +1,41 @@
 # Acknowledgments
 
-AbstractVoice uses several open-source libraries and models. We would like to acknowledge and thank the developers and contributors of these projects.
+AbstractVoice stands on top of excellent open-source software and openly released model work. Thank you to all maintainers and contributors.
 
-## Key Dependencies
+For licensing caveats around **model weights** and **voice files** (which are separate assets from this MIT-licensed library), read `docs/voices-and-licenses.md`.
 
-### Speech Recognition
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) - Licensed under MIT
-- [CTranslate2](https://github.com/OpenNMT/CTranslate2) - Licensed under MIT
-- (Optional) [OpenAI Whisper](https://github.com/openai/whisper) - Licensed under MIT
-- [WebRTCVAD](https://github.com/wiseman/py-webrtcvad) - Licensed under MIT
+## Core dependencies (shipped by default)
 
-### Text-to-Speech
-- [Piper](https://github.com/rhasspy/piper) - Licensed under MIT
-- [ONNX Runtime](https://github.com/microsoft/onnxruntime) - Licensed under MIT
-- (Optional) [Coqui TTS](https://github.com/coqui-ai/TTS) - Licensed under MPL-2.0
+- Piper / `piper-tts` (local neural TTS): https://github.com/rhasspy/piper
+- faster-whisper (STT): https://github.com/SYSTRAN/faster-whisper
+- CTranslate2 (inference runtime used by faster-whisper): https://github.com/OpenNMT/CTranslate2
+- Hugging Face Hub (`huggingface_hub`) (artifact downloads): https://github.com/huggingface/huggingface_hub
+- SoundDevice + PortAudio (audio I/O): https://github.com/spatialaudio/python-sounddevice and http://www.portaudio.com/
+- SoundFile (WAV/FLAC/OGG I/O): https://github.com/bastibe/python-soundfile
+- WebRTC VAD (`webrtcvad`) (voice activity detection): https://github.com/wiseman/py-webrtcvad
+- NumPy: https://github.com/numpy/numpy
+- Requests: https://github.com/psf/requests
+- appdirs: https://github.com/ActiveState/appdirs
 
-### Machine Learning
-- [PyTorch](https://github.com/pytorch/pytorch) - Licensed under BSD-3-Clause
-- [TorchAudio](https://github.com/pytorch/audio) - Licensed under BSD-3-Clause
-- [NumPy](https://github.com/numpy/numpy) - Licensed under BSD-3-Clause
-- [SciPy](https://github.com/scipy/scipy) - Licensed under BSD-3-Clause
+## Optional features (extras)
 
-### Web and API
-- [Flask](https://github.com/pallets/flask) - Licensed under BSD-3-Clause
-- [Requests](https://github.com/psf/requests) - Licensed under Apache-2.0
+These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`):
 
-### Audio Processing
-- [SoundFile](https://github.com/bastibe/python-soundfile) - Licensed under BSD-3-Clause
-- [SoundDevice](https://github.com/spatialaudio/python-sounddevice) - Licensed under BSD-3-Clause
-- [PortAudio](http://www.portaudio.com/) - Cross-platform audio I/O library (used via SoundDevice)
-- [Librosa](https://github.com/librosa/librosa) - Licensed under ISC
+- F5-TTS (`abstractvoice[cloning]`) for cloning backends: https://github.com/SWivid/F5-TTS
+- Chroma runtime deps (`abstractvoice[chroma]`) for Chroma-4B inference: https://huggingface.co/FlashLabs/Chroma-4B
+  - PyTorch: https://github.com/pytorch/pytorch
+  - Transformers: https://github.com/huggingface/transformers
+- AEC (`abstractvoice[aec]`) for true barge-in on speakers: https://github.com/shichaog/AEC-Audio-Processing
+- Audio effects (`abstractvoice[audio-fx]`): https://github.com/librosa/librosa
+- Legacy Whisper + token stats (`abstractvoice[stt]`): https://github.com/openai/whisper and https://github.com/openai/tiktoken
+- Web demo/API (`abstractvoice[web]`): https://github.com/pallets/flask
 
-### Utilities
-- [tiktoken](https://github.com/openai/tiktoken) - Licensed under MIT
+## Models and voices
 
-## Optional System Dependencies
+AbstractVoice may download model weights and voice files at runtime (explicitly or on demand, depending on `allow_downloads`).
 
-AbstractVoice can optionally use the following system-level software for enhanced functionality:
+- Piper voices are cached under `~/.piper/models` (see `abstractvoice/adapters/tts_piper.py`).
+- faster-whisper models use the Hugging Face cache by default (see `abstractvoice/adapters/stt_faster_whisper.py`).
+- Cloning artifacts are cached under `~/.cache/abstractvoice/*` (see `abstractvoice/cloning/engine_f5.py` and `abstractvoice/cloning/engine_chroma.py`).
 
-### Text-to-Speech Phonemization
-- [eSpeak NG](https://github.com/espeak-ng/espeak-ng) - Licensed under GPL-3.0
-  - Optional dependency for VITS TTS model (provides best voice quality)
-  - Used for phoneme conversion in advanced TTS synthesis
-  - AbstractVoice automatically falls back to other models if not installed
-  - Installation: `brew install espeak-ng` (macOS), `apt-get install espeak-ng` (Linux), or conda/chocolatey (Windows)
-
-## Models
-
-AbstractVoice may download and use pre-trained models as part of its operation:
-
-- faster-whisper / Whisper model weights - Licensing varies by model; verify upstream terms.
-- Piper voice models - Licensing varies by voice; verify upstream terms.
-- (Optional) Coqui TTS models - Licensing varies by model/dataset; verify upstream terms.
-
-## Notice
-
-This acknowledgment file aims to properly credit the open-source projects used in AbstractVoice. If you believe a project is missing or improperly attributed, please open an issue or contact the maintainers.
-
-When using AbstractVoice, be aware that some of the underlying dependencies may have different licensing terms than AbstractVoice itself. While AbstractVoice is licensed under MIT, users should review the licenses of the dependencies if they intend to use them independently or in ways that may conflict with their respective licenses.
-
-For example, some TTS models may have non-commercial use restrictions. If you plan to use AbstractVoice in a commercial application, you should ensure you are using models that permit commercial use or obtain appropriate licenses. 
+Always verify upstream licenses/usage terms for the specific models/voices you deploy or redistribute. See `docs/voices-and-licenses.md`.

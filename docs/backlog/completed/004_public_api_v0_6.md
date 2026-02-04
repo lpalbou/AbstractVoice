@@ -11,7 +11,7 @@
 ### 1) Documented integrator contract
 
 - Added/updated:
-  - `docs/public_api.md`
+  - `docs/api.md` (formerly `docs/public_api.md`)
   - `docs/overview.md`
   - `README.md` (short “happy path”)
 
@@ -28,4 +28,3 @@ The public API now explicitly includes:
 - Default STT: faster-whisper
 
 Legacy engines are treated as optional/advanced.
-
