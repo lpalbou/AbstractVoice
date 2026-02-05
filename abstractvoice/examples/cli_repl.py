@@ -19,6 +19,7 @@ import threading
 import time
 import requests
 from abstractvoice import VoiceManager
+from abstractvoice.text_sanitize import sanitize_markdown_for_speech
 
 
 # ANSI color codes
@@ -1563,6 +1564,10 @@ class VoiceREPL(cmd.Cmd):
         if not self.voice_manager:
             return
 
+        # LLM output often contains Markdown. Strip the most common formatting
+        # tokens so TTS stays natural (do not change what is printed).
+        speak_text = sanitize_markdown_for_speech(text)
+
         is_clone = bool(self.current_tts_voice)
         if not is_clone:
             # Offline-first: Piper voices must be explicitly cached. Provide a clear
@@ -1583,7 +1588,7 @@ class VoiceREPL(cmd.Cmd):
         try:
             if is_clone:
                 ind.start()
-            self.voice_manager.speak(text, voice=self.current_tts_voice)
+            self.voice_manager.speak(speak_text, voice=self.current_tts_voice)
 
             if not is_clone:
                 return
