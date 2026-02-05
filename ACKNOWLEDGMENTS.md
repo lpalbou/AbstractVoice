@@ -4,7 +4,9 @@ AbstractVoice stands on top of excellent open-source software and openly release
 
 For licensing caveats around **model weights** and **voice files** (which are separate assets from this MIT-licensed library), read `docs/voices-and-licenses.md`.
 
-## Core dependencies (shipped by default)
+This file lists the notable third-party libraries that AbstractVoice uses (see `pyproject.toml` for the declared dependency set).
+
+## Core dependencies (installed by default)
 
 - Piper / `piper-tts` (local neural TTS): https://github.com/rhasspy/piper
 - faster-whisper (STT): https://github.com/SYSTRAN/faster-whisper
@@ -22,13 +24,30 @@ For licensing caveats around **model weights** and **voice files** (which are se
 These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`):
 
 - F5-TTS (`abstractvoice[cloning]`) for cloning backends: https://github.com/SWivid/F5-TTS
+  - Hydra (used by F5-TTS runtime): https://github.com/facebookresearch/hydra
+  - OmegaConf (used by F5-TTS runtime): https://github.com/omry/omegaconf
 - Chroma runtime deps (`abstractvoice[chroma]`) for Chroma-4B inference: https://huggingface.co/FlashLabs/Chroma-4B
-  - PyTorch: https://github.com/pytorch/pytorch
+  - PyTorch + audio/vision extensions (`torch`, `torchaudio`, `torchvision`): https://github.com/pytorch/pytorch
   - Transformers: https://github.com/huggingface/transformers
+  - Accelerate (runtime helpers): https://github.com/huggingface/accelerate
 - AEC (`abstractvoice[aec]`) for true barge-in on speakers: https://github.com/shichaog/AEC-Audio-Processing
 - Audio effects (`abstractvoice[audio-fx]`): https://github.com/librosa/librosa
 - Legacy Whisper + token stats (`abstractvoice[stt]`): https://github.com/openai/whisper and https://github.com/openai/tiktoken
 - Web demo/API (`abstractvoice[web]`): https://github.com/pallets/flask
+
+## Optional integrations
+
+- AbstractCore plugin integration (only when installed alongside `abstractcore`): https://github.com/lpalbou/abstractcore
+
+## Platform-specific helpers (optional)
+
+- pyreadline3 (Windows readline support for nicer REPL input): https://github.com/pyreadline3/pyreadline3
+
+## Notable transitive runtimes
+
+These may be installed as dependencies of the packages above:
+
+- ONNX Runtime (used by Piper for inference): https://github.com/microsoft/onnxruntime
 
 ## Models and voices
 
