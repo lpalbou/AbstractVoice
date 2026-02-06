@@ -19,7 +19,6 @@ import threading
 import time
 import requests
 from abstractvoice import VoiceManager
-from abstractvoice.text_sanitize import sanitize_markdown_for_speech
 
 
 # ANSI color codes
@@ -1564,9 +1563,9 @@ class VoiceREPL(cmd.Cmd):
         if not self.voice_manager:
             return
 
-        # LLM output often contains Markdown. Strip the most common formatting
-        # tokens so TTS stays natural (do not change what is printed).
-        speak_text = sanitize_markdown_for_speech(text)
+        # LLM output often contains Markdown. `VoiceManager.speak()` sanitizes common
+        # syntax by default so TTS stays natural (do not change what is printed).
+        speak_text = text
 
         is_clone = bool(self.current_tts_voice)
         if not is_clone:

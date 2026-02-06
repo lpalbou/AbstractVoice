@@ -51,9 +51,10 @@ Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh`
 
 ## TTS (text → audio)
 
-- `speak(text: str, speed: float = 1.0, callback=None, voice: str | None = None) -> bool`
+- `speak(text: str, speed: float = 1.0, callback=None, voice: str | None = None, *, sanitize_syntax: bool = True) -> bool`
   - Plays audio locally (non-blocking playback; synthesis time depends on backend).
   - If `voice` is provided, it is treated as a cloned `voice_id` (requires `abstractvoice[cloning]`).
+  - By default, common Markdown syntax is stripped from spoken output (headers + emphasis). Set `sanitize_syntax=False` to speak raw text.
 
 - `set_speed(speed: float) -> bool`, `get_speed() -> float`
   - Adjusts the default speaking speed used by `speak_to_*()` and the REPL.
@@ -64,10 +65,10 @@ Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh`
 - `is_speaking() -> bool`, `is_paused() -> bool`
   - Playback state helpers.
 
-- `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None) -> bytes`
+- `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, sanitize_syntax: bool = True) -> bytes`
   - Headless/server‑friendly: returns encoded audio bytes.
 
-- `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None) -> str`
+- `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, sanitize_syntax: bool = True) -> str`
   - Writes an audio file and returns the path.
 
 ### Language & voice selection (Piper path)

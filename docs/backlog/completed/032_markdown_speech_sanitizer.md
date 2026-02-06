@@ -6,6 +6,18 @@
 
 ---
 
+## Update (2026-02-06)
+
+Markdown sanitization is now applied by default for *all* integrators via:
+
+- `VoiceManager.speak(..., sanitize_syntax=True)` (default)
+- `VoiceManager.speak_to_bytes(..., sanitize_syntax=True)` (default)
+- `VoiceManager.speak_to_file(..., sanitize_syntax=True)` (default)
+
+To speak raw text (including Markdown tokens), pass `sanitize_syntax=False`.
+
+---
+
 ## Main goals
 
 - Make spoken output sound natural when the assistant returns Markdown-formatted text.
@@ -28,18 +40,17 @@ In the REPL we speak raw assistant text:
 
 ## Constraints
 
-- **No breaking changes** to the supported API surface (`docs/api.md`): `VoiceManager.speak()` must speak exactly what it’s given.
-- Prefer **REPL-only** behavior by default (the primary “assistant speaks LLM output” path).
+- Prefer behavior that keeps spoken output natural by default (integrators can opt out per call).
 - Keep it lightweight (regex only; no Markdown parser dependency).
 
 ---
 
 ## Decision
 
-**Chosen approach**: regex-based sanitizer, applied only in the REPL right before calling `VoiceManager.speak()`.
+**Chosen approach**: regex-based sanitizer, applied by default in `VoiceManager` TTS entrypoints (opt-out per call).
 
 **Why**:
-- Fixes the UX where it happens (assistant output spoken in REPL) without changing library semantics for integrators.
+- Keeps spoken output natural across REPL + headless/server usage.
 - Minimal implementation surface and easy to test.
 
 ---
@@ -51,10 +62,11 @@ In the REPL we speak raw assistant text:
   - Removes:
     - headers at line start (`#`…`#####`) while preserving the header text
     - emphasis markers: `**...**` and `*...*`
-- Wired into REPL speech:
-  - `abstractvoice/examples/cli_repl.py`: sanitize `text` in `_speak_with_spinner_until_audio_starts()` before calling `self.voice_manager.speak(...)`.
+- Wired into `VoiceManager` TTS entrypoints (default behavior):
+  - `abstractvoice/vm/tts_mixin.py`: `speak()`, `speak_to_bytes()`, `speak_to_file()` accept `sanitize_syntax: bool = True`
 - Added unit tests:
   - `tests/test_text_sanitize_markdown.py`
+  - `tests/test_tts_sanitize_syntax_default.py`
 
 ---
 
@@ -81,4 +93,3 @@ Implemented a minimal Markdown sanitizer for spoken output in the REPL (headers 
 ### Validation
 
 - Tests: `python -m pytest -q` (pass)
-

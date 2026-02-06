@@ -161,9 +161,7 @@ Goal: reduce “time to first audio” and avoid huge single-shot synthesis for 
     - `verbose_json` (Phase 1, best-effort)
     - `diarized_json` (Phase 2, only when diarization exists)
 
----
-
-## Success criteria- `POST /v1/audio/speech` returns WAV bytes (`RIFF...WAVE`) for valid non-stream requests.
+---## Success criteria- `POST /v1/audio/speech` returns WAV bytes (`RIFF...WAVE`) for valid non-stream requests.
 - Streaming speech returns a valid SSE stream with `speech.audio.delta` chunks and a final `speech.audio.done`.
 - `POST /v1/audio/transcriptions` returns valid outputs for `response_format=text|json`.
 - Unsupported `format` returns a clear 400 error.

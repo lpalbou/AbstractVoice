@@ -9,6 +9,27 @@ from __future__ import annotations
 import threading
 import time
 
+from ..text_sanitize import sanitize_markdown_for_speech
+
+def _resolve_sanitize_syntax_arg(
+    sanitize_syntax: bool,
+    saninitze_syntax: bool | None,
+) -> bool:
+    """Resolve sanitize_syntax value, supporting a common misspelling alias.
+
+    `saninitze_syntax` is accepted as an alias for backward-compat / typo tolerance.
+    """
+    resolved = bool(sanitize_syntax)
+    if saninitze_syntax is not None:
+        # If caller provided both, treat `saninitze_syntax` as an alias override,
+        # but reject the one ambiguous/confusing case we can detect: opt-out
+        # via the canonical flag + opt-in via the alias.
+        if bool(sanitize_syntax) is False and bool(saninitze_syntax) is True:
+            raise ValueError("Pass only one of sanitize_syntax or saninitze_syntax (alias).")
+        resolved = bool(saninitze_syntax)
+
+    return resolved
+
 
 class TtsMixin:
     def _set_last_tts_metrics(self, metrics: dict | None) -> None:
@@ -146,10 +167,23 @@ class TtsMixin:
         except Exception:
             return False
         return False
-    def speak(self, text, speed=1.0, callback=None, voice: str | None = None):
+    def speak(
+        self,
+        text,
+        speed=1.0,
+        callback=None,
+        voice: str | None = None,
+        *,
+        sanitize_syntax: bool = True,
+        saninitze_syntax: bool | None = None,
+    ):
         sp = speed if speed != 1.0 else self.speed
         if not self.tts_engine:
             raise RuntimeError("No TTS engine available")
+
+        speak_text = str(text)
+        if _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax):
+            speak_text = sanitize_markdown_for_speech(speak_text)
 
         # Optional cloned voice playback:
         # - stream chunks to the player for better perceived latency
@@ -205,7 +239,7 @@ class TtsMixin:
                         import soundfile as sf
 
                         t0 = time.monotonic()
-                        wav_bytes = cloner.speak_to_bytes(str(text), voice_id=voice, format="wav", speed=sp)
+                        wav_bytes = cloner.speak_to_bytes(str(speak_text), voice_id=voice, format="wav", speed=sp)
                         t1 = time.monotonic()
                         if cancel.is_set():
                             return
@@ -256,7 +290,7 @@ class TtsMixin:
                     total_samples = 0
                     chunks = 0
                     chunks_iter = cloner.speak_to_audio_chunks(
-                        str(text),
+                        str(speak_text),
                         voice_id=voice,
                         speed=sp,
                         max_chars=240,
@@ -341,7 +375,7 @@ class TtsMixin:
             threading.Thread(target=_worker, daemon=True).start()
             return True
 
-        ok = self.tts_engine.speak(text, sp, callback)
+        ok = self.tts_engine.speak(speak_text, sp, callback)
         # Mirror adapter metrics into the manager for a single "last TTS metrics"
         # source of truth (used by the verbose REPL).
         try:
@@ -353,25 +387,47 @@ class TtsMixin:
         return ok
 
     # Network/headless-friendly methods
-    def speak_to_bytes(self, text: str, format: str = "wav", voice: str | None = None) -> bytes:
+    def speak_to_bytes(
+        self,
+        text: str,
+        format: str = "wav",
+        voice: str | None = None,
+        *,
+        sanitize_syntax: bool = True,
+        saninitze_syntax: bool | None = None,
+    ) -> bytes:
         """Synthesize to bytes.
 
         - If `voice` is None: use Piper (default).
         - If `voice` is provided: treat as a cloned voice_id (requires `abstractvoice[cloning]`).
         """
+        speak_text = str(text)
+        if _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax):
+            speak_text = sanitize_markdown_for_speech(speak_text)
         if voice:
             cloner = self._get_voice_cloner()
-            return cloner.speak_to_bytes(text, voice_id=voice, format=format, speed=self.speed)
+            return cloner.speak_to_bytes(speak_text, voice_id=voice, format=format, speed=self.speed)
 
         if self.tts_adapter and self.tts_adapter.is_available():
-            return self.tts_adapter.synthesize_to_bytes(text, format=format)
+            return self.tts_adapter.synthesize_to_bytes(speak_text, format=format)
         raise NotImplementedError("speak_to_bytes() requires Piper TTS (default engine).")
 
     def speak_to_file(
-        self, text: str, output_path: str, format: str | None = None, voice: str | None = None
+        self,
+        text: str,
+        output_path: str,
+        format: str | None = None,
+        voice: str | None = None,
+        *,
+        sanitize_syntax: bool = True,
+        saninitze_syntax: bool | None = None,
     ) -> str:
+        sanitize = _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax)
+        speak_text = str(text)
+        if sanitize:
+            speak_text = sanitize_markdown_for_speech(speak_text)
         if voice:
-            data = self.speak_to_bytes(text, format=(format or "wav"), voice=voice)
+            data = self.speak_to_bytes(speak_text, format=(format or "wav"), voice=voice, sanitize_syntax=False)
             from pathlib import Path
 
             out = Path(output_path)
@@ -380,7 +436,7 @@ class TtsMixin:
             return str(out)
 
         if self.tts_adapter and self.tts_adapter.is_available():
-            return self.tts_adapter.synthesize_to_file(text, output_path, format=format)
+            return self.tts_adapter.synthesize_to_file(speak_text, output_path, format=format)
         raise NotImplementedError("speak_to_file() requires Piper TTS (default engine).")
 
     def stop_speaking(self):
