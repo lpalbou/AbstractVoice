@@ -2,6 +2,7 @@
 
 AbstractVoice aims to work out of the box with:
 
+- **Python**: `>=3.10` (see `pyproject.toml`)
 - **TTS (default)**: Piper (ONNX; no system deps)
 - **STT (default)**: faster-whisper (CTranslate2)
 - **Audio I/O**: `sounddevice` (PortAudio) + `soundfile` + `webrtcvad`
@@ -34,9 +35,19 @@ python -m abstractvoice download --piper en
 # STT model (faster-whisper). Cache: ~/.cache/huggingface by default
 python -m abstractvoice download --stt small
 
-# Voice cloning artifacts
+# Voice cloning artifacts (optional; require extras)
+pip install "abstractvoice[cloning]"   # for --openf5
 python -m abstractvoice download --openf5
+
+pip install "abstractvoice[chroma]"    # for --chroma (GPU-heavy)
 python -m abstractvoice download --chroma
+```
+
+The same operations are available via the convenience entrypoint:
+
+```bash
+abstractvoice-prefetch --piper en
+abstractvoice-prefetch --stt small
 ```
 
 ## Audio device setup (common issues)

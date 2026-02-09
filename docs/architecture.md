@@ -1,6 +1,6 @@
 # AbstractVoice architecture
 
-This document describes how AbstractVoice works internally (v`0.6.1`), and where to look in the code when you need to change behavior.
+This document describes how AbstractVoice works internally (v`0.6.3`), and where to look in the code when you need to change behavior.
 
 If you want the supported integrator contract, start with `docs/api.md`. For REPL behavior and commands, see `docs/repl_guide.md`.
 
@@ -127,6 +127,7 @@ When installed alongside `abstractcore`, AbstractVoice exposes a capability plug
 
 - `pyproject.toml` → `[project.entry-points."abstractcore.capabilities_plugins"]`
 - Implementation: `abstractvoice/integrations/abstractcore_plugin.py`
+  - Artifact store adapter (AbstractRuntime-compatible, duck-typed): `abstractvoice/artifacts.py`
 
 It provides:
 - a voice backend (TTS+STT) that can optionally store generated audio into an `artifact_store`

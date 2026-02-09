@@ -1,90 +1,116 @@
 # AbstractVoice (full)
-> Modular Python voice I/O around AI apps, focused on a clean integrator API and out-of-box local assistant behavior (optional voice cloning via F5-TTS / Chroma).
+> Modular Python voice I/O for AI apps (Piper TTS + faster‑whisper STT by default), with optional voice cloning (F5‑TTS / Chroma).
 
-This is an expanded repo index for agentic workflows. For the short version, see `llms.txt`.
+This is an expanded, agent-oriented repo index. For the short version, see `llms.txt`.
 
-Use `README.md` as the single human-facing entry point and `docs/api.md` as the supported integrator contract.
+Sources of truth:
+- Human entry flow: `README.md`
+- Supported integrator contract: `docs/api.md`
+- Internal map + diagrams: `docs/architecture.md`
+
+Requires Python `>=3.10` (see `pyproject.toml`).
+
+Offline-first rule: the REPL runs with `allow_downloads=False`, so downloads should be explicit (prefetch/download commands + clear errors).
 
 Quick commands:
-- Run tests: `python -m pytest -q`
-- Start REPL smoke test: `abstractvoice --verbose` (or `python -m abstractvoice cli --verbose`)
-- Prefetch models/artifacts explicitly (offline-first):
 ```bash
-abstractvoice-prefetch --stt small
+# Tests
+python -m pytest -q
+
+# REPL smoke test (mic is OFF by default)
+abstractvoice --verbose
+python -m abstractvoice cli --verbose
+
+# Explicit prefetch (offline-first friendly)
 abstractvoice-prefetch --piper en
-abstractvoice-prefetch --openf5
-abstractvoice-prefetch --chroma
+abstractvoice-prefetch --stt small
+abstractvoice-prefetch --openf5   # optional; requires abstractvoice[cloning]
+abstractvoice-prefetch --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
+
+# Equivalent explicit downloads
+python -m abstractvoice download --piper en
+python -m abstractvoice download --stt small
+python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
+python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
 ```
 
-Repo constraints / intent:
-- Prefer small, focused modules and adapters.
-- Avoid expanding the public API without updating `docs/api.md` and (when relevant) ADRs in `docs/adr/`.
-- The REPL runs with `allow_downloads=False` (no implicit downloads). Downloads must be explicit.
-- For vulnerability reports, follow `SECURITY.md` (do not open public issues for suspected vulnerabilities).
+Minimal library usage:
+```python
+from abstractvoice import VoiceManager
+
+vm = VoiceManager(language="en")
+vm.speak("Hello from AbstractVoice.")
+wav_bytes = vm.speak_to_bytes("Headless TTS.", format="wav")
+```
 
 Optional dependency groups (see `pyproject.toml`):
-- `abstractvoice[cloning]`: F5-TTS backend runtime (still requires OpenF5 artifacts download)
-- `abstractvoice[chroma]`: Chroma-4B runtime deps (GPU-heavy)
+- `abstractvoice[all]`: most features (does **not** include the GPU-heavy Chroma runtime)
+- `abstractvoice[cloning]`: F5‑TTS cloning backend (still requires explicit OpenF5 artifact downloads)
+- `abstractvoice[chroma]`: Chroma-4B runtime deps (GPU-heavy; artifacts still prefetched explicitly)
 - `abstractvoice[aec]`: optional acoustic echo cancellation (true barge-in)
 - `abstractvoice[audio-fx]`: speed change without pitch change (librosa)
-- `abstractvoice[stt]`: legacy openai-whisper + tiktoken (compatibility / token stats)
+- `abstractvoice[stt]`: legacy openai-whisper + tiktoken fallback path
+- `abstractvoice[web]`: Flask demo/API layer (examples)
+- `abstractvoice[dev]`: dev/test tooling
 
-## Product intent
-- [README](README.md): install + smoke tests
+## Start here
+- [README](README.md): install + smoke tests + AbstractFramework ecosystem notes
 - [Docs index](docs/README.md): map of user-facing vs internal docs
-- [Overview](docs/overview.md): what the library is / common usage modes
-- [Public API (Integrator Contract)](docs/api.md): supported surface area
-- [FAQ](docs/faq.md): common install/runtime issues
-
-## How to work in this repo
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests
-- [Installation troubleshooting](docs/installation.md): platform notes + extras
+- [API (integrator contract)](docs/api.md): supported surface area (incl. integrations)
+- [FAQ](docs/faq.md): common install/runtime issues
+- [Installation](docs/installation.md): platform notes + extras
 - [REPL guide](docs/repl_guide.md): end-to-end validation + commands
-- [Backlog workflow](docs/backlog/): internal planning / tasks
-- [Contributing](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md)
+
+## AbstractFramework integrations
+- [AbstractFramework](https://github.com/lpalbou/AbstractFramework): umbrella ecosystem
+- [AbstractCore](https://github.com/lpalbou/abstractcore): capabilities/plugins
+- [AbstractRuntime](https://github.com/lpalbou/abstractruntime): runtime + ArtifactStore
+- [AbstractCore capability plugin](abstractvoice/integrations/abstractcore_plugin.py): registers voice/audio backends via entry points
+- [AbstractCore tool helpers](abstractvoice/integrations/abstractcore.py): `make_voice_tools(...)` (manual wiring)
+- [Artifact store adapter](abstractvoice/artifacts.py): AbstractRuntime-like ArtifactStore adapter (duck-typed)
+- [Entry points + scripts](pyproject.toml): `abstractvoice`, `abstractvoice-prefetch`, plugin registration
 
 ## Core architecture (internal)
-- [Architecture](docs/architecture.md): implementation map + key flows
-- [Acronyms](docs/acronyms.md): terms used in docs/code
-- [ADR 0001](docs/adr/0001-local_assistant_out_of_box.md): baseline local assistant design
-- [ADR 0002](docs/adr/0002_barge_in_interruption.md): barge-in modes + stop phrase + optional AEC
-- [ADR 0003 (cloning reference_text auto-fallback)](docs/adr/0003_cloning_reference_text_fallback.md)
-- [ADR 0004 (streaming + cancellation for cloned TTS)](docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md)
+- [Architecture](docs/architecture.md): component diagram + code map
+- [Acronyms](docs/acronyms.md)
+- [ADR 0001](docs/adr/0001-local_assistant_out_of_box.md): out-of-box local assistant
+- [ADR 0002](docs/adr/0002_barge_in_interruption.md): voice modes + stop phrase + optional AEC
+- [ADR 0003](docs/adr/0003_cloning_reference_text_fallback.md): cloning `reference_text` auto-fallback
+- [ADR 0004](docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md): streaming + cancellation for cloned TTS
 
 ## Code map (start points)
-- [Package entry points](abstractvoice/__init__.py): version + main export
-- [CLI entry](abstractvoice/__main__.py): `python -m abstractvoice ...`
-- [Scripts / entry points](pyproject.toml): `abstractvoice`, `abstractvoice-prefetch`, plugin entry points
-- [VoiceManager façade](abstractvoice/voice_manager.py): public class import target
-- [VoiceManager implementation](abstractvoice/vm/manager.py): init + engine selection
-- [VM core callbacks](abstractvoice/vm/core.py): voice-mode behavior while speaking
-- [VM TTS mixin](abstractvoice/vm/tts_mixin.py): `speak*()` + cloning orchestration
-- [VM STT mixin](abstractvoice/vm/stt_mixin.py): `listen()` + transcribe helpers
-
-## Voice cloning (optional; heavy)
-- [REPL cloning workflow](docs/repl_guide.md): user-facing commands + download steps
-- [ADR 0003](docs/adr/0003_cloning_reference_text_fallback.md): reference_text strategy
-- [ADR 0004](docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md): streaming + cancellation
-- [VoiceCloner + engine dispatch](abstractvoice/cloning/manager.py): API + engine routing
-- [Store + reference bundles](abstractvoice/cloning/store.py): persisted clone metadata
-- [F5-TTS engine](abstractvoice/cloning/engine_f5.py): OpenF5 backend
-- [Chroma engine](abstractvoice/cloning/engine_chroma.py): Chroma-4B backend
-- [Voices and licenses](docs/voices-and-licenses.md): licensing caveats for models/voices
+- [Public package entry](abstractvoice/__init__.py): version + main export
+- [Module CLI entry](abstractvoice/__main__.py): `python -m abstractvoice ...` (incl. `download`)
+- [VoiceManager façade](abstractvoice/voice_manager.py): public import target
+- [VoiceManager wiring](abstractvoice/vm/manager.py): constructor + engine selection
+- [Voice-mode callbacks](abstractvoice/vm/core.py): behavior while speaking
+- [TTS methods + cloning orchestration](abstractvoice/vm/tts_mixin.py)
+- [STT + listening methods](abstractvoice/vm/stt_mixin.py)
+- [Explicit prefetch tool](abstractvoice/prefetch.py): `abstractvoice-prefetch ...`
 
 ## Engines & adapters
 - [Adapters base types](abstractvoice/adapters/base.py)
-- [TTS Piper adapter](abstractvoice/adapters/tts_piper.py)
-- [STT faster-whisper adapter](abstractvoice/adapters/stt_faster_whisper.py)
-- [TTS engine wrapper](abstractvoice/tts/adapter_tts_engine.py)
-- [Audio playback](abstractvoice/tts/tts_engine.py)
+- [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): voice selection + caching + synthesis
+- [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py)
+- [TTS engine wrapper](abstractvoice/tts/adapter_tts_engine.py): wraps adapters + uses `NonBlockingAudioPlayer`
+- [Audio playback](abstractvoice/tts/tts_engine.py): pause/resume/stop + optional audio-fx
 - [Mic capture + VAD + stop phrase](abstractvoice/recognition.py)
-- [AEC (optional)](abstractvoice/aec/webrtc_apm.py)
 - [Stop phrase helper](abstractvoice/stop_phrase.py)
 - [VAD](abstractvoice/vad/voice_detector.py)
+- [AEC (optional)](abstractvoice/aec/webrtc_apm.py)
+
+## Voice cloning (optional; heavy)
+- [REPL cloning workflow](docs/repl_guide.md): commands + explicit downloads
+- [Voices and licenses](docs/voices-and-licenses.md): licensing caveats for models/voices
+- [VoiceCloner + engine dispatch](abstractvoice/cloning/manager.py)
+- [Clone store + bundles](abstractvoice/cloning/store.py)
+- [F5‑TTS engine](abstractvoice/cloning/engine_f5.py)
+- [Chroma engine](abstractvoice/cloning/engine_chroma.py)
 
 ## Tests
 - [tests/](tests/): run `python -m pytest -q`
+- [Contributing](CONTRIBUTING.md): dev setup + env vars for heavy tests (`ABSTRACTVOICE_RUN_CLONING_TESTS=1`, `ABSTRACTVOICE_RUN_CHROMA_TESTS=1`)
 - [test_voice_cloner_engine_dispatch.py](tests/test_voice_cloner_engine_dispatch.py)
 - [test_cloning_reference_text_autofallback.py](tests/test_cloning_reference_text_autofallback.py)
 - [test_cloned_tts_cancellation.py](tests/test_cloned_tts_cancellation.py)
@@ -95,10 +121,10 @@ Optional dependency groups (see `pyproject.toml`):
 - [Acknowledgments](ACKNOWLEDGMENTS.md)
 - [Security policy](SECURITY.md)
 - [License](LICENSE)
-- [Voices and licenses](docs/voices-and-licenses.md)
 
 ## Optional
+- [Model / voice management](docs/model-management.md)
 - [Multilingual notes](docs/multilingual.md)
-- [Model management (legacy vs default)](docs/model-management.md)
+- [Backlog](docs/backlog/): internal planning (not an API contract)
 - [Reports](docs/reports/): historical snapshots
-- [Voice cloning investigation](docs/voice_cloning_2026.md): research notes
+- [Voice cloning research notes](docs/voice_cloning_2026.md): non-contract research notes

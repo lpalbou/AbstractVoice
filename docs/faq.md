@@ -8,7 +8,7 @@ This FAQ focuses on the questions we expect from first-time users and integrator
 
 ### What Python versions are supported?
 
-Python `>=3.8` (declared in `pyproject.toml`).
+Python `>=3.10` (declared in `pyproject.toml`).
 
 ### Do I need system dependencies?
 
@@ -117,6 +117,17 @@ Yes. Prefer the headless-friendly APIs:
 - `transcribe_from_bytes()` / `transcribe_file()` (STT without mic capture)
 
 These are part of the supported contract in `docs/api.md` and implemented in `abstractvoice/vm/tts_mixin.py` and `abstractvoice/vm/stt_mixin.py`.
+
+### How does this integrate with AbstractCore / AbstractRuntime (AbstractFramework)?
+
+AbstractVoice can be used standalone, but it also ships optional integration hooks for the AbstractFramework ecosystem:
+
+- AbstractCore capability plugin entry point: `pyproject.toml` → `[project.entry-points."abstractcore.capabilities_plugins"]`  
+  Implementation: `abstractvoice/integrations/abstractcore_plugin.py`
+- Tool helpers for AbstractCore: `abstractvoice/integrations/abstractcore.py`
+- ArtifactStore adapter (AbstractRuntime-compatible, duck-typed): `abstractvoice/artifacts.py`
+
+See `docs/api.md` (“Integrations”) for the supported surface and code pointers.
 
 ### How do I switch language?
 

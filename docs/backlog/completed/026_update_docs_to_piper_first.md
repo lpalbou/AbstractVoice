@@ -1,7 +1,7 @@
 ## Task 026: Update docs that are out-of-sync with Piper-first architecture
 
 **Date**: 2026-01-23  
-**Status**: Planned  
+**Status**: Completed  
 **Priority**: P1  
 
 ---
@@ -94,3 +94,22 @@ References:
 - `pytest -q`
 - Doc consistency checks:
   - `rg -n "TTS\\(\" docs/architecture.md docs/development.md || true`
+
+---
+
+## Report (completed)
+
+**Completed**: 2026-02-09
+
+### Outcome
+
+- `docs/architecture.md` now reflects the Piper-first implementation and points directly to the current code paths (`abstractvoice/vm/*`, `abstractvoice/adapters/tts_piper.py`, `abstractvoice/adapters/stt_faster_whisper.py`, `abstractvoice/recognition.py`).
+- `docs/development.md` is aligned with the offline-first policy and current adapter layout (no Coqui/VITS guidance).
+
+### Verification
+
+- Consistency sweep: `rg -n "TTS\\(\" docs/architecture.md docs/development.md` returns no matches.
+
+### Follow-ups
+
+- Keep `docs/api.md` as the canonical integrator contract; update it first when behavior changes.

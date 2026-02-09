@@ -134,7 +134,7 @@ Trade-offs:
 - **ADRs**:
   - `docs/adr/0003_cloning_reference_text_fallback.md`
 - **Backlog tasks**:
-  - Planned: `docs/backlog/planned/030_chroma_4b_optional_s2s_and_cloning.md`
+  - Completed: `docs/backlog/completed/030_chroma_4b_optional_s2s_and_cloning.md`
   - This task: `docs/backlog/planned/031_chroma_cloning_quality_improvements.md`
 
 ---
