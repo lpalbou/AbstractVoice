@@ -7,16 +7,44 @@ A modular Python library for **voice I/O** around AI applications.
 - **Local assistant**: `listen()` + `speak()` with playback/listening control
 - **Headless/server**: `speak_to_bytes()` / `speak_to_file()` and `transcribe_*`
 
-Status: **alpha** (`0.6.1`). The supported integrator surface is documented in `docs/api.md`.
+Status: **alpha** (`0.6.3`). The supported integrator surface is documented in `docs/api.md`.
 
 Next: `docs/getting-started.md` (recommended setup + first smoke tests).
 
-> AbstractVoice will ultimately be integrated as the voice modality of AbstractFramework.  
-> An OpenAI-compatible voice endpoint is an optional demo/integration layer (see backlog).
+## AbstractFramework ecosystem
+
+AbstractVoice is part of the **AbstractFramework** ecosystem:
+
+- AbstractFramework (umbrella): https://github.com/lpalbou/AbstractFramework
+- AbstractCore (agents/capabilities): https://github.com/lpalbou/abstractcore
+- AbstractRuntime (runtime + artifacts): https://github.com/lpalbou/abstractruntime
+
+Integration points (code evidence):
+
+- AbstractCore capability plugin entry point: `pyproject.toml` → `[project.entry-points."abstractcore.capabilities_plugins"]`  
+  Implementation: `abstractvoice/integrations/abstractcore_plugin.py`
+- AbstractRuntime ArtifactStore adapter (optional, duck-typed): `abstractvoice/artifacts.py`
+
+```mermaid
+flowchart LR
+  App[Your app / REPL] --> VM[abstractvoice.VoiceManager]
+  VM --> TTS[Piper (TTS)]
+  VM --> STT[faster-whisper (STT)]
+  VM --> IO[sounddevice / PortAudio]
+
+  subgraph AbstractFramework
+    AC[AbstractCore] -. capability plugin .-> VM
+    AR[AbstractRuntime] -. optional ArtifactStore .-> VM
+  end
+```
+
+Note: an OpenAI-compatible audio/voice endpoint is a **planned** demo/integration layer (see `docs/backlog/planned/013_openai_compatible_audio_endpoint.md`).
 
 ---
 
 ## Install
+
+Requires Python `>=3.10` (see `pyproject.toml`).
 
 ```bash
 pip install abstractvoice
@@ -37,22 +65,33 @@ Notes:
 Some features rely on large model weights/artifacts. AbstractVoice will **not**
 download these implicitly inside the REPL (offline-first).
 
-After installing, prefetch explicitly (cross-platform):
+After installing, prefetch explicitly (cross-platform).
+
+Recommended (most users):
 
 ```bash
-abstractvoice-prefetch --stt small
 abstractvoice-prefetch --piper en
+abstractvoice-prefetch --stt small
+```
+
+Optional (voice cloning artifacts):
+
+```bash
+pip install "abstractvoice[cloning]"
 abstractvoice-prefetch --openf5
+
+# GPU-heavy:
+pip install "abstractvoice[chroma]"
 abstractvoice-prefetch --chroma
 ```
 
-Or equivalently:
+Equivalent `python -m` form:
 
 ```bash
-python -m abstractvoice download --stt small
 python -m abstractvoice download --piper en
-python -m abstractvoice download --openf5
-python -m abstractvoice download --chroma
+python -m abstractvoice download --stt small
+python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
+python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
 ```
 
 Notes:

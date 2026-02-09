@@ -1,7 +1,7 @@
 ## Task 024: Fix Python version support contract
 
 **Date**: 2026-01-23  
-**Status**: Planned  
+**Status**: Completed  
 **Priority**: P0  
 
 ---
@@ -19,7 +19,7 @@
 
 ## Context / problem
 
-`pyproject.toml` currently declares `requires-python = ">=3.8"` and includes classifiers for Python 3.8/3.9, but the codebase uses newer typing syntax that breaks on older interpreters:
+Previously, `pyproject.toml` declared `requires-python = ">=3.8"` and included classifiers for Python 3.8/3.9, but the codebase uses newer typing syntax that breaks on older interpreters:
 
 - **PEP 585 built-in generics** like `list[str]` are used in runtime-evaluated annotations (e.g. `abstractvoice/adapters/base.py`), which requires **Python 3.9+** unless annotations are postponed.
 - **PEP 604 union types** like `str | None` are used in modules without `from __future__ import annotations` (e.g. `abstractvoice/examples/cli_repl.py`, `abstractvoice/recognition.py`), which requires **Python 3.10+**.
@@ -100,3 +100,18 @@ Impact:
   - `python -m build`
   - `python -m pip install dist/*.whl`
 
+---
+
+## Report (completed)
+
+**Completed**: 2026-02-09
+
+### Outcome
+
+- Packaging metadata now requires Python `>=3.10` (`pyproject.toml`).
+- Python version messaging is consistent across the external entry points:
+  - `README.md` (Install section)
+  - `docs/getting-started.md` (Requirements)
+  - `docs/faq.md` (supported versions)
+  - `docs/installation.md` (top-level assumptions)
+- Removed Python 3.8/3.9 trove classifiers so metadata matches the runtime floor (`pyproject.toml`).

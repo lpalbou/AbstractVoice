@@ -9,6 +9,8 @@ If you're discovering AbstractVoice for the first time, start with:
 3) `docs/overview.md` (what the library is / common usage modes)  
 4) `docs/api.md` (supported integrator contract)
 
+If you’re using AbstractVoice as part of the AbstractFramework ecosystem (AbstractCore / AbstractRuntime), see the integration notes in `README.md` and the “Integrations” section in `docs/api.md`.
+
 ## User-facing docs
 
 - **FAQ**: `docs/faq.md`

@@ -38,6 +38,7 @@ These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`)
 ## Optional integrations
 
 - AbstractCore plugin integration (only when installed alongside `abstractcore`): https://github.com/lpalbou/abstractcore
+- AbstractRuntime ArtifactStore integration (duck-typed; no hard dependency): https://github.com/lpalbou/abstractruntime
 
 ## Platform-specific helpers (optional)
 

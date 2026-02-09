@@ -44,7 +44,7 @@ Notes:
 - `allow_downloads` gates *implicit* model downloads in adapters. The REPL sets `False` (offline-first).
 - `whisper_model` controls the faster‑whisper model size used by `listen()` and `transcribe_*()`.
 - `tts_engine` currently supports only `auto|piper` (Piper-only core).
-- `stt_engine` is currently `auto|faster_whisper` for the adapter path.
+- `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[stt]`; see `abstractvoice/vm/stt_mixin.py`).
 - `tts_model` is reserved/back-compat (Piper selection is language-driven today).
 
 Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
@@ -188,8 +188,8 @@ For offline deployments, prefetch explicitly (cross-platform):
 ```bash
 python -m abstractvoice download --stt small
 python -m abstractvoice download --piper en
-python -m abstractvoice download --openf5
-python -m abstractvoice download --chroma
+python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
+python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
 ```
 
 Or use the convenience entrypoint:
@@ -197,9 +197,49 @@ Or use the convenience entrypoint:
 ```bash
 abstractvoice-prefetch --stt small
 abstractvoice-prefetch --piper en
+abstractvoice-prefetch --openf5            # optional; requires abstractvoice[cloning]
+abstractvoice-prefetch --chroma            # optional; requires abstractvoice[chroma] (GPU-heavy)
 ```
 
+Notes:
+- `--chroma` artifacts may require Hugging Face access to download.
+
 See also: `docs/installation.md`, `docs/model-management.md`, and `docs/voices-and-licenses.md`.
+
+## Integrations (AbstractFramework ecosystem)
+
+AbstractVoice is designed to work standalone, and also integrate cleanly into the AbstractFramework ecosystem (AbstractCore + AbstractRuntime). Overview and links: `README.md`.
+
+### AbstractCore capability plugin (auto-discovery)
+
+AbstractVoice exposes an AbstractCore capability plugin entry point:
+
+- Entry point declaration: `pyproject.toml` → `[project.entry-points."abstractcore.capabilities_plugins"]`
+- Implementation: `abstractvoice/integrations/abstractcore_plugin.py`
+
+The plugin registers:
+- a voice backend (`backend_id="abstractvoice:default"`) for TTS+STT
+- an audio backend (`backend_id="abstractvoice:stt"`) for STT-only
+
+Audio outputs can optionally be stored into an AbstractRuntime-like `artifact_store` via the duck-typed adapter in `abstractvoice/artifacts.py`.
+
+### AbstractCore tool helpers (manual wiring)
+
+If you prefer to wire tools explicitly, `abstractvoice/integrations/abstractcore.py` provides:
+
+- `make_voice_tools(voice_manager, store) -> list[callable]`
+  - Requires `abstractcore` at runtime (it imports `abstractcore.tool`).
+  - `store` can be a MediaStore-like object, or an AbstractRuntime-like ArtifactStore (adapted via `RuntimeArtifactStoreAdapter` in `abstractvoice/artifacts.py`).
+
+Minimal sketch:
+
+```python
+from abstractvoice import VoiceManager
+from abstractvoice.integrations.abstractcore import make_voice_tools
+
+vm = VoiceManager()
+tools = make_voice_tools(voice_manager=vm, store=artifact_store)
+```
 
 ## Non-contract surface (may change without notice)
 

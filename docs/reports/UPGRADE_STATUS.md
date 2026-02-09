@@ -1,10 +1,16 @@
 # AbstractVoice Upgrade Status
 
-**Date**: January 21, 2026  
-**Current Version**: v0.5.2 → **v0.6.0 (in progress)**
+**Date**: January 21, 2026 (historical snapshot)  
+**Snapshot then**: v0.5.2 → v0.6.0 (planned)  
+**Current (2026-02-09)**: v0.6.3 (Piper-first; offline-first REPL; cloning via optional engines `f5_tts` / `chroma`)
 
-> Note: This is a historical report. AbstractVoice core is now Piper-first, the REPL is offline-first
-> (no implicit downloads), and voice cloning is implemented via optional engines (`f5_tts` / `chroma`).
+> Note: This report is kept for archaeology. For current usage and supported behavior, prefer `README.md`,
+> `docs/getting-started.md`, and the integrator contract in `docs/api.md`.
+
+## Status update (2026-02-09)
+
+- Voice cloning is implemented via optional engines under `abstractvoice/cloning/*` (F5‑TTS and Chroma). The older “XTTS‑v2” plan below is obsolete.
+- Documentation is aligned with the Piper-first core; see `docs/architecture.md` and `docs/model-management.md`.
 
 ---
 

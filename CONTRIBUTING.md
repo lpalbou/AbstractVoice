@@ -8,13 +8,14 @@ Thanks for your interest in contributing to AbstractVoice.
 - Integrator contract: `docs/api.md`
 - Implementation map: `docs/architecture.md`
 - Internal dev notes: `docs/development.md`
+- AbstractFramework ecosystem notes: `README.md` (AbstractCore / AbstractRuntime integration pointers)
 - Security reports: `SECURITY.md`
 
 ## Development setup
 
 ### Requirements
 
-- Python `>=3.8` (recommended: latest 3.12.x)
+- Python `>=3.10` (recommended: latest 3.12.x)
 - Git
 
 ### Install (editable)

@@ -1,7 +1,7 @@
 ## Task 030: Evaluate FlashLabs Chroma-4B for optional speech-to-speech + voice cloning
 
 **Date**: 2026-01-26  
-**Status**: Planned  
+**Status**: Completed  
 **Priority**: P2 (experimental / GPU-only)  
 
 ---
@@ -295,8 +295,16 @@ It depends on what “quality” means for AbstractVoice:
 
 ### Summary
 
-<what changed and why>
+- Integrated Chroma-4B as an **optional** voice cloning backend (`engine="chroma"`) behind the existing cloned-voice abstraction, without expanding the core Piper-only TTS contract.
+- Added explicit artifact prefetch entry points (`abstractvoice-prefetch --chroma` / `python -m abstractvoice download --chroma`) to preserve the offline-first REPL rule (no surprise downloads).
+- Added a minimal local smoke script (`examples/chroma_clone_repl.py`) and an opt-in integration test (`tests/test_chroma_cloning_integration.py` gated by `ABSTRACTVOICE_RUN_CHROMA_TESTS=1`).
+
+Code evidence:
+- Engine implementation: `abstractvoice/cloning/engine_chroma.py`
+- Optional deps: `pyproject.toml` (`abstractvoice[chroma]`)
+- Prefetch entry points: `abstractvoice/prefetch.py` and `abstractvoice/__main__.py`
 
 ### Validation
 
-- Tests: <result>
+- Automated: `tests/test_chroma_cloning_integration.py` (heavy; opt-in via `ABSTRACTVOICE_RUN_CHROMA_TESTS=1`)
+- Manual: `python -i examples/chroma_clone_repl.py` (requires `pip install -e '.[chroma]'` + `abstractvoice-prefetch --chroma`)

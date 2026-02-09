@@ -7,7 +7,7 @@ If you get stuck, check `docs/faq.md` (common issues and troubleshooting).
 
 ## Requirements
 
-- Python `>=3.8` (see `pyproject.toml`)
+- Python `>=3.10` (see `pyproject.toml`)
 - For microphone input: OS-level microphone permissions for your terminal/IDE
 
 ## Install
@@ -51,6 +51,10 @@ vm.speak("Hello from AbstractVoice.")
 ```
 
 The public entry point is `abstractvoice.VoiceManager` (`abstractvoice/voice_manager.py`).
+
+If you’re integrating into the AbstractFramework ecosystem (AbstractCore / AbstractRuntime), see:
+- `README.md` (ecosystem overview)
+- `docs/api.md` (Integrations section; code pointers)
 
 ## Enable microphone input (voice modes)
 
