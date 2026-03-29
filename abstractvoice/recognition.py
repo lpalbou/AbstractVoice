@@ -79,7 +79,9 @@ class VoiceRecognizer:
                  min_transcription_length=5, debug_mode=False,
                  aec_enabled: bool = False, aec_stream_delay_ms: int = 0,
                  language: str | None = None,
-                 allow_downloads: bool = True):
+                 allow_downloads: bool = True,
+                 stt_adapter=None,
+                 audio_level_callback=None):
         """Initialize voice recognizer.
         
         Args:
@@ -93,6 +95,8 @@ class VoiceRecognizer:
             whisper_model: Whisper model name
             min_transcription_length: Min valid transcription length
             debug_mode: Enable debug output
+            stt_adapter: Optional pre-built STT adapter (skips default model loading)
+            audio_level_callback: Optional callback(level: float 0..1) from mic input
         """
         self.debug_mode = debug_mode
         self.transcription_callback = transcription_callback
@@ -134,14 +138,17 @@ class VoiceRecognizer:
             debug_mode=debug_mode
         )
 
-        # STT: use faster-whisper adapter by default (core dependency)
-        STTAdapter = _import_transcriber()
-        self.stt_adapter = STTAdapter(
-            model_size=whisper_model,
-            device="auto",
-            compute_type="int8",
-            allow_downloads=bool(self.allow_downloads),
-        )
+        # STT: use provided adapter or load faster-whisper (default).
+        if stt_adapter is not None:
+            self.stt_adapter = stt_adapter
+        else:
+            STTAdapter = _import_transcriber()
+            self.stt_adapter = STTAdapter(
+                model_size=whisper_model,
+                device="auto",
+                compute_type="int8",
+                allow_downloads=bool(self.allow_downloads),
+            )
         self.min_transcription_length = min_transcription_length
         
         # State
@@ -151,6 +158,8 @@ class VoiceRecognizer:
         self.tts_interrupt_callback = None
         self.tts_interrupt_enabled = True  # Can be disabled during TTS playback
         self.listening_paused = False  # Can be paused to completely stop processing audio
+        self.audio_level_callback = audio_level_callback
+        self._audio_level_ema = 0.0
         # While TTS is playing (esp. without AEC), we often want to suppress normal
         # transcriptions to avoid self-feedback loops, but still allow stop phrase.
         self.transcriptions_paused = False
@@ -173,6 +182,34 @@ class VoiceRecognizer:
 
         # Apply initial profile.
         self.set_profile("stop")
+
+    def _emit_audio_level(self, chunk) -> None:
+        """Emit normalized mic level (0..1) from the current input chunk."""
+        cb = self.audio_level_callback
+        if cb is None:
+            return
+        try:
+            if isinstance(chunk, (int, float)):
+                raw = float(chunk)
+                level = max(0.0, min(1.0, raw))
+            else:
+                arr = np.asarray(chunk, dtype=np.float32)
+                if arr.size <= 0:
+                    level = 0.0
+                else:
+                    if arr.ndim > 1:
+                        arr = arr.mean(axis=1)
+                    max_abs = float(np.max(np.abs(arr))) if arr.size > 0 else 0.0
+                    if max_abs > 1.5:
+                        arr = arr / 32768.0
+                    rms = float(np.sqrt(np.mean(np.square(arr)))) if arr.size > 0 else 0.0
+                    # Gentle noise floor + gain tuned for speech in typical laptop mics.
+                    level = (rms - 0.004) / 0.18
+                    level = max(0.0, min(1.0, level))
+            self._audio_level_ema = (0.65 * float(self._audio_level_ema)) + (0.35 * float(level))
+            cb(float(max(0.0, min(1.0, self._audio_level_ema))))
+        except Exception:
+            return
 
     def set_profile(self, profile: str) -> None:
         """Set listening profile tuned for the current interaction mode.
@@ -489,6 +526,7 @@ class VoiceRecognizer:
             try:
                 # If listening is paused, sleep briefly and skip processing
                 if self.listening_paused:
+                    self._emit_audio_level(0.0)
                     time.sleep(0.1)
                     continue
                 
@@ -497,6 +535,7 @@ class VoiceRecognizer:
                 if overflowed and self.debug_mode:
                     print(" > Mic input overflow")
                 audio_data = audio_chunk.tobytes()
+                self._emit_audio_level(audio_chunk)
 
                 # Optional AEC: remove speaker echo from mic input before VAD/STT.
                 if self.aec_enabled and self._aec:
