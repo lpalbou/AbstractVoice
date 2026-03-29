@@ -69,7 +69,7 @@ class SttMixin:
     def get_whisper(self):
         return self.whisper_model
 
-    def listen(self, on_transcription, on_stop=None):
+    def listen(self, on_transcription, on_stop=None, on_audio_level=None):
         self._transcription_callback = on_transcription
         self._stop_callback = on_stop
 
@@ -97,6 +97,7 @@ class SttMixin:
                 aec_stream_delay_ms=int(getattr(self, "_aec_stream_delay_ms", 0)),
                 language=getattr(self, "language", None),
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
+                audio_level_callback=on_audio_level,
             )
             try:
                 if hasattr(self.voice_recognizer, "set_profile"):
