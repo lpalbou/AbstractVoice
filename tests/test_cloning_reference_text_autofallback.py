@@ -24,7 +24,7 @@ def test_reference_text_autofallback_is_persisted(tmp_path: Path, monkeypatch: p
 
     # Call speak path; it should route through _ensure_reference_text.
     class FakeEngine:
-        def infer_to_wav_bytes(self, *, text, reference_paths, reference_text, speed=None):
+        def infer_to_wav_bytes(self, *, text, reference_paths, reference_text, speed=None, language=None):
             assert reference_text == "Hello, Dave."
             return b"RIFFxxxxWAVE"
 

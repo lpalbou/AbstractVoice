@@ -1474,8 +1474,20 @@ class VoiceREPL(cmd.Cmd):
         try:
             speed = float(arg.strip())
             if 0.5 <= speed <= 2.0:
-                self.voice_manager.set_speed(speed)
-                print(f"TTS speed set to {speed}x")
+                ok = bool(self.voice_manager.set_speed(speed))
+                if ok:
+                    print(f"TTS speed set to {speed}x")
+                    return
+                # Engine-specific restrictions (e.g. AudioDiT).
+                try:
+                    a = getattr(self.voice_manager, "tts_adapter", None)
+                    engine_id = str(getattr(a, "engine_id", "") or "").strip().lower()
+                except Exception:
+                    engine_id = ""
+                if engine_id == "audiodit":
+                    print("ℹ️  AudioDiT does not support /speed yet. (Keeping speed at 1.0x.)")
+                else:
+                    print("❌ Failed to set speed.")
             else:
                 print("Speed should be between 0.5 and 2.0")
         except ValueError:
@@ -1998,7 +2010,7 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice from a reference file or folder.
 
         Usage:
-          /clone <path> [name] [--engine f5_tts|chroma] [--text "reference transcript"]
+          /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text "reference transcript"]
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
@@ -2007,11 +2019,11 @@ class VoiceREPL(cmd.Cmd):
         try:
             parts = shlex.split(arg.strip())
         except ValueError as e:
-            print(f"Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]  (parse error: {e})")
+            print(f"Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]  (parse error: {e})")
             return
 
         if not parts:
-            print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
             return
 
         engine = None
@@ -2022,14 +2034,14 @@ class VoiceREPL(cmd.Cmd):
             tok = parts[i]
             if tok in ("--engine",):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
                     return
                 engine = parts[i + 1]
                 i += 2
                 continue
             if tok in ("--text", "--reference-text", "--reference_text"):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
                     return
                 reference_text = parts[i + 1]
                 i += 2
@@ -2038,7 +2050,7 @@ class VoiceREPL(cmd.Cmd):
             i += 1
 
         if not pos:
-            print("Usage: /clone <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
             return
 
         path = pos[0]
@@ -2083,7 +2095,7 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice (or reuse an existing one) and immediately select it.
 
         Usage:
-          /clone_use <path> [name] [--engine f5_tts|chroma] [--text "reference transcript"]
+          /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text "reference transcript"]
 
         Shortcut:
           - Paste a WAV/FLAC/OGG path directly (optionally: `path.wav | transcript`).
@@ -2095,11 +2107,11 @@ class VoiceREPL(cmd.Cmd):
         try:
             parts = shlex.split(arg.strip())
         except ValueError as e:
-            print(f"Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]  (parse error: {e})")
+            print(f"Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]  (parse error: {e})")
             return
 
         if not parts:
-            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
             return
 
         engine = None
@@ -2110,14 +2122,14 @@ class VoiceREPL(cmd.Cmd):
             tok = parts[i]
             if tok in ("--engine",):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
                     return
                 engine = parts[i + 1]
                 i += 2
                 continue
             if tok in ("--text", "--reference-text", "--reference_text"):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
                     return
                 reference_text = parts[i + 1]
                 i += 2
@@ -2126,7 +2138,7 @@ class VoiceREPL(cmd.Cmd):
             i += 1
 
         if not pos:
-            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma] [--text \"...\"]")
+            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
             return
 
         path = pos[0]
@@ -2567,13 +2579,13 @@ class VoiceREPL(cmd.Cmd):
             return
 
     def do_tts_engine(self, arg):
-        """Select TTS engine: auto|piper.
+        """Select TTS engine: auto|piper|audiodit.
 
         This recreates the internal VoiceManager instance.
         """
         engine = arg.strip().lower()
-        if engine not in ("auto", "piper"):
-            print("Usage: /tts_engine auto|piper")
+        if engine not in ("auto", "piper", "audiodit"):
+            print("Usage: /tts_engine auto|piper|audiodit")
             return
 
         if self.voice_manager:
@@ -2901,7 +2913,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /list_languages     List all supported languages")
         print("  /speed <number>     Set TTS speed (0.5-2.0, default: 1.0, pitch preserved)")
         print("  /tts_voice ...      Select Piper vs cloned voice (see below)")
-        print("  /tts_engine <e>     Switch TTS engine: auto|piper")
+        print("  /tts_engine <e>     Switch TTS engine: auto|piper|audiodit")
         print("  /whisper <model>    Switch Whisper model: tiny|base|small|medium|large")
         print("  /stt_engine <e>     Switch STT engine: auto|faster_whisper|whisper (whisper is optional extra)")
         print("  /speak <text>       Speak text (no LLM call)")
@@ -3222,8 +3234,8 @@ def parse_args():
     parser.add_argument(
         "--cloning-engine",
         default="f5_tts",
-        choices=["f5_tts", "chroma"],
-        help="Default cloning backend for new voices (f5_tts|chroma)",
+        choices=["f5_tts", "chroma", "audiodit"],
+        help="Default cloning backend for new voices (f5_tts|chroma|audiodit)",
     )
     parser.add_argument(
         "--voice-mode",

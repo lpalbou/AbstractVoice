@@ -101,17 +101,31 @@ def _import_librosa():
 def apply_speed_without_pitch_change(audio: np.ndarray, speed: float, sr: int = 22050) -> np.ndarray:
     """Apply speed change without affecting pitch (best-effort).
 
-    If librosa is not installed (or fails), returns the original audio.
+    Prefers librosa when installed; otherwise falls back to a lightweight WSOLA
+    implementation so `/speed` works without extra deps.
     """
     if not speed or speed == 1.0:
         return audio
 
     try:
         librosa = _import_librosa()
-        return librosa.effects.time_stretch(audio, rate=float(speed))
+        return librosa.effects.time_stretch(np.asarray(audio, dtype=np.float32).reshape(-1), rate=float(speed))
+    except ImportError:
+        try:
+            from .time_stretch import wsola_time_stretch
+
+            return wsola_time_stretch(np.asarray(audio, dtype=np.float32).reshape(-1), rate=float(speed), sr=int(sr))
+        except Exception as e:
+            logging.warning(f"Time-stretching failed: {e}, using original audio")
+            return audio
     except Exception as e:
-        logging.warning(f"Time-stretching failed: {e}, using original audio")
-        return audio
+        try:
+            from .time_stretch import wsola_time_stretch
+
+            return wsola_time_stretch(np.asarray(audio, dtype=np.float32).reshape(-1), rate=float(speed), sr=int(sr))
+        except Exception:
+            logging.warning(f"Time-stretching failed: {e}, using original audio")
+            return audio
 
 
 class NonBlockingAudioPlayer:
@@ -215,47 +229,83 @@ class NonBlockingAudioPlayer:
         sd = _import_sounddevice()
 
         desired_sr = int(self.sample_rate)
-        candidates: list[int] = [desired_sr]
+
+        # Device candidates: default first, then explicit indices as fallback.
+        device_candidates: list[int | None] = [None]
         try:
             dev = sd.query_devices(None, "output")  # default output device
-            default_sr = int(round(float(dev.get("default_samplerate", 0) or 0)))
-            if default_sr and default_sr not in candidates:
-                candidates.append(default_sr)
+            idx = dev.get("index", None)
+            if isinstance(idx, int) and idx not in device_candidates:
+                device_candidates.append(idx)
         except Exception:
-            default_sr = 0
+            pass
+        try:
+            for i, dev in enumerate(sd.query_devices()):  # all devices
+                if int(dev.get("max_output_channels", 0) or 0) <= 0:
+                    continue
+                if i not in device_candidates:
+                    device_candidates.append(i)
+        except Exception:
+            pass
 
-        # Common output rates (keep short; we already prefer desired/default).
-        for sr in (48000, 44100, 24000, 22050, 16000):
-            if sr not in candidates:
-                candidates.append(sr)
+        # Common output rates (keep short; we already prefer device default + desired).
+        common_rates = (48000, 44100, 24000, 22050, 16000)
 
         last_err: Exception | None = None
-        for sr in candidates:
-            for blocksize in (1024, 0):  # 0 => PortAudio decides (often most compatible)
-                stream = None
-                try:
-                    with _SilenceStderrFD(enabled=not self.debug_mode):
-                        stream = sd.OutputStream(
-                            samplerate=int(sr),
-                            channels=1,
-                            callback=self._audio_callback,
-                            blocksize=int(blocksize),
-                            dtype=np.float32,
-                        )
-                        stream.start()
-                    self.stream = stream
-                    self.sample_rate = int(sr)
-                    if self.debug_mode and int(sr) != desired_sr:
-                        print(f"⚠️  Output device rejected {desired_sr}Hz; using {sr}Hz (resampling)")
-                    return
-                except Exception as e:
-                    last_err = e
-                    try:
-                        if stream is not None:
-                            stream.close()
-                    except Exception:
-                        pass
-                    continue
+        for device in device_candidates:
+            # Build per-device candidate sample rates (desired, then device default, then common).
+            sr_candidates: list[int] = []
+            try:
+                dev = sd.query_devices(device, "output") if device is not None else sd.query_devices(None, "output")
+                default_sr = int(round(float(dev.get("default_samplerate", 0) or 0)))
+                if default_sr:
+                    sr_candidates.append(default_sr)
+                max_ch = int(dev.get("max_output_channels", 0) or 0)
+            except Exception:
+                max_ch = 0
+
+            if desired_sr and desired_sr not in sr_candidates:
+                sr_candidates.append(desired_sr)
+
+            for sr in common_rates:
+                if sr not in sr_candidates:
+                    sr_candidates.append(sr)
+
+            # Prefer stereo devices (most macOS outputs are 2ch); fall back to mono.
+            ch_order = (2, 1) if max_ch >= 2 else (1,)
+            # Prefer PortAudio-chosen blocksize first (often most compatible).
+            block_order = (0, 1024)
+
+            for sr in sr_candidates:
+                for blocksize in block_order:
+                    for channels in ch_order:
+                        if max_ch and channels > max_ch:
+                            continue
+                        stream = None
+                        try:
+                            with _SilenceStderrFD(enabled=not self.debug_mode):
+                                stream = sd.OutputStream(
+                                    samplerate=int(sr),
+                                    channels=int(channels),
+                                    callback=self._audio_callback,
+                                    blocksize=int(blocksize),
+                                    dtype=np.float32,
+                                    device=int(device) if device is not None else None,
+                                )
+                                stream.start()
+                            self.stream = stream
+                            self.sample_rate = int(sr)
+                            if self.debug_mode and int(sr) != desired_sr:
+                                print(f"⚠️  Output device rejected {desired_sr}Hz; using {sr}Hz (resampling)")
+                            return
+                        except Exception as e:
+                            last_err = e
+                            try:
+                                if stream is not None:
+                                    stream.close()
+                            except Exception:
+                                pass
+                            continue
 
         # If we couldn't start, surface the last error.
         if last_err is not None:
@@ -295,6 +345,12 @@ class NonBlockingAudioPlayer:
         except Exception:
             pass
         audio_array = np.asarray(audio_array, dtype=np.float32).reshape(-1)
+        # Defensive: never send NaN/Inf to the audio device.
+        try:
+            if not np.isfinite(audio_array).all():
+                audio_array = np.nan_to_num(audio_array, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32, copy=False)
+        except Exception:
+            pass
 
         # If we haven't started the output stream yet, do so first. This allows
         # `start_stream()` to fall back to a compatible device sample rate.
@@ -309,6 +365,12 @@ class NonBlockingAudioPlayer:
         max_abs = float(np.max(np.abs(audio_array))) if len(audio_array) else 0.0
         if max_abs > 1.0:
             audio_array = audio_array / max_abs
+        else:
+            # Best-effort clamp to avoid rare device-specific clipping issues.
+            try:
+                audio_array = np.clip(audio_array, -1.0, 1.0, out=audio_array)
+            except Exception:
+                pass
 
         self.audio_queue.put(audio_array)
         self.is_playing = True

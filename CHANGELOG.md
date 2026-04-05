@@ -12,6 +12,20 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ### Added
 - ADR 0005: Torch device + dtype selection policy for torch-based TTS/cloning engines.
+- Pluggable TTS adapter registry (keeps `auto` deterministic; enables opt-in heavy engines).
+- `abstractvoice[audiodit]` optional extra and LongCat-AudioDiT integration (TTS + prompt-audio cloning).
+- Shared duration estimation helpers for engines that require explicit duration parameters.
+
+### Fixed
+- AudioDiT TTS now avoids “quiet noise” collapses by retrying with smaller text chunks when outputs are detected as weak.
+- AudioDiT TTS now uses a larger default chunk size to reduce voice/pitch drift across multi-sentence utterances.
+- AudioDiT TTS duration estimation now follows upstream per-character heuristics (stabilizes voice/pitch across text lengths).
+- AudioDiT TTS now defaults to APG guidance (upstream-recommended) for more stable quality.
+- AudioDiT TTS now reuses a short “session prompt” (generated prompt-audio + matching prompt-text prefix) to keep a stable speaker identity across multiple `/speak` calls.
+- AudioDiT explicitly rejects `/speed` changes (upstream doesn’t provide a speed API; attempting speed caused degraded audio).
+- Audio playback now falls back to stereo output streams when mono initialization fails (macOS AUHAL robustness).
+- Suppressed the noisy PyTorch `weight_norm` deprecation warning during AudioDiT model load.
+- Disabled Transformers progress bars (e.g. “Loading weights”) during AudioDiT model load for cleaner REPL UX.
 
 ## [0.6.1] - 2026-02-04
 

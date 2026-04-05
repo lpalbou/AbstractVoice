@@ -14,19 +14,21 @@ As of late Jan 2026, AbstractVoice includes optional cloning backends:
 
 - `abstractvoice[cloning]` → `f5_tts` engine (OpenF5 artifacts)
 - `abstractvoice[chroma]` → `chroma` engine (Chroma-4B; GPU-heavy)
+- `abstractvoice[audiodit]` → `audiodit` engine (LongCat-AudioDiT-1B; prompt-audio cloning)
 
 Operational notes:
 
-- Cloned voices are **engine-bound** (`f5_tts` vs `chroma`); selecting a cloned voice uses its stored engine.
+- Cloned voices are **engine-bound** (`f5_tts` vs `chroma` vs `audiodit`); selecting a cloned voice uses its stored engine.
 - The REPL is offline-first; downloads are explicit via:
-  - `python -m abstractvoice download --openf5|--chroma`
-  - REPL: `/cloning_download f5_tts|chroma`
+  - `python -m abstractvoice download --openf5|--chroma|--audiodit`
+  - REPL: `/cloning_download f5_tts|chroma` (AudioDiT uses `--audiodit` today)
 - `reference_text` is **optional**:
   - If missing, AbstractVoice auto-generates it via STT (3-pass consensus) on first speak and persists it for the voice.
   - In offline-first contexts, this requires a cached STT model (prefetch: `python -m abstractvoice download --stt small`).
 - For best quality, use a clean reference sample and (optionally) set an accurate `reference_text`:
   - `f5_tts`: **6–10s** often works well.
   - `chroma`: upstream examples use longer prompts (≈ **15–30s**), and quality may degrade with very short prompts.
+  - `audiodit`: **6–15s** prompt audio is a reasonable starting range; it is currently capped by default.
   - A bad transcript can noticeably degrade cloning quality.
   - The Chroma backend normalizes prompt audio to **mono 24kHz PCM16** and caps extreme prompt lengths for stability.
 
