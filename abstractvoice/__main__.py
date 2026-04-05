@@ -139,14 +139,20 @@ def main():
             default=None,
             help="Prefetch Piper voice model for a language (e.g. en/fr/de).",
         )
+        dl.add_argument(
+            "--audiodit",
+            action="store_true",
+            help="Prefetch LongCat-AudioDiT-1B weights + tokenizer (requires abstractvoice[audiodit])",
+        )
         dl_args = dl.parse_args(remaining)
 
-        if not dl_args.stt_model and not dl_args.openf5 and not dl_args.chroma and not dl_args.piper_language:
+        if not dl_args.stt_model and not dl_args.openf5 and not dl_args.chroma and not dl_args.piper_language and not dl_args.audiodit:
             print("Nothing to download. Examples:")
             print("  python -m abstractvoice download --stt small")
             print("  python -m abstractvoice download --openf5")
             print("  python -m abstractvoice download --chroma")
             print("  python -m abstractvoice download --piper en")
+            print("  python -m abstractvoice download --audiodit")
             return
 
         if dl_args.stt_model:
@@ -196,6 +202,16 @@ def main():
                 print("✅ Piper model ready.")
             except Exception as e:
                 print(f"❌ Piper download failed: {e}")
+
+        if dl_args.audiodit:
+            try:
+                from abstractvoice.audiodit.runtime import prefetch_audiodit
+
+                print("Downloading AudioDiT weights + tokenizer…")
+                path = prefetch_audiodit()
+                print(f"✅ AudioDiT ready (cached at {path}).")
+            except Exception as e:
+                print(f"❌ AudioDiT download failed: {e}")
         return
 
     # Set remaining args as sys.argv for the examples, including language

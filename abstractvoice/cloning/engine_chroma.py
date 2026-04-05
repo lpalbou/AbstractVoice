@@ -548,7 +548,9 @@ class ChromaVoiceCloningEngine:
         reference_paths: Iterable[str | Path],
         reference_text: Optional[str] = None,
         speed: Optional[float] = None,
+        language: Optional[str] = None,
     ) -> bytes:
+        _ = language
         chunks = []
         sr_out = 24000
         for chunk, sr in self.infer_to_audio_chunks(
@@ -556,6 +558,7 @@ class ChromaVoiceCloningEngine:
             reference_paths=reference_paths,
             reference_text=reference_text,
             speed=speed,
+            language=language,
         ):
             chunks.append(np.asarray(chunk, dtype=np.float32).reshape(-1))
             sr_out = int(sr)
@@ -572,7 +575,9 @@ class ChromaVoiceCloningEngine:
         reference_text: Optional[str] = None,
         speed: Optional[float] = None,
         max_chars: int = 240,
+        language: Optional[str] = None,
     ):
+        _ = language
         self._ensure_model_loaded()
 
         if not reference_text or not str(reference_text).strip():

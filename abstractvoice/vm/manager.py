@@ -10,6 +10,7 @@ import threading
 from typing import Optional
 
 from ..config.voice_catalog import LANGUAGES, SAFE_FALLBACK
+from ..adapters.tts_registry import create_tts_adapter
 from ..tts.adapter_tts_engine import AdapterTTSEngine
 
 from .core import VoiceManagerCore
@@ -63,17 +64,34 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         self._tts_engine_name = None
         self.tts_engine = None
 
-        if tts_engine not in ("auto", "piper"):
-            raise ValueError("Only Piper TTS is supported in AbstractVoice core. Use tts_engine='piper'.")
+        # Create the playback engine as long as the selected adapter runtime is
+        # importable. This keeps audio output available for cloning backends even
+        # when no TTS model is cached locally (offline-first).
+        requested_engine = str(tts_engine or "auto").strip().lower() or "auto"
+        try:
+            self.tts_adapter, resolved_engine = create_tts_adapter(
+                engine=str(tts_engine or "auto"),
+                language=language,
+                allow_downloads=bool(self.allow_downloads),
+                auto_load=True,
+                debug_mode=bool(debug_mode),
+            )
+        except ValueError:
+            # Preserve caller-facing validation semantics (explicit engine names must be valid).
+            raise
+        except Exception as e:
+            # If the caller explicitly selected an engine, surface the error so
+            # it's actionable (no silent fallback).
+            if requested_engine != "auto":
+                raise
+            if debug_mode:
+                print(f"⚠️  TTS engine init failed: {e}")
+            self.tts_adapter = None
+            resolved_engine = None
 
-        if tts_engine in ("auto", "piper"):
-            self.tts_adapter = self._try_init_piper(language)
-            # Create the playback engine as long as Piper runtime is importable.
-            # This keeps audio output available for cloning backends even when no
-            # Piper voice model is cached locally (offline-first).
-            if self.tts_adapter:
-                self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=debug_mode)
-                self._tts_engine_name = "piper"
+        if self.tts_adapter:
+            self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=debug_mode)
+            self._tts_engine_name = resolved_engine
 
         # Audio lifecycle callbacks (public hooks)
         self.on_audio_start = None

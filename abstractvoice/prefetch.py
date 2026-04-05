@@ -33,9 +33,14 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Prefetch Piper voice model for a language (e.g. en/fr/de).",
     )
+    parser.add_argument(
+        "--audiodit",
+        action="store_true",
+        help="Prefetch LongCat-AudioDiT-1B weights + tokenizer (requires abstractvoice[audiodit])",
+    )
     args = parser.parse_args(argv)
 
-    if not args.stt_model and not args.openf5 and not args.chroma and not args.piper_language:
+    if not args.stt_model and not args.openf5 and not args.chroma and not args.piper_language and not args.audiodit:
         parser.print_help()
         return 2
 
@@ -74,6 +79,13 @@ def main(argv: list[str] | None = None) -> int:
         if not piper.ensure_model_downloaded(lang):
             raise RuntimeError("Piper model download failed.")
         print("✅ Piper model ready.")
+
+    if args.audiodit:
+        from abstractvoice.audiodit.runtime import prefetch_audiodit
+
+        print("Downloading AudioDiT weights + tokenizer…")
+        path = prefetch_audiodit()
+        print(f"✅ AudioDiT ready (cached at {path}).")
 
     return 0
 

@@ -31,7 +31,7 @@ def test_interrupting_cloned_speak_does_not_resume_old_audio(monkeypatch):
     vm.tts_engine = FakeEngine()
 
     class FakeCloner:
-        def speak_to_audio_chunks(self, text, *, voice_id, speed=None, max_chars=240):
+        def speak_to_audio_chunks(self, text, *, voice_id, speed=None, max_chars=240, language=None):
             if "first" in str(text):
                 for _ in range(200):
                     yield ([0.1] * 240, 24000)

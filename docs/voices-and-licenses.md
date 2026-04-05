@@ -41,12 +41,19 @@ AbstractVoice supports voice cloning behind optional extras:
 
 - `abstractvoice[cloning]` (OpenF5-based; large artifacts)
 - `abstractvoice[chroma]` (Chroma-4B; very large; GPU-heavy)
+- `abstractvoice[audiodit]` (LongCat-AudioDiT-1B; large weights via HF)
 
 Licensing is engine- and model-dependent; verify:
 
 - the Python package license (code)
 - any model weights / checkpoints you download
 - any dataset-specific restrictions
+
+For AudioDiT specifically, verify the model card/source for:
+
+```bash
+python -m abstractvoice download --audiodit
+```
 
 ## Practical guidance
 

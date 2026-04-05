@@ -30,6 +30,14 @@ These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`)
   - PyTorch + audio/vision extensions (`torch`, `torchaudio`, `torchvision`): https://github.com/pytorch/pytorch
   - Transformers: https://github.com/huggingface/transformers
   - Accelerate (runtime helpers): https://github.com/huggingface/accelerate
+- LongCat-AudioDiT runtime deps (`abstractvoice[audiodit]`) for LongCat-AudioDiT TTS + prompt-audio cloning:
+  - Model + weights: https://huggingface.co/meituan-longcat/LongCat-AudioDiT-1B
+  - Upstream repo (code): https://github.com/meituan-longcat/LongCat-AudioDiT
+  - PyTorch (`torch`): https://github.com/pytorch/pytorch
+  - Transformers: https://github.com/huggingface/transformers
+  - einops (used by the model blocks): https://github.com/arogozhnikov/einops
+  - sentencepiece (tokenizer runtime): https://github.com/google/sentencepiece
+  - safetensors (weight format): https://github.com/huggingface/safetensors
 - AEC (`abstractvoice[aec]`) for true barge-in on speakers: https://github.com/shichaog/AEC-Audio-Processing
 - Audio effects (`abstractvoice[audio-fx]`): https://github.com/librosa/librosa
 - Legacy Whisper + token stats (`abstractvoice[stt]`): https://github.com/openai/whisper and https://github.com/openai/tiktoken
@@ -50,6 +58,14 @@ These may be installed as dependencies of the packages above:
 
 - ONNX Runtime (used by Piper for inference): https://github.com/microsoft/onnxruntime
 
+## Vendored third-party code
+
+AbstractVoice aims to avoid vendoring when possible, but some model code is not published as a stable PyPI package
+and is needed to avoid `trust_remote_code`.
+
+- LongCat-AudioDiT (MIT): https://github.com/meituan-longcat/LongCat-AudioDiT
+  - We include a HuggingFace-compatible derived implementation under `abstractvoice/audiodit/*`.
+
 ## Models and voices
 
 AbstractVoice may download model weights and voice files at runtime (explicitly or on demand, depending on `allow_downloads`).
@@ -57,5 +73,7 @@ AbstractVoice may download model weights and voice files at runtime (explicitly 
 - Piper voices are cached under `~/.piper/models` (see `abstractvoice/adapters/tts_piper.py`).
 - faster-whisper models use the Hugging Face cache by default (see `abstractvoice/adapters/stt_faster_whisper.py`).
 - Cloning artifacts are cached under `~/.cache/abstractvoice/*` (see `abstractvoice/cloning/engine_f5.py` and `abstractvoice/cloning/engine_chroma.py`).
+- AudioDiT weights use the Hugging Face cache by default (see `abstractvoice/audiodit/runtime.py`).
+  - AudioDiT also downloads a text-encoder model (default: `google/umt5-base`) via Hugging Face.
 
 Always verify upstream licenses/usage terms for the specific models/voices you deploy or redistribute. See `docs/voices-and-licenses.md`.
