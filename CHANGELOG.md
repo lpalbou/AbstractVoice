@@ -10,7 +10,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
-- TBD
+### Added
+- ADR 0005: Torch device + dtype selection policy for torch-based TTS/cloning engines.
 
 ## [0.6.1] - 2026-02-04
 
