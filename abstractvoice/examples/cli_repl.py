@@ -2819,25 +2819,40 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             pass
 
-        # Best-effort warm-up: AudioDiT clone engines have a large one-time cost
-        # (weight load + accelerator kernel compilation). Pay it now so the first
-        # real `/speak ...` after selecting the voice is much faster.
+        # Best-effort warm-up: cloned voice engines have a large one-time cost
+        # (weight load + accelerator kernel compilation + prompt encoding).
+        # Pay it now so the first real `/speak ...` after selecting the voice is much faster.
         try:
-            if str(eng or "").strip().lower() == "audiodit":
+            if not bool(getattr(self, "use_tts", True)):
+                return
+            eng_l = str(eng or "").strip().lower()
+            if eng_l:
                 t0 = time.monotonic()
-                print("ℹ️  Preloading AudioDiT cloned voice engine (first use may be slow)…")
+                print(f"ℹ️  Preloading {eng_l} cloned voice engine (first use may be slow)…")
+
+                warm = {
+                    "en": "Hello.",
+                    "fr": "Bonjour.",
+                    "de": "Hallo.",
+                    "es": "Hola.",
+                    "ru": "Привет.",
+                    "zh": "你好。",
+                }.get(str(getattr(self, "current_language", "") or "").strip().lower(), "Hello.")
+
                 # Generate a tiny utterance and discard it (no playback).
                 _ = self.voice_manager.speak_to_bytes(
-                    "Hello.",
+                    str(warm),
                     format="wav",
                     voice=str(match),
                     sanitize_syntax=False,
                 )
                 dt = float(time.monotonic() - t0)
-                print(f"✅ Preloaded AudioDiT clone engine ({dt:0.1f}s).")
+                print(f"✅ Preloaded {eng_l} clone engine ({dt:0.1f}s).")
         except Exception as e:
             if self.debug_mode:
                 print(f"⚠️  Preload skipped: {e}")
+            else:
+                print("⚠️  Preload skipped. (Enable /debug for details.)")
 
     def do_clone_my_voice(self, arg):
         """Interactive voice cloning from microphone.
