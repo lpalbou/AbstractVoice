@@ -64,6 +64,9 @@ class VoiceREPL(cmd.Cmd):
 
         # Debug mode
         self.debug_mode = debug_mode
+        # REPL-only: when enabled, persist each synthesized utterance to a WAV under
+        # `untracked/generated_wavs/` and print the path (helps pick "sticky" voices).
+        self._debug_save_wav = bool(debug_mode)
         self.verbose_mode = bool(verbose_mode)
 
         # API settings
@@ -99,6 +102,7 @@ class VoiceREPL(cmd.Cmd):
         # When reference_text is auto-generated via ASR ("asr" source), print a
         # ready-to-copy `/clone_set_ref_text ...` hint once per voice for easy correction.
         self._printed_asr_ref_text_hint: set[str] = set()
+        self._last_debug_wav_path: str | None = None
 
         # Seed a default cloned voice (HAL9000) if samples are present.
         self._seed_hal9000_voice()
@@ -1492,6 +1496,203 @@ class VoiceREPL(cmd.Cmd):
                 print("Speed should be between 0.5 and 2.0")
         except ValueError:
             print("Usage: /speed <number>  (e.g., /speed 1.5)")
+
+    def do_debug(self, arg):
+        """Toggle debug mode (REPL).
+
+        When debug is ON, we also save each synthesized utterance to a WAV under
+        `untracked/generated_wavs/` and print its path.
+
+        Usage:
+          /debug            # show current state
+          /debug on|off
+          /debug toggle
+        """
+        s = str(arg or "").strip().lower()
+        if s in ("", "status"):
+            print(f"Debug mode: {'on' if self.debug_mode else 'off'}")
+            print(f"Debug WAV save: {'on' if getattr(self, '_debug_save_wav', False) else 'off'}")
+            if getattr(self, "_last_debug_wav_path", None):
+                print(f"Last WAV: {self._last_debug_wav_path}")
+            return
+
+        if s in ("toggle",):
+            self.debug_mode = not bool(self.debug_mode)
+            self._debug_save_wav = bool(self.debug_mode)
+        elif s in ("on", "1", "true", "yes", "y"):
+            self.debug_mode = True
+            self._debug_save_wav = True
+        elif s in ("off", "0", "false", "no", "n"):
+            self.debug_mode = False
+            self._debug_save_wav = False
+        else:
+            print("Usage: /debug [on|off|toggle]")
+            return
+
+        # Best-effort propagate into VoiceManager/audio player.
+        try:
+            if self.voice_manager is not None:
+                setattr(self.voice_manager, "debug_mode", bool(self.debug_mode))
+                te = getattr(self.voice_manager, "tts_engine", None)
+                ap = getattr(te, "audio_player", None) if te is not None else None
+                if ap is not None:
+                    setattr(ap, "debug_mode", bool(self.debug_mode))
+        except Exception:
+            pass
+
+        print(f"Debug mode: {'on' if self.debug_mode else 'off'}")
+        print(f"Debug WAV save: {'on' if getattr(self, '_debug_save_wav', False) else 'off'}")
+
+    def do_random(self, arg):
+        """AudioDiT-only: audition different base voices by cycling seed.
+
+        Speaks a reference sentence, saves a WAV under:
+          untracked/voices/
+
+        Usage:
+          /random                      # next seed, reuse last sentence
+          /random <sentence...>         # set sentence, then use it
+          /random --seed <n>            # specific seed (repro), reuse last sentence
+          /random --seed <n> <sentence...>
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        # This command is specifically for AudioDiT base-voice auditioning.
+        adapter = getattr(self.voice_manager, "tts_adapter", None)
+        try:
+            engine_id = str(getattr(adapter, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine_id = ""
+        if engine_id != "audiodit" or adapter is None:
+            print("❌ /random only works when AudioDiT TTS is active.")
+            print("   Run: /tts_engine audiodit")
+            return
+
+        # Force non-cloned mode for auditioning.
+        if getattr(self, "current_tts_voice", None):
+            self.current_tts_voice = None
+
+        # Parse args: optional --seed N and optional sentence.
+        seed = None
+        phrase_override = None
+        try:
+            raw = str(arg or "").strip()
+            tokens = shlex.split(raw) if raw else []
+        except Exception:
+            tokens = []
+
+        i = 0
+        remaining: list[str] = []
+        while i < len(tokens):
+            tok = tokens[i]
+            if tok == "--seed":
+                if i + 1 >= len(tokens):
+                    print("Usage: /random [--seed N] [sentence...]")
+                    return
+                try:
+                    seed = int(tokens[i + 1])
+                except Exception:
+                    try:
+                        seed = int(float(tokens[i + 1]))
+                    except Exception:
+                        print("Usage: /random [--seed N] [sentence...]")
+                        return
+                i += 2
+                continue
+            remaining.append(tok)
+            i += 1
+
+        if remaining:
+            phrase_override = " ".join(remaining).strip()
+
+        if seed is None:
+            try:
+                nxt = int(getattr(self, "_audiodit_random_next_seed", 1000))
+            except Exception:
+                nxt = 1000
+            seed = nxt
+            self._audiodit_random_next_seed = int(seed) + 1
+
+        # Sentence selection: if provided, store it; otherwise reuse last.
+        default_phrase = "There should be at least 3 typical games and a way to chose attractive wallpapers"
+        if phrase_override:
+            phrase = phrase_override
+            self._audiodit_random_phrase = str(phrase_override)
+        else:
+            phrase = str(getattr(self, "_audiodit_random_phrase", "") or "").strip() or default_phrase
+            # Keep it stable for subsequent /random calls.
+            self._audiodit_random_phrase = str(phrase)
+
+        # Stop any currently-playing audio so auditions are responsive.
+        try:
+            self.voice_manager.stop_speaking()
+        except Exception:
+            pass
+
+        # Reset session prompt so each audition is an independent "voice".
+        try:
+            if hasattr(adapter, "reset_session_prompt"):
+                adapter.reset_session_prompt()
+        except Exception:
+            pass
+
+        # Best-effort: set AudioDiT seed for this audition and keep it (so the
+        # selected voice stays deterministic for subsequent /speak calls).
+        try:
+            settings = getattr(adapter, "_settings", None)
+            if settings is not None and hasattr(settings, "seed"):
+                setattr(settings, "seed", int(seed))
+        except Exception:
+            pass
+
+        # Synthesize once, save, then play the already-produced audio.
+        try:
+            import numpy as np
+            import soundfile as sf
+            from pathlib import Path
+
+            audio = adapter.synthesize(phrase)
+            sr = int(adapter.get_sample_rate())
+            out_dir = Path("untracked") / "voices"
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            out_path = out_dir / f"audiodit_seed_{int(seed)}.wav"
+            if out_path.exists():
+                i = 2
+                while (out_dir / f"audiodit_seed_{int(seed)}_{i}.wav").exists():
+                    i += 1
+                out_path = out_dir / f"audiodit_seed_{int(seed)}_{i}.wav"
+
+            wav = np.asarray(audio, dtype=np.float32).reshape(-1)
+            sf.write(str(out_path), wav, int(sr), format="WAV", subtype="PCM_16")
+
+            # Reuse the normal playback pipeline (pause/resume/stop works).
+            try:
+                if getattr(self.voice_manager, "tts_engine", None):
+                    self.voice_manager.tts_engine.play_audio_array(wav)
+            except Exception:
+                # Worst-case fallback: speak normally (may re-synthesize).
+                self._speak_with_spinner_until_audio_starts(phrase)
+
+            print(f"✅ Saved: {out_path}")
+            print(f"   seed: {int(seed)}")
+            print(f"   text: {phrase}")
+            try:
+                print(f"   replay: /random --seed {int(seed)}")
+            except Exception:
+                pass
+            print("   To make this voice persistent via cloning:")
+            try:
+                p_q = shlex.quote(str(out_path))
+                t_q = shlex.quote(str(phrase))
+            except Exception:
+                p_q = str(out_path)
+                t_q = f"\"{phrase}\""
+            print(f"     /clone {p_q} voice_{int(seed)} --engine audiodit --text {t_q}")
+        except Exception as e:
+            print(f"❌ /random failed: {e}")
     
     def do_tts_model(self, arg):
         """Deprecated: legacy TTS model switching.
@@ -1580,6 +1781,12 @@ class VoiceREPL(cmd.Cmd):
         speak_text = text
 
         is_clone = bool(self.current_tts_voice)
+
+        # Debug: persist WAV and print path (works for both TTS and cloned voices).
+        if bool(getattr(self, "_debug_save_wav", False)):
+            self._debug_speak_and_save_wav(speak_text, voice_id=self.current_tts_voice)
+            return
+
         if not is_clone:
             # Offline-first: Piper voices must be explicitly cached. Provide a clear
             # message instead of hanging on implicit downloads.
@@ -1638,6 +1845,88 @@ class VoiceREPL(cmd.Cmd):
                 pass
             # Do not print the prompt manually: `cmd` will render it on return,
             # and printing here can result in duplicate prompts (`> >`).
+
+    def _debug_speak_and_save_wav(self, text: str, *, voice_id: str | None) -> None:
+        """Synthesize to a WAV file, print its path, then play it.
+
+        This intentionally uses the non-streaming `speak_to_file` path so the
+        saved file exactly matches what is played.
+        """
+        if not self.voice_manager:
+            return
+        try:
+            from datetime import datetime
+            from pathlib import Path
+            import re as _re
+
+            import numpy as np
+            import soundfile as sf
+
+            out_dir = Path("untracked") / "generated_wavs"
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            # Derive engine/voice labels for easier browsing.
+            engine = "tts"
+            voice_label = "piper"
+            seed_txt = ""
+            if voice_id:
+                info = self.voice_manager.get_cloned_voice(str(voice_id)) or {}
+                engine = str(info.get("engine") or "clone").strip().lower() or "clone"
+                nm = str(info.get("name") or "").strip()
+                vid8 = str(info.get("voice_id") or str(voice_id))[:8]
+                voice_label = (nm or vid8).strip() or vid8
+            else:
+                a = getattr(self.voice_manager, "tts_adapter", None)
+                engine = str(getattr(a, "engine_id", "") or "").strip().lower() or "tts"
+                voice_label = engine
+                if engine == "audiodit" and a is not None:
+                    try:
+                        st = getattr(a, "_settings", None)
+                        sd = getattr(st, "seed", None) if st is not None else None
+                        if sd is not None:
+                            seed_txt = f"_seed{int(sd)}"
+                    except Exception:
+                        seed_txt = ""
+
+            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")[:19]
+            base = f"{engine}_{voice_label}{seed_txt}_{ts}.wav"
+            base = _re.sub(r"[^a-zA-Z0-9_.-]+", "_", base).strip("_")
+            out_path = out_dir / base
+            if out_path.exists():
+                out_path = out_dir / f"{out_path.stem}_2{out_path.suffix}"
+
+            # Synthesize to disk first so we can print a stable path.
+            try:
+                self.voice_manager.stop_speaking()
+            except Exception:
+                pass
+            t0 = time.monotonic()
+            wav_path = self.voice_manager.speak_to_file(
+                str(text),
+                str(out_path),
+                format="wav",
+                voice=str(voice_id) if voice_id else None,
+            )
+            gen_s = float(time.monotonic() - t0)
+            self._last_debug_wav_path = str(wav_path)
+            print(f"🔎 WAV: {wav_path}")
+            print(f"⏱️  Generated in: {gen_s:0.2f}s")
+
+            # Play what we just generated (so what you hear matches the saved file).
+            audio, sr = sf.read(str(wav_path), dtype="float32", always_2d=True)
+            mono = np.mean(audio, axis=1).astype(np.float32).reshape(-1)
+            sr = int(sr)
+            te = getattr(self.voice_manager, "tts_engine", None)
+            if te is not None and hasattr(te, "begin_playback") and hasattr(te, "enqueue_audio"):
+                te.begin_playback(sample_rate=sr)
+                try:
+                    te.enqueue_audio(mono, sample_rate=sr)
+                except TypeError:
+                    te.enqueue_audio(mono)
+            elif te is not None and getattr(te, "audio_player", None) is not None:
+                te.audio_player.play_audio(mono, sample_rate=sr)
+        except Exception as e:
+            print(f"❌ Debug WAV save failed: {e}")
 
     def _maybe_print_asr_ref_text_override(self, voice_id: str) -> None:
         """If `reference_text` was auto-generated via ASR, print a paste-ready override hint.
@@ -2073,11 +2362,44 @@ class VoiceREPL(cmd.Cmd):
             eng_txt = f" (engine: {eng})" if eng else ""
             print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
             print("   Use /tts_voice clone <id-or-name> to select it.")
-            print("   Tip: set reference text for best quality:")
-            print("     /clone_set_ref_text <id-or-name> \"...\"")
+            if self.debug_mode:
+                try:
+                    base_dir = ""
+                    if hasattr(self.voice_manager, "get_cloned_voice_store_dir"):
+                        base_dir = str(self.voice_manager.get_cloned_voice_store_dir() or "").strip()
+                    if base_dir:
+                        print(f"   📁 store: {base_dir}")
+                except Exception:
+                    pass
+            if reference_text:
+                print("   (Reference text provided)")
+            else:
+                print("   Tip: set reference text for best quality:")
+                print("     /clone_set_ref_text <id-or-name> \"...\"")
             if not self._is_cloning_runtime_ready(voice_id=voice_id):
                 print("   (Cloning runtime not ready yet; run /cloning_status and /cloning_download first.)")
-            if str(eng or (engine or self.cloning_engine) or "").strip().lower() == "chroma" and not (reference_text or "").strip():
+            eng_l = str(eng or (engine or self.cloning_engine) or "").strip().lower()
+            if eng_l == "audiodit" and not (reference_text or "").strip():
+                # AudioDiT needs prompt_text matching the prompt_audio. We can often
+                # auto-transcribe if a Faster-Whisper model is already cached locally
+                # (offline-first: never download implicitly in the REPL).
+                try:
+                    cloner = self.voice_manager._get_voice_cloner()  # REPL convenience
+                    ref = cloner._ensure_reference_text(voice_id)  # type: ignore[attr-defined]
+                    ref = str(ref or "").strip()
+                    if ref:
+                        print("✅ Auto-generated reference transcript from the reference audio (cached STT).")
+                        print(f"   Tip: /clone_ref {voice_id}  (print full transcript)")
+                except Exception as e:
+                    print("ℹ️  AudioDiT cloning uses prompt_audio + prompt_text; the transcript matters a lot.")
+                    print("   Auto-transcription was not available (offline-first).")
+                    msg = str(e or "").strip()
+                    if msg:
+                        print(str(msg))
+                    print("   Please set it before speaking with this clone:")
+                    print("     /clone_set_ref_text <id-or-name> \"...\"")
+                    print("   (Or re-run /clone ... --text \"...\")")
+            elif eng_l == "chroma" and not (reference_text or "").strip():
                 print("ℹ️  No reference transcript provided.")
                 print("   We will auto-generate it via STT on first speak (offline-first: requires cached STT model).")
                 print("   Optional (often best quality): /clone_set_ref_text <id-or-name> \"...\"  (or re-run /clone ... --text \"...\")")
@@ -2325,6 +2647,33 @@ class VoiceREPL(cmd.Cmd):
             print(f"❌ Unknown cloned voice: {wanted}. Use /clones to list.")
             return
 
+        # AudioDiT requires prompt_text matching the prompt_audio. If missing, try
+        # to auto-transcribe with cached STT (offline-first: no implicit downloads).
+        try:
+            info = self.voice_manager.get_cloned_voice(match) or {}
+            eng = str((info.get("engine") or "")).strip().lower()
+            ref_text = str((info.get("reference_text") or "")).strip()
+        except Exception:
+            eng = ""
+            ref_text = ""
+        if eng == "audiodit" and not ref_text:
+            try:
+                cloner = self.voice_manager._get_voice_cloner()  # REPL convenience
+                _ = cloner._ensure_reference_text(match)  # type: ignore[attr-defined]
+                info = self.voice_manager.get_cloned_voice(match) or {}
+                ref_text = str((info.get("reference_text") or "")).strip()
+            except Exception as e:
+                print("❌ AudioDiT cloned voices require a reference transcript (`prompt_text`).")
+                print("   Auto-transcription was not available (offline-first).")
+                msg = str(e or "").strip()
+                if msg:
+                    print(str(msg))
+                print("   Set it manually:")
+                print("     /clone_set_ref_text <id-or-name> \"...\"")
+                print("   Then re-run:")
+                print("     /tts_voice clone <id-or-name>")
+                return
+
         # Do not allow selecting a cloned voice unless the runtime is ready.
         if not self._is_cloning_runtime_ready(voice_id=match):
             print("❌ Cloning runtime is not ready (would trigger large downloads).")
@@ -2357,6 +2706,26 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager.unload_piper_voice()
         except Exception:
             pass
+
+        # Best-effort warm-up: AudioDiT clone engines have a large one-time cost
+        # (weight load + accelerator kernel compilation). Pay it now so the first
+        # real `/speak ...` after selecting the voice is much faster.
+        try:
+            if str(eng or "").strip().lower() == "audiodit":
+                t0 = time.monotonic()
+                print("ℹ️  Preloading AudioDiT cloned voice engine (first use may be slow)…")
+                # Generate a tiny utterance and discard it (no playback).
+                _ = self.voice_manager.speak_to_bytes(
+                    "Hello.",
+                    format="wav",
+                    voice=str(match),
+                    sanitize_syntax=False,
+                )
+                dt = float(time.monotonic() - t0)
+                print(f"✅ Preloaded AudioDiT clone engine ({dt:0.1f}s).")
+        except Exception as e:
+            if self.debug_mode:
+                print(f"⚠️  Preload skipped: {e}")
 
     def do_clone_my_voice(self, arg):
         """Interactive voice cloning from microphone.
@@ -2423,6 +2792,17 @@ class VoiceREPL(cmd.Cmd):
             else:
                 print("ℹ️  Chroma artifacts: not present (will require a large download + HF access)")
                 print("   Run: /cloning_download chroma")
+
+        # AudioDiT (optional) is both a TTS engine and a cloning backend.
+        if importlib.util.find_spec("torch") is None or importlib.util.find_spec("transformers") is None:
+            print("ℹ️  AudioDiT runtime: not installed (missing: torch/transformers)")
+            print("   Install: pip install \"abstractvoice[audiodit]\"")
+        else:
+            if self._is_audiodit_cached():
+                print("✅ AudioDiT weights: present (cached)")
+            else:
+                print("ℹ️  AudioDiT weights: not present (will require a large download + HF access)")
+                print("   Run: /cloning_download audiodit")
         try:
             if self.voice_manager:
                 info = self.voice_manager.get_cloning_runtime_info()
@@ -2471,22 +2851,58 @@ class VoiceREPL(cmd.Cmd):
                 print("❌ huggingface_hub is required to download Chroma artifacts.")
                 print("   Install: pip install huggingface_hub")
                 return
+        elif engine_name == "audiodit":
+            if importlib.util.find_spec("huggingface_hub") is None:
+                print("❌ huggingface_hub is required to download AudioDiT weights.")
+                print("   Install: pip install huggingface_hub")
+                return
+            if importlib.util.find_spec("torch") is None or importlib.util.find_spec("transformers") is None:
+                print("❌ AudioDiT runtime not installed in this environment (missing: torch/transformers).")
+                print("   Install: pip install \"abstractvoice[audiodit]\"")
+                return
         else:
-            print("Usage: /cloning_download [f5_tts|chroma]")
+            print("Usage: /cloning_download [f5_tts|chroma|audiodit]")
             return
 
         try:
-            cloner = self.voice_manager._get_voice_cloner()  # REPL convenience
-            engine = cloner._get_engine(engine_name)  # explicit download is an engine concern
             if engine_name == "f5_tts":
+                cloner = self.voice_manager._get_voice_cloner()  # REPL convenience
+                engine = cloner._get_engine(engine_name)  # explicit download is an engine concern
                 print("Downloading OpenF5 artifacts (~5.4GB). This is a one-time cache per machine.")
                 engine.ensure_openf5_artifacts_downloaded()
-            else:
+            elif engine_name == "chroma":
+                cloner = self.voice_manager._get_voice_cloner()  # REPL convenience
+                engine = cloner._get_engine(engine_name)  # explicit download is an engine concern
                 print("Downloading Chroma artifacts (very large; requires HF access). This is a one-time cache per machine.")
                 engine.ensure_chroma_artifacts_downloaded()
+            else:
+                from abstractvoice.audiodit.runtime import prefetch_audiodit
+
+                print("Downloading AudioDiT weights + tokenizer (very large; requires HF access).")
+                prefetch_audiodit()
             print("✅ Download complete.")
         except Exception as e:
             print(f"❌ Download failed: {e}")
+
+    def _is_audiodit_cached(self) -> bool:
+        """Heuristic local check that avoids importing huggingface_hub."""
+        from pathlib import Path
+        import os
+
+        # Default model_id for AudioDiT runtime.
+        base = Path(os.path.expanduser("~/.cache/huggingface/hub"))
+        root = base / "models--meituan-longcat--LongCat-AudioDiT-1B" / "snapshots"
+        if not root.exists():
+            return False
+        try:
+            for snap in root.iterdir():
+                if not snap.is_dir():
+                    continue
+                if (snap / "model.safetensors").exists() and (snap / "config.json").exists():
+                    return True
+        except Exception:
+            return False
+        return False
 
     def _is_openf5_cached(self) -> bool:
         """Heuristic local check that avoids importing huggingface_hub."""
@@ -2531,6 +2947,12 @@ class VoiceREPL(cmd.Cmd):
         if not eng:
             eng = str(getattr(self, "cloning_engine", "f5_tts") or "f5_tts").strip().lower()
 
+        if eng == "audiodit":
+            return (
+                importlib.util.find_spec("torch") is not None
+                and importlib.util.find_spec("transformers") is not None
+                and self._is_audiodit_cached()
+            )
         if eng == "chroma":
             return (
                 importlib.util.find_spec("torch") is not None
@@ -2912,11 +3334,13 @@ class VoiceREPL(cmd.Cmd):
         print("  /lang_info          Show current language information")
         print("  /list_languages     List all supported languages")
         print("  /speed <number>     Set TTS speed (0.5-2.0, default: 1.0, pitch preserved)")
+        print("  /debug [on|off]     Debug mode + save synthesized WAVs")
         print("  /tts_voice ...      Select Piper vs cloned voice (see below)")
         print("  /tts_engine <e>     Switch TTS engine: auto|piper|audiodit")
         print("  /whisper <model>    Switch Whisper model: tiny|base|small|medium|large")
         print("  /stt_engine <e>     Switch STT engine: auto|faster_whisper|whisper (whisper is optional extra)")
         print("  /speak <text>       Speak text (no LLM call)")
+        print("  /random [seed]      AudioDiT: audition voices, save WAV to untracked/voices/")
         print("  /transcribe <path>  Transcribe an audio file (faster-whisper by default)")
         print("  /system <prompt>    Set system prompt")
         print("  /stop               Stop voice mode or TTS playback")
@@ -2940,7 +3364,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /tts_voice piper    Speak with Piper (default)")
         print("  /tts_voice clone X  Speak with a cloned voice (requires cloning runtime + cache)")
         print("  /cloning_status     Show cloning readiness (no downloads)")
-        print("  /cloning_download   Explicitly download OpenF5 artifacts (~5.4GB)")
+        print("  /cloning_download   Explicitly download cloning artifacts (f5_tts|chroma|audiodit)")
         print("  /clone_quality      Set cloned TTS speed/quality: fast|balanced|high")
         print("  /save <filename>    Save chat history to file")
         print("  /load <filename>    Load chat history from file")

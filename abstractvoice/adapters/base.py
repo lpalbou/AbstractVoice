@@ -112,6 +112,23 @@ class TTSAdapter(ABC):
             'available': self.is_available()
         }
 
+    # ---------------------------------------------------------------------
+    # Optional quality preset (engine-agnostic knob)
+    # ---------------------------------------------------------------------
+
+    def set_quality_preset(self, preset: str) -> bool:
+        """Best-effort speed/quality preset for this TTS engine.
+
+        Presets are intended to be engine-agnostic (e.g. `fast|balanced|high`).
+        Engines that do not support quality tuning may return False.
+        """
+        _ = preset
+        return False
+
+    def get_quality_preset(self) -> Optional[str]:
+        """Return the currently active quality preset, if supported."""
+        return None
+
 
 class STTAdapter(ABC):
     """Abstract base class for Speech-to-Text adapters.

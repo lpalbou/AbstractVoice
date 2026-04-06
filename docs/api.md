@@ -62,6 +62,11 @@ Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh`
 - `set_speed(speed: float) -> bool`, `get_speed() -> float`
   - Adjusts the default speaking speed used by `speak_to_*()` and the REPL.
 
+- `set_tts_quality_preset(preset: str) -> bool`, `get_tts_quality_preset() -> str | None`
+  - Engine-agnostic speed/quality knob (`fast|balanced|high`).
+  - Engines that don’t support quality tuning may return `False` / `None` (Piper is typically a no-op).
+  - For AudioDiT this primarily maps to diffusion `steps` (and a small guidance-strength tweak).
+
 - `pause_speaking() -> bool`, `resume_speaking() -> bool`, `stop_speaking() -> bool`
   - Playback control.
 

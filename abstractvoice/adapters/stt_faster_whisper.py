@@ -13,6 +13,7 @@ import io
 import logging
 import numpy as np
 import tempfile
+import warnings
 from pathlib import Path
 from typing import Optional, Dict, Any
 import wave
@@ -118,23 +119,41 @@ class FasterWhisperAdapter(STTAdapter):
             # When downloads are not allowed, force HF offline mode so we never pull
             # bytes from the network implicitly.
             old_offline = os.environ.get("HF_HUB_OFFLINE")
+            old_tf_offline = os.environ.get("TRANSFORMERS_OFFLINE")
             old_disable_pb = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
             if not self._allow_downloads:
                 os.environ["HF_HUB_OFFLINE"] = "1"
+                os.environ["TRANSFORMERS_OFFLINE"] = "1"
                 os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
             try:
-                self._model = self._WhisperModel(
-                    model_size,
-                    device=device,
-                    compute_type=compute_type,
-                    download_root=None,  # Use default cache (~/.cache/huggingface)
-                )
+                with warnings.catch_warnings():
+                    # Avoid noisy HF Hub token warnings in offline-first flows.
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=r"^Warning: You are sending unauthenticated requests to the HF Hub\\..*",
+                    )
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=r"^You are sending unauthenticated requests to the HF Hub\\..*",
+                    )
+                    self._model = self._WhisperModel(
+                        model_size,
+                        device=device,
+                        compute_type=compute_type,
+                        download_root=None,  # Use default cache (~/.cache/huggingface)
+                        local_files_only=bool(not self._allow_downloads),
+                        use_auth_token=False if not self._allow_downloads else None,
+                    )
             finally:
                 if not self._allow_downloads:
                     if old_offline is None:
                         os.environ.pop("HF_HUB_OFFLINE", None)
                     else:
                         os.environ["HF_HUB_OFFLINE"] = old_offline
+                    if old_tf_offline is None:
+                        os.environ.pop("TRANSFORMERS_OFFLINE", None)
+                    else:
+                        os.environ["TRANSFORMERS_OFFLINE"] = old_tf_offline
                     if old_disable_pb is None:
                         os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
                     else:
@@ -179,19 +198,23 @@ class FasterWhisperAdapter(STTAdapter):
             )
         
         try:
-            # Transcribe with faster-whisper
-            segments, info = self._model.transcribe(
-                audio_path,
-                language=language,
-                beam_size=5,
-                best_of=5,
-                temperature=0.0,
-                vad_filter=True,  # Use Voice Activity Detection
-                vad_parameters=dict(min_silence_duration_ms=500),
-                hotwords=hotwords,
-                initial_prompt=initial_prompt,
-                condition_on_previous_text=bool(condition_on_previous_text),
-            )
+            with warnings.catch_warnings():
+                # faster-whisper can emit benign FP runtime warnings during mel extraction.
+                warnings.filterwarnings("ignore", category=RuntimeWarning, message=r".*encountered in matmul.*")
+
+                # Transcribe with faster-whisper
+                segments, info = self._model.transcribe(
+                    audio_path,
+                    language=language,
+                    beam_size=5,
+                    best_of=5,
+                    temperature=0.0,
+                    vad_filter=True,  # Use Voice Activity Detection
+                    vad_parameters=dict(min_silence_duration_ms=500),
+                    hotwords=hotwords,
+                    initial_prompt=initial_prompt,
+                    condition_on_previous_text=bool(condition_on_previous_text),
+                )
             
             # Combine all segments
             text = " ".join([segment.text.strip() for segment in segments])
@@ -281,18 +304,20 @@ class FasterWhisperAdapter(STTAdapter):
                 x = linear_resample_mono(x, sr, 16000)
                 sr = 16000
 
-            segments, info = self._model.transcribe(
-                x,
-                language=language,
-                beam_size=2,
-                best_of=2,
-                temperature=0.0,
-                vad_filter=False,
-                hotwords=hotwords,
-                initial_prompt=initial_prompt,
-                condition_on_previous_text=bool(condition_on_previous_text),
-                without_timestamps=True,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning, message=r".*encountered in matmul.*")
+                segments, info = self._model.transcribe(
+                    x,
+                    language=language,
+                    beam_size=2,
+                    best_of=2,
+                    temperature=0.0,
+                    vad_filter=False,
+                    hotwords=hotwords,
+                    initial_prompt=initial_prompt,
+                    condition_on_previous_text=bool(condition_on_previous_text),
+                    without_timestamps=True,
+                )
             text = " ".join([segment.text.strip() for segment in segments])
             if language is None:
                 logger.debug(f"Detected language: {info.language} (confidence: {info.language_probability:.2f})")
