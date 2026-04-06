@@ -1,23 +1,24 @@
 # AbstractVoice
 
-A modular Python library for **voice I/O** around AI applications.
+A modular Python library that abstracts **TTS**, **STT**, and **voice cloning** across multiple engines — designed for offline-first AI applications.
 
 - **TTS (default)**: Piper (cross-platform, no system deps)
 - **STT (default)**: faster-whisper
 - **Local assistant**: `listen()` + `speak()` with playback/listening control
 - **Headless/server**: `speak_to_bytes()` / `speak_to_file()` and `transcribe_*`
+- **Voice cloning (optional)**: OpenF5, Chroma, AudioDiT, OmniVoice (engine-bound cloned voices)
 
-Status: **alpha** (`0.6.3`). The supported integrator surface is documented in `docs/api.md`.
+Status: **alpha** (`0.7.0`). The supported integrator surface is documented in `docs/api.md`.
 
 Next: `docs/getting-started.md` (recommended setup + first smoke tests).
 
-## AbstractFramework ecosystem
+## Standalone vs AbstractCore / AbstractFramework
 
-AbstractVoice is part of the **AbstractFramework** ecosystem:
+AbstractVoice can be used **standalone** (library + REPL), and it is also designed to be used as a **capability plugin backend** for AbstractCore (and therefore the wider AbstractFramework ecosystem).
 
-- AbstractFramework (umbrella): https://github.com/lpalbou/AbstractFramework
-- AbstractCore (agents/capabilities): https://github.com/lpalbou/abstractcore
-- AbstractRuntime (runtime + artifacts): https://github.com/lpalbou/abstractruntime
+Key links:
+- AbstractCore (agents/capabilities): `https://abstractcore.ai` and `https://github.com/lpalbou/abstractcore`
+- AbstractFramework (umbrella): `https://github.com/lpalbou/abstractframework`
 
 Integration points (code evidence):
 
@@ -26,7 +27,7 @@ Integration points (code evidence):
 - AbstractRuntime ArtifactStore adapter (optional, duck-typed): `abstractvoice/artifacts.py`
 
 **Important**: AbstractVoice is a **voice I/O library** (TTS/STT + optional cloning). It is not an agent framework and it does not implement an LLM server.
-In the AbstractFramework stack, **AbstractCore** is the intended place to run agents and expose OpenAI-compatible HTTP endpoints; AbstractVoice is discovered as a **capability backend plugin** and provides the TTS/STT implementation.
+In the AbstractFramework stack, **AbstractCore** is the intended place to run agents and expose OpenAI-compatible endpoints; AbstractVoice is discovered as a plugin and provides the voice implementation.
 
 ```mermaid
 flowchart LR
@@ -42,6 +43,21 @@ flowchart LR
 ```
 
 The shipped AbstractCore integration is via the capability plugin above. The `abstractvoice` REPL is a **demonstrator/smoke-test harness** (see `docs/repl_guide.md`) and includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for convenience.
+
+### Use with AbstractCore
+
+Install AbstractVoice into the same environment as AbstractCore:
+
+```bash
+pip install abstractcore abstractvoice
+```
+
+AbstractCore will discover AbstractVoice via the `abstractcore.capabilities_plugins` entry point and use it as a voice backend.
+For the current AbstractCore surface (e.g. `llm.voice.tts(...)` / `llm.audio.transcribe(...)`), refer to the AbstractCore docs: `https://abstractcore.ai` and `https://github.com/lpalbou/abstractcore`.
+
+### Use with AbstractFramework
+
+If you’re using the full AbstractFramework stack, install and run via the umbrella project and gateway tooling. Start here: `https://github.com/lpalbou/abstractframework`.
 
 ---
 

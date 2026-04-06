@@ -11,6 +11,14 @@ Older changelog entries may reference historical CLI commands or model choices.
 ## [Unreleased]
 
 ### Added
+- (nothing yet)
+
+### Fixed
+- (nothing yet)
+
+## [0.7.0] - 2026-04-06
+
+### Added
 - ADR 0005: Torch device + dtype selection policy for torch-based TTS/cloning engines.
 - Pluggable TTS adapter registry (keeps `auto` deterministic; enables opt-in heavy engines).
 - `abstractvoice[audiodit]` optional extra and LongCat-AudioDiT integration (TTS + prompt-audio cloning).
