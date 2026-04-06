@@ -253,19 +253,22 @@ class NonBlockingAudioPlayer:
 
         last_err: Exception | None = None
         for device in device_candidates:
-            # Build per-device candidate sample rates (desired, then device default, then common).
+            # Build per-device candidate sample rates (desired first, then device default, then common).
             sr_candidates: list[int] = []
             try:
                 dev = sd.query_devices(device, "output") if device is not None else sd.query_devices(None, "output")
                 default_sr = int(round(float(dev.get("default_samplerate", 0) or 0)))
-                if default_sr:
-                    sr_candidates.append(default_sr)
                 max_ch = int(dev.get("max_output_channels", 0) or 0)
             except Exception:
+                default_sr = 0
                 max_ch = 0
 
-            if desired_sr and desired_sr not in sr_candidates:
-                sr_candidates.append(desired_sr)
+            # Prefer opening the stream at the audio's natural rate to avoid resampling
+            # (e.g. 24 kHz for AudioDiT). If the device rejects it, we fall back.
+            if desired_sr:
+                sr_candidates.append(int(desired_sr))
+            if default_sr and int(default_sr) not in sr_candidates:
+                sr_candidates.append(int(default_sr))
 
             for sr in common_rates:
                 if sr not in sr_candidates:

@@ -34,6 +34,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Added engine-agnostic TTS quality presets (`fast|balanced|high`) via `VoiceManager.set_tts_quality_preset(...)` (where supported by the active TTS adapter).
 - Cloning: `set_cloned_tts_quality(...)` now persists the preset so it also applies to cloning engines that are loaded later (engines are lazy).
 - REPL: selecting an AudioDiT cloned voice now performs a small warm-up to pay the one-time load/compile cost up front (reduces first `/speak` latency).
+- REPL: discard `<think>...</think>` blocks in LLM responses before printing/history/TTS.
 
 ## [0.6.1] - 2026-02-04
 

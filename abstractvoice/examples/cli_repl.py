@@ -19,6 +19,47 @@ import threading
 import time
 import requests
 from abstractvoice import VoiceManager
+from abstractvoice.examples.llm_provider import (
+    LLMProvider, resolve_provider, PROVIDER_PRESETS, DEFAULT_PROVIDER, DEFAULT_MODEL,
+)
+
+
+_THINK_BLOCK_RE = re.compile(r"<think\b[^>]*>.*?</think\s*>\s*", flags=re.IGNORECASE | re.DOTALL)
+_THINK_OPEN_RE = re.compile(r"<think\b[^>]*>", flags=re.IGNORECASE | re.DOTALL)
+_THINK_TAG_RE = re.compile(r"</?think\b[^>]*>", flags=re.IGNORECASE | re.DOTALL)
+_RE_MANY_BLANK_LINES = re.compile(r"\n{3,}")
+
+
+def strip_think_blocks(text: str) -> str:
+    """Discard `<think>...</think>` blocks from LLM output.
+
+    Some OpenAI-compatible endpoints (and local models) emit chain-of-thought in
+    `<think>` tags. The REPL treats this as non-user-facing and removes it before:
+    - printing to the terminal
+    - adding to conversation history
+    - sending to TTS
+    """
+    s = str(text or "")
+    if not s:
+        return ""
+    # Fast path: avoid regex work on the common case.
+    if "<think" not in s.lower():
+        return s.strip()
+
+    # Remove well-formed blocks first (multiline, case-insensitive).
+    # Consume trailing whitespace so we don't leave extra blank lines.
+    out = _THINK_BLOCK_RE.sub("", s)
+
+    # If the model emitted an opening tag without a closing tag, drop everything
+    # after it (best-effort to avoid speaking hidden reasoning).
+    m = _THINK_OPEN_RE.search(out)
+    if m is not None and "</think" not in out[m.end() :].lower():
+        out = out[: m.start()]
+
+    # Remove any remaining tags (defensive; handles stray open/close tags).
+    out = _THINK_TAG_RE.sub("", out)
+    out = _RE_MANY_BLANK_LINES.sub("\n\n", out)
+    return out.strip()
 
 
 # ANSI color codes
@@ -45,8 +86,8 @@ class VoiceREPL(cmd.Cmd):
     
     def __init__(
         self,
-        api_url="http://localhost:11434/api/chat",
-        model="cogito:3b",
+        api_url: str | None = None,
+        model: str | None = None,
         debug_mode=False,
         verbose_mode: bool = False,
         language="en",
@@ -54,6 +95,7 @@ class VoiceREPL(cmd.Cmd):
         voice_mode: str = "off",
         disable_tts=False,
         cloning_engine: str = "f5_tts",
+        provider: str | None = None,
     ):
         super().__init__()
 
@@ -69,9 +111,13 @@ class VoiceREPL(cmd.Cmd):
         self._debug_save_wav = bool(debug_mode)
         self.verbose_mode = bool(verbose_mode)
 
-        # API settings
-        self.api_url = api_url
-        self.model = model
+        # LLM provider (OpenAI-compatible API).
+        # --provider takes precedence; --api is a backward-compat override.
+        if api_url:
+            self.provider = resolve_provider(api_url)
+        else:
+            self.provider = resolve_provider(provider or DEFAULT_PROVIDER)
+        self.model = model or DEFAULT_MODEL
         self.temperature = 0.4
         self.max_tokens = 4096
 
@@ -127,7 +173,7 @@ class VoiceREPL(cmd.Cmd):
         self.system_tokens = 0
         self.user_tokens = 0
         self.assistant_tokens = 0
-        # LLM token totals (best-effort, Ollama API `eval_count`).
+        # LLM token totals (best-effort, from API usage.completion_tokens).
         self.total_llm_out_tokens = 0
         # Word counting
         self.system_words = 0
@@ -143,8 +189,8 @@ class VoiceREPL(cmd.Cmd):
         self._pending_stt_metrics: dict | None = None
 
         if self.debug_mode:
-            print(f"Initialized with API URL: {api_url}")
-            print(f"Using model: {model}")
+            print(f"Initialized provider: {self.provider}")
+            print(f"Using model: {self.model}")
 
         # Optionally auto-start voice input (mic). Keep OFF by default to avoid
         # loading STT models (slow) unless the user explicitly opts in.
@@ -245,12 +291,13 @@ class VoiceREPL(cmd.Cmd):
     def _get_intro(self):
         """Generate intro message with help."""
         intro = f"\n{Colors.BOLD}Welcome to AbstractVoice CLI REPL{Colors.END}\n"
+        prov_label = f"{self.provider.name} ({self.provider.base_url})"
         if self.voice_manager:
             lang_name = self.voice_manager.get_language_name()
             mic = (self.voice_mode or "off").upper()
-            intro += f"API: {self.api_url} | Model: {self.model} | Voice: {lang_name} | Mic: {mic} | Cloning: {self.cloning_engine}\n"
+            intro += f"Provider: {prov_label} | Model: {self.model} | Voice: {lang_name} | Mic: {mic} | Cloning: {self.cloning_engine}\n"
         else:
-            intro += f"API: {self.api_url} | Model: {self.model} | Voice: Disabled\n"
+            intro += f"Provider: {prov_label} | Model: {self.model} | Voice: Disabled\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
         intro += "  • Type messages to chat with the LLM\n"
         intro += "  • Voice input (mic): off by default. Enable: /voice stop  (or start with --voice-mode stop)\n"
@@ -385,8 +432,8 @@ class VoiceREPL(cmd.Cmd):
 
         llm_s = llm.get("s")
         api = llm.get("api") if isinstance(llm.get("api"), dict) else {}
-        api_prompt_tok = api.get("prompt_eval_count") if isinstance(api.get("prompt_eval_count"), int) else None
-        api_out_tok = api.get("eval_count") if isinstance(api.get("eval_count"), int) else None
+        api_prompt_tok = api.get("prompt_tokens") if isinstance(api.get("prompt_tokens"), int) else None
+        api_out_tok = api.get("completion_tokens") if isinstance(api.get("completion_tokens"), int) else None
 
         # Line 1: STT (if any) + LLM + in/out counts and written speed.
         parts1 = []
@@ -637,90 +684,51 @@ class VoiceREPL(cmd.Cmd):
         self.messages.append(user_message)
         
         if self.debug_mode:
-            print(f"Sending request to API: {self.api_url}")
+            print(f"Sending request to: {self.provider.chat_url}")
             
         try:
-            # Structure the payload with system prompt outside the messages array
             payload = {
                 "model": self.model,
                 "messages": self.messages,
-                "stream": False,  # Disable streaming for simplicity
+                "stream": False,
                 "temperature": self.temperature,
-                "max_tokens": self.max_tokens
+                "max_tokens": self.max_tokens,
             }
             
-            # Make API request
             llm_t0 = time.monotonic()
-            response = requests.post(self.api_url, json=payload)
+            response = requests.post(self.provider.chat_url, json=payload)
             response.raise_for_status()
             
-            # Try to parse response
             try:
-                # First, try to parse as JSON
                 response_data = response.json()
                 api_llm_metrics = {}
-                try:
-                    # Ollama exposes timing + token counts (nanoseconds).
-                    # Keep best-effort: if fields are missing, we just omit them.
-                    for k in (
-                        "total_duration",
-                        "load_duration",
-                        "prompt_eval_count",
-                        "prompt_eval_duration",
-                        "eval_count",
-                        "eval_duration",
-                    ):
-                        if k in response_data:
-                            api_llm_metrics[k] = response_data.get(k)
-                except Exception:
-                    api_llm_metrics = {}
-                
-                # Check for different API formats
-                if "message" in response_data and "content" in response_data["message"]:
-                    # Ollama format
+
+                # OpenAI-compat usage (prompt_tokens, completion_tokens).
+                usage = response_data.get("usage")
+                if isinstance(usage, dict):
+                    api_llm_metrics["prompt_tokens"] = usage.get("prompt_tokens")
+                    api_llm_metrics["completion_tokens"] = usage.get("completion_tokens")
+
+                # OpenAI-compat response format.
+                choices = response_data.get("choices")
+                if isinstance(choices, list) and len(choices) > 0:
+                    response_text = choices[0]["message"]["content"].strip()
+                elif "message" in response_data and "content" in response_data["message"]:
+                    # Ollama native fallback (if someone passes a raw /api/chat URL).
                     response_text = response_data["message"]["content"].strip()
-                elif "choices" in response_data and len(response_data["choices"]) > 0:
-                    # OpenAI format
-                    response_text = response_data["choices"][0]["message"]["content"].strip()
                 else:
-                    # Some other format
                     response_text = str(response_data).strip()
                     
             except Exception as e:
                 if self.debug_mode:
                     print(f"Error parsing JSON response: {e}")
-                
-                # Handle streaming or non-JSON response
                 response_text = response.text.strip()
                 api_llm_metrics = {}
-                
-                # Try to extract content from streaming format if possible
-                if response_text.startswith("{") and "content" in response_text:
-                    try:
-                        # Extract the last message if multiple streaming chunks
-                        lines = response_text.strip().split("\n")
-                        last_complete_line = lines[-1]
-                        for i in range(len(lines) - 1, -1, -1):
-                            if '"done":true' in lines[i]:
-                                last_complete_line = lines[i]
-                                break
-                                
-                        # Parse the message content
-                        import json
-                        data = json.loads(last_complete_line)
-                        if "message" in data and "content" in data["message"]:
-                            full_content = ""
-                            for line in lines:
-                                try:
-                                    chunk = json.loads(line)
-                                    if "message" in chunk and "content" in chunk["message"]:
-                                        full_content += chunk["message"]["content"]
-                                except:
-                                    pass
-                            response_text = full_content.strip()
-                    except Exception as e:
-                        if self.debug_mode:
-                            print(f"Error extracting content from streaming response: {e}")
+
+            # Discard any `<think>...</think>` blocks (chain-of-thought) before displaying
+            # or speaking the response.
+            response_text = strip_think_blocks(str(response_text or ""))
+
             llm_t1 = time.monotonic()
             llm_s = float(llm_t1 - llm_t0)
             
@@ -750,7 +758,7 @@ class VoiceREPL(cmd.Cmd):
                 },
             }
             try:
-                out_tok = api_llm_metrics.get("eval_count") if isinstance(api_llm_metrics, dict) else None
+                out_tok = api_llm_metrics.get("completion_tokens") if isinstance(api_llm_metrics, dict) else None
                 if isinstance(out_tok, int) and out_tok >= 0:
                     self.total_llm_out_tokens += int(out_tok)
             except Exception:
@@ -792,29 +800,23 @@ class VoiceREPL(cmd.Cmd):
                 pass
                 
         except requests.exceptions.ConnectionError as e:
-            print(f"❌ Cannot connect to Ollama API at {self.api_url}")
-            print(f"   Please check that Ollama is running and accessible")
-            print(f"   Try: ollama serve")
+            print(f"❌ Cannot connect to {self.provider.name} at {self.provider.base_url}")
+            print(f"   Make sure the server is running and accessible.")
+            print(f"   Use /provider to switch or /models to check availability.")
             if self.debug_mode:
                 print(f"   Connection error: {e}")
         except requests.exceptions.HTTPError as e:
             if "404" in str(e):
-                print(f"❌ Model '{self.model}' not found on Ollama server")
-                print(f"   Available models: Try 'ollama list' to see installed models")
-                print(f"   To install a model: ollama pull {self.model}")
+                print(f"❌ Model '{self.model}' not found on {self.provider.name}")
+                print(f"   Use /models to list available models.")
             else:
-                print(f"❌ HTTP error from Ollama API: {e}")
+                print(f"❌ HTTP error from {self.provider.name}: {e}")
             if self.debug_mode:
                 print(f"   Full error: {e}")
         except Exception as e:
             error_msg = str(e).lower()
-            if "model file not found" in error_msg or "no such file" in error_msg:
-                print(f"❌ Model '{self.model}' not found or not fully downloaded")
-                print(f"   Try: ollama pull {self.model}")
-                print(f"   Or use an existing model: ollama list")
-            elif "connection" in error_msg or "refused" in error_msg:
-                print(f"❌ Cannot connect to Ollama at {self.api_url}")
-                print(f"   Make sure Ollama is running: ollama serve")
+            if "connection" in error_msg or "refused" in error_msg:
+                print(f"❌ Cannot connect to {self.provider.name} at {self.provider.base_url}")
             else:
                 print(f"❌ Error: {e}")
             if self.debug_mode:
@@ -3368,8 +3370,10 @@ class VoiceREPL(cmd.Cmd):
         print("  /clone_quality      Set cloned TTS speed/quality: fast|balanced|high")
         print("  /save <filename>    Save chat history to file")
         print("  /load <filename>    Load chat history from file")
-        print("  /model <name>       Change the LLM model")
-        print("  /temperature <val>  Set temperature (0.0-2.0, default: 0.7)")
+        print("  /provider [name]    Show/switch LLM provider (ollama, lmstudio, or URL)")
+        print("  /models             List models on current provider")
+        print("  /model [name]       Show/change the LLM model")
+        print("  /temperature <val>  Set temperature (0.0-2.0, default: 0.4)")
         print("  /max_tokens <num>   Set max tokens (default: 4096)")
         print("  stop                (deprecated) use /voice off or say 'stop' during STOP mode")
         print("  <message>           Send to LLM (text mode)")
@@ -3600,17 +3604,51 @@ class VoiceREPL(cmd.Cmd):
             # Prepend a system message if none exists
             self.messages.insert(0, {"role": "system", "content": self.system_prompt})
     
+    def do_provider(self, arg: str):
+        """Switch LLM provider or show current provider + available presets."""
+        arg = arg.strip().lower()
+        if not arg:
+            print(f"Current provider: {self.provider.name} ({self.provider.base_url})")
+            presets = ", ".join(sorted(PROVIDER_PRESETS))
+            print(f"Available presets: {presets}")
+            print("Usage: /provider <name-or-url>")
+            return
+        old = self.provider.name
+        self.provider = resolve_provider(arg)
+        if self.provider.is_reachable():
+            print(f"✅ Provider: {old} → {self.provider.name} ({self.provider.base_url})")
+        else:
+            print(f"⚠️  Provider set to {self.provider.name} ({self.provider.base_url}) but server is not reachable.")
+
+    def do_models(self, _arg: str):
+        """List models available on the current provider."""
+        print(f"Fetching models from {self.provider.name} ({self.provider.base_url})…")
+        models = self.provider.list_models()
+        if not models:
+            print(f"  No models found (is {self.provider.name} running?).")
+            return
+        print(f"  {len(models)} model(s):")
+        for m in models:
+            marker = "  → " if m == self.model else "    "
+            print(f"{marker}{m}")
+
     def do_model(self, model_name):
-        """Change the LLM model."""
+        """Change the LLM model (or list available models when called without args)."""
         if not model_name:
-            print(f"Current model: {self.model}")
+            print(f"Current model: {self.model} (provider: {self.provider.name})")
+            models = self.provider.list_models()
+            if models:
+                print(f"Available ({len(models)}):")
+                for m in models:
+                    marker = "  → " if m == self.model else "    "
+                    print(f"{marker}{m}")
+            else:
+                print("  (could not fetch model list)")
             return
             
         old_model = self.model
         self.model = model_name
-        print(f"Model changed from {old_model} to {model_name}")
-        
-        # Don't add a system message about model change
+        print(f"Model changed: {old_model} → {model_name}")
 
     def do_temperature(self, arg):
         """Set the temperature parameter for the LLM."""
@@ -3651,9 +3689,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description="AbstractVoice CLI Example")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--verbose", action="store_true", help="Show per-turn performance stats")
-    parser.add_argument("--api", default="http://localhost:11434/api/chat",
-                      help="LLM API URL")
-    parser.add_argument("--model", default="cogito:3b",
+    parser.add_argument("--provider", default=DEFAULT_PROVIDER,
+                      help=f"LLM provider preset ({', '.join(sorted(PROVIDER_PRESETS))}) or base URL")
+    parser.add_argument("--api", default=None,
+                      help="LLM API base URL (overrides --provider)")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
                       help="LLM model name")
     parser.add_argument(
         "--cloning-engine",
@@ -3687,6 +3727,7 @@ def main():
         
         # Initialize and run REPL with language support
         repl = VoiceREPL(
+            provider=args.provider,
             api_url=args.api,
             model=args.model,
             debug_mode=args.debug,
