@@ -59,11 +59,11 @@ AudioDiT note (model size):
 
 ```bash
 python examples/bench_tts.py \
-  --out-dir untracked/bench_tts_rep4_s2s5 \
+  --out-dir untracked/bench_tts_rep5_s2s5 \
   --engines piper,audiodit,omnivoice \
   --languages en,fr \
   --variants s2,s5 \
-  --repetitions 4
+  --repetitions 5
 ```
 
 Outputs:
@@ -76,42 +76,42 @@ Runs the full benchmark **in separate Python processes** multiple times, then ag
 
 ```bash
 python examples/bench_tts_suite.py \
-  --out-dir untracked/bench_tts_suite \
+  --out-dir untracked/bench_tts_suite_reps5_2026-04-06 \
   --experiments 5 \
   --sleep-s 2 \
   --engines piper,audiodit,omnivoice \
   --languages en,fr \
   --variants s2,s5 \
-  --repetitions 4
+  --repetitions 5
 ```
 
 Outputs:
 - `suite_summary.md` / `suite_summary.json`: aggregated mean/std + between-experiment variance
 - `exp_*/`: each experiment run’s raw WAVs + per-run results
 
-## Example results (macOS / Apple Silicon, MPS fp16) — 5 experiments × 4 reps
+## Example results (macOS / Apple Silicon, MPS fp16) — 5 experiments × 5 reps
 
 These results were collected with:
 - torch device: `mps`
 - torch dtype: `float16`
-- 5 experiments × 4 repetitions per condition → **20 WAV generations per condition**
+- 5 experiments × 5 repetitions per condition → **25 WAV generations per condition**
 
 This is intentionally “order of magnitude” oriented. If you need variance details (standard deviation / min / max), run the suite yourself and inspect the generated `suite_summary.md`.
 
 | engine | lang | text | avg WAV gen time (s) | avg speech length (s) | RTF |
 |---|---|---|---:|---:|---:|
-| **piper** | en | 2 sentences | **0.108** | 4.224 | 0.026 |
-| **piper** | fr | 2 sentences | **0.134** | 4.293 | 0.031 |
-| **piper** | en | 5 sentences | **0.482** | 14.081 | 0.034 |
-| **piper** | fr | 5 sentences | **0.579** | 15.877 | 0.036 |
-| **omnivoice** | en | 2 sentences | 1.955 | 3.560 | 0.549 |
-| **omnivoice** | fr | 2 sentences | 2.149 | 4.000 | 0.537 |
-| **omnivoice** | en | 5 sentences | 4.659 | 12.240 | 0.381 |
-| **omnivoice** | fr | 5 sentences | 6.061 | 16.520 | 0.367 |
-| **audiodit** | en | 2 sentences | 2.894 | 3.840 | 0.754 |
-| **audiodit** | fr | 2 sentences | 2.222 | 4.267 | 0.521 |
-| **audiodit** | en | 5 sentences | 3.391 | 13.653 | 0.248 |
-| **audiodit** | fr | 5 sentences | 3.098 | 18.517 | 0.167 |
+| **piper** | en | 2 sentences | **0.080** | 4.237 | 0.019 |
+| **piper** | fr | 2 sentences | **0.079** | 4.282 | 0.019 |
+| **piper** | en | 5 sentences | **0.255** | 14.021 | 0.018 |
+| **piper** | fr | 5 sentences | **0.285** | 15.639 | 0.018 |
+| **omnivoice** | en | 2 sentences | 0.769 | 3.560 | 0.216 |
+| **omnivoice** | fr | 2 sentences | 0.863 | 4.000 | 0.216 |
+| **omnivoice** | en | 5 sentences | 2.199 | 12.240 | 0.180 |
+| **omnivoice** | fr | 5 sentences | 3.097 | 16.520 | 0.187 |
+| **audiodit** | en | 2 sentences | 0.710 | 7.680 | 0.092 |
+| **audiodit** | fr | 2 sentences | 0.721 | 8.277 | 0.087 |
+| **audiodit** | en | 5 sentences | 0.934 | 17.493 | 0.053 |
+| **audiodit** | fr | 5 sentences | 1.205 | 22.528 | 0.053 |
 
 Interpretation:
 - **Piper** is fastest by orders of magnitude (sub-second generation for these prompts).
