@@ -155,6 +155,37 @@ Cloning engines can load multi‑GB model weights (especially Chroma). The code 
 - `VoiceManager.unload_cloning_engines(...)` / `unload_piper_voice()` (`abstractvoice/vm/tts_mixin.py`)
 - engine `unload()` implementations (`abstractvoice/cloning/engine_f5.py`, `abstractvoice/cloning/engine_chroma.py`)
 
+### Does longer reference audio make cloning slower?
+
+Often yes — *up to an engine-specific cap*.
+
+All cloning engines must decode/resample/encode the reference audio (the “prompt”) before generating speech. More seconds typically means more work. In practice, total latency is usually dominated by the **generation model** (and the requested output length), but the reference length can noticeably affect:
+
+- **First use** (preprocessing + model warmup/compilation)
+- **Prompt encoding** (AudioDiT in particular)
+
+Engine-specific behavior in this repo:
+
+- **OpenF5 (`f5_tts`)**:
+  - Reference audio is merged → resampled to **24 kHz mono** → clipped to **15s** (`engine_f5.py:_prepare_reference_wav(max_seconds=15.0)`).
+  - Longer inputs than 15s won’t increase runtime (they’re truncated).
+- **AudioDiT (`audiodit`)**:
+  - Prompt audio is concatenated → resampled to the model’s rate (**24 kHz**) → clipped to **15s** (`audiodit/runtime.py:generate_chunks(max_prompt_seconds=15.0)`).
+  - Longer prompts can cost more twice: prompt encoding itself, and because prompt frames contribute to the model’s `duration_frames`.
+  - Practical starting point: **4–8s** of clean speech is usually the best speed/quality tradeoff.
+- **Chroma (`chroma`)**:
+  - Prompt audio is normalized to **24 kHz mono PCM16** and clipped to **30s** (`engine_chroma.py:_prepare_prompt_audio_for_processor`).
+  - The normalized prompt is cached under `~/.cache/abstractvoice/chroma/prompt_cache`, so the **first** run is slower than subsequent runs with the same prompt file.
+
+Recommendations (general-purpose):
+
+- **Keep prompts short**: start with **~6s** of clean speech (AudioDiT: 4–8s; OpenF5: up to 10–15s is fine; Chroma: 6–15s is typical).
+- **Trim silence**: long leading/trailing silence wastes prompt budget and can slow preprocessing.
+- **Single speaker, no music**: mixed speakers/background audio reduces identity consistency and can destabilize some models.
+- **Use the right transcript**:
+  - AudioDiT cloning requires a correct `reference_text` (prompt transcript) matching the prompt audio.
+  - For other engines, providing `reference_text` is still often beneficial.
+
 ## Licensing
 
 ### Is AbstractVoice MIT licensed? What about the voices/models?

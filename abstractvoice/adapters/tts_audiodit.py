@@ -136,6 +136,15 @@ class AudioDiTTTSAdapter(TTSAdapter):
                 debug=bool(self._debug),
             )
 
+        # Engine-agnostic quality preset (fast|balanced|high).
+        # For AudioDiT this maps to diffusion steps + guidance strength.
+        self._quality_preset = "balanced"
+        try:
+            self.set_quality_preset(getattr(self._settings, "quality_preset", None) or "balanced")
+        except Exception:
+            # Keep defaults if settings object doesn't match.
+            self._quality_preset = "balanced"
+
         if bool(auto_load):
             # Eagerly load weights/tokenizer so failures are surfaced early.
             try:
@@ -182,6 +191,7 @@ class AudioDiTTTSAdapter(TTSAdapter):
                 "engine": "AudioDiT (LongCat-AudioDiT)",
                 "engine_id": "audiodit",
                 "sample_rate": self.get_sample_rate(),
+                "quality_preset": str(getattr(self, "_quality_preset", "balanced") or "balanced"),
             }
         )
         try:
@@ -190,6 +200,44 @@ class AudioDiTTTSAdapter(TTSAdapter):
         except Exception:
             pass
         return info
+
+    def set_quality_preset(self, preset: str) -> bool:
+        p = str(preset or "").strip().lower()
+        if p not in ("fast", "balanced", "high"):
+            raise ValueError("preset must be one of: fast|balanced|high")
+        self._quality_preset = p
+
+        st = getattr(self, "_settings", None)
+        if st is None:
+            return False
+
+        # Keep guidance method aligned with upstream-recommended APG by default.
+        try:
+            if hasattr(st, "guidance_method"):
+                st.guidance_method = str(getattr(st, "guidance_method", "apg") or "apg").strip().lower() or "apg"
+        except Exception:
+            pass
+
+        # Steps dominate speed; guidance strength is a small quality knob.
+        try:
+            if p == "fast":
+                st.steps = 8
+                st.cfg_strength = 3.5
+            elif p == "balanced":
+                st.steps = 16
+                st.cfg_strength = 4.0
+            else:
+                st.steps = 24
+                st.cfg_strength = 4.5
+        except Exception:
+            return False
+        return True
+
+    def get_quality_preset(self) -> str | None:
+        try:
+            return str(getattr(self, "_quality_preset", None) or "").strip() or None
+        except Exception:
+            return None
 
     def reset_session_prompt(self) -> None:
         self._session_prompt_audio = None

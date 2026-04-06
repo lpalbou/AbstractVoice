@@ -30,6 +30,7 @@ class VoiceCloner:
         self._allow_downloads = bool(allow_downloads)
         self._default_engine = str(default_engine or "f5_tts").strip().lower()
         self._engines: Dict[str, Any] = {}
+        self._quality_preset = "balanced"
 
     def _get_engine(self, engine: str) -> Any:
         name = str(engine or "").strip().lower()
@@ -56,14 +57,25 @@ class VoiceCloner:
         else:
             raise ValueError(f"Unknown cloning engine: {name}")
 
+        # Apply the current preset to newly-instantiated engines (important: engines are lazy).
+        try:
+            if hasattr(inst, "set_quality_preset"):
+                inst.set_quality_preset(str(getattr(self, "_quality_preset", "balanced") or "balanced"))
+        except Exception:
+            pass
+
         self._engines[name] = inst
         return inst
 
     def set_quality_preset(self, preset: str) -> None:
         # Best-effort across loaded engines (new engines are lazy-instantiated).
+        p = (preset or "").strip().lower()
+        if p not in ("fast", "balanced", "high"):
+            raise ValueError("preset must be one of: fast|balanced|high")
+        self._quality_preset = p
         for eng in list(self._engines.values()):
             try:
-                eng.set_quality_preset(preset)
+                eng.set_quality_preset(p)
             except Exception:
                 pass
 
@@ -164,6 +176,13 @@ class VoiceCloner:
             meta={"source": str(p)},
         )
         return voice_id
+
+    def get_store_base_dir(self) -> str:
+        """Return the on-disk folder where cloned voices are stored."""
+        try:
+            return str(getattr(self.store, "_base_dir"))  # noqa: SLF001 (best-effort)
+        except Exception:
+            return ""
 
     def list_cloned_voices(self) -> List[Dict[str, Any]]:
         return self.store.list_voices()

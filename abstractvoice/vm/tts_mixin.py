@@ -102,6 +102,13 @@ class TtsMixin:
     def get_cloned_voice(self, voice_id: str):
         return self._get_voice_cloner().get_cloned_voice(voice_id)
 
+    def get_cloned_voice_store_dir(self) -> str:
+        """Return the on-disk folder where cloned voices are stored."""
+        try:
+            return str(self._get_voice_cloner().get_store_base_dir())
+        except Exception:
+            return ""
+
     def set_cloned_voice_reference_text(self, voice_id: str, reference_text: str) -> bool:
         """Update a cloned voice's reference transcript (quality fix).
 
@@ -120,6 +127,36 @@ class TtsMixin:
         """Set cloned TTS quality preset: fast|balanced|high."""
         self._get_voice_cloner().set_quality_preset(preset)
         return True
+
+    def set_tts_quality_preset(self, preset: str) -> bool:
+        """Set base TTS engine quality preset: fast|balanced|high (best-effort).
+
+        This is an engine-agnostic knob. Engines that don't support quality tuning
+        may ignore it and return False.
+        """
+        if not getattr(self, "tts_adapter", None):
+            return False
+        try:
+            adapter = getattr(self, "tts_adapter", None)
+            if adapter is None:
+                return False
+            if hasattr(adapter, "set_quality_preset"):
+                return bool(adapter.set_quality_preset(preset))
+        except Exception:
+            return False
+        return False
+
+    def get_tts_quality_preset(self) -> str | None:
+        """Return the current base TTS quality preset, if supported."""
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None:
+            return None
+        try:
+            if hasattr(adapter, "get_quality_preset"):
+                return adapter.get_quality_preset()
+        except Exception:
+            return None
+        return None
 
     def get_cloning_runtime_info(self):
         return self._get_voice_cloner().get_runtime_info()

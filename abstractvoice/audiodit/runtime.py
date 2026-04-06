@@ -21,6 +21,113 @@ from ..compute import best_torch_device
 _RE_QUOTE = re.compile(r"""["“”‘’]""")
 _RE_WS = re.compile(r"\s+")
 _RE_SENT_END = re.compile(r"(?<=[\.\!\?\。\！\？])\s+")
+_RE_YEAR_EN = re.compile(r"\b(19\d{2}|20\d{2})\b")
+_RE_NUM_EN = re.compile(r"\b\d+\b")
+
+
+_EN_DIGIT_WORDS = {
+    "0": "zero",
+    "1": "one",
+    "2": "two",
+    "3": "three",
+    "4": "four",
+    "5": "five",
+    "6": "six",
+    "7": "seven",
+    "8": "eight",
+    "9": "nine",
+}
+
+
+def _num_to_words_en(n: int) -> str:
+    """Small English number normalizer (0..99)."""
+    n = int(n)
+    if n < 0:
+        return f"minus {_num_to_words_en(-n)}"
+    ones = [
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+    ]
+    tens = {
+        2: "twenty",
+        3: "thirty",
+        4: "forty",
+        5: "fifty",
+        6: "sixty",
+        7: "seventy",
+        8: "eighty",
+        9: "ninety",
+    }
+    if n < 20:
+        return ones[n]
+    t = n // 10
+    r = n % 10
+    if r == 0:
+        return tens.get(t, str(n))
+    return f"{tens.get(t, str(t))} {ones[r]}"
+
+
+def _expand_numbers_en(text: str) -> str:
+    """Best-effort number expansion for English AudioDiT text conditioning.
+
+    AudioDiT is sensitive to text normalization; raw digits can be out-of-distribution
+    and produce garbled phonemes (e.g. "5" → noise/"quak"). We expand common patterns:
+    - Years 19xx/20xx
+    - Other integers: 0..99 → words; longer → digit-by-digit.
+    """
+    s = str(text or "")
+    if not s:
+        return ""
+
+    def _year(m: re.Match) -> str:
+        y = int(m.group(1))
+        if 1900 <= y <= 1999:
+            rest = y - 1900
+            if rest == 0:
+                return "nineteen hundred"
+            return f"nineteen {_num_to_words_en(rest)}"
+        if 2000 <= y <= 2099:
+            rest = y - 2000
+            if rest == 0:
+                return "two thousand"
+            # 2005 -> "two thousand five", 2025 -> "two thousand twenty five"
+            return f"two thousand {_num_to_words_en(rest)}"
+        # Fallback: digit-by-digit
+        return " ".join(_EN_DIGIT_WORDS.get(ch, ch) for ch in str(y))
+
+    def _num(m: re.Match) -> str:
+        raw = m.group(0)
+        try:
+            n = int(raw)
+        except Exception:
+            return raw
+        # Prefer "word" form for small numbers.
+        if 0 <= n <= 99 and len(raw) <= 2:
+            return _num_to_words_en(n)
+        # For longer integers, speak digit-by-digit (robust across arbitrary ids).
+        return " ".join(_EN_DIGIT_WORDS.get(ch, ch) for ch in raw)
+
+    s = _RE_YEAR_EN.sub(_year, s)
+    s = _RE_NUM_EN.sub(_num, s)
+    return s
 
 
 def _normalize_text(s: str) -> str:
@@ -31,6 +138,16 @@ def _normalize_text(s: str) -> str:
     t = str(s or "").lower()
     t = _RE_QUOTE.sub(" ", t)
     t = _RE_WS.sub(" ", t).strip()
+    return t
+
+
+def _normalize_text_for_speech(s: str, *, language: str) -> str:
+    t = _normalize_text(s)
+    lang = str(language or "").strip().lower()
+    # Expand digits only for English for now; avoid injecting English words into other languages.
+    if lang.startswith("en"):
+        t = _expand_numbers_en(t)
+        t = _RE_WS.sub(" ", t).strip()
     return t
 
 
@@ -207,6 +324,7 @@ class AudioDiTRuntime:
         self._model = None
         self._tokenizer = None
         self._resolved_device: str | None = None
+        self._resolved_dtype: str | None = None
 
     def runtime_info(self) -> dict[str, Any]:
         return {
@@ -214,6 +332,8 @@ class AudioDiTRuntime:
             "revision": self.revision,
             "requested_device": self._device_pref,
             "resolved_device": self._resolved_device,
+            "requested_dtype": self._dtype_pref,
+            "resolved_dtype": self._resolved_dtype,
             "allow_downloads": bool(self.allow_downloads),
         }
 
@@ -229,6 +349,7 @@ class AudioDiTRuntime:
         # Keep interactive UX quiet by default.
         os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
         os.environ.setdefault("TRANSFORMERS_NO_TQDM", "1")
+        os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
         try:
             import torch
@@ -253,61 +374,103 @@ class AudioDiTRuntime:
 
         device = self._resolve_device()
         self._resolved_device = device
+        try:
+            from ..compute import resolve_torch_dtype
+
+            dt = resolve_torch_dtype(device=str(device), dtype_name=self._dtype_pref)
+            # Record for runtime_info/debug.
+            try:
+                self._resolved_dtype = str(getattr(dt, "__repr__", lambda: str(dt))()).replace("torch.", "")
+            except Exception:
+                self._resolved_dtype = str(dt).replace("torch.", "")
+        except Exception:
+            dt = None
+            self._resolved_dtype = None
 
         local_only = not bool(self.allow_downloads)
+        old_hf_offline = os.environ.get("HF_HUB_OFFLINE")
+        old_tf_offline = os.environ.get("TRANSFORMERS_OFFLINE")
+        if local_only:
+            os.environ["HF_HUB_OFFLINE"] = "1"
+            os.environ["TRANSFORMERS_OFFLINE"] = "1"
         try:
-            # Suppress noisy FutureWarnings during model construction (e.g. torch weight_norm deprecation).
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", FutureWarning)
-                model = AudioDiTModel.from_pretrained(
-                    self.model_id,
-                    revision=self.revision,
+            try:
+                # Suppress noisy FutureWarnings during model construction (e.g. torch weight_norm deprecation).
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", FutureWarning)
+                    # Avoid noisy HF Hub token warnings when operating in local-only mode.
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=r"^Warning: You are sending unauthenticated requests to the HF Hub\\..*",
+                    )
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=r"^You are sending unauthenticated requests to the HF Hub\\..*",
+                    )
+                    model = AudioDiTModel.from_pretrained(
+                        self.model_id,
+                        revision=self.revision,
+                        local_files_only=local_only,
+                        torch_dtype=dt,
+                    )
+            except Exception as e:
+                if local_only:
+                    raise RuntimeError(
+                        "AudioDiT weights are not available locally and downloads are disabled.\n"
+                        "Fix options:\n"
+                        "  - Enable downloads: VoiceManager(..., allow_downloads=True)\n"
+                        "  - Or prefetch explicitly: abstractvoice-prefetch --audiodit\n"
+                        f"Model: {self.model_id}"
+                    ) from e
+                raise
+
+            # Move to device first; keep transformer weights in their checkpoint dtype.
+            try:
+                if dt is not None:
+                    model.to(device=device, dtype=dt)
+                else:
+                    model.to(device)
+            except Exception:
+                # Best-effort: if move fails, keep on CPU.
+                model.to("cpu")
+                self._resolved_device = "cpu"
+                device = "cpu"
+                # Dtype remains whatever `from_pretrained` loaded.
+
+            # VAE runs in fp16 in upstream (matching original).
+            try:
+                if hasattr(model, "vae") and hasattr(model.vae, "to_half"):
+                    model.vae.to_half()
+            except Exception:
+                pass
+
+            model.eval()
+
+            try:
+                tokenizer = AutoTokenizer.from_pretrained(
+                    str(model.config.text_encoder_model),
                     local_files_only=local_only,
                 )
-        except Exception as e:
+            except Exception as e:
+                if local_only:
+                    raise RuntimeError(
+                        "AudioDiT tokenizer files are not available locally and downloads are disabled.\n"
+                        "Fix options:\n"
+                        "  - Enable downloads: VoiceManager(..., allow_downloads=True)\n"
+                        "  - Or prefetch explicitly: abstractvoice-prefetch --audiodit\n"
+                        f"Tokenizer: {getattr(model.config, 'text_encoder_model', '?')}"
+                    ) from e
+                raise
+        finally:
             if local_only:
-                raise RuntimeError(
-                    "AudioDiT weights are not available locally and downloads are disabled.\n"
-                    "Fix options:\n"
-                    "  - Enable downloads: VoiceManager(..., allow_downloads=True)\n"
-                    "  - Or prefetch explicitly: abstractvoice-prefetch --audiodit\n"
-                    f"Model: {self.model_id}"
-                ) from e
-            raise
-
-        # Move to device first; keep transformer weights in their checkpoint dtype.
-        try:
-            model.to(device)
-        except Exception:
-            # Best-effort: if move fails, keep on CPU.
-            model.to("cpu")
-            self._resolved_device = "cpu"
-            device = "cpu"
-
-        # VAE runs in fp16 in upstream (matching original).
-        try:
-            if hasattr(model, "vae") and hasattr(model.vae, "to_half"):
-                model.vae.to_half()
-        except Exception:
-            pass
-
-        model.eval()
-
-        try:
-            tokenizer = AutoTokenizer.from_pretrained(
-                str(model.config.text_encoder_model),
-                local_files_only=local_only,
-            )
-        except Exception as e:
-            if local_only:
-                raise RuntimeError(
-                    "AudioDiT tokenizer files are not available locally and downloads are disabled.\n"
-                    "Fix options:\n"
-                    "  - Enable downloads: VoiceManager(..., allow_downloads=True)\n"
-                    "  - Or prefetch explicitly: abstractvoice-prefetch --audiodit\n"
-                    f"Tokenizer: {getattr(model.config, 'text_encoder_model', '?')}"
-                ) from e
-            raise
+                if old_hf_offline is None:
+                    os.environ.pop("HF_HUB_OFFLINE", None)
+                else:
+                    os.environ["HF_HUB_OFFLINE"] = old_hf_offline
+                if old_tf_offline is None:
+                    os.environ.pop("TRANSFORMERS_OFFLINE", None)
+                else:
+                    os.environ["TRANSFORMERS_OFFLINE"] = old_tf_offline
 
         self._model = model
         self._tokenizer = tokenizer
@@ -359,7 +522,7 @@ class AudioDiTRuntime:
             except Exception:
                 pass
 
-        gen_text = _normalize_text(text)
+        gen_text = _normalize_text_for_speech(text, language=str(language))
         if not gen_text:
             return [], sr
 
@@ -371,7 +534,7 @@ class AudioDiTRuntime:
         prompt_wav = None
         prompt_frames = 0
         prompt_time_s = 0.0
-        norm_prompt_text = _normalize_text(prompt_text or "")
+        norm_prompt_text = _normalize_text_for_speech(prompt_text or "", language=str(language))
         has_external_prompt = False
 
         def _encode_prompt_audio(wav_np: np.ndarray) -> tuple[torch.Tensor | None, int, float]:
@@ -425,7 +588,7 @@ class AudioDiTRuntime:
             _prompt_time_s: float,
             _prompt_text: str,
         ) -> np.ndarray:
-            batch_text = _normalize_text(batch_text)
+            batch_text = _normalize_text_for_speech(batch_text, language=str(language))
             if not batch_text:
                 return np.zeros((0,), dtype=np.float32)
 
@@ -549,7 +712,7 @@ class AudioDiTRuntime:
                     except Exception:
                         anchor_max_s = 8.0
                 anchor = anchor[: int(round(float(anchor_max_s) * float(sr)))]
-                rt = _normalize_text(batch_text)
+                rt = _normalize_text_for_speech(batch_text, language=str(language))
                 if anchor.size and rt:
                     rolling_wav, rolling_frames, rolling_time_s = _encode_prompt_audio(anchor)
                     rolling_text = rt

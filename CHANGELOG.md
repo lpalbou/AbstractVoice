@@ -26,6 +26,14 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Audio playback now falls back to stereo output streams when mono initialization fails (macOS AUHAL robustness).
 - Suppressed the noisy PyTorch `weight_norm` deprecation warning during AudioDiT model load.
 - Disabled Transformers progress bars (e.g. “Loading weights”) during AudioDiT model load for cleaner REPL UX.
+- Offline-first: Faster-Whisper and AudioDiT now force local-only Hugging Face access when downloads are disabled (avoids HF Hub “unauthenticated requests” warnings).
+- Suppressed benign Faster-Whisper mel-extraction `RuntimeWarning`s (matmul overflow/divide-by-zero) for cleaner REPL output.
+- REPL: added `/debug` and (when enabled) persist each synthesized utterance to `untracked/generated_wavs/` and print the path.
+- AudioDiT: expand English digits/years into words for more reliable pronunciation (e.g. “5”, “2025”).
+- AudioDiT: load model weights in the resolved torch dtype (MPS default fp16; override via `ABSTRACTVOICE_TORCH_DTYPE`) for better accelerator performance.
+- Added engine-agnostic TTS quality presets (`fast|balanced|high`) via `VoiceManager.set_tts_quality_preset(...)` (where supported by the active TTS adapter).
+- Cloning: `set_cloned_tts_quality(...)` now persists the preset so it also applies to cloning engines that are loaded later (engines are lazy).
+- REPL: selecting an AudioDiT cloned voice now performs a small warm-up to pay the one-time load/compile cost up front (reduces first `/speak` latency).
 
 ## [0.6.1] - 2026-02-04
 

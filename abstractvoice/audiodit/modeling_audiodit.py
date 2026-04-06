@@ -95,7 +95,11 @@ class AudioDiTRMSNorm(nn.Module):
         self.weight = nn.Parameter(torch.ones(dim))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self._norm(x.float()).type_as(x) * self.weight
+        # Upstream computes norm stats in fp32 for stability. For fp16/bf16 inference
+        # on accelerators, this cast can become a major bottleneck; keep it only
+        # when the input is fp32.
+        x_f = x if x.dtype in (torch.float16, torch.bfloat16) else x.float()
+        return self._norm(x_f).to(dtype=x.dtype) * self.weight
 
     def _norm(self, x: torch.Tensor) -> torch.Tensor:
         return x * torch.rsqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
@@ -180,9 +184,9 @@ def _rotate_half(x: torch.Tensor) -> torch.Tensor:
 
 def _apply_rotary_emb(x: torch.Tensor, freqs_cis: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
     cos, sin = freqs_cis
-    cos = cos[None, None].to(x.device)
-    sin = sin[None, None].to(x.device)
-    return (x.float() * cos + _rotate_half(x).float() * sin).to(x.dtype)
+    cos = cos[None, None].to(device=x.device, dtype=x.dtype)
+    sin = sin[None, None].to(device=x.device, dtype=x.dtype)
+    return x * cos + _rotate_half(x) * sin
 
 
 # ---------------------------------------------------------------------------
@@ -287,7 +291,7 @@ class AudioDiTAdaLayerNormZeroFinal(nn.Module):
     def forward(self, x: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
         emb = self.linear(self.silu(emb))
         scale, shift = torch.chunk(emb, 2, dim=-1)
-        x = self.norm(x.float()).type_as(x)
+        x = self.norm(x) if x.dtype in (torch.float16, torch.bfloat16) else self.norm(x.float()).type_as(x)
         if scale.ndim == 2:
             x = x * (1 + scale)[:, None, :] + shift[:, None, :]
         else:
@@ -303,7 +307,11 @@ class AudioDiTAdaLayerNormZeroFinal(nn.Module):
 def _modulate(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     """LayerNorm without affine + modulate."""
 
-    x = F.layer_norm(x.float(), (x.shape[-1],), eps=eps).type_as(x)
+    x = (
+        F.layer_norm(x, (x.shape[-1],), eps=eps)
+        if x.dtype in (torch.float16, torch.bfloat16)
+        else F.layer_norm(x.float(), (x.shape[-1],), eps=eps).type_as(x)
+    )
     if scale.ndim == 2:
         return x * (1 + scale[:, None]) + shift[:, None]
     return x * (1 + scale) + shift
@@ -1025,7 +1033,21 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
         if config.text_encoder_config is not None:
             self.text_encoder = UMT5EncoderModel(config.text_encoder_config)
         else:
-            te_config = UMT5Config.from_pretrained(config.text_encoder_model)
+            # Offline-first: if the host process is in HF/Transformers offline mode,
+            # force local-only config resolution so we don't hit the network.
+            try:
+                import os
+
+                local_only = bool(
+                    (os.environ.get("HF_HUB_OFFLINE") or "").strip() == "1"
+                    or (os.environ.get("TRANSFORMERS_OFFLINE") or "").strip() == "1"
+                )
+            except Exception:
+                local_only = False
+            te_config = UMT5Config.from_pretrained(
+                config.text_encoder_model,
+                local_files_only=bool(local_only),
+            )
             self.text_encoder = UMT5EncoderModel(te_config)
         self.text_encoder.requires_grad_(False)
 
@@ -1063,14 +1085,28 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
                 first_hidden = F.layer_norm(first_hidden, (d_model,), eps=1e-6)
             emb = emb + first_hidden
 
-        return emb.float()
+        # Keep embedding dtype aligned with the DiT backbone for faster inference.
+        # Upstream returned float32 here; we prefer the transformer param dtype.
+        try:
+            dt = next(iter(self.transformer.parameters())).dtype
+        except Exception:
+            dt = emb.dtype
+        return emb.to(dtype=dt)
 
     def encode_prompt_audio(self, prompt_audio: torch.FloatTensor) -> tuple[torch.FloatTensor, int]:
         """Encode prompt audio to latent space."""
 
         full_hop = self.config.latent_hop
         off = 3
-        wav = prompt_audio.to(self.device)
+        # Match VAE dtype (often fp16) to avoid mixed-dtype kernels on accelerators.
+        try:
+            dt = next(iter(self.vae.encoder.parameters())).dtype
+        except Exception:
+            dt = None
+        if dt is not None:
+            wav = prompt_audio.to(self.device, dtype=dt)
+        else:
+            wav = prompt_audio.to(self.device)
         if wav.ndim == 2:
             wav = wav.unsqueeze(1)
         if wav.shape[-1] % full_hop != 0:
@@ -1102,10 +1138,14 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
         full_hop = self.config.latent_hop
         max_duration_frames = int(self.config.max_wav_duration * sr // full_hop)
         repa_layer = self.config.repa_dit_layer
+        try:
+            infer_dtype = next(iter(self.transformer.parameters())).dtype
+        except Exception:
+            infer_dtype = torch.float32
 
         # ── text encoding ─────────────────────────────────────────────
         if text_embedding is not None:
-            text_condition = text_embedding.to(device, torch.float32)
+            text_condition = text_embedding.to(device=device, dtype=infer_dtype)
             if attention_mask is not None:
                 text_condition_len = attention_mask.sum(dim=1).to(device)
             else:
@@ -1116,6 +1156,9 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
                 input_ids.to(device),
                 attention_mask.to(device),
             )
+            # Defensive: ensure we never feed float32 into a half transformer.
+            if text_condition.dtype != infer_dtype:
+                text_condition = text_condition.to(dtype=infer_dtype)
             text_condition_len = attention_mask.sum(dim=1).to(device)
 
         batch = text_condition.shape[0]
@@ -1123,8 +1166,10 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
         # ── prompt audio encoding ─────────────────────────────────────
         if prompt_audio is not None:
             prompt_latent, prompt_dur = self.encode_prompt_audio(prompt_audio)
+            if prompt_latent.dtype != infer_dtype:
+                prompt_latent = prompt_latent.to(dtype=infer_dtype)
         else:
-            prompt_latent = torch.empty(batch, 0, self.config.latent_dim, device=device)
+            prompt_latent = torch.empty(batch, 0, self.config.latent_dim, device=device, dtype=infer_dtype)
             prompt_dur = 0
 
         # ── duration ──────────────────────────────────────────────────
@@ -1147,7 +1192,7 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
             latent_cond = F.pad(prompt_latent, (0, 0, 0, gen_len))
             empty_latent_cond = torch.zeros_like(latent_cond)
         else:
-            latent_cond = torch.zeros(batch, max_dur, self.config.latent_dim, device=device)
+            latent_cond = torch.zeros(batch, max_dur, self.config.latent_dim, device=device, dtype=infer_dtype)
             empty_latent_cond = latent_cond
 
         # ── APG buffer ────────────────────────────────────────────────
@@ -1209,12 +1254,12 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
         # ── initial noise ─────────────────────────────────────────────
         y0 = []
         for dur in duration_tensor:
-            noise = torch.randn(dur.item(), self.config.latent_dim, device=device)
+            noise = torch.randn(dur.item(), self.config.latent_dim, device=device, dtype=infer_dtype)
             y0.append(noise)
         y0 = pad_sequence(y0, padding_value=0, batch_first=True)
 
         # ── ODE solve ─────────────────────────────────────────────────
-        t = torch.linspace(0, 1, steps, device=device)
+        t = torch.linspace(0, 1, steps, device=device, dtype=infer_dtype)
         prompt_noise = y0[:, :latent_len].clone()
         trajectory = odeint_euler(fn, y0, t)
         sampled = trajectory[-1]
@@ -1224,7 +1269,14 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
         if prompt_audio is not None:
             pred_latent = pred_latent[:, prompt_dur:]
 
-        pred_latent = pred_latent.permute(0, 2, 1).float()
+        pred_latent = pred_latent.permute(0, 2, 1)
+        # Match VAE decoder dtype (often fp16).
+        try:
+            dec_dt = next(iter(self.vae.decoder.parameters())).dtype
+        except Exception:
+            dec_dt = pred_latent.dtype
+        if pred_latent.dtype != dec_dt:
+            pred_latent = pred_latent.to(dtype=dec_dt)
         waveform = self.vae.decode(pred_latent).squeeze(1)
 
         if not return_dict:
