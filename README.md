@@ -30,14 +30,14 @@ In the AbstractFramework stack, **AbstractCore** is the intended place to run ag
 
 ```mermaid
 flowchart LR
-  App[Your app / REPL] --> VM[abstractvoice.VoiceManager]
-  VM --> TTS[Piper (TTS)]
-  VM --> STT[faster-whisper (STT)]
-  VM --> IO[sounddevice / PortAudio]
+  App["Your app / REPL"] --> VM["abstractvoice.VoiceManager"]
+  VM --> TTS["Piper TTS"]
+  VM --> STT["faster-whisper STT"]
+  VM --> IO["sounddevice / PortAudio"]
 
   subgraph AbstractFramework
-    AC[AbstractCore] -. capability plugin .-> VM
-    AR[AbstractRuntime] -. optional ArtifactStore .-> VM
+    AC["AbstractCore"] -. "capability plugin" .-> VM
+    AR["AbstractRuntime"] -. "optional ArtifactStore" .-> VM
   end
 ```
 
