@@ -2,10 +2,10 @@
 
 **Date**: January 21, 2026 (historical snapshot)  
 **Snapshot then**: v0.5.2 → v0.6.0 (planned)  
-**Current (2026-02-09)**: v0.6.3 (Piper-first; offline-first REPL; cloning via optional engines `f5_tts` / `chroma`)
+**Last maintained (2026-02-09)**: v0.6.3 (Piper-first; offline-first REPL; cloning via optional engines `f5_tts` / `chroma`)
 
 > Note: This report is kept for archaeology. For current usage and supported behavior, prefer `README.md`,
-> `docs/getting-started.md`, and the integrator contract in `docs/api.md`.
+> `docs/getting-started.md`, the integrator contract in `docs/api.md`, and release notes in `CHANGELOG.md`.
 
 ## Status update (2026-02-09)
 

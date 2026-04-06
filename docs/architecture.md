@@ -1,6 +1,6 @@
 # AbstractVoice architecture
 
-This document describes how AbstractVoice works internally (v`0.6.3`), and where to look in the code when you need to change behavior.
+This document describes how AbstractVoice works internally (v`0.7.x`), and where to look in the code when you need to change behavior.
 
 If you want the supported integrator contract, start with `docs/api.md`. For REPL behavior and commands, see `docs/repl_guide.md`.
 
@@ -9,8 +9,9 @@ For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 ## TL;DR
 
 - `abstractvoice.VoiceManager` is the orchestration façade (`abstractvoice/vm/*`).
-- **TTS (default)**: Piper adapter → `AdapterTTSEngine` → `NonBlockingAudioPlayer` (pause/resume/stop).
+- **TTS (default)**: TTS adapter registry → `AdapterTTSEngine` → `NonBlockingAudioPlayer` (pause/resume/stop).
 - **STT (default)**: `VoiceRecognizer` loop (mic capture) → `VoiceDetector` (webrtcvad) → `FasterWhisperAdapter`.
+- **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`f5_tts|chroma|audiodit|omnivoice`).
 - Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (`abstractvoice/vm/core.py`).
 
 ## Component diagram
@@ -20,7 +21,10 @@ flowchart LR
   App[Your app / REPL] <--> VM[VoiceManager]
 
   VM -->|speak()*| TTSEngine[AdapterTTSEngine]
-  TTSEngine -->|synthesize| Piper[PiperTTSAdapter]
+  TTSEngine -->|synthesize| TTSAdapter[TTSAdapter]
+  TTSAdapter --> Piper[PiperTTSAdapter]
+  TTSAdapter --> AudioDiT[AudioDiTTTSAdapter]
+  TTSAdapter --> OmniVoice[OmniVoiceTTSAdapter]
   TTSEngine --> Player[NonBlockingAudioPlayer]
   Player --> Out[(sounddevice OutputStream)]
 
@@ -43,8 +47,11 @@ Start points (in call order):
 
 TTS implementation:
 
+- TTS adapter interface: `abstractvoice/adapters/base.py`
 - Piper adapter: `abstractvoice/adapters/tts_piper.py`
 - TTS engine selection (registry): `abstractvoice/adapters/tts_registry.py`
+- AudioDiT adapter/runtime: `abstractvoice/adapters/tts_audiodit.py`, `abstractvoice/audiodit/runtime.py`
+- OmniVoice adapter/runtime: `abstractvoice/adapters/tts_omnivoice.py`, `abstractvoice/omnivoice/runtime.py`
 - TTS engine wrapper (back-compat contract): `abstractvoice/tts/adapter_tts_engine.py`
 - Low-latency audio player: `abstractvoice/tts/tts_engine.py`
 
@@ -58,7 +65,7 @@ STT implementation:
 Optional features:
 
 - AEC (extra): `abstractvoice/aec/webrtc_apm.py` (used by `abstractvoice/recognition.py`)
-- Voice cloning (extra): `abstractvoice/cloning/*` (used by `abstractvoice/vm/tts_mixin.py`)
+- Voice cloning (extra): `abstractvoice/cloning/*` (manager/engines/store; used by `abstractvoice/vm/tts_mixin.py`)
 - AbstractCore plugin: `abstractvoice/integrations/abstractcore_plugin.py`
 
 ## Data flows

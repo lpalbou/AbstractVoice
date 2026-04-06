@@ -1,5 +1,5 @@
 # AbstractVoice (full)
-> Modular Python voice I/O for AI apps (Piper TTS + faster‑whisper STT by default), with optional voice cloning (F5‑TTS / Chroma).
+> Modular Python voice I/O for AI apps (Piper TTS + faster‑whisper STT by default), with optional heavy TTS/cloning engines (AudioDiT / OmniVoice) and voice cloning backends (F5‑TTS / Chroma).
 
 This is an expanded, agent-oriented repo index. For the short version, see `llms.txt`.
 
@@ -11,6 +11,8 @@ Sources of truth:
 Requires Python `>=3.10` (see `pyproject.toml`).
 
 Offline-first rule: the REPL runs with `allow_downloads=False`, so downloads should be explicit (prefetch/download commands + clear errors).
+
+Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skippable when context is tight).
 
 Positioning:
 - AbstractVoice is a **voice I/O library** (TTS/STT + optional cloning). It does not implement an agent loop or an LLM server.
@@ -89,6 +91,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [ADR 0002](docs/adr/0002_barge_in_interruption.md): voice modes + stop phrase + optional AEC
 - [ADR 0003](docs/adr/0003_cloning_reference_text_fallback.md): cloning `reference_text` auto-fallback
 - [ADR 0004](docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md): streaming + cancellation for cloned TTS
+- [ADR 0005](docs/adr/0005_torch_device_and_dtype_policy.md): torch device + dtype selection policy (torch engines)
 
 ## Code map (start points)
 - [Public package entry](abstractvoice/__init__.py): version + main export
@@ -123,6 +126,8 @@ Optional dependency groups (see `pyproject.toml`):
 - [Clone store + bundles](abstractvoice/cloning/store.py)
 - [F5‑TTS engine](abstractvoice/cloning/engine_f5.py)
 - [Chroma engine](abstractvoice/cloning/engine_chroma.py)
+- [AudioDiT engine](abstractvoice/cloning/engine_audiodit.py)
+- [OmniVoice engine](abstractvoice/cloning/engine_omnivoice.py)
 
 ## Tests
 - [tests/](tests/): run `python -m pytest -q`
@@ -137,6 +142,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Acknowledgments](ACKNOWLEDGMENTS.md)
 - [Security policy](SECURITY.md)
 - [License](LICENSE)
+- [Third-party licenses (vendored code)](third_party_licenses/longcat_audiodit_license.txt)
 
 ## Optional
 - [Model / voice management](docs/model-management.md)
