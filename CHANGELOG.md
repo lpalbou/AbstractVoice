@@ -42,6 +42,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - REPL: long pasted prompts no longer crash the clone shortcut path (`File name too long`); debug WAV filenames are now length-safe.
 - Docs: clarify REPL as a demonstrator (minimal LLM client) and recommend AbstractCore for production agent/server integration; refreshed `llms.txt` / `llms-full.txt`.
 - Docs: clarify AudioDiT language expectations (upstream EN/ZH focus; other languages not guaranteed).
+- Docs: expand `docs/faq.md` with OmniVoice voice design attributes, cross-machine “voice preset” guidance, and fine-tuning/data preparation pointers (plus engine-specific cloning reference recommendations).
 - OmniVoice cloning now loads reference audio via `soundfile` (avoids torchaudio `torchcodec` dependency for prompt loading).
 
 ## [0.6.1] - 2026-02-04
