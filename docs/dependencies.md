@@ -41,7 +41,7 @@ These are always installed with `pip install abstractvoice`.
 
 - **huggingface_hub**
   - **Why**: download and cache model weights (STT models, optional engines).
-  - **Where**: `abstractvoice/adapters/stt_faster_whisper.py`, `abstractvoice/prefetch.py`, `abstractvoice/audiodit/runtime.py`
+  - **Where**: `abstractvoice/adapters/stt_faster_whisper.py`, `abstractvoice/prefetch.py`, `abstractvoice/audiodit/runtime.py`, `abstractvoice/omnivoice/runtime.py`
   - **Repo**: `https://github.com/huggingface/huggingface_hub`
   - **License**: `https://github.com/huggingface/huggingface_hub/blob/main/LICENSE`
 
@@ -126,6 +126,36 @@ Vendored code:
   - **Repo**: `https://github.com/meituan-longcat/LongCat-AudioDiT`
   - **License**: `https://github.com/meituan-longcat/LongCat-AudioDiT/blob/main/LICENSE`
   - **What we ship**: a HuggingFace-compatible derived implementation under `abstractvoice/audiodit/*` to avoid `trust_remote_code`.
+
+### `abstractvoice[omnivoice]` — OmniVoice (omnilingual TTS + cloning / design)
+
+Python packages:
+
+- **omnivoice**
+  - **Why**: OmniVoice engine runtime + model wrapper.
+  - **Where**: `abstractvoice/omnivoice/*`, `abstractvoice/adapters/tts_omnivoice.py`, `abstractvoice/cloning/engine_omnivoice.py`
+  - **Repo**: `https://github.com/k2-fsa/OmniVoice`
+  - **License**: `https://github.com/k2-fsa/OmniVoice/blob/master/LICENSE`
+
+- **torch / torchaudio / torchvision**
+  - **Why**: tensor runtime for OmniVoice inference.
+  - **Repo**: `https://github.com/pytorch/pytorch`
+  - **License**: `https://github.com/pytorch/pytorch/blob/main/LICENSE`
+
+- **transformers**
+  - **Repo**: `https://github.com/huggingface/transformers`
+  - **License**: `https://github.com/huggingface/transformers/blob/main/LICENSE`
+
+- **accelerate**
+  - **Repo**: `https://github.com/huggingface/accelerate`
+  - **License**: `https://github.com/huggingface/accelerate/blob/main/LICENSE`
+
+Models/weights (Hugging Face):
+
+- **OmniVoice** (weights + model license statement)
+  - **Model**: `https://huggingface.co/k2-fsa/OmniVoice`
+  - **Cache**: `~/.cache/huggingface` (default)
+  - **Prefetch**: `python -m abstractvoice download --omnivoice` or `abstractvoice-prefetch --omnivoice`
 
 ### `abstractvoice[chroma]` — Chroma-4B cloning (GPU-heavy)
 

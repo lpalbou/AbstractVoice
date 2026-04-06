@@ -11,10 +11,11 @@ Older changelog entries may reference historical CLI commands or model choices.
 ## [Unreleased]
 
 ### Added
-- (nothing yet)
+- `third_party_licenses/` with vendored-code license texts (currently: LongCat-AudioDiT MIT license).
 
 ### Fixed
-- (nothing yet)
+- Docs: refreshed repo guidance (`llms*.txt`), internal maps (`docs/architecture.md`, `docs/development.md`), and cloning/engine documentation to match current engines and commands.
+- Licensing: updated root `LICENSE` copyright year and linked vendored-code license text from docs/manifests.
 
 ## [0.7.0] - 2026-04-06
 

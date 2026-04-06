@@ -38,6 +38,12 @@ These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`)
   - einops (used by the model blocks): https://github.com/arogozhnikov/einops
   - sentencepiece (tokenizer runtime): https://github.com/google/sentencepiece
   - safetensors (weight format): https://github.com/huggingface/safetensors
+- OmniVoice runtime deps (`abstractvoice[omnivoice]`) for omnilingual TTS + prompt-audio cloning + voice design:
+  - Model + weights: https://huggingface.co/k2-fsa/OmniVoice
+  - Upstream repo (code): https://github.com/k2-fsa/OmniVoice
+  - PyTorch + audio/vision extensions (`torch`, `torchaudio`, `torchvision`): https://github.com/pytorch/pytorch
+  - Transformers: https://github.com/huggingface/transformers
+  - Accelerate (runtime helpers): https://github.com/huggingface/accelerate
 - AEC (`abstractvoice[aec]`) for true barge-in on speakers: https://github.com/shichaog/AEC-Audio-Processing
 - Audio effects (`abstractvoice[audio-fx]`): https://github.com/librosa/librosa
 - Legacy Whisper + token stats (`abstractvoice[stt]`): https://github.com/openai/whisper and https://github.com/openai/tiktoken
@@ -65,6 +71,7 @@ and is needed to avoid `trust_remote_code`.
 
 - LongCat-AudioDiT (MIT): https://github.com/meituan-longcat/LongCat-AudioDiT
   - We include a HuggingFace-compatible derived implementation under `abstractvoice/audiodit/*`.
+  - License text: `third_party_licenses/longcat_audiodit_license.txt`.
 
 ## Models and voices
 
@@ -75,5 +82,6 @@ AbstractVoice may download model weights and voice files at runtime (explicitly 
 - Cloning artifacts are cached under `~/.cache/abstractvoice/*` (see `abstractvoice/cloning/engine_f5.py` and `abstractvoice/cloning/engine_chroma.py`).
 - AudioDiT weights use the Hugging Face cache by default (see `abstractvoice/audiodit/runtime.py`).
   - AudioDiT also downloads a text-encoder model (default: `google/umt5-base`) via Hugging Face.
+- OmniVoice weights use the Hugging Face cache by default (see `abstractvoice/omnivoice/runtime.py`).
 
 Always verify upstream licenses/usage terms for the specific models/voices you deploy or redistribute. See `docs/voices-and-licenses.md`.

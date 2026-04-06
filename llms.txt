@@ -10,6 +10,8 @@ Positioning:
 
 Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downloads should be explicit (see `docs/installation.md` and `docs/model-management.md`).
 
+Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skippable when context is tight).
+
 ## Start here
 - [README](README.md): install + smoke tests + ecosystem diagram
 - [Docs index](docs/README.md): map of user-facing vs internal docs
@@ -60,6 +62,7 @@ Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downlo
 - [Acknowledgments](ACKNOWLEDGMENTS.md)
 - [Changelog](CHANGELOG.md)
 - [License](LICENSE)
+- [Third-party licenses (vendored code)](third_party_licenses/longcat_audiodit_license.txt)
 
 ## Optional
 - [Full index](llms-full.txt): expanded repo map + workflows

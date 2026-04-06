@@ -140,7 +140,7 @@ Commands:
 - `/tts_voice piper` or `/tts_voice clone <id-or-name>` (choose which voice is used for speaking)
 - `/clone_rm <id-or-name>` or `/clone_rm_all --yes` (delete clones)
 - `/cloning_status` (check local readiness; no downloads)
-- `/cloning_download f5_tts|chroma` (explicit downloads)
+- `/cloning_download f5_tts|chroma|audiodit|omnivoice` (explicit downloads)
 
 Notes:
 - Cloned voices are **engine-bound** (`f5_tts` vs `chroma` vs `audiodit` vs `omnivoice`). Selecting a clone uses its stored engine.
@@ -151,6 +151,7 @@ Notes:
 
 - Start with `--verbose` or toggle in-session: `/verbose` / `/verbose on|off`.
 - After each turn, the REPL prints at most 2 lines with STT/LLM/TTS timings + counts.
+- Inspect the exact in-memory LLM chat history (what is sent to the server): `/history [n] [--all] [--full]`.
 
 ## Troubleshooting
 
