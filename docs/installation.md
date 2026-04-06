@@ -19,9 +19,20 @@ pip install abstractvoice
 pip install "abstractvoice[cloning]"   # OpenF5-based cloning (heavy)
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
 pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transformers)
+pip install "abstractvoice[omnivoice]" # OmniVoice (very heavy; torch/transformers)
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
 pip install "abstractvoice[audio-fx]"  # Speed change without pitch change (librosa)
 pip install "abstractvoice[stt]"       # Legacy openai-whisper + tiktoken (token stats)
+```
+
+Note (OmniVoice): upstream `omnivoice` pins `torch==2.8.*` / `torchaudio==2.8.*`. If you already have `torchvision` installed for a different torch version (common if you installed `abstractvoice[chroma]` first), you may see import errors like:
+
+- `RuntimeError: operator torchvision::nms does not exist`
+
+Fix:
+
+```bash
+python -m pip install --upgrade --force-reinstall "torchvision==0.23.*"
 ```
 
 ## Offline-first model downloads
@@ -45,6 +56,9 @@ python -m abstractvoice download --chroma
 
 pip install "abstractvoice[audiodit]"  # for --audiodit (LongCat-AudioDiT-1B)
 python -m abstractvoice download --audiodit
+
+pip install "abstractvoice[omnivoice]" # for --omnivoice (OmniVoice)
+python -m abstractvoice download --omnivoice
 ```
 
 The same operations are available via the convenience entrypoint:
@@ -53,6 +67,7 @@ The same operations are available via the convenience entrypoint:
 abstractvoice-prefetch --piper en
 abstractvoice-prefetch --stt small
 abstractvoice-prefetch --audiodit
+abstractvoice-prefetch --omnivoice
 ```
 
 ## Audio device setup (common issues)

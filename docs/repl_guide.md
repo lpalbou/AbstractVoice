@@ -67,7 +67,14 @@ python -m abstractvoice download --piper de
 
 - `/tts_engine piper`
 - `/tts_engine audiodit` (requires `abstractvoice[audiodit]` + prefetched weights; best results on EN/ZH, other languages not guaranteed)
+- `/tts_engine omnivoice` (requires `abstractvoice[omnivoice]` + prefetched weights; supports many languages upstream)
 - `/stt_engine faster_whisper`
+
+Engine knobs (base TTS):
+
+- `/tts_quality fast|balanced|high` (best-effort speed/quality preset)
+- `/speed 0.9` / `/speed 1.1` (native for OmniVoice; AudioDiT ignores speed)
+- OmniVoice-specific parameters + voice design: `/omnivoice` (prints current params + examples)
 
 ### 5) Voice catalog (Piper)
 
@@ -88,12 +95,25 @@ For Chroma (GPU-heavy):
 pip install "abstractvoice[chroma]"
 ```
 
+For AudioDiT (torch/transformers):
+
+```bash
+pip install "abstractvoice[audiodit]"
+```
+
+For OmniVoice (torch/transformers):
+
+```bash
+pip install "abstractvoice[omnivoice]"
+```
+
 Downloads (explicit):
 
 ```bash
 python -m abstractvoice download --openf5
 python -m abstractvoice download --chroma
 python -m abstractvoice download --audiodit
+python -m abstractvoice download --omnivoice
 ```
 
 Commands:
@@ -106,7 +126,7 @@ Commands:
 - `/cloning_download f5_tts|chroma` (explicit downloads)
 
 Notes:
-- Cloned voices are **engine-bound** (`f5_tts` vs `chroma` vs `audiodit`). Selecting a clone uses its stored engine.
+- Cloned voices are **engine-bound** (`f5_tts` vs `chroma` vs `audiodit` vs `omnivoice`). Selecting a clone uses its stored engine.
 - The REPL auto-unloads other cloning engines (and unloads Piper voice) when you select a cloned voice to reduce OOM risk.
 - `reference_text` is optional: if missing, the REPL will auto-generate it via STT on first speak (requires cached STT model; prefetch with `python -m abstractvoice download --stt small`). You can also set it manually via `/clone_set_ref_text ...`.
 

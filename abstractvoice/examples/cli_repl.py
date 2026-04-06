@@ -294,16 +294,40 @@ class VoiceREPL(cmd.Cmd):
         prov_label = f"{self.provider.name} ({self.provider.base_url})"
         if self.voice_manager:
             lang_name = self.voice_manager.get_language_name()
+            lang_code = ""
+            try:
+                lang_code = str(self.voice_manager.get_language() or "").strip().lower()
+            except Exception:
+                lang_code = ""
             mic = (self.voice_mode or "off").upper()
-            intro += f"Provider: {prov_label} | Model: {self.model} | Voice: {lang_name} | Mic: {mic} | Cloning: {self.cloning_engine}\n"
+            tts_engine = ""
+            try:
+                tts_engine = str(getattr(self.voice_manager, "_tts_engine_name", "") or "").strip().lower()
+            except Exception:
+                tts_engine = ""
+            if not tts_engine:
+                try:
+                    a = getattr(self.voice_manager, "tts_adapter", None)
+                    tts_engine = str(getattr(a, "engine_id", "") or "").strip().lower()
+                except Exception:
+                    tts_engine = ""
+            tts_engine = tts_engine or "piper"
+            lang_label = f"{lang_name} ({lang_code})" if lang_code else str(lang_name)
+            intro += (
+                f"Provider: {prov_label} | Model: {self.model} | "
+                f"TTS: {tts_engine} | Language: {lang_label} | Mic: {mic} | Cloning: {self.cloning_engine}\n"
+            )
         else:
             intro += f"Provider: {prov_label} | Model: {self.model} | Voice: Disabled\n"
         intro += f"\n{Colors.CYAN}Quick Start:{Colors.END}\n"
         intro += "  • Type messages to chat with the LLM\n"
         intro += "  • Voice input (mic): off by default. Enable: /voice stop  (or start with --voice-mode stop)\n"
         intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
-        intro += "  • Use /language <lang> to switch voice language\n"
-        intro += "  • Use /clones and /tts_voice to use cloned voices\n"
+        intro += "  • TTS engine: /tts_engine piper|audiodit|omnivoice  (offline-first: prefetch first)\n"
+        intro += "  • Base TTS quality: /tts_quality fast|balanced|high\n"
+        intro += "  • OmniVoice design/params: /omnivoice  (then /omnivoice instruct \"female, young adult, ...\")\n"
+        intro += "  • Language: /language <code>  (Piper: en/fr/de/es/ru/zh; OmniVoice: many)\n"
+        intro += "  • Cloning: /clone <ref.wav> my_voice --engine omnivoice --text \"...\"  then /tts_voice clone my_voice\n"
         intro += "  • Type /help for full command list\n"
         intro += "  • Type /exit or /q to quit\n"
         return intro
@@ -866,7 +890,9 @@ class VoiceREPL(cmd.Cmd):
         """Switch voice language.
 
         Usage: /language <lang>
-        Available languages: en, fr, es, de, ru, zh
+        Notes:
+          - Piper mapping: en, fr, es, de, ru, zh
+          - OmniVoice: accepts many ISO codes (e.g. fr, it, ja, ko, ar, hi, ...)
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
@@ -877,10 +903,30 @@ class VoiceREPL(cmd.Cmd):
             current_code = self.voice_manager.get_language()
             print(f"Current language: {current_name} ({current_code})")
 
-            print("Available languages:")
-            for code in self.voice_manager.get_supported_languages():
-                name = self.voice_manager.get_language_name(code)
-                print(f"  {code} - {name}")
+            # The built-in language catalog is Piper-focused. For engines like OmniVoice
+            # we treat the language code as a pass-through hint and do not enumerate
+            # the full upstream language list here.
+            engine = ""
+            try:
+                engine = str(getattr(self.voice_manager, "_tts_engine_name", "") or "").strip().lower()
+            except Exception:
+                engine = ""
+            if not engine:
+                try:
+                    a = getattr(self.voice_manager, "tts_adapter", None)
+                    engine = str(getattr(a, "engine_id", "") or "").strip().lower()
+                except Exception:
+                    engine = ""
+
+            if engine in ("omnivoice",):
+                print("Language codes:")
+                print("  - OmniVoice engine: pass-through (example: /language fr)")
+                print("  - Piper mapping: en, fr, es, de, ru, zh")
+            else:
+                print("Available languages (Piper mapping):")
+                for code in self.voice_manager.get_supported_languages():
+                    name = self.voice_manager.get_language_name(code)
+                    print(f"  {code} - {name}")
             return
 
         language = args.strip().lower()
@@ -1498,6 +1544,42 @@ class VoiceREPL(cmd.Cmd):
                 print("Speed should be between 0.5 and 2.0")
         except ValueError:
             print("Usage: /speed <number>  (e.g., /speed 1.5)")
+
+    def do_tts_quality(self, arg):
+        """Set base TTS quality preset (fast|balanced|high).
+
+        This is an engine-agnostic knob. Engines that don't support it may ignore
+        it (Piper is typically a no-op).
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        s = str(arg or "").strip().lower()
+        if not s:
+            cur = None
+            try:
+                cur = self.voice_manager.get_tts_quality_preset()
+            except Exception:
+                cur = None
+            print(f"Base TTS quality preset: {cur or '--'}")
+            print("Usage: /tts_quality fast|balanced|high")
+            return
+
+        if s not in ("fast", "balanced", "high"):
+            print("Usage: /tts_quality fast|balanced|high")
+            return
+
+        try:
+            ok = bool(self.voice_manager.set_tts_quality_preset(s))
+        except Exception as e:
+            print(f"❌ Failed to set preset: {e}")
+            return
+
+        if ok:
+            print(f"✅ Base TTS quality preset: {s}")
+        else:
+            print(f"ℹ️  Current TTS engine does not support quality presets (requested: {s}).")
 
     def do_debug(self, arg):
         """Toggle debug mode (REPL).
@@ -2301,7 +2383,7 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice from a reference file or folder.
 
         Usage:
-          /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text "reference transcript"]
+          /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text "reference transcript"]
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
@@ -2310,11 +2392,13 @@ class VoiceREPL(cmd.Cmd):
         try:
             parts = shlex.split(arg.strip())
         except ValueError as e:
-            print(f"Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]  (parse error: {e})")
+            print(
+                f"Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text \"...\"]  (parse error: {e})"
+            )
             return
 
         if not parts:
-            print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
+            print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text \"...\"]")
             return
 
         engine = None
@@ -2325,14 +2409,14 @@ class VoiceREPL(cmd.Cmd):
             tok = parts[i]
             if tok in ("--engine",):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
+                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text \"...\"]")
                     return
                 engine = parts[i + 1]
                 i += 2
                 continue
             if tok in ("--text", "--reference-text", "--reference_text"):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
+                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text \"...\"]")
                     return
                 reference_text = parts[i + 1]
                 i += 2
@@ -2341,7 +2425,7 @@ class VoiceREPL(cmd.Cmd):
             i += 1
 
         if not pos:
-            print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
+            print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text \"...\"]")
             return
 
         path = pos[0]
@@ -2419,7 +2503,7 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice (or reuse an existing one) and immediately select it.
 
         Usage:
-          /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text "reference transcript"]
+          /clone_use <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text "reference transcript"]
 
         Shortcut:
           - Paste a WAV/FLAC/OGG path directly (optionally: `path.wav | transcript`).
@@ -2431,11 +2515,13 @@ class VoiceREPL(cmd.Cmd):
         try:
             parts = shlex.split(arg.strip())
         except ValueError as e:
-            print(f"Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]  (parse error: {e})")
+            print(
+                f"Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text \"...\"]  (parse error: {e})"
+            )
             return
 
         if not parts:
-            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
+            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text \"...\"]")
             return
 
         engine = None
@@ -2595,7 +2681,7 @@ class VoiceREPL(cmd.Cmd):
         """Select which voice is used for speaking.
 
         Usage:
-          /tts_voice piper
+          /tts_voice base   (alias: piper)
           /tts_voice clone <voice_id_or_name>
         """
         if not self.voice_manager:
@@ -2616,11 +2702,23 @@ class VoiceREPL(cmd.Cmd):
                 except Exception:
                     print(f"Current TTS voice: {vid}")
             else:
-                print("Current TTS voice: piper")
-            print("Usage: /tts_voice piper | /tts_voice clone <id-or-name>")
+                eng = ""
+                try:
+                    eng = str(getattr(self.voice_manager, "_tts_engine_name", "") or "").strip().lower()
+                except Exception:
+                    eng = ""
+                if not eng:
+                    try:
+                        a = getattr(self.voice_manager, "tts_adapter", None)
+                        eng = str(getattr(a, "engine_id", "") or "").strip().lower()
+                    except Exception:
+                        eng = ""
+                eng = eng or "piper"
+                print(f"Current TTS voice: base (engine: {eng})")
+            print("Usage: /tts_voice base|piper | /tts_voice clone <id-or-name>")
             return
 
-        if parts[0] == "piper":
+        if parts[0] in ("piper", "base", "engine", "tts"):
             self.current_tts_voice = None
             # Free any heavy cloning engines when switching back to Piper.
             try:
@@ -2636,11 +2734,23 @@ class VoiceREPL(cmd.Cmd):
                         self.voice_manager.set_language(self.current_language)
             except Exception:
                 pass
-            print("✅ Using Piper (default) voice")
+            eng = ""
+            try:
+                eng = str(getattr(self.voice_manager, "_tts_engine_name", "") or "").strip().lower()
+            except Exception:
+                eng = ""
+            if not eng:
+                try:
+                    a = getattr(self.voice_manager, "tts_adapter", None)
+                    eng = str(getattr(a, "engine_id", "") or "").strip().lower()
+                except Exception:
+                    eng = ""
+            eng = eng or "piper"
+            print(f"✅ Using base TTS (engine: {eng})")
             return
 
         if parts[0] != "clone" or len(parts) < 2:
-            print("Usage: /tts_voice piper | /tts_voice clone <id-or-name>")
+            print("Usage: /tts_voice base|piper | /tts_voice clone <id-or-name>")
             return
 
         wanted = parts[1]
@@ -2805,6 +2915,22 @@ class VoiceREPL(cmd.Cmd):
             else:
                 print("ℹ️  AudioDiT weights: not present (will require a large download + HF access)")
                 print("   Run: /cloning_download audiodit")
+
+        # OmniVoice (optional) is both a TTS engine and a cloning backend.
+        if (
+            importlib.util.find_spec("omnivoice") is None
+            or importlib.util.find_spec("torch") is None
+            or importlib.util.find_spec("torchaudio") is None
+            or importlib.util.find_spec("transformers") is None
+        ):
+            print("ℹ️  OmniVoice runtime: not installed (missing: omnivoice/torch/torchaudio/transformers)")
+            print("   Install: pip install \"abstractvoice[omnivoice]\"")
+        else:
+            if self._is_omnivoice_cached():
+                print("✅ OmniVoice weights: present (cached)")
+            else:
+                print("ℹ️  OmniVoice weights: not present (will require a large download + HF access)")
+                print("   Run: /cloning_download omnivoice")
         try:
             if self.voice_manager:
                 info = self.voice_manager.get_cloning_runtime_info()
@@ -2862,8 +2988,22 @@ class VoiceREPL(cmd.Cmd):
                 print("❌ AudioDiT runtime not installed in this environment (missing: torch/transformers).")
                 print("   Install: pip install \"abstractvoice[audiodit]\"")
                 return
+        elif engine_name == "omnivoice":
+            if importlib.util.find_spec("huggingface_hub") is None:
+                print("❌ huggingface_hub is required to download OmniVoice weights.")
+                print("   Install: pip install huggingface_hub")
+                return
+            if (
+                importlib.util.find_spec("omnivoice") is None
+                or importlib.util.find_spec("torch") is None
+                or importlib.util.find_spec("torchaudio") is None
+                or importlib.util.find_spec("transformers") is None
+            ):
+                print("❌ OmniVoice runtime not installed in this environment (missing: omnivoice/torch/torchaudio/transformers).")
+                print("   Install: pip install \"abstractvoice[omnivoice]\"")
+                return
         else:
-            print("Usage: /cloning_download [f5_tts|chroma|audiodit]")
+            print("Usage: /cloning_download [f5_tts|chroma|audiodit|omnivoice]")
             return
 
         try:
@@ -2877,11 +3017,16 @@ class VoiceREPL(cmd.Cmd):
                 engine = cloner._get_engine(engine_name)  # explicit download is an engine concern
                 print("Downloading Chroma artifacts (very large; requires HF access). This is a one-time cache per machine.")
                 engine.ensure_chroma_artifacts_downloaded()
-            else:
+            elif engine_name == "audiodit":
                 from abstractvoice.audiodit.runtime import prefetch_audiodit
 
                 print("Downloading AudioDiT weights + tokenizer (very large; requires HF access).")
                 prefetch_audiodit()
+            else:
+                from abstractvoice.omnivoice.runtime import prefetch_omnivoice
+
+                print("Downloading OmniVoice weights + tokenizer (very large; requires HF access).")
+                prefetch_omnivoice()
             print("✅ Download complete.")
         except Exception as e:
             print(f"❌ Download failed: {e}")
@@ -2901,6 +3046,29 @@ class VoiceREPL(cmd.Cmd):
                 if not snap.is_dir():
                     continue
                 if (snap / "model.safetensors").exists() and (snap / "config.json").exists():
+                    return True
+        except Exception:
+            return False
+        return False
+
+    def _is_omnivoice_cached(self) -> bool:
+        """Heuristic local check that avoids importing huggingface_hub."""
+        from pathlib import Path
+        import os
+
+        base = Path(os.path.expanduser("~/.cache/huggingface/hub"))
+        root = base / "models--k2-fsa--OmniVoice" / "snapshots"
+        if not root.exists():
+            return False
+        try:
+            for snap in root.iterdir():
+                if not snap.is_dir():
+                    continue
+                if (
+                    (snap / "model.safetensors").exists()
+                    and (snap / "config.json").exists()
+                    and (snap / "audio_tokenizer" / "model.safetensors").exists()
+                ):
                     return True
         except Exception:
             return False
@@ -2955,6 +3123,14 @@ class VoiceREPL(cmd.Cmd):
                 and importlib.util.find_spec("transformers") is not None
                 and self._is_audiodit_cached()
             )
+        if eng == "omnivoice":
+            return (
+                importlib.util.find_spec("omnivoice") is not None
+                and importlib.util.find_spec("torch") is not None
+                and importlib.util.find_spec("torchaudio") is not None
+                and importlib.util.find_spec("transformers") is not None
+                and self._is_omnivoice_cached()
+            )
         if eng == "chroma":
             return (
                 importlib.util.find_spec("torch") is not None
@@ -3003,31 +3179,168 @@ class VoiceREPL(cmd.Cmd):
             return
 
     def do_tts_engine(self, arg):
-        """Select TTS engine: auto|piper|audiodit.
+        """Select TTS engine: auto|piper|audiodit|omnivoice.
 
         This recreates the internal VoiceManager instance.
         """
         engine = arg.strip().lower()
-        if engine not in ("auto", "piper", "audiodit"):
-            print("Usage: /tts_engine auto|piper|audiodit")
+        if engine not in ("auto", "piper", "audiodit", "omnivoice"):
+            print("Usage: /tts_engine auto|piper|audiodit|omnivoice")
             return
 
-        if self.voice_manager:
-            try:
-                self.voice_manager.cleanup()
-            except Exception:
-                pass
+        old = self.voice_manager
+        try:
+            new_vm = VoiceManager(
+                language=self.current_language,
+                tts_model=self._initial_tts_model,
+                debug_mode=self.debug_mode,
+                tts_engine=engine,
+                allow_downloads=False,
+                cloned_tts_streaming=False,
+                cloning_engine=self.cloning_engine,
+            )
+        except Exception as e:
+            print(f"❌ Failed to switch TTS engine to {engine}: {e}")
+            print("   Tip: run /cloning_status then /cloning_download (or `python -m abstractvoice download ...`) to prefetch weights.")
+            return
 
-        self.voice_manager = VoiceManager(
-            language=self.current_language,
-            tts_model=self._initial_tts_model,
-            debug_mode=self.debug_mode,
-            tts_engine=engine,
-            allow_downloads=False,
-            cloned_tts_streaming=False,
-            cloning_engine=self.cloning_engine,
-        )
+        self.voice_manager = new_vm
+        try:
+            if old:
+                old.cleanup()
+        except Exception:
+            pass
         print(f"✅ TTS engine set to: {engine}")
+
+    def do_omnivoice(self, arg):
+        """Configure OmniVoice TTS parameters (only when OmniVoice is active).
+
+        Usage:
+          /omnivoice                  # show current params + examples
+          /omnivoice preset high      # sets /tts_quality
+          /omnivoice instruct "..."   # voice design prompt (optional)
+          /omnivoice <key> <value>    # set a parameter (see examples)
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        adapter = getattr(self.voice_manager, "tts_adapter", None)
+        try:
+            engine_id = str(getattr(adapter, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine_id = ""
+        if engine_id != "omnivoice" or adapter is None:
+            print("❌ OmniVoice is not the active TTS engine.")
+            print("   Run: /tts_engine omnivoice")
+            return
+
+        def _print_status():
+            params = {}
+            try:
+                if hasattr(adapter, "get_params"):
+                    params = dict(adapter.get_params() or {})
+            except Exception:
+                params = {}
+
+            # Prefer a stable order for readability.
+            keys = [
+                "quality_preset",
+                "language",
+                "instruct",
+                "duration",
+                "num_step",
+                "guidance_scale",
+                "t_shift",
+                "position_temperature",
+                "class_temperature",
+                "layer_penalty_factor",
+                "denoise",
+                "preprocess_prompt",
+                "postprocess_output",
+                "audio_chunk_duration",
+                "audio_chunk_threshold",
+            ]
+            print("OmniVoice (base TTS) parameters:")
+            for k in keys:
+                if k in params:
+                    print(f"  {k}: {params.get(k)}")
+            print()
+            print("Examples:")
+            print("  /tts_quality high")
+            print("  /omnivoice num_step 64")
+            print("  /omnivoice guidance_scale 4.0")
+            print("  /omnivoice position_temperature 0")
+            print("  /omnivoice class_temperature 0")
+            print("  /omnivoice instruct \"female, young adult, moderate pitch\"")
+            print("  /omnivoice duration 10")
+            print("  /omnivoice duration off")
+
+        raw = str(arg or "").strip()
+        if not raw:
+            _print_status()
+            return
+
+        try:
+            parts = shlex.split(raw)
+        except Exception as e:
+            print(f"Usage: /omnivoice <key> <value>  (parse error: {e})")
+            return
+        if not parts:
+            _print_status()
+            return
+
+        cmd = str(parts[0] or "").strip().lower()
+        if cmd in ("help", "?"):
+            _print_status()
+            return
+
+        if cmd in ("preset", "quality"):
+            if len(parts) < 2:
+                print("Usage: /omnivoice preset fast|balanced|high")
+                return
+            self.do_tts_quality(str(parts[1]))
+            return
+
+        if cmd in ("instruct",):
+            text = " ".join(parts[1:]).strip()
+            try:
+                if hasattr(adapter, "set_param"):
+                    adapter.set_param("instruct", text if text else None)
+                    print("✅ OmniVoice instruct set." if text else "✅ OmniVoice instruct cleared.")
+                else:
+                    print("❌ This OmniVoice adapter does not support voice design instruct.")
+            except Exception as e:
+                print(f"❌ Failed to set instruct: {e}")
+            return
+
+        if cmd in ("clear_instruct", "no_instruct"):
+            try:
+                if hasattr(adapter, "set_param"):
+                    adapter.set_param("instruct", None)
+                    print("✅ OmniVoice instruct cleared.")
+                else:
+                    print("❌ This OmniVoice adapter does not support voice design instruct.")
+            except Exception as e:
+                print(f"❌ Failed to clear instruct: {e}")
+            return
+
+        if len(parts) < 2:
+            print("Usage: /omnivoice <key> <value>")
+            print("  Tip: /omnivoice  (show current params)")
+            return
+
+        key = str(parts[0])
+        value = " ".join(parts[1:]).strip()
+        try:
+            if hasattr(adapter, "set_param"):
+                adapter.set_param(key, value)
+                print(f"✅ OmniVoice {key} = {value}")
+            else:
+                print("❌ This OmniVoice adapter does not support parameter overrides.")
+        except Exception as e:
+            print(f"❌ Failed to set {key}: {e}")
+            print("   Tip: run `/omnivoice` to see current params + examples.")
 
     def do_aec(self, arg):
         """Enable/disable optional AEC (echo cancellation) for true barge-in.
@@ -3324,63 +3637,79 @@ class VoiceREPL(cmd.Cmd):
     
     def do_help(self, arg):
         """Show help information."""
-        print("Commands:")
-        print("  /exit, /q, /quit    Exit REPL")
-        print("  /clear              Clear history")
-        print("  /reset              Reset (history + voice)")
-        print("  /tts on|off         Toggle TTS")
-        print("  /voice <mode>       Voice input: off|full|wait|stop|ptt")
-        print("  /voice ptt          Push-to-talk session (SPACE captures, ESC exits)")
-        print("  /language <lang>    Switch voice language (en, fr, es, de, ru, zh)")
-        print("  /setvoice [id]      List Piper voices or set one (lang.voice_id)")
-        print("  /lang_info          Show current language information")
-        print("  /list_languages     List all supported languages")
-        print("  /speed <number>     Set TTS speed (0.5-2.0, default: 1.0, pitch preserved)")
-        print("  /debug [on|off]     Debug mode + save synthesized WAVs")
-        print("  /tts_voice ...      Select Piper vs cloned voice (see below)")
-        print("  /tts_engine <e>     Switch TTS engine: auto|piper|audiodit")
-        print("  /whisper <model>    Switch Whisper model: tiny|base|small|medium|large")
-        print("  /stt_engine <e>     Switch STT engine: auto|faster_whisper|whisper (whisper is optional extra)")
-        print("  /speak <text>       Speak text (no LLM call)")
-        print("  /random [seed]      AudioDiT: audition voices, save WAV to untracked/voices/")
-        print("  /transcribe <path>  Transcribe an audio file (faster-whisper by default)")
-        print("  /system <prompt>    Set system prompt")
-        print("  /stop               Stop voice mode or TTS playback")
-        print("  /pause              Pause current TTS playback")
-        print("  /resume             Resume paused TTS playback")
-        print("  /aec on|off         Optional echo cancellation for true barge-in (requires [aec])")
-        print("  /tokens             Display token usage stats")
-        print("  /verbose [on|off]   Toggle verbose per-turn stats")
-        print("  /help               Show this help")
-        print("  /clones             List cloned voices")
-        print("  /clone_info <id>    Show cloned voice details")
-        print("  /clone_ref <id>     Show cloned voice reference text")
-        print("  /clone_rename ...   Rename a cloned voice")
-        print("  /clone_rm <id>      Delete a cloned voice")
-        print("  /clone_rm_all --yes Delete ALL cloned voices")
-        print("  /clone_export ...   Export a cloned voice (.zip)")
-        print("  /clone_import ...   Import a cloned voice (.zip)")
-        print("  /clone <path> [nm]  Add a cloned voice from WAV/FLAC/OGG")
-        print("  /clone_use <path>   Clone+select voice (or reuse)")
-        print("  /clone-my-voice     Record a short prompt and clone it")
-        print("  /tts_voice piper    Speak with Piper (default)")
-        print("  /tts_voice clone X  Speak with a cloned voice (requires cloning runtime + cache)")
-        print("  /cloning_status     Show cloning readiness (no downloads)")
-        print("  /cloning_download   Explicitly download cloning artifacts (f5_tts|chroma|audiodit)")
-        print("  /clone_quality      Set cloned TTS speed/quality: fast|balanced|high")
-        print("  /save <filename>    Save chat history to file")
-        print("  /load <filename>    Load chat history from file")
-        print("  /provider [name]    Show/switch LLM provider (ollama, lmstudio, or URL)")
-        print("  /models             List models on current provider")
-        print("  /model [name]       Show/change the LLM model")
-        print("  /temperature <val>  Set temperature (0.0-2.0, default: 0.4)")
-        print("  /max_tokens <num>   Set max tokens (default: 4096)")
-        print("  stop                (deprecated) use /voice off or say 'stop' during STOP mode")
-        print("  <message>           Send to LLM (text mode)")
+        print("AbstractVoice REPL commands (copy/paste examples at the bottom).")
         print()
-        print("Note: ALL commands must start with / except 'stop'")
-        print("In STOP mode, say 'stop' / 'ok stop' to stop speaking (does not exit voice mode).")
-        print("Shortcut: paste a WAV/FLAC/OGG path to clone+select (optionally: `path | transcript`).")
+        print("Basics")
+        print("  /help                 Show this help")
+        print("  /exit                 Exit REPL  (aliases: /q, /quit)")
+        print("  /clear                Clear chat history (LLM)")
+        print("  /reset                Reset (history + voice state)")
+        print("  /debug [on|off]       Debug mode (also saves synthesized WAVs)")
+        print("  /verbose [on|off]     Verbose per-turn stats (timings, etc.)")
+        print()
+        print("TTS (speaking)")
+        print("  /tts on|off            Toggle TTS playback")
+        print("  /tts_engine <engine>   Switch TTS engine: auto|piper|audiodit|omnivoice")
+        print("  /tts_quality <preset>  Base TTS quality preset: fast|balanced|high")
+        print("  /omnivoice ...         OmniVoice voice design + parameters (only when OmniVoice is active)")
+        print("  /language <code>       Switch language (Piper: en/fr/de/es/ru/zh; OmniVoice: many ISO codes)")
+        print("  /speed <number>        Set speed (native when supported; otherwise time-stretch)")
+        print("  /speak <text>          Speak text (no LLM call)")
+        print("  /pause                 Pause TTS playback")
+        print("  /resume                Resume TTS playback")
+        print("  /stop                  Stop current playback / voice mode")
+        print()
+        print("Voice input (mic)")
+        print("  /voice off|wait|stop|ptt|full")
+        print("  /voice ptt             Push-to-talk session (SPACE captures, ESC exits)")
+        print("  /aec on|off [delay_ms] Optional echo cancellation (requires extra: abstractvoice[aec])")
+        print()
+        print("Voice cloning (optional)")
+        print("  /cloning_status        Check local readiness (no downloads)")
+        print("  /cloning_download <e>  Download artifacts: f5_tts|chroma|audiodit|omnivoice")
+        print("  /clone <path> [name] [--engine ...] [--text \"...\"]")
+        print("  /clone_use <path> ...  Clone (or reuse existing) and select it")
+        print("  /clones                List cloned voices")
+        print("  /tts_voice base        Use the current TTS engine (alias: /tts_voice piper)")
+        print("  /tts_voice clone <id>  Speak with a cloned voice")
+        print("  /clone_ref <id>        Show stored reference transcript")
+        print("  /clone_set_ref_text <id> <text...>   Set/override reference transcript")
+        print("  /clone_quality fast|balanced|high    Cloned speech quality preset")
+        print()
+        print("STT / transcription")
+        print("  /stt_engine <engine>   auto|faster_whisper|whisper")
+        print("  /whisper <model>       tiny|base|small|medium|large")
+        print("  /transcribe <path>     Transcribe an audio file")
+        print()
+        print("LLM / provider")
+        print("  /provider [name|url]   Show/switch provider (ollama, lmstudio, or URL)")
+        print("  /models                List models on provider")
+        print("  /model <name>          Switch model")
+        print("  /system <prompt>       Set system prompt")
+        print("  /temperature <val>     Sampling temperature")
+        print("  /max_tokens <n>        Max tokens")
+        print("  /tokens                Token usage stats (requires tiktoken)")
+        print()
+        print("AudioDiT-only (optional)")
+        print("  /random [seed]         Audition random AudioDiT voices; saves WAV to untracked/voices/")
+        print()
+        print("Examples")
+        print("  OmniVoice TTS (French):")
+        print("    /tts_engine omnivoice")
+        print("    /omnivoice instruct \"female, young adult, moderate pitch\"")
+        print("    /language fr")
+        print("    /speak Bonjour. Ceci est un test.")
+        print()
+        print("  OmniVoice cloning (create + use):")
+        print("    /cloning_download omnivoice")
+        print("    /clone /path/to/ref.wav my_voice --engine omnivoice --text \"Bonjour, je m'appelle ...\"")
+        print("    /tts_voice clone my_voice")
+        print("    /speak Ceci est un test avec ma voix clonée.")
+        print()
+        print("Notes")
+        print("  - Commands start with '/'. Any other line is sent to the LLM as a message.")
+        print("  - Offline-first: the REPL will not download large weights implicitly; use /cloning_download or `python -m abstractvoice download ...`.")
+        print("  - Voice-mode STOP: when using /voice stop, you can say \"stop\" to interrupt TTS without exiting voice mode.")
     
     def emptyline(self):
         """Handle empty line input."""

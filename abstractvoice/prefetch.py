@@ -38,9 +38,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Prefetch LongCat-AudioDiT-1B weights + tokenizer (requires abstractvoice[audiodit])",
     )
+    parser.add_argument(
+        "--omnivoice",
+        action="store_true",
+        help="Prefetch OmniVoice weights + tokenizer (requires abstractvoice[omnivoice])",
+    )
     args = parser.parse_args(argv)
 
-    if not args.stt_model and not args.openf5 and not args.chroma and not args.piper_language and not args.audiodit:
+    if not args.stt_model and not args.openf5 and not args.chroma and not args.piper_language and not args.audiodit and not args.omnivoice:
         parser.print_help()
         return 2
 
@@ -86,6 +91,13 @@ def main(argv: list[str] | None = None) -> int:
         print("Downloading AudioDiT weights + tokenizer…")
         path = prefetch_audiodit()
         print(f"✅ AudioDiT ready (cached at {path}).")
+
+    if args.omnivoice:
+        from abstractvoice.omnivoice.runtime import prefetch_omnivoice
+
+        print("Downloading OmniVoice weights + tokenizer…")
+        path = prefetch_omnivoice()
+        print(f"✅ OmniVoice ready (cached at {path}).")
 
     return 0
 

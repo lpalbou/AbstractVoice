@@ -1,5 +1,5 @@
 # AbstractVoice
-> Modular Python voice I/O for AI apps (Piper TTS + faster‑whisper STT by default), with optional voice cloning (F5‑TTS / Chroma).
+> Modular Python voice I/O for AI apps (Piper TTS + faster‑whisper STT by default), with optional heavy TTS/cloning engines (AudioDiT / OmniVoice) and voice cloning backends (F5‑TTS / Chroma).
 
 Start with `README.md` for the primary entry flow and treat `docs/api.md` as the supported integrator contract. Requires Python `>=3.10` (see `pyproject.toml`).
 
@@ -41,6 +41,9 @@ Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downlo
 - [STT/listening orchestration](abstractvoice/vm/stt_mixin.py): `listen()` + `transcribe_*()`
 - [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): model caching + synthesis
 - [AudioDiT TTS adapter (optional)](abstractvoice/adapters/tts_audiodit.py): LongCat-AudioDiT engine (extra)
+- [OmniVoice runtime (optional)](abstractvoice/omnivoice/runtime.py): offline-first load + device/dtype policy glue
+- [OmniVoice TTS adapter (optional)](abstractvoice/adapters/tts_omnivoice.py): omnilingual TTS engine (extra)
+- [OmniVoice cloning engine (optional)](abstractvoice/cloning/engine_omnivoice.py): reference-audio cloning (extra)
 - [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py): STT backend
 - [Mic/VAD/STT loop](abstractvoice/recognition.py): listening thread + stop phrase handling
 - [Stop phrase matching](abstractvoice/stop_phrase.py): normalization/matching (dependency-light)

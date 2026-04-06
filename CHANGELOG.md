@@ -14,6 +14,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - ADR 0005: Torch device + dtype selection policy for torch-based TTS/cloning engines.
 - Pluggable TTS adapter registry (keeps `auto` deterministic; enables opt-in heavy engines).
 - `abstractvoice[audiodit]` optional extra and LongCat-AudioDiT integration (TTS + prompt-audio cloning).
+- `abstractvoice[omnivoice]` optional extra and OmniVoice integration (omnilingual TTS + prompt-audio cloning; supports voice design via `instruct`).
 - Shared duration estimation helpers for engines that require explicit duration parameters.
 
 ### Fixed
@@ -37,6 +38,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - REPL: discard `<think>...</think>` blocks in LLM responses before printing/history/TTS.
 - Docs: clarify REPL as a demonstrator (minimal LLM client) and recommend AbstractCore for production agent/server integration; refreshed `llms.txt` / `llms-full.txt`.
 - Docs: clarify AudioDiT language expectations (upstream EN/ZH focus; other languages not guaranteed).
+- OmniVoice cloning now loads reference audio via `soundfile` (avoids torchaudio `torchcodec` dependency for prompt loading).
 
 ## [0.6.1] - 2026-02-04
 
