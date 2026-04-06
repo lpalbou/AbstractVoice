@@ -149,6 +149,24 @@ Language validation is based on the small mapping in `abstractvoice/config/voice
 
 Note: `set_voice(language, voice_id)` exists for backward compatibility, but Piper voice selection is currently best-effort (one default voice per language).
 
+### Multilingual: which engines actually speak which languages?
+
+AbstractVoice has multiple TTS/cloning backends. **Language coverage is engine-specific**.
+
+- **Piper (default TTS)**:
+  - This is the recommended path for reliable non‑English speech today (e.g. French).
+  - The repo ships a small default language mapping: `en, fr, de, es, ru, zh` (see `docs/multilingual.md`).
+  - Offline-first: each language needs a cached Piper voice (`python -m abstractvoice download --piper fr`).
+
+- **AudioDiT (optional TTS + prompt-audio cloning)**:
+  - Upstream LongCat-AudioDiT examples and published benchmark results focus on **English + Chinese**.
+  - Other languages may tokenize, but **pronunciation/intelligibility is not guaranteed** in this integration (no language-specific frontend).
+  - If you need French TTS, prefer **Piper** (`/tts_engine piper` + `/language fr`).
+
+- **Voice cloning engines (optional)**:
+  - Cloning engines inherit the language behavior of the underlying model they ship with (they are not universal multilingual frontends).
+  - Always test your target language on the engine you intend to use.
+
 ## Voice cloning (optional)
 
 ### Is voice cloning included in the base install?
