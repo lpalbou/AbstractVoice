@@ -139,6 +139,21 @@ class NonBlockingAudioPlayer:
         self.stream = None
         self.is_playing = False
 
+        # Track which output device the stream is pinned to.
+        #
+        # Why: on macOS it's common for the system "default output" device to change
+        # while the process is running (AirPods connect/disconnect, monitor audio,
+        # etc.). We keep the PortAudio stream open for stability, but that can pin
+        # playback to a now-non-default device. Users then observe that system volume
+        # keys appear to “not work” (they control the *current* default device).
+        #
+        # We track the device we opened and will (best-effort) restart the stream
+        # when the system default output changes and the stream is idle.
+        self._opened_output_device_index: int | None = None
+        self._opened_output_device_name: str | None = None
+        self._opened_output_channels: int | None = None
+        self._last_seen_default_output_device_index: int | None = None
+
         self._pause_lock = threading.Lock()
         self._paused = False
 
@@ -157,6 +172,95 @@ class NonBlockingAudioPlayer:
         # Optional hook: called with chunks that are actually written to the output.
         # Used for advanced features like AEC (barge-in without self-interruption).
         self.on_audio_chunk = None  # Callable[[np.ndarray, int], None] | None
+
+    def _default_output_device_info(self):
+        """Best-effort query of the current system default output device."""
+        sd = _import_sounddevice()
+        try:
+            return sd.query_devices(None, "output")
+        except Exception:
+            return None
+
+    def _default_output_device_index(self) -> int | None:
+        info = self._default_output_device_info()
+        if not isinstance(info, dict):
+            return None
+        idx = info.get("index", None)
+        return int(idx) if isinstance(idx, int) else None
+
+    def _is_idle(self) -> bool:
+        """Return True when the stream is open but no audio is draining."""
+        if bool(getattr(self, "is_playing", False)):
+            return False
+        try:
+            if not self.audio_queue.empty():
+                return False
+        except Exception:
+            # If we can't inspect the queue, be conservative.
+            return False
+        try:
+            ca = getattr(self, "current_audio", None)
+            pos = int(getattr(self, "current_position", 0) or 0)
+            if ca is None:
+                return True
+            try:
+                n = int(len(ca))
+            except Exception:
+                n = 0
+            return bool(pos >= n)
+        except Exception:
+            return False
+
+    def _maybe_restart_stream_for_default_device_change(self) -> None:
+        """If the OS default output device changed, restart the stream (idle-only).
+
+        This is best-effort and intentionally conservative: we only restart when
+        the stream is idle to avoid audible glitches or races.
+        """
+        if self.stream is None:
+            return
+        if not self._is_idle():
+            return
+
+        current_default = self._default_output_device_index()
+        if current_default is None:
+            return
+
+        last_seen = getattr(self, "_last_seen_default_output_device_index", None)
+        if last_seen is None:
+            self._last_seen_default_output_device_index = int(current_default)
+            return
+
+        if int(current_default) == int(last_seen):
+            return
+
+        # Default output changed since last time we observed it.
+        if self.debug_mode:
+            try:
+                old = str(getattr(self, "_opened_output_device_name", None) or "").strip() or "(unknown)"
+                info = self._default_output_device_info() or {}
+                new = str(info.get("name", "") or "").strip() or f"index={int(current_default)}"
+                print(f"ℹ️  Default output changed; restarting audio stream: {old} -> {new}")
+            except Exception:
+                pass
+
+        # Try to restart on the new default. Even if this fails and we fall back
+        # to a different device, we update `last_seen` so we don't repeatedly
+        # attempt restarts until the default changes again.
+        self._last_seen_default_output_device_index = int(current_default)
+        try:
+            self.stop_stream()
+        except Exception:
+            # Best-effort; if stop fails, keep the existing stream.
+            return
+        try:
+            self.start_stream()
+        except Exception as e:
+            if self.debug_mode:
+                try:
+                    print(f"⚠️  Failed to restart audio stream after device change: {e}")
+                except Exception:
+                    pass
 
     def _audio_callback(self, outdata, frames, _time, status):
         if status and self.debug_mode:
@@ -298,6 +402,55 @@ class NonBlockingAudioPlayer:
                                 stream.start()
                             self.stream = stream
                             self.sample_rate = int(sr)
+                            # Record which device we pinned to at open time.
+                            try:
+                                opened_info = (
+                                    sd.query_devices(int(device), "output")
+                                    if device is not None
+                                    else sd.query_devices(None, "output")
+                                )
+                            except Exception:
+                                opened_info = None
+                            try:
+                                if isinstance(opened_info, dict):
+                                    self._opened_output_device_index = (
+                                        int(opened_info.get("index")) if isinstance(opened_info.get("index"), int) else None
+                                    )
+                                    self._opened_output_device_name = str(opened_info.get("name", "") or "").strip() or None
+                                else:
+                                    self._opened_output_device_index = int(device) if device is not None else None
+                                    self._opened_output_device_name = None
+                            except Exception:
+                                self._opened_output_device_index = int(device) if device is not None else None
+                                self._opened_output_device_name = None
+                            try:
+                                self._opened_output_channels = int(channels)
+                            except Exception:
+                                self._opened_output_channels = None
+                            try:
+                                # Cache the system default output at open time so we can detect changes later.
+                                cur_default = self._default_output_device_index()
+                                self._last_seen_default_output_device_index = (
+                                    int(cur_default) if cur_default is not None else self._last_seen_default_output_device_index
+                                )
+                            except Exception:
+                                pass
+                            if self.debug_mode:
+                                try:
+                                    name = str(getattr(self, "_opened_output_device_name", None) or "").strip() or "(unknown)"
+                                    idx_txt = (
+                                        str(int(self._opened_output_device_index))
+                                        if isinstance(getattr(self, "_opened_output_device_index", None), int)
+                                        else "?"
+                                    )
+                                    ch_txt = (
+                                        str(int(self._opened_output_channels))
+                                        if isinstance(getattr(self, "_opened_output_channels", None), int)
+                                        else "?"
+                                    )
+                                    print(f"Audio output device: {name} (index={idx_txt}, channels={ch_txt}, sr={int(sr)}Hz)")
+                                except Exception:
+                                    pass
                             if self.debug_mode and int(sr) != desired_sr:
                                 print(f"⚠️  Output device rejected {desired_sr}Hz; using {sr}Hz (resampling)")
                             return
@@ -326,6 +479,11 @@ class NonBlockingAudioPlayer:
             except Exception:
                 pass
             self.stream = None
+
+        # Clear device tracking (we will repopulate on next start).
+        self._opened_output_device_index = None
+        self._opened_output_device_name = None
+        self._opened_output_channels = None
 
         self.is_playing = False
         with self._pause_lock:
@@ -359,6 +517,13 @@ class NonBlockingAudioPlayer:
         # `start_stream()` to fall back to a compatible device sample rate.
         if self.stream is None:
             self.start_stream()
+        else:
+            # If the system default output changed since we opened the stream,
+            # restart the stream when idle so system volume keys match what users
+            # expect (best-effort).
+            self._maybe_restart_stream_for_default_device_change()
+            if self.stream is None:
+                self.start_stream()
 
         sr_in = int(sample_rate) if sample_rate is not None else int(self.sample_rate)
         sr_out = int(self.sample_rate)
