@@ -20,6 +20,7 @@ If you’re using AbstractVoice as part of the AbstractFramework ecosystem (Abst
 - **Voice/model management (Piper-first)**: `docs/model-management.md`
 - **Dependencies & model sources**: `docs/dependencies.md`
 - **Licensing notes for models/voices**: `docs/voices-and-licenses.md`
+- **Benchmarks (TTS-only)**: `docs/benchmark.md`
 
 ## For integrators
 
