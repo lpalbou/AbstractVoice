@@ -18,6 +18,7 @@ pip install abstractvoice
 ```bash
 pip install "abstractvoice[cloning]"   # OpenF5-based cloning (heavy)
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
+pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transformers)
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
 pip install "abstractvoice[audio-fx]"  # Speed change without pitch change (librosa)
 pip install "abstractvoice[stt]"       # Legacy openai-whisper + tiktoken (token stats)
@@ -41,6 +42,9 @@ python -m abstractvoice download --openf5
 
 pip install "abstractvoice[chroma]"    # for --chroma (GPU-heavy)
 python -m abstractvoice download --chroma
+
+pip install "abstractvoice[audiodit]"  # for --audiodit (LongCat-AudioDiT-1B)
+python -m abstractvoice download --audiodit
 ```
 
 The same operations are available via the convenience entrypoint:
@@ -48,6 +52,7 @@ The same operations are available via the convenience entrypoint:
 ```bash
 abstractvoice-prefetch --piper en
 abstractvoice-prefetch --stt small
+abstractvoice-prefetch --audiodit
 ```
 
 ## Audio device setup (common issues)

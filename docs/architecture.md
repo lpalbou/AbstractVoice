@@ -44,6 +44,7 @@ Start points (in call order):
 TTS implementation:
 
 - Piper adapter: `abstractvoice/adapters/tts_piper.py`
+- TTS engine selection (registry): `abstractvoice/adapters/tts_registry.py`
 - TTS engine wrapper (back-compat contract): `abstractvoice/tts/adapter_tts_engine.py`
 - Low-latency audio player: `abstractvoice/tts/tts_engine.py`
 
@@ -65,8 +66,8 @@ Optional features:
 ### TTS (local playback)
 
 1) Your app calls `VoiceManager.speak()` (`abstractvoice/vm/tts_mixin.py`).
-2) Piper path (default): `AdapterTTSEngine.speak()` (`abstractvoice/tts/adapter_tts_engine.py`)
-   - synthesizes audio via `PiperTTSAdapter.synthesize()` (`abstractvoice/adapters/tts_piper.py`)
+2) Default path (Piper): `AdapterTTSEngine.speak()` (`abstractvoice/tts/adapter_tts_engine.py`)
+   - synthesizes audio via the selected adapter (default `PiperTTSAdapter.synthesize()`, `abstractvoice/adapters/tts_piper.py`)
    - enqueues audio into `NonBlockingAudioPlayer.play_audio()` (`abstractvoice/tts/tts_engine.py`)
 3) Playback runs in the PortAudio callback thread (`sounddevice.OutputStream`).
 

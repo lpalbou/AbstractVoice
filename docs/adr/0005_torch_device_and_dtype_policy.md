@@ -74,4 +74,5 @@ Device/dtype selection must not change offline-first behavior:
 ## Related
 
 - `abstractvoice/compute/device.py` (current device selection)
+- `abstractvoice/compute/dtype.py` (dtype defaults + `ABSTRACTVOICE_TORCH_DTYPE`)
 - `docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md`
