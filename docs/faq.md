@@ -204,6 +204,35 @@ AbstractVoice has multiple TTS/cloning backends. **Language coverage is engine-s
   - Cloning engines inherit the language behavior of the underlying model they ship with (they are not universal multilingual frontends).
   - Always test your target language on the engine you intend to use.
 
+### OmniVoice: can I create a portable “voice preset” across computers?
+
+Yes — with the right definition of “same”.
+
+OmniVoice has two different ways to “pick a voice”:
+
+- **Voice design**: you pass an `instruct` string (speaker attributes like `female, young adult, moderate pitch`) and sampling knobs (`position_temperature`, `class_temperature`).
+- **Voice cloning**: you pass a **reference audio** (and ideally its matching transcript) and OmniVoice conditions on the encoded “prompt”.
+
+For **voice design**, a portable preset is effectively:
+
+- `instruct` (attributes)
+- `seed` (which sample to pick)
+- `position_temperature` / `class_temperature` (how stochastic it is)
+- and (for consistency) also keep `num_step`, `guidance_scale`, `t_shift`, etc. the same
+
+Cross-computer expectations:
+
+- If both machines use the **same OmniVoice model snapshot** (and similar `torch/omnivoice` versions), the *speaker identity* should be consistent.
+- Exact **bit-identical waveforms** are not guaranteed across different accelerators/dtypes (CPU vs MPS vs CUDA).
+
+If you need **strong portability** (the safest “same voice everywhere”), anchor the voice in **audio**:
+
+1. Generate a short “voice card” WAV once (using your `instruct` + `seed`).
+2. Create an OmniVoice clone from that WAV (`/clone ... --engine omnivoice --text "..."`).
+3. Export/import the cloned voice (`/clone_export` / `/clone_import`) across computers.
+
+This makes the voice portable as a stored prompt-audio artifact (and avoids depending on RNG determinism across hardware).
+
 ## Voice cloning (optional)
 
 ### Is voice cloning included in the base install?
@@ -216,6 +245,75 @@ No. Voice cloning is optional:
 - Install OmniVoice cloning: `pip install "abstractvoice[omnivoice]"`
 
 Artifacts are still downloaded explicitly via prefetch (see above). User workflow and commands: `docs/repl_guide.md`.
+
+### How do I prepare reference audio for cloning? (all engines)
+
+Good reference audio matters more than any knob.
+
+General-purpose checklist:
+
+- **Single speaker**, no music/FX, minimal background noise
+- **Short** is better: start with ~**6 seconds** of clean speech
+- **Trim silence** (leading/trailing silence wastes prompt budget)
+- **Match the transcript**: when a cloning engine uses `reference_text`, it must describe exactly what’s spoken in the audio
+
+Engine-specific notes in this repo:
+
+- **OpenF5 (`f5_tts`)**:
+  - AbstractVoice merges/normalizes references to **24 kHz mono**, clips to **15s**.
+- **AudioDiT (`audiodit`)**:
+  - Resamples to **24 kHz**, clips to **15s**.
+  - Needs a correct `reference_text` to keep identity stable; if missing, the REPL can auto-transcribe only if STT is already cached locally.
+- **OmniVoice (`omnivoice`)**:
+  - Currently supports **exactly one** reference audio file.
+  - Prompt is built via `create_voice_clone_prompt(...)`; longer refs can increase prompt encoding time (start with **4–10s**).
+- **Chroma (`chroma`)**:
+  - Normalizes prompt to **24 kHz mono** and clips to **30s**.
+
+### OmniVoice: can I “fine-tune” a cloned voice so inference is cheaper?
+
+Two different things can be meant here:
+
+- **(A) Avoid prompt-audio overhead** (practical): OmniVoice already supports a reusable “prompt” representation (`VoiceClonePrompt`). In AbstractVoice today, we store the reference audio + transcript and recompute the prompt when needed. This avoids *re-training*, but does not remove OmniVoice’s core generation cost.
+- **(B) Train a speaker into the model** (true fine-tuning): this can remove the need to provide reference audio at inference (you select a speaker by `instruct`), but it requires a **dataset** and **GPU training**.
+
+Upstream OmniVoice supports fine-tuning on custom data (via `accelerate`) and provides a runnable recipe:
+
+- [Fine-tuning script](https://raw.githubusercontent.com/k2-fsa/OmniVoice/master/examples/run_finetune.sh)
+- [Data preparation format](https://raw.githubusercontent.com/k2-fsa/OmniVoice/master/docs/data_preparation.md)
+
+For a small fixed set of speakers, upstream recommends:
+
+- Add `"instruct": "<speaker_name>"` to each JSONL sample
+- Set `"prompt_ratio_range": [0.0, 0.0]` (no prompt audio) and ensure instruct is used during training (e.g. `instruct_ratio`)
+- In inference, pass the same `instruct` to select that speaker
+
+Data requirements are not “one WAV”: expect **minutes to hours** of clean, aligned audio+text per speaker (upstream reports good starting results around ~10 hours total fine-tune data, varying by task).
+
+### Can I fine-tune/custom-train voices for the other engines?
+
+Depends on the engine:
+
+- **Piper (default TTS)**:
+  - AbstractVoice uses a small curated voice mapping (`abstractvoice/adapters/tts_piper.py`) and does **not** include any Piper training pipeline.
+  - If you need a custom Piper voice, train it with Piper tooling upstream and integrate it via a custom adapter (outside this repo’s supported surface today).
+- **AudioDiT**:
+  - This repo integrates AudioDiT for inference/cloning. Fine-tuning is **not** implemented here.
+  - If your goal is “a speaker becomes native without reference audio”, OmniVoice fine-tuning is the more direct path.
+- **OpenF5 (`f5_tts`) / Chroma (`chroma`) cloning**:
+  - AbstractVoice ships inference-only integrations. Fine-tuning is not part of the supported contract here.
+
+### Can I make a voice portable across computers? (all engines)
+
+Yes, but “portable” means different things:
+
+- **Cloned voices (any cloning engine)**:
+  - The portable artifact is the **reference bundle + metadata** (what AbstractVoice stores in the clone store).
+  - Use `/clone_export` and `/clone_import` to move cloned voices between machines.
+  - You still need the relevant engine installed and its weights prefetched on the target machine.
+- **OmniVoice voice design presets**:
+  - A portable preset is `instruct + seed + temperatures (+ other generation knobs)`.
+  - For best cross-machine consistency, both machines should use the same OmniVoice model snapshot; exact waveform parity isn’t guaranteed across different accelerators.
 
 ### Why is cloning memory usage so high?
 

@@ -123,6 +123,18 @@ class OmniVoiceRuntime:
 
     def _ensure_local_snapshot(self) -> str:
         """Resolve a local folder path for the HF snapshot (offline-first)."""
+        # Allow loading from an existing local checkpoint directory (e.g. a fine-tuned
+        # OmniVoice checkpoint). This avoids forcing everything through HF Hub and
+        # keeps offline-first semantics.
+        try:
+            from pathlib import Path
+
+            p = Path(str(self.model_id)).expanduser()
+            if p.exists() and p.is_dir():
+                return str(p)
+        except Exception:
+            pass
+
         local_only = not bool(self.allow_downloads)
 
         try:
