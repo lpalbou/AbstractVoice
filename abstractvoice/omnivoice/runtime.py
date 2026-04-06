@@ -40,6 +40,10 @@ class OmniVoiceSettings:
     position_temperature: float = 5.0
     class_temperature: float = 0.0
     layer_penalty_factor: float = 5.0
+    # Optional RNG seed for reproducible voice design / sampling.
+    # Note: OmniVoice does not accept a `seed=` kwarg; we apply it by seeding RNGs
+    # inside `generate_audio()` (best-effort, accelerator-dependent).
+    seed: int | None = None
 
     # Pre/post processing
     denoise: bool = True
@@ -283,7 +287,69 @@ class OmniVoiceRuntime:
         if instruct is not None:
             kwargs["instruct"] = str(instruct)
 
-        audios = model.generate(text=str(text), **kwargs)
+        seed = getattr(settings, "seed", None)
+        seed_i = None
+        if seed is not None:
+            try:
+                seed_i = int(seed)
+            except Exception:
+                seed_i = None
+
+        # OmniVoice voice design/sampling uses torch RNG (e.g., gumbel sampling).
+        # If a seed is provided, isolate RNG changes as best-effort so callers
+        # outside AbstractVoice aren't surprised by global RNG mutation.
+        if seed_i is None:
+            audios = model.generate(text=str(text), **kwargs)
+        else:
+            py_state = None
+            np_state = None
+            torch_state = None
+            cuda_states = None
+            try:
+                import random as _random
+                import torch
+
+                py_state = _random.getstate()
+                np_state = np.random.get_state()
+                torch_state = torch.get_rng_state()
+                try:
+                    if torch.cuda.is_available():
+                        cuda_states = torch.cuda.get_rng_state_all()
+                except Exception:
+                    cuda_states = None
+
+                _random.seed(int(seed_i))
+                np.random.seed(int(seed_i))
+                torch.manual_seed(int(seed_i))
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.manual_seed_all(int(seed_i))
+                except Exception:
+                    pass
+
+                audios = model.generate(text=str(text), **kwargs)
+            except Exception:
+                # Best-effort: if anything about seeding fails, still try to synthesize.
+                audios = model.generate(text=str(text), **kwargs)
+            finally:
+                # Best-effort: restore RNG state so callers aren't surprised.
+                try:
+                    import random as _random
+                    import torch
+
+                    if py_state is not None:
+                        _random.setstate(py_state)
+                    if np_state is not None:
+                        np.random.set_state(np_state)
+                    if torch_state is not None:
+                        torch.set_rng_state(torch_state)
+                    if cuda_states is not None:
+                        try:
+                            torch.cuda.set_rng_state_all(cuda_states)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
         if not audios:
             return np.zeros((0,), dtype=np.float32), int(self.get_sample_rate())
 

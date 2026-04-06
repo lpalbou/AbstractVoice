@@ -3316,6 +3316,7 @@ class VoiceREPL(cmd.Cmd):
                 "language",
                 "instruct",
                 "duration",
+                "seed",
                 "num_step",
                 "guidance_scale",
                 "t_shift",
@@ -3339,6 +3340,8 @@ class VoiceREPL(cmd.Cmd):
             print("  /omnivoice guidance_scale 4.0")
             print("  /omnivoice position_temperature 0")
             print("  /omnivoice class_temperature 0")
+            print("  /omnivoice seed 123          # keep the same designed voice across turns")
+            print("  /omnivoice seed off          # back to non-deterministic sampling")
             print("  /omnivoice instruct \"female, young adult, moderate pitch\"")
             print("  /omnivoice duration 10")
             print("  /omnivoice duration off")

@@ -16,6 +16,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 - `abstractvoice[audiodit]` optional extra and LongCat-AudioDiT integration (TTS + prompt-audio cloning).
 - `abstractvoice[omnivoice]` optional extra and OmniVoice integration (omnilingual TTS + prompt-audio cloning; supports voice design via `instruct`).
 - Shared duration estimation helpers for engines that require explicit duration parameters.
+- REPL: `/history` command to inspect the in-memory LLM message list (what is sent to the provider).
+- OmniVoice (REPL/adapter): `seed` parameter for reproducible voice-design sampling (stable “designed voice” across turns).
 
 ### Fixed
 - AudioDiT TTS now avoids “quiet noise” collapses by retrying with smaller text chunks when outputs are detected as weak.
@@ -36,6 +38,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Cloning: `set_cloned_tts_quality(...)` now persists the preset so it also applies to cloning engines that are loaded later (engines are lazy).
 - REPL: selecting an AudioDiT cloned voice now performs a small warm-up to pay the one-time load/compile cost up front (reduces first `/speak` latency).
 - REPL: discard `<think>...</think>` blocks in LLM responses before printing/history/TTS.
+- REPL: LLM chat history is now committed atomically (failed LLM calls no longer leave orphaned user messages that can cause repetition).
+- REPL: long pasted prompts no longer crash the clone shortcut path (`File name too long`); debug WAV filenames are now length-safe.
 - Docs: clarify REPL as a demonstrator (minimal LLM client) and recommend AbstractCore for production agent/server integration; refreshed `llms.txt` / `llms-full.txt`.
 - Docs: clarify AudioDiT language expectations (upstream EN/ZH focus; other languages not guaranteed).
 - OmniVoice cloning now loads reference audio via `soundfile` (avoids torchaudio `torchcodec` dependency for prompt loading).
