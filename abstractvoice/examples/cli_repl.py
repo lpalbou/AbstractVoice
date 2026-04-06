@@ -449,6 +449,7 @@ class VoiceREPL(cmd.Cmd):
         if not isinstance(turn, dict):
             return
 
+        kind = str(turn.get("kind") or "").strip().lower()
         stt = turn.get("stt") if isinstance(turn.get("stt"), dict) else None
         llm = turn.get("llm") if isinstance(turn.get("llm"), dict) else {}
         counts = turn.get("counts") if isinstance(turn.get("counts"), dict) else {}
@@ -464,7 +465,7 @@ class VoiceREPL(cmd.Cmd):
         api_prompt_tok = api.get("prompt_tokens") if isinstance(api.get("prompt_tokens"), int) else None
         api_out_tok = api.get("completion_tokens") if isinstance(api.get("completion_tokens"), int) else None
 
-        # Line 1: STT (if any) + LLM + in/out counts and written speed.
+        # Line 1: STT (if any) + LLM + counts (or speech-only text count).
         parts1 = []
         if stt:
             stt_s = stt.get("stt_s")
@@ -485,8 +486,14 @@ class VoiceREPL(cmd.Cmd):
                 llm_txt += f" (api p{p} o{o})"
             parts1.append(llm_txt)
 
-        in_txt = f"in {self._fmt_wtok(in_w, in_t)}"
-        out_txt = f"out {self._fmt_wtok(out_w, out_t)}"
+        # `/speak` is not an LLM turn; show a single text size indicator.
+        if kind == "speak" and not stt and not llm:
+            parts1.append(f"speak {self._fmt_wtok(out_w, out_t)}")
+            in_txt = ""
+            out_txt = ""
+        else:
+            in_txt = f"in {self._fmt_wtok(in_w, in_t)}"
+            out_txt = f"out {self._fmt_wtok(out_w, out_t)}"
 
         wps_written = None
         try:
@@ -495,11 +502,13 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             wps_written = None
 
-        if wps_written is not None:
+        if wps_written is not None and out_txt:
             out_txt += f" ({self._fmt_num(wps_written, digits=1)}w/s)"
 
-        parts1.append(in_txt)
-        parts1.append(out_txt)
+        if in_txt:
+            parts1.append(in_txt)
+        if out_txt:
+            parts1.append(out_txt)
 
         line1 = " | ".join(parts1)
 
@@ -1876,6 +1885,7 @@ class VoiceREPL(cmd.Cmd):
                     tts_metrics = None
 
                 turn = {
+                    "kind": "speak",
                     "stt": None,
                     "llm": {},
                     "counts": {

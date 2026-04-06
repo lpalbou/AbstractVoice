@@ -115,8 +115,14 @@ class AdapterTTSEngine:
             audio_samples = 0
         audio_s = (float(audio_samples) / float(sr)) if sr and audio_samples else 0.0
         synth_s = float(t1 - t0)
+        # Record the active adapter engine id so verbose REPL output is accurate
+        # (e.g. piper vs audiodit vs omnivoice).
+        try:
+            engine_id = str(getattr(self.adapter, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine_id = ""
         self.last_tts_metrics = {
-            "engine": "piper",
+            "engine": engine_id or "tts",
             "synth_s": synth_s,
             "audio_s": float(audio_s),
             "rtf": (synth_s / float(audio_s)) if audio_s else None,

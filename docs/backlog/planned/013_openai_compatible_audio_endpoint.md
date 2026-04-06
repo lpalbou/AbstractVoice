@@ -94,6 +94,39 @@ References:
   - optional base URL / org settings if needed (keep consistent with other integrations).
 - Add an explicit “network allowed” gate (do not overload `allow_downloads`, which is local-model semantics).
 
+### Voice profiles (cross-provider abstraction)
+
+OpenAI (and other commercial providers) have a first-class notion of “voice” (built-in voices and gated custom voices).
+AbstractVoice also has “voices”, but today that primarily means **local cloned voices** stored in the local voice store.
+
+To support commercial TTS/STT/cloning cleanly, we should introduce a **provider-agnostic voice profile** concept:
+
+- **VoiceProfile** (concept)
+  - `profile_id`: stable id (e.g. `omnivoice_female_01`, `openai_alloy`, `openai_voice_123abc`)
+  - `engine`: which backend applies this profile (`piper|audiodit|omnivoice|openai|...`)
+  - `label`: human-friendly name
+  - `params`: engine-specific parameters (typed best-effort; validated per engine)
+  - `provenance`: optional metadata (where created, consent requirements, timestamps)
+
+Why this matters:
+- Gives us a single concept that can represent:
+  - **OpenAI built-in voices** (`voice="alloy"`, etc.)
+  - **OpenAI custom voices** (`voice="voice_..."`, gated by org enablement + consent workflow)
+  - **OmniVoice designed voices** (`instruct` + `seed` + temps)
+  - **AudioDiT pseudo-profiles** (seed + anchor phrase + session prompt strategy)
+  - **Piper voices** (language + voice_id, once true selection is implemented)
+
+Related planned work:
+- OmniVoice presets: `docs/backlog/planned/033_omnivoice_preset_voice_profiles.md`
+- AudioDiT presets: `docs/backlog/planned/034_audiodit_preset_voice_profiles.md`
+- Piper true voice selection + presets: `docs/backlog/planned/035_piper_voice_profiles_and_voice_selection.md`
+
+OpenAI-specific mapping:
+- The OpenAI TTS adapter should accept `voice` as either:
+  - a built-in voice name (string), or
+  - a custom voice id (`voice_...`)
+- If we add `VoiceProfile` in AbstractVoice, OpenAI profiles become simple aliases that set that `voice` field (plus optional `instructions` defaults).
+
 ### Adapters (Phase 1: synchronous)
 
 - **TTS**: `OpenAITTSAdapter` (new file under `abstractvoice/adapters/tts_openai.py`)
