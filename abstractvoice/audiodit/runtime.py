@@ -481,6 +481,55 @@ class AudioDiTRuntime:
         sr = int(sr) if sr else 24000
         return int(seconds * sr // hop)
 
+    def encode_prompt_audio_latent(
+        self,
+        *,
+        prompt_audio: np.ndarray,
+        prompt_audio_sr: int | None = None,
+        max_prompt_seconds: float | None = 15.0,
+    ) -> tuple[Any | None, int, float]:
+        """Encode prompt audio to a reusable latent for AudioDiT conditioning.
+
+        Returns: (prompt_latent, frames, time_s)
+          - prompt_latent: torch.Tensor shaped (1, frames, latent_dim) on model.device
+          - frames: number of latent frames (int)
+          - time_s: approximate prompt duration in seconds (float)
+        """
+        self._ensure_loaded()
+        assert self._model is not None
+
+        import torch
+
+        model = self._model
+        sr = int(getattr(model.config, "sampling_rate", 24000) or 24000)
+        hop = int(getattr(model.config, "latent_hop", 2048) or 2048)
+
+        wav = np.asarray(prompt_audio, dtype=np.float32)
+        try:
+            if wav.ndim > 1:
+                wav = np.mean(wav, axis=1).astype(np.float32)
+        except Exception:
+            pass
+        wav = wav.reshape(-1)
+        if wav.size == 0:
+            return None, 0, 0.0
+
+        sr_in = int(prompt_audio_sr) if prompt_audio_sr is not None else int(sr)
+        if sr_in != int(sr):
+            wav = linear_resample_mono(wav, int(sr_in), int(sr))
+
+        if max_prompt_seconds:
+            wav = wav[: int(round(float(max_prompt_seconds) * float(sr)))]
+
+        if wav.size == 0:
+            return None, 0, 0.0
+
+        pw = torch.from_numpy(wav).unsqueeze(0).unsqueeze(0)  # (1, 1, T)
+        with torch.no_grad():
+            latent, frames = model.encode_prompt_audio(pw.to(model.device))
+        time_s = float(frames) * float(hop) / float(sr)
+        return latent, int(frames), float(time_s)
+
     def generate_chunks(
         self,
         *,
@@ -489,6 +538,7 @@ class AudioDiTRuntime:
         prompt_audio_paths: Iterable[str] | None = None,
         prompt_audio: np.ndarray | None = None,
         prompt_audio_sr: int | None = None,
+        prompt_latent: Any | None = None,
         prompt_text: str | None = None,
         settings: AudioDiTSettings | None = None,
         rolling_prompt: bool = True,
@@ -530,34 +580,54 @@ class AudioDiTRuntime:
         # We only fall back to smaller chunks if the model output is detected as weak.
         batches = _split_text_batches(gen_text, max_chars=int(max_chars)) or [" "]
 
-        # Load prompt audio (optional).
-        prompt_wav = None
+        # Load prompt audio (optional) and pre-encode it once.
+        #
+        # IMPORTANT: encoding the prompt (VAE -> latent) is expensive; we avoid
+        # re-encoding for each chunk when text is split into multiple batches.
+        prompt_latent_tensor: torch.Tensor | None = None
         prompt_frames = 0
         prompt_time_s = 0.0
         norm_prompt_text = _normalize_text_for_speech(prompt_text or "", language=str(language))
         has_external_prompt = False
 
-        def _encode_prompt_audio(wav_np: np.ndarray) -> tuple[torch.Tensor | None, int, float]:
+        # Highest precedence: caller-provided latent.
+        if prompt_latent is not None:
+            try:
+                pl = prompt_latent
+                if not hasattr(pl, "to"):
+                    raise TypeError("prompt_latent must be a torch.Tensor")
+                if getattr(pl, "ndim", None) == 2:
+                    pl = pl[None, ...]
+                frames = int(pl.shape[1])
+                prompt_latent_tensor = pl
+                prompt_frames = int(frames)
+                prompt_time_s = float(frames) * float(hop) / float(sr)
+                has_external_prompt = True
+            except Exception:
+                prompt_latent_tensor = None
+                has_external_prompt = False
+
+        def _encode_prompt_audio_latent(wav_np: np.ndarray) -> tuple[torch.Tensor | None, int, float]:
             wav_np = np.asarray(wav_np, dtype=np.float32).reshape(-1)
             if wav_np.size == 0:
                 return None, 0, 0.0
             pw = torch.from_numpy(wav_np).unsqueeze(0).unsqueeze(0)  # (1, 1, T)
             with torch.no_grad():
-                _, frames = model.encode_prompt_audio(pw.to(model.device))
+                latent, frames = model.encode_prompt_audio(pw.to(model.device))
             time_s = float(frames) * float(hop) / float(sr)
-            return pw, int(frames), float(time_s)
+            return latent, int(frames), float(time_s)
 
-        if prompt_audio_paths:
+        if (not has_external_prompt) and prompt_latent_tensor is None and prompt_audio_paths:
             wav = _load_audio_mono_24k(
                 prompt_audio_paths,
                 target_sr=sr,
                 max_seconds=float(max_prompt_seconds) if max_prompt_seconds else None,
             )
             if wav.size:
-                prompt_wav, prompt_frames, prompt_time_s = _encode_prompt_audio(wav)
-                has_external_prompt = bool(prompt_wav is not None)
+                prompt_latent_tensor, prompt_frames, prompt_time_s = _encode_prompt_audio_latent(wav)
+                has_external_prompt = bool(prompt_latent_tensor is not None)
 
-        if (not has_external_prompt) and prompt_audio is not None:
+        if (not has_external_prompt) and prompt_latent_tensor is None and prompt_audio is not None:
             wav = np.asarray(prompt_audio, dtype=np.float32)
             try:
                 if wav.ndim > 1:
@@ -571,11 +641,11 @@ class AudioDiTRuntime:
             if max_prompt_seconds:
                 wav = wav[: int(round(float(max_prompt_seconds) * float(sr)))]
             if wav.size:
-                prompt_wav, prompt_frames, prompt_time_s = _encode_prompt_audio(wav)
-                has_external_prompt = bool(prompt_wav is not None)
+                prompt_latent_tensor, prompt_frames, prompt_time_s = _encode_prompt_audio_latent(wav)
+                has_external_prompt = bool(prompt_latent_tensor is not None)
 
         use_rolling_prompt = bool(rolling_prompt) and (not has_external_prompt) and len(batches) > 1
-        rolling_wav: torch.Tensor | None = None
+        rolling_latent: torch.Tensor | None = None
         rolling_frames: int = 0
         rolling_time_s: float = 0.0
         rolling_text: str = ""
@@ -583,7 +653,7 @@ class AudioDiTRuntime:
         def _synth_one(
             batch_text: str,
             *,
-            _prompt_wav: torch.Tensor | None,
+            _prompt_latent: torch.Tensor | None,
             _prompt_frames: int,
             _prompt_time_s: float,
             _prompt_text: str,
@@ -594,7 +664,7 @@ class AudioDiTRuntime:
 
             # Duration estimate for this batch.
             gen_s = _approx_duration_from_text(batch_text, max_duration=max(0.1, max_wav_s - float(_prompt_time_s)))
-            if _prompt_wav is not None and _prompt_text:
+            if _prompt_latent is not None and _prompt_text:
                 # Match pace: scale gen duration by prompt_time / expected_prompt_time.
                 exp_prompt_s = _approx_duration_from_text(_prompt_text, max_duration=float(max_wav_s))
                 if exp_prompt_s > 1e-3:
@@ -606,7 +676,7 @@ class AudioDiTRuntime:
             duration_frames = min(max_frames, int(_prompt_frames + gen_frames))
             duration_frames = max(int(_prompt_frames), int(duration_frames))
 
-            if _prompt_wav is not None and _prompt_text:
+            if _prompt_latent is not None and _prompt_text:
                 full_text = f"{_prompt_text} {batch_text}".strip()
             else:
                 full_text = batch_text
@@ -615,7 +685,7 @@ class AudioDiTRuntime:
             out = model(
                 input_ids=inputs.input_ids,
                 attention_mask=inputs.attention_mask,
-                prompt_audio=_prompt_wav,
+                prompt_latent=_prompt_latent,
                 duration=int(duration_frames),
                 steps=int(st.steps),
                 cfg_strength=float(st.cfg_strength),
@@ -627,7 +697,7 @@ class AudioDiTRuntime:
         def _synth_robust(
             batch_text: str,
             *,
-            _prompt_wav: torch.Tensor | None,
+            _prompt_latent: torch.Tensor | None,
             _prompt_frames: int,
             _prompt_time_s: float,
             _prompt_text: str,
@@ -636,12 +706,12 @@ class AudioDiTRuntime:
         ) -> list[np.ndarray]:
             wav = _synth_one(
                 batch_text,
-                _prompt_wav=_prompt_wav,
+                _prompt_latent=_prompt_latent,
                 _prompt_frames=_prompt_frames,
                 _prompt_time_s=_prompt_time_s,
                 _prompt_text=_prompt_text,
             )
-            if _prompt_wav is not None:
+            if _prompt_latent is not None:
                 return [wav]
             if not _is_weak_audio(wav, sample_rate=sr):
                 return [wav]
@@ -652,7 +722,7 @@ class AudioDiTRuntime:
                 return [wav]
             return _synth_robust(
                 left,
-                _prompt_wav=_prompt_wav,
+                _prompt_latent=_prompt_latent,
                 _prompt_frames=_prompt_frames,
                 _prompt_time_s=_prompt_time_s,
                 _prompt_text=_prompt_text,
@@ -660,7 +730,7 @@ class AudioDiTRuntime:
                 max_depth=max_depth,
             ) + _synth_robust(
                 right,
-                _prompt_wav=_prompt_wav,
+                _prompt_latent=_prompt_latent,
                 _prompt_frames=_prompt_frames,
                 _prompt_time_s=_prompt_time_s,
                 _prompt_text=_prompt_text,
@@ -670,20 +740,20 @@ class AudioDiTRuntime:
 
         chunks: list[np.ndarray] = []
         for batch_text in batches:
-            eff_wav = prompt_wav
+            eff_latent = prompt_latent_tensor
             eff_frames = int(prompt_frames)
             eff_time_s = float(prompt_time_s)
             eff_text = str(norm_prompt_text)
-            if use_rolling_prompt and rolling_wav is not None:
-                eff_wav = rolling_wav
+            if use_rolling_prompt and rolling_latent is not None:
+                eff_latent = rolling_latent
                 eff_frames = int(rolling_frames)
                 eff_time_s = float(rolling_time_s)
                 eff_text = str(rolling_text)
 
-            if eff_wav is None:
+            if eff_latent is None:
                 wavs = _synth_robust(
                     batch_text,
-                    _prompt_wav=None,
+                    _prompt_latent=None,
                     _prompt_frames=0,
                     _prompt_time_s=0.0,
                     _prompt_text="",
@@ -693,14 +763,14 @@ class AudioDiTRuntime:
             else:
                 produced = _synth_one(
                     batch_text,
-                    _prompt_wav=eff_wav,
+                    _prompt_latent=eff_latent,
                     _prompt_frames=eff_frames,
                     _prompt_time_s=eff_time_s,
                     _prompt_text=eff_text,
                 )
                 chunks.append(produced)
 
-            if use_rolling_prompt and rolling_wav is None and produced.size:
+            if use_rolling_prompt and rolling_latent is None and produced.size:
                 # Use the first generated chunk as a voice anchor for subsequent chunks.
                 anchor = np.asarray(produced, dtype=np.float32).reshape(-1)
                 # Empirically, very long prompt excerpts can destabilize perceived pitch.
@@ -714,11 +784,11 @@ class AudioDiTRuntime:
                 anchor = anchor[: int(round(float(anchor_max_s) * float(sr)))]
                 rt = _normalize_text_for_speech(batch_text, language=str(language))
                 if anchor.size and rt:
-                    rolling_wav, rolling_frames, rolling_time_s = _encode_prompt_audio(anchor)
+                    rolling_latent, rolling_frames, rolling_time_s = _encode_prompt_audio_latent(anchor)
                     rolling_text = rt
 
         # Insert small silences between chunks for intelligibility.
-        if prompt_wav is None and len(chunks) > 1:
+        if prompt_latent_tensor is None and len(chunks) > 1:
             spaced: list[np.ndarray] = []
             for i, c in enumerate(chunks):
                 spaced.append(c)
@@ -736,6 +806,7 @@ class AudioDiTRuntime:
         prompt_audio_paths: Iterable[str] | None = None,
         prompt_audio: np.ndarray | None = None,
         prompt_audio_sr: int | None = None,
+        prompt_latent: Any | None = None,
         prompt_text: str | None = None,
         settings: AudioDiTSettings | None = None,
         rolling_prompt: bool = True,
@@ -749,6 +820,7 @@ class AudioDiTRuntime:
             prompt_audio_paths=prompt_audio_paths,
             prompt_audio=prompt_audio,
             prompt_audio_sr=prompt_audio_sr,
+            prompt_latent=prompt_latent,
             prompt_text=prompt_text,
             settings=settings,
             rolling_prompt=rolling_prompt,

@@ -16,6 +16,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 ### Fixed
 - Docs: refreshed repo guidance (`llms*.txt`), internal maps (`docs/architecture.md`, `docs/development.md`), and cloning/engine documentation to match current engines and commands.
 - Licensing: updated root `LICENSE` copyright year and linked vendored-code license text from docs/manifests.
+- AudioDiT: avoid re-encoding prompt audio for every chunk by pre-encoding to a reusable prompt latent (improves long-form + cloning performance); session prompt now caches the encoded latent best-effort.
 
 ## [0.7.0] - 2026-04-06
 

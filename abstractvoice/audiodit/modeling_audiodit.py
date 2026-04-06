@@ -1125,6 +1125,7 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
         attention_mask: torch.LongTensor | None = None,
         text_embedding: torch.FloatTensor | None = None,
         prompt_audio: torch.FloatTensor | None = None,
+        prompt_latent: torch.FloatTensor | None = None,
         duration: int | None = None,
         steps: int = 16,
         cfg_strength: float = 4.0,
@@ -1164,7 +1165,26 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
         batch = text_condition.shape[0]
 
         # ── prompt audio encoding ─────────────────────────────────────
-        if prompt_audio is not None:
+        # Accept a pre-encoded prompt latent so callers can reuse the same prompt
+        # across multiple chunks without repeatedly running VAE encoding.
+        #
+        # Shape contract: (batch, frames, latent_dim) or (frames, latent_dim).
+        prompt_dur = 0
+        if prompt_latent is not None:
+            pl = prompt_latent
+            if pl.ndim == 2:
+                pl = pl.unsqueeze(0)
+            if pl.ndim != 3:
+                raise ValueError("prompt_latent must have shape (batch, frames, latent_dim) or (frames, latent_dim)")
+            if int(pl.shape[0]) != int(batch):
+                # Common case: batch=1 but latent is single prompt; repeat if needed.
+                if int(pl.shape[0]) == 1 and int(batch) > 1:
+                    pl = pl.repeat(int(batch), 1, 1)
+                else:
+                    raise ValueError("prompt_latent batch dimension does not match text batch size")
+            prompt_dur = int(pl.shape[1])
+            prompt_latent = pl.to(device=device, dtype=infer_dtype)
+        elif prompt_audio is not None:
             prompt_latent, prompt_dur = self.encode_prompt_audio(prompt_audio)
             if prompt_latent.dtype != infer_dtype:
                 prompt_latent = prompt_latent.to(dtype=infer_dtype)
@@ -1187,7 +1207,8 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
         neg_text_len = text_condition_len
 
         latent_len = prompt_dur
-        if prompt_audio is not None:
+        has_prompt = bool(prompt_dur > 0)
+        if has_prompt:
             gen_len = max_dur - latent_len
             latent_cond = F.pad(prompt_latent, (0, 0, 0, gen_len))
             empty_latent_cond = torch.zeros_like(latent_cond)
@@ -1266,7 +1287,7 @@ class AudioDiTModel(AudioDiTPreTrainedModel):
 
         # ── decode ────────────────────────────────────────────────────
         pred_latent = sampled
-        if prompt_audio is not None:
+        if prompt_dur > 0:
             pred_latent = pred_latent[:, prompt_dur:]
 
         pred_latent = pred_latent.permute(0, 2, 1)

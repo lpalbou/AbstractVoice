@@ -116,6 +116,9 @@ class AudioDiTTTSAdapter(TTSAdapter):
         self._session_prompt_audio: np.ndarray | None = None
         self._session_prompt_text: str | None = None
         self._session_prompt_sr: int = 24000
+        # Cache an encoded prompt latent (torch.Tensor) for session consistency
+        # without paying VAE prompt encoding on every turn. Best-effort only.
+        self._session_prompt_latent: Any | None = None
 
         if self._runtime is None:
             try:
@@ -244,15 +247,34 @@ class AudioDiTTTSAdapter(TTSAdapter):
         self._session_prompt_audio = None
         self._session_prompt_text = None
         self._session_prompt_sr = int(self.get_sample_rate())
+        self._session_prompt_latent = None
 
     def synthesize(self, text: str) -> np.ndarray:
         prompt_audio = None
+        prompt_latent = None
         prompt_text = None
         prompt_sr = None
         if self._use_session_prompt and self._session_prompt_audio is not None and self._session_prompt_text:
-            prompt_audio = self._session_prompt_audio
             prompt_text = self._session_prompt_text
             prompt_sr = int(self._session_prompt_sr)
+            if self._session_prompt_latent is not None:
+                prompt_latent = self._session_prompt_latent
+            else:
+                # Best-effort: pre-encode and cache the prompt latent once.
+                try:
+                    latent, _, _ = self._runtime.encode_prompt_audio_latent(
+                        prompt_audio=self._session_prompt_audio,
+                        prompt_audio_sr=int(self._session_prompt_sr),
+                        max_prompt_seconds=float(self._session_prompt_seconds),
+                    )
+                    if latent is not None:
+                        self._session_prompt_latent = latent
+                        prompt_latent = latent
+                except Exception:
+                    prompt_latent = None
+            if prompt_latent is None:
+                # Fallback: pass raw prompt audio (runtime will encode each time).
+                prompt_audio = self._session_prompt_audio
 
         audio, sr = self._runtime.generate(
             text=str(text),
@@ -260,6 +282,7 @@ class AudioDiTTTSAdapter(TTSAdapter):
             prompt_audio_paths=None,
             prompt_audio=prompt_audio,
             prompt_audio_sr=prompt_sr,
+            prompt_latent=prompt_latent,
             prompt_text=prompt_text,
             settings=self._settings,
             max_chars=int(self._max_chars),
@@ -280,6 +303,7 @@ class AudioDiTTTSAdapter(TTSAdapter):
                         seconds=float(n) / float(sr),
                         language=str(self._language),
                     )
+                    self._session_prompt_latent = None
             except Exception:
                 pass
 
