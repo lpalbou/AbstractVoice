@@ -76,6 +76,23 @@ Engine knobs (base TTS):
 - `/speed 0.9` / `/speed 1.1` (native for OmniVoice; AudioDiT ignores speed)
 - OmniVoice-specific parameters + voice design: `/omnivoice` (prints current params + examples)
 
+OmniVoice voice design (`instruct`) and stability (`seed`):
+
+- **`/omnivoice instruct "..."`** enables **voice design mode** (attribute-based speaker). OmniVoice validates `instruct` items upstream.
+- **Valid English items** (case-insensitive; comma-separated; one per category):
+  - `male`, `female`
+  - `child`, `teenager`, `young adult`, `middle-aged`, `elderly`
+  - `very low pitch`, `low pitch`, `moderate pitch`, `high pitch`, `very high pitch`
+  - `whisper`
+  - `american accent`, `australian accent`, `british accent`, `canadian accent`, `chinese accent`, `indian accent`, `japanese accent`, `korean accent`, `portuguese accent`, `russian accent`
+- **Staying on the “same designed voice” across turns**: voice design is stochastic (driven mainly by `position_temperature` / `class_temperature`).
+  - Option A (fully deterministic): `/omnivoice position_temperature 0` + `/omnivoice class_temperature 0`
+  - Option B (recommended): keep temperatures > 0, but pin a **seed**:
+    - `/omnivoice seed 123` (stable across turns)
+    - change the seed to “pick another” voice: `/omnivoice seed 124`
+    - clear: `/omnivoice seed off`
+  - Cross-computer note: you’ll get the closest match when both machines use the **same OmniVoice model snapshot** (and similar `torch/omnivoice` versions). Exact waveform parity across different accelerators/dtypes is not guaranteed, but speaker identity should remain consistent in practice.
+
 ### 5) Voice catalog (Piper)
 
 - `/setvoice` lists voices.

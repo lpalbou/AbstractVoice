@@ -190,6 +190,15 @@ AbstractVoice has multiple TTS/cloning backends. **Language coverage is engine-s
   - Upstream OmniVoice is designed for **omnilingual** speech (600+ languages) and supports both **voice cloning** and **voice design**.
   - Offline-first: weights must be prefetched (`abstractvoice-prefetch --omnivoice` or `python -m abstractvoice download --omnivoice`).
   - When using OmniVoice, AbstractVoice treats `language` as a pass-through hint (it does not clamp to the small Piper catalog).
+  - Voice design uses an `instruct` string (speaker attributes). Upstream validates these items; common **English items** include:
+    - gender: `male`, `female`
+    - age: `child`, `teenager`, `young adult`, `middle-aged`, `elderly`
+    - pitch: `very low pitch`, `low pitch`, `moderate pitch`, `high pitch`, `very high pitch`
+    - style: `whisper`
+    - accent: `american accent`, `australian accent`, `british accent`, `canadian accent`, `chinese accent`, `indian accent`, `japanese accent`, `korean accent`, `portuguese accent`, `russian accent`
+  - “Same designed voice across turns”: voice design is stochastic (mainly `position_temperature` / `class_temperature`). Pin a seed:
+    - REPL: `/omnivoice seed 123` (stable), change to pick another, clear with `/omnivoice seed off`
+    - Cross-computer note: you’ll get the closest match when both machines use the same OmniVoice model snapshot (and similar `torch/omnivoice` versions). Exact waveform parity across different accelerators/dtypes is not guaranteed.
 
 - **Voice cloning engines (optional)**:
   - Cloning engines inherit the language behavior of the underlying model they ship with (they are not universal multilingual frontends).

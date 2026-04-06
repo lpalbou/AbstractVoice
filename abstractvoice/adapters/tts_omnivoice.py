@@ -114,6 +114,7 @@ class OmniVoiceTTSAdapter(TTSAdapter):
 
         Supported keys:
         - Voice design: instruct
+        - Reproducibility: seed (int; same seed + same params => same voice sampling)
         - Duration/speed: duration (seconds; overrides speed when set)
         - Generation: num_step, guidance_scale, t_shift, position_temperature,
           class_temperature, layer_penalty_factor, denoise, preprocess_prompt,
@@ -139,6 +140,7 @@ class OmniVoiceTTSAdapter(TTSAdapter):
             "chunk_threshold": "audio_chunk_threshold",
             "preprocess": "preprocess_prompt",
             "postprocess": "postprocess_output",
+            "random_seed": "seed",
         }
         k = aliases.get(k, k)
 
@@ -158,6 +160,20 @@ class OmniVoiceTTSAdapter(TTSAdapter):
         if st is None:
             st = OmniVoiceSettings()
             self._settings = st
+
+        if k in ("seed",):
+            if value is None:
+                st.seed = None
+                return True
+            s = str(value).strip().lower()
+            if s in ("", "none", "null", "off"):
+                st.seed = None
+                return True
+            try:
+                st.seed = int(value)
+            except Exception:
+                st.seed = int(float(value))
+            return True
 
         # Type coercion + basic validation
         if k == "num_step":
