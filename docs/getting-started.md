@@ -52,6 +52,18 @@ vm.speak("Hello from AbstractVoice.")
 
 The public entry point is `abstractvoice.VoiceManager` (`abstractvoice/voice_manager.py`).
 
+## Recommended in AbstractFramework: use AbstractCore
+
+If you’re using AbstractVoice inside the AbstractFramework ecosystem, the intended architecture is:
+
+- **AbstractCore** runs agents and exposes OpenAI-compatible endpoints.
+- **AbstractVoice** is installed alongside it and provides TTS/STT as a **capability backend plugin**.
+
+Pointers:
+
+- `docs/api.md` → “Integrations (AbstractFramework ecosystem)”
+- Capability plugin implementation: `abstractvoice/integrations/abstractcore_plugin.py`
+
 If you’re integrating into the AbstractFramework ecosystem (AbstractCore / AbstractRuntime), see:
 - `README.md` (ecosystem overview)
 - `docs/api.md` (Integrations section; code pointers)

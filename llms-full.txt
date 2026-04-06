@@ -12,6 +12,11 @@ Requires Python `>=3.10` (see `pyproject.toml`).
 
 Offline-first rule: the REPL runs with `allow_downloads=False`, so downloads should be explicit (prefetch/download commands + clear errors).
 
+Positioning:
+- AbstractVoice is a **voice I/O library** (TTS/STT + optional cloning). It does not implement an agent loop or an LLM server.
+- In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** via the capability plugin entry point (`abstractvoice/integrations/abstractcore_plugin.py`).
+- The REPL (`abstractvoice/examples/cli_repl.py`) is a **demonstrator/smoke-test harness**. It includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for convenience.
+
 Quick commands:
 ```bash
 # Tests
@@ -26,12 +31,14 @@ abstractvoice-prefetch --piper en
 abstractvoice-prefetch --stt small
 abstractvoice-prefetch --openf5   # optional; requires abstractvoice[cloning]
 abstractvoice-prefetch --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
+abstractvoice-prefetch --audiodit # optional; requires abstractvoice[audiodit]
 
 # Equivalent explicit downloads
 python -m abstractvoice download --piper en
 python -m abstractvoice download --stt small
 python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
 python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
+python -m abstractvoice download --audiodit # optional; requires abstractvoice[audiodit]
 ```
 
 Minimal library usage:
@@ -47,6 +54,7 @@ Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[all]`: most features (does **not** include the GPU-heavy Chroma runtime)
 - `abstractvoice[cloning]`: F5‑TTS cloning backend (still requires explicit OpenF5 artifact downloads)
 - `abstractvoice[chroma]`: Chroma-4B runtime deps (GPU-heavy; artifacts still prefetched explicitly)
+- `abstractvoice[audiodit]`: LongCat-AudioDiT TTS + prompt-audio cloning backend (heavy; artifacts still prefetched explicitly)
 - `abstractvoice[aec]`: optional acoustic echo cancellation (true barge-in)
 - `abstractvoice[audio-fx]`: speed change without pitch change (librosa)
 - `abstractvoice[stt]`: legacy openai-whisper + tiktoken fallback path
@@ -92,6 +100,8 @@ Optional dependency groups (see `pyproject.toml`):
 ## Engines & adapters
 - [Adapters base types](abstractvoice/adapters/base.py)
 - [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): voice selection + caching + synthesis
+- [AudioDiT TTS adapter (optional)](abstractvoice/adapters/tts_audiodit.py)
+- [AudioDiT runtime + vendored model](abstractvoice/audiodit/): LongCat-AudioDiT implementation (MIT)
 - [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py)
 - [TTS engine wrapper](abstractvoice/tts/adapter_tts_engine.py): wraps adapters + uses `NonBlockingAudioPlayer`
 - [Audio playback](abstractvoice/tts/tts_engine.py): pause/resume/stop + optional audio-fx
@@ -125,6 +135,7 @@ Optional dependency groups (see `pyproject.toml`):
 ## Optional
 - [Model / voice management](docs/model-management.md)
 - [Multilingual notes](docs/multilingual.md)
+- [REPL demonstrator](abstractvoice/examples/cli_repl.py) + minimal LLM client (`abstractvoice/examples/llm_provider.py`)
 - [Backlog](docs/backlog/): internal planning (not an API contract)
 - [Reports](docs/reports/): historical snapshots
 - [Voice cloning research notes](docs/voice_cloning_2026.md): non-contract research notes

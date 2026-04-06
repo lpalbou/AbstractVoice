@@ -2,6 +2,9 @@
 
 The REPL is the quickest way to validate your installation end‑to‑end.
 
+It is also intentionally **minimal**: it’s a demonstrator/smoke-test harness for the `abstractvoice` library.
+For production agent/server use in the AbstractFramework ecosystem, the intended integration is via **AbstractCore** (AbstractVoice provides TTS/STT as a capability backend plugin; see `docs/api.md` → “Integrations”).
+
 ## Start
 
 ```bash
@@ -18,7 +21,9 @@ python -m abstractvoice cli --voice-mode stop
 Notes:
 - The REPL is **offline-first**: it will not download model weights implicitly.
 - Mic voice input is **off by default** for fast startup. Enable with `--voice-mode stop` or in-session: `/voice stop`.
-- Default LLM API is Ollama at `http://localhost:11434/api/chat` (configure with `--api` / `--model`).
+- The REPL includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`).
+- Default LLM provider preset is **Ollama** at `http://localhost:11434` (OpenAI-compatible `POST /v1/chat/completions`).
+  - Configure with `--provider` (preferred) or `--api` (legacy), passing a **base URL** (not a full `/v1/...` path), and set the model with `--model`.
 
 ## Quick smoke test checklist
 
@@ -61,7 +66,7 @@ python -m abstractvoice download --piper de
 ### 4) Engine selection
 
 - `/tts_engine piper`
-- `/tts_engine audiodit` (requires `abstractvoice[audiodit]` + prefetched weights)
+- `/tts_engine audiodit` (requires `abstractvoice[audiodit]` + prefetched weights; best results on EN/ZH, other languages not guaranteed)
 - `/stt_engine faster_whisper`
 
 ### 5) Voice catalog (Piper)
