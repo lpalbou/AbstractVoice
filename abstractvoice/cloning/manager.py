@@ -30,6 +30,7 @@ class VoiceCloner:
         self._allow_downloads = bool(allow_downloads)
         self._default_engine = str(default_engine or "f5_tts").strip().lower()
         self._engines: Dict[str, Any] = {}
+        self._quality_preset = "balanced"
 
     def _get_engine(self, engine: str) -> Any:
         name = str(engine or "").strip().lower()
@@ -45,17 +46,36 @@ class VoiceCloner:
             from .engine_chroma import ChromaVoiceCloningEngine
 
             inst = ChromaVoiceCloningEngine(debug=self.debug, device="auto")
+        elif name == "audiodit":
+            from .engine_audiodit import AudioDiTVoiceCloningEngine
+
+            inst = AudioDiTVoiceCloningEngine(
+                debug=self.debug,
+                device="auto",
+                allow_downloads=bool(self._allow_downloads),
+            )
         else:
             raise ValueError(f"Unknown cloning engine: {name}")
+
+        # Apply the current preset to newly-instantiated engines (important: engines are lazy).
+        try:
+            if hasattr(inst, "set_quality_preset"):
+                inst.set_quality_preset(str(getattr(self, "_quality_preset", "balanced") or "balanced"))
+        except Exception:
+            pass
 
         self._engines[name] = inst
         return inst
 
     def set_quality_preset(self, preset: str) -> None:
         # Best-effort across loaded engines (new engines are lazy-instantiated).
+        p = (preset or "").strip().lower()
+        if p not in ("fast", "balanced", "high"):
+            raise ValueError("preset must be one of: fast|balanced|high")
+        self._quality_preset = p
         for eng in list(self._engines.values()):
             try:
-                eng.set_quality_preset(preset)
+                eng.set_quality_preset(p)
             except Exception:
                 pass
 
@@ -127,8 +147,8 @@ class VoiceCloner:
         supported = {".wav", ".flac", ".ogg"}
 
         engine_name = str(engine or self._default_engine).strip().lower()
-        if engine_name not in ("f5_tts", "chroma"):
-            raise ValueError("engine must be one of: f5_tts|chroma")
+        if engine_name not in ("f5_tts", "chroma", "audiodit"):
+            raise ValueError("engine must be one of: f5_tts|chroma|audiodit")
 
         if p.is_dir():
             refs = sorted([x for x in p.glob("*") if x.suffix.lower() in supported])
@@ -156,6 +176,13 @@ class VoiceCloner:
             meta={"source": str(p)},
         )
         return voice_id
+
+    def get_store_base_dir(self) -> str:
+        """Return the on-disk folder where cloned voices are stored."""
+        try:
+            return str(getattr(self.store, "_base_dir"))  # noqa: SLF001 (best-effort)
+        except Exception:
+            return ""
 
     def list_cloned_voices(self) -> List[Dict[str, Any]]:
         return self.store.list_voices()
@@ -312,7 +339,15 @@ class VoiceCloner:
         self.store.set_reference_text(voice_id, best, source="asr")
         return best
 
-    def speak_to_bytes(self, text: str, *, voice_id: str, format: str = "wav", speed: Optional[float] = None) -> bytes:
+    def speak_to_bytes(
+        self,
+        text: str,
+        *,
+        voice_id: str,
+        format: str = "wav",
+        speed: Optional[float] = None,
+        language: Optional[str] = None,
+    ) -> bytes:
         if format.lower() != "wav":
             raise ValueError("Voice cloning currently supports WAV output only.")
 
@@ -326,7 +361,13 @@ class VoiceCloner:
         ref_paths = self.store.resolve_reference_paths(voice_id)
         ref_text = self._ensure_reference_text(voice_id)
         eng = self._get_engine(getattr(voice, "engine", None) or "f5_tts")
-        return eng.infer_to_wav_bytes(text=text, reference_paths=ref_paths, reference_text=ref_text, speed=speed)
+        return eng.infer_to_wav_bytes(
+            text=text,
+            reference_paths=ref_paths,
+            reference_text=ref_text,
+            speed=speed,
+            language=language,
+        )
 
     def speak_to_audio_chunks(
         self,
@@ -335,6 +376,7 @@ class VoiceCloner:
         voice_id: str,
         speed: Optional[float] = None,
         max_chars: int = 120,
+        language: Optional[str] = None,
     ):
         voice = self.store.get_voice(voice_id)
         try:
@@ -345,5 +387,10 @@ class VoiceCloner:
         ref_text = self._ensure_reference_text(voice_id)
         eng = self._get_engine(getattr(voice, "engine", None) or "f5_tts")
         return eng.infer_to_audio_chunks(
-            text=text, reference_paths=ref_paths, reference_text=ref_text, speed=speed, max_chars=int(max_chars)
+            text=text,
+            reference_paths=ref_paths,
+            reference_text=ref_text,
+            speed=speed,
+            max_chars=int(max_chars),
+            language=language,
         )

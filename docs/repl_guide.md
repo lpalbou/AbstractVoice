@@ -61,6 +61,7 @@ python -m abstractvoice download --piper de
 ### 4) Engine selection
 
 - `/tts_engine piper`
+- `/tts_engine audiodit` (requires `abstractvoice[audiodit]` + prefetched weights)
 - `/stt_engine faster_whisper`
 
 ### 5) Voice catalog (Piper)
@@ -87,6 +88,7 @@ Downloads (explicit):
 ```bash
 python -m abstractvoice download --openf5
 python -m abstractvoice download --chroma
+python -m abstractvoice download --audiodit
 ```
 
 Commands:
@@ -99,7 +101,7 @@ Commands:
 - `/cloning_download f5_tts|chroma` (explicit downloads)
 
 Notes:
-- Cloned voices are **engine-bound** (`f5_tts` vs `chroma`). Selecting a clone uses its stored engine.
+- Cloned voices are **engine-bound** (`f5_tts` vs `chroma` vs `audiodit`). Selecting a clone uses its stored engine.
 - The REPL auto-unloads other cloning engines (and unloads Piper voice) when you select a cloned voice to reduce OOM risk.
 - `reference_text` is optional: if missing, the REPL will auto-generate it via STT on first speak (requires cached STT model; prefetch with `python -m abstractvoice download --stt small`). You can also set it manually via `/clone_set_ref_text ...`.
 

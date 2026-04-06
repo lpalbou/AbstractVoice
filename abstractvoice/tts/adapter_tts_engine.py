@@ -80,13 +80,32 @@ class AdapterTTSEngine:
         if self.on_playback_start:
             threading.Thread(target=self.on_playback_start, daemon=True).start()
 
+        # AudioDiT: speed control is not supported reliably (upstream doesn't expose
+        # a speed API). Enforce this here so callers can't accidentally apply
+        # glitchy post-processing.
+        try:
+            engine_id = str(getattr(self.adapter, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine_id = ""
+        if engine_id == "audiodit":
+            speed = 1.0
+
         t0 = time.monotonic()
-        audio: np.ndarray = self.adapter.synthesize(text)
+        used_native_speed = False
+        if speed and speed != 1.0 and hasattr(self.adapter, "synthesize_with_speed"):
+            try:
+                audio = self.adapter.synthesize_with_speed(text, float(speed))  # type: ignore[attr-defined]
+                used_native_speed = True
+            except Exception:
+                # Fall back to generic synth + optional time-stretch.
+                audio = self.adapter.synthesize(text)
+        else:
+            audio = self.adapter.synthesize(text)
         t1 = time.monotonic()
 
         # Best-effort speed handling. If librosa isn't installed, the helper
         # falls back to original audio (no crash).
-        if speed and speed != 1.0:
+        if (not used_native_speed) and speed and speed != 1.0:
             audio = apply_speed_without_pitch_change(audio, speed, sr=self._safe_sample_rate())
 
         sr = self._safe_sample_rate()

@@ -10,6 +10,7 @@ import threading
 import time
 
 from ..text_sanitize import sanitize_markdown_for_speech
+from ..adapters.tts_registry import create_tts_adapter
 
 def _resolve_sanitize_syntax_arg(
     sanitize_syntax: bool,
@@ -101,6 +102,13 @@ class TtsMixin:
     def get_cloned_voice(self, voice_id: str):
         return self._get_voice_cloner().get_cloned_voice(voice_id)
 
+    def get_cloned_voice_store_dir(self) -> str:
+        """Return the on-disk folder where cloned voices are stored."""
+        try:
+            return str(self._get_voice_cloner().get_store_base_dir())
+        except Exception:
+            return ""
+
     def set_cloned_voice_reference_text(self, voice_id: str, reference_text: str) -> bool:
         """Update a cloned voice's reference transcript (quality fix).
 
@@ -119,6 +127,36 @@ class TtsMixin:
         """Set cloned TTS quality preset: fast|balanced|high."""
         self._get_voice_cloner().set_quality_preset(preset)
         return True
+
+    def set_tts_quality_preset(self, preset: str) -> bool:
+        """Set base TTS engine quality preset: fast|balanced|high (best-effort).
+
+        This is an engine-agnostic knob. Engines that don't support quality tuning
+        may ignore it and return False.
+        """
+        if not getattr(self, "tts_adapter", None):
+            return False
+        try:
+            adapter = getattr(self, "tts_adapter", None)
+            if adapter is None:
+                return False
+            if hasattr(adapter, "set_quality_preset"):
+                return bool(adapter.set_quality_preset(preset))
+        except Exception:
+            return False
+        return False
+
+    def get_tts_quality_preset(self) -> str | None:
+        """Return the current base TTS quality preset, if supported."""
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None:
+            return None
+        try:
+            if hasattr(adapter, "get_quality_preset"):
+                return adapter.get_quality_preset()
+        except Exception:
+            return None
+        return None
 
     def get_cloning_runtime_info(self):
         return self._get_voice_cloner().get_runtime_info()
@@ -239,7 +277,13 @@ class TtsMixin:
                         import soundfile as sf
 
                         t0 = time.monotonic()
-                        wav_bytes = cloner.speak_to_bytes(str(speak_text), voice_id=voice, format="wav", speed=sp)
+                        wav_bytes = cloner.speak_to_bytes(
+                            str(speak_text),
+                            voice_id=voice,
+                            format="wav",
+                            speed=sp,
+                            language=str(getattr(self, "language", None) or "en"),
+                        )
                         t1 = time.monotonic()
                         if cancel.is_set():
                             return
@@ -294,6 +338,7 @@ class TtsMixin:
                         voice_id=voice,
                         speed=sp,
                         max_chars=240,
+                        language=str(getattr(self, "language", None) or "en"),
                     )
 
                     # Begin a playback session once (so TTS lifecycle hooks are correct).
@@ -398,7 +443,7 @@ class TtsMixin:
     ) -> bytes:
         """Synthesize to bytes.
 
-        - If `voice` is None: use Piper (default).
+        - If `voice` is None: use the active TTS engine/adapter (default: Piper).
         - If `voice` is provided: treat as a cloned voice_id (requires `abstractvoice[cloning]`).
         """
         speak_text = str(text)
@@ -406,11 +451,17 @@ class TtsMixin:
             speak_text = sanitize_markdown_for_speech(speak_text)
         if voice:
             cloner = self._get_voice_cloner()
-            return cloner.speak_to_bytes(speak_text, voice_id=voice, format=format, speed=self.speed)
+            return cloner.speak_to_bytes(
+                speak_text,
+                voice_id=voice,
+                format=format,
+                speed=self.speed,
+                language=str(getattr(self, "language", None) or "en"),
+            )
 
         if self.tts_adapter and self.tts_adapter.is_available():
             return self.tts_adapter.synthesize_to_bytes(speak_text, format=format)
-        raise NotImplementedError("speak_to_bytes() requires Piper TTS (default engine).")
+        raise NotImplementedError("speak_to_bytes() requires a functional TTS adapter.")
 
     def speak_to_file(
         self,
@@ -437,7 +488,7 @@ class TtsMixin:
 
         if self.tts_adapter and self.tts_adapter.is_available():
             return self.tts_adapter.synthesize_to_file(speak_text, output_path, format=format)
-        raise NotImplementedError("speak_to_file() requires Piper TTS (default engine).")
+        raise NotImplementedError("speak_to_file() requires a functional TTS adapter.")
 
     def stop_speaking(self):
         if not self.tts_engine:
@@ -491,10 +542,29 @@ class TtsMixin:
         return False
 
     def set_speed(self, speed):
-        if 0.5 <= speed <= 2.0:
-            self.speed = speed
-            return True
-        return False
+        try:
+            sp = float(speed)
+        except Exception:
+            return False
+        if not (0.5 <= sp <= 2.0):
+            return False
+
+        # AudioDiT speed control: not supported (avoid degraded/glitchy audio).
+        try:
+            a = getattr(self, "tts_adapter", None)
+            engine_id = str(getattr(a, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine_id = ""
+        if engine_id == "audiodit" and sp != 1.0:
+            # Keep manager speed unchanged (or reset to 1.0 if unset).
+            try:
+                self.speed = float(getattr(self, "speed", 1.0) or 1.0)
+            except Exception:
+                self.speed = 1.0
+            return False
+
+        self.speed = float(sp)
+        return True
 
     def get_speed(self):
         return self.speed
@@ -567,27 +637,47 @@ class TtsMixin:
         if self.voice_recognizer:
             self.voice_recognizer.stop()
 
-        # Piper-only core: switch Piper model for the requested language.
+        # Switch language on the active TTS adapter (engine-agnostic).
         try:
             if self.tts_adapter is None:
-                self.tts_adapter = self._try_init_piper(language)
-            else:
-                self.tts_adapter.set_language(language)
-
-            if self.tts_adapter and self.tts_adapter.is_available():
-                if self._tts_engine_name != "piper" or self.tts_engine is None:
+                pref = str(getattr(self, "_tts_engine_preference", "auto") or "auto")
+                self.tts_adapter, resolved_engine = create_tts_adapter(
+                    engine=pref,
+                    language=language,
+                    allow_downloads=bool(getattr(self, "allow_downloads", True)),
+                    auto_load=False,
+                    debug_mode=bool(getattr(self, "debug_mode", False)),
+                )
+                if self.tts_adapter is None:
+                    return False
+                # Track which engine is active (used by CLI/tests/metrics).
+                self._tts_engine_name = str(resolved_engine)
+                if self.tts_engine is None:
                     from ..tts.adapter_tts_engine import AdapterTTSEngine
 
                     self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=self.debug_mode)
-                    self._tts_engine_name = "piper"
                     self._wire_tts_callbacks()
 
-                self.language = language
-                self.speed = 1.0
-                return True
+            ok = bool(self.tts_adapter.set_language(language))
+            if not ok:
+                return False
+
+            # Ensure playback wrapper exists (used for lifecycle callbacks + audio output).
+            if self.tts_engine is None and self.tts_adapter is not None:
+                from ..tts.adapter_tts_engine import AdapterTTSEngine
+
+                self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=self.debug_mode)
+                if not getattr(self, "_tts_engine_name", None):
+                    pref = str(getattr(self, "_tts_engine_preference", "auto") or "auto").strip().lower()
+                    self._tts_engine_name = "piper" if pref in ("", "auto") else pref
+                self._wire_tts_callbacks()
+
+            self.language = language
+            self.speed = 1.0
+            return True
         except Exception as e:
             if self.debug_mode:
-                print(f"⚠️ Piper language switch failed: {e}")
+                print(f"⚠️ TTS language switch failed: {e}")
 
         return False
 

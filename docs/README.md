@@ -18,6 +18,7 @@ If you’re using AbstractVoice as part of the AbstractFramework ecosystem (Abst
 - **REPL guide (voice assistant)**: `docs/repl_guide.md`
 - **Multilingual**: `docs/multilingual.md`
 - **Voice/model management (Piper-first)**: `docs/model-management.md`
+- **Dependencies & model sources**: `docs/dependencies.md`
 - **Licensing notes for models/voices**: `docs/voices-and-licenses.md`
 
 ## For integrators

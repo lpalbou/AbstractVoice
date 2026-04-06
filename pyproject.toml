@@ -69,6 +69,15 @@ chroma = [
     "safetensors>=0.5.0",
 ]
 
+# LongCat-AudioDiT (optional; torch/transformers-based TTS + prompt-audio cloning)
+audiodit = [
+    "torch>=2.0.0",
+    "transformers>=5.3.0",
+    "safetensors>=0.4.0",
+    "einops>=0.8.0",
+    "sentencepiece>=0.1.99",
+]
+
 # Optional AEC (Acoustic Echo Cancellation) for true barge-in.
 # This is intentionally opt-in because platform support/toolchain requirements vary.
 aec = [

@@ -43,7 +43,10 @@ VoiceManager(
 Notes:
 - `allow_downloads` gates *implicit* model downloads in adapters. The REPL sets `False` (offline-first).
 - `whisper_model` controls the faster‑whisper model size used by `listen()` and `transcribe_*()`.
-- `tts_engine` currently supports only `auto|piper` (Piper-only core).
+- `tts_engine` supports:
+  - `auto` (deterministic default: resolves to `piper`)
+  - `piper` (default core TTS)
+  - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`)
 - `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[stt]`; see `abstractvoice/vm/stt_mixin.py`).
 - `tts_model` is reserved/back-compat (Piper selection is language-driven today).
 
@@ -58,6 +61,11 @@ Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh`
 
 - `set_speed(speed: float) -> bool`, `get_speed() -> float`
   - Adjusts the default speaking speed used by `speak_to_*()` and the REPL.
+
+- `set_tts_quality_preset(preset: str) -> bool`, `get_tts_quality_preset() -> str | None`
+  - Engine-agnostic speed/quality knob (`fast|balanced|high`).
+  - Engines that don’t support quality tuning may return `False` / `None` (Piper is typically a no-op).
+  - For AudioDiT this primarily maps to diffusion `steps` (and a small guidance-strength tweak).
 
 - `pause_speaking() -> bool`, `resume_speaking() -> bool`, `stop_speaking() -> bool`
   - Playback control.
@@ -149,7 +157,11 @@ The REPL defaults to **mic input off**, and recommends `--voice-mode stop` for h
 
 ## Voice cloning (optional; heavy)
 
-Requires `pip install "abstractvoice[cloning]"` (and explicit artifact downloads; see `docs/installation.md`).
+Requires installing at least one cloning backend extra (and explicit artifact downloads; see `docs/installation.md`):
+
+- `abstractvoice[cloning]` → `f5_tts`
+- `abstractvoice[chroma]` → `chroma`
+- `abstractvoice[audiodit]` → `audiodit`
 
 Core cloning calls:
 
@@ -190,6 +202,7 @@ python -m abstractvoice download --stt small
 python -m abstractvoice download --piper en
 python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
 python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
+python -m abstractvoice download --audiodit # optional; requires abstractvoice[audiodit]
 ```
 
 Or use the convenience entrypoint:
@@ -199,6 +212,7 @@ abstractvoice-prefetch --stt small
 abstractvoice-prefetch --piper en
 abstractvoice-prefetch --openf5            # optional; requires abstractvoice[cloning]
 abstractvoice-prefetch --chroma            # optional; requires abstractvoice[chroma] (GPU-heavy)
+abstractvoice-prefetch --audiodit          # optional; requires abstractvoice[audiodit]
 ```
 
 Notes:

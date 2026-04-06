@@ -340,7 +340,9 @@ class F5TTSVoiceCloningEngine:
         reference_paths: Iterable[str | Path],
         reference_text: Optional[str] = None,
         speed: Optional[float] = None,
+        language: Optional[str] = None,
     ) -> bytes:
+        _ = language
         self._ensure_model_loaded()
 
         ref_wav = self._prepare_reference_wav(reference_paths)
@@ -446,7 +448,9 @@ class F5TTSVoiceCloningEngine:
         speed: Optional[float] = None,
         max_chars: int = 120,
         chunk_size: int = 2048,
+        language: Optional[str] = None,
     ):
+        _ = language
         """Yield (audio_chunk, sample_rate) for progressive playback.
 
         Note: F5 sampling itself is not truly streaming mid-step. This yields chunks

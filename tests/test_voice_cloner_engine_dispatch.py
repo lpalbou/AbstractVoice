@@ -21,13 +21,13 @@ def test_voice_cloner_dispatches_by_engine(tmp_path: Path):
     assert voice.engine == "chroma"
 
     class DummyEngine:
-        def infer_to_wav_bytes(self, *, text, reference_paths, reference_text, speed=None):
+        def infer_to_wav_bytes(self, *, text, reference_paths, reference_text, speed=None, language=None):
             assert text == "hi"
             assert reference_text == "hello."
             assert len(list(reference_paths)) == 1
             return b"RIFF....dummy"
 
-        def infer_to_audio_chunks(self, *, text, reference_paths, reference_text, speed=None, max_chars=120):
+        def infer_to_audio_chunks(self, *, text, reference_paths, reference_text, speed=None, max_chars=120, language=None):
             yield np.zeros((10,), dtype=np.float32), 24000
 
     cloner._engines["chroma"] = DummyEngine()
