@@ -18,7 +18,8 @@ def print_examples():
     print("  simple         - Simple usage example")
     print("  check-deps     - Check dependency compatibility")
     print("\nUsage: abstractvoice <command> [--language <lang>] [args...]")
-    print("\nSupported languages: en, fr, es, de, ru, zh")
+    print("\nSupported languages (Piper default mapping): en, fr, es, de, ru, zh")
+    print("Note: OmniVoice supports many additional language codes once selected via /tts_engine omnivoice.")
     print("\nExamples:")
     print("  abstractvoice cli --language fr     # French CLI")
     print("  abstractvoice simple --language ru  # Russian simple example")
@@ -118,8 +119,8 @@ def parse_args():
     parser.add_argument(
         "--cloning-engine",
         default="f5_tts",
-        choices=["f5_tts", "chroma"],
-        help="Default cloning backend for new voices (f5_tts|chroma).",
+        choices=["f5_tts", "chroma", "audiodit", "omnivoice"],
+        help="Default cloning backend for new voices (f5_tts|chroma|audiodit|omnivoice).",
     )
     parser.add_argument(
         "--voice-mode",
@@ -137,9 +138,12 @@ def parse_args():
                       help="Set temperature (0.0-2.0) for the LLM")
     parser.add_argument("--max-tokens", type=int, default=4096,
                       help="Set maximum tokens for the LLM response")
-    parser.add_argument("--language", "--lang", default="en",
-                      choices=["en", "fr", "es", "de", "ru", "zh"],
-                      help="Voice language (en=English, fr=French, es=Spanish, de=German, ru=Russian, zh=Chinese)")
+    parser.add_argument(
+        "--language",
+        "--lang",
+        default="en",
+        help="Voice language code (default Piper mapping: en/fr/es/de/ru/zh; OmniVoice supports many more after /tts_engine omnivoice).",
+    )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
     return parser.parse_args()
@@ -218,7 +222,7 @@ def main():
             "ru": "Russian",
             "zh": "Chinese",
         }.get(str(args.language), str(args.language))
-        print(f"Starting AbstractVoice ({lang_name})…")
+        print(f"Starting AbstractVoice ({lang_name})…  (type /help once it starts)")
 
         # Initialize REPL.
         repl = VoiceREPL(

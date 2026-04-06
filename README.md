@@ -60,7 +60,7 @@ pip install "abstractvoice[all]"
 ```
 
 Notes:
-- `abstractvoice[all]` enables most optional features (incl. cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime or AudioDiT.
+- `abstractvoice[all]` enables most optional features (incl. cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime, AudioDiT, or OmniVoice.
 - For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
 ### Explicit model downloads (recommended; never implicit in the REPL)
@@ -87,6 +87,9 @@ abstractvoice-prefetch --openf5
 pip install "abstractvoice[audiodit]"
 abstractvoice-prefetch --audiodit
 
+pip install "abstractvoice[omnivoice]"
+abstractvoice-prefetch --omnivoice
+
 # GPU-heavy:
 pip install "abstractvoice[chroma]"
 abstractvoice-prefetch --chroma
@@ -100,6 +103,7 @@ python -m abstractvoice download --stt small
 python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
 python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
 python -m abstractvoice download --audiodit # optional; requires abstractvoice[audiodit]
+python -m abstractvoice download --omnivoice # optional; requires abstractvoice[omnivoice]
 ```
 
 Notes:

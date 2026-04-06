@@ -144,15 +144,28 @@ def main():
             action="store_true",
             help="Prefetch LongCat-AudioDiT-1B weights + tokenizer (requires abstractvoice[audiodit])",
         )
+        dl.add_argument(
+            "--omnivoice",
+            action="store_true",
+            help="Prefetch OmniVoice weights + tokenizer (requires abstractvoice[omnivoice])",
+        )
         dl_args = dl.parse_args(remaining)
 
-        if not dl_args.stt_model and not dl_args.openf5 and not dl_args.chroma and not dl_args.piper_language and not dl_args.audiodit:
+        if (
+            not dl_args.stt_model
+            and not dl_args.openf5
+            and not dl_args.chroma
+            and not dl_args.piper_language
+            and not dl_args.audiodit
+            and not dl_args.omnivoice
+        ):
             print("Nothing to download. Examples:")
             print("  python -m abstractvoice download --stt small")
             print("  python -m abstractvoice download --openf5")
             print("  python -m abstractvoice download --chroma")
             print("  python -m abstractvoice download --piper en")
             print("  python -m abstractvoice download --audiodit")
+            print("  python -m abstractvoice download --omnivoice")
             return
 
         if dl_args.stt_model:
@@ -212,6 +225,16 @@ def main():
                 print(f"✅ AudioDiT ready (cached at {path}).")
             except Exception as e:
                 print(f"❌ AudioDiT download failed: {e}")
+
+        if dl_args.omnivoice:
+            try:
+                from abstractvoice.omnivoice.runtime import prefetch_omnivoice
+
+                print("Downloading OmniVoice weights + tokenizer…")
+                path = prefetch_omnivoice()
+                print(f"✅ OmniVoice ready (cached at {path}).")
+            except Exception as e:
+                print(f"❌ OmniVoice download failed: {e}")
         return
 
     # Set remaining args as sys.argv for the examples, including language

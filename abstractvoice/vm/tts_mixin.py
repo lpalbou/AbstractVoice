@@ -621,8 +621,25 @@ class TtsMixin:
         return self.LANGUAGES.get(lang, {}).get("name", lang)
 
     def set_language(self, language):
-        language = language.lower()
-        if language not in self.LANGUAGES:
+        language = str(language or "").strip().lower()
+        if not language:
+            return False
+
+        # Language validation is engine-dependent:
+        # - Piper (and auto->Piper) uses a small curated mapping to avoid trying to
+        #   load non-existent voices.
+        # - Other engines (e.g. OmniVoice) can support many languages; treat the
+        #   language code as a pass-through hint and let the engine decide.
+        pref = str(getattr(self, "_tts_engine_preference", "auto") or "auto").strip().lower()
+        active_engine = ""
+        try:
+            a = getattr(self, "tts_adapter", None)
+            active_engine = str(getattr(a, "engine_id", "") or "").strip().lower()
+        except Exception:
+            active_engine = ""
+
+        validate_against_catalog = bool(pref in ("", "auto", "piper") or active_engine in ("", "piper"))
+        if validate_against_catalog and language not in self.LANGUAGES:
             if self.debug_mode:
                 available = ", ".join(self.LANGUAGES.keys())
                 print(f"⚠️ Unsupported language '{language}'. Available: {available}")

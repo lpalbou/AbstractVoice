@@ -78,6 +78,20 @@ audiodit = [
     "sentencepiece>=0.1.99",
 ]
 
+# OmniVoice (optional; omnilingual TTS + voice cloning / design)
+omnivoice = [
+    # Upstream `omnivoice` currently pins torch/torchaudio; treat this as an
+    # opt-in extra to avoid affecting default installs.
+    "omnivoice>=0.1.2",
+    # OmniVoice pins torch==2.8.*; keep torchvision in sync to avoid Transformers
+    # import failures when an incompatible torchvision remains installed.
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "torchvision>=0.23,<0.24",
+    "transformers>=5.3.0",
+    "accelerate>=1.0.0",
+]
+
 # Optional AEC (Acoustic Echo Cancellation) for true barge-in.
 # This is intentionally opt-in because platform support/toolchain requirements vary.
 aec = [

@@ -24,6 +24,26 @@ Python `>=3.10` (declared in `pyproject.toml`).
 
 The console scripts are declared in `pyproject.toml` under `[project.scripts]`.
 
+### OmniVoice fails to import (e.g. `operator torchvision::nms does not exist`)
+
+OmniVoice is an optional engine (`abstractvoice[omnivoice]`). Upstream `omnivoice` currently pins `torch==2.8.*` / `torchaudio==2.8.*`.
+
+If you already had a different `torchvision` installed (for example from `abstractvoice[chroma]`), you can end up with an incompatible torch/torchvision pair. Transformers may import `torchvision` internally and fail with errors like:
+
+- `RuntimeError: operator torchvision::nms does not exist`
+
+Fix (recommended):
+
+```bash
+python -m pip install --upgrade --force-reinstall "torchvision==0.23.*"
+```
+
+Alternative (if you don’t need torchvision at all):
+
+```bash
+python -m pip uninstall torchvision
+```
+
 ## Offline-first, downloads, and cache locations
 
 ### Why doesn’t the REPL download models automatically?
@@ -145,7 +165,10 @@ See `docs/api.md` (“Integrations”) for the supported surface and code pointe
 
 Use `VoiceManager(language="...")` at construction time or call `vm.set_language("fr")`.
 
-Language validation is based on the small mapping in `abstractvoice/config/voice_catalog.py` and the default Piper model mapping in `abstractvoice/adapters/tts_piper.py`.
+Language validation depends on the selected TTS engine:
+
+- For `tts_engine=auto|piper`, AbstractVoice validates against the small Piper catalog mapping (`abstractvoice/config/voice_catalog.py`) so it doesn’t try to load non-existent voices.
+- For other engines (e.g. OmniVoice), the language code is treated as a pass-through hint and the engine decides.
 
 Note: `set_voice(language, voice_id)` exists for backward compatibility, but Piper voice selection is currently best-effort (one default voice per language).
 
@@ -163,6 +186,11 @@ AbstractVoice has multiple TTS/cloning backends. **Language coverage is engine-s
   - Other languages may tokenize, but **pronunciation/intelligibility is not guaranteed** in this integration (no language-specific frontend).
   - If you need French TTS, prefer **Piper** (`/tts_engine piper` + `/language fr`).
 
+- **OmniVoice (optional TTS + prompt-audio cloning + voice design)**:
+  - Upstream OmniVoice is designed for **omnilingual** speech (600+ languages) and supports both **voice cloning** and **voice design**.
+  - Offline-first: weights must be prefetched (`abstractvoice-prefetch --omnivoice` or `python -m abstractvoice download --omnivoice`).
+  - When using OmniVoice, AbstractVoice treats `language` as a pass-through hint (it does not clamp to the small Piper catalog).
+
 - **Voice cloning engines (optional)**:
   - Cloning engines inherit the language behavior of the underlying model they ship with (they are not universal multilingual frontends).
   - Always test your target language on the engine you intend to use.
@@ -175,6 +203,8 @@ No. Voice cloning is optional:
 
 - Install OpenF5-based cloning: `pip install "abstractvoice[cloning]"`
 - Install Chroma runtime deps (GPU-heavy): `pip install "abstractvoice[chroma]"`
+- Install AudioDiT cloning: `pip install "abstractvoice[audiodit]"`
+- Install OmniVoice cloning: `pip install "abstractvoice[omnivoice]"`
 
 Artifacts are still downloaded explicitly via prefetch (see above). User workflow and commands: `docs/repl_guide.md`.
 
@@ -203,6 +233,10 @@ Engine-specific behavior in this repo:
   - Prompt audio is concatenated → resampled to the model’s rate (**24 kHz**) → clipped to **15s** (`audiodit/runtime.py:generate_chunks(max_prompt_seconds=15.0)`).
   - Longer prompts can cost more twice: prompt encoding itself, and because prompt frames contribute to the model’s `duration_frames`.
   - Practical starting point: **4–8s** of clean speech is usually the best speed/quality tradeoff.
+- **OmniVoice (`omnivoice`)**:
+  - Currently supports **exactly one** reference audio file (no multi-file prompt concat).
+  - Prompt audio is normalized and preprocessed inside OmniVoice’s `create_voice_clone_prompt(...)`; longer prompts can increase prompt-encoding time.
+  - Practical starting point: **4–10s** of clean speech with a matching transcript.
 - **Chroma (`chroma`)**:
   - Prompt audio is normalized to **24 kHz mono PCM16** and clipped to **30s** (`engine_chroma.py:_prepare_prompt_audio_for_processor`).
   - The normalized prompt is cached under `~/.cache/abstractvoice/chroma/prompt_cache`, so the **first** run is slower than subsequent runs with the same prompt file.

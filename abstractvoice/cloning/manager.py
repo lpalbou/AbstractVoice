@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-from .engine_f5 import F5TTSVoiceCloningEngine
 from .store import VoiceCloneStore
 
 
@@ -41,6 +40,14 @@ class VoiceCloner:
 
         # Lazy-load engines to avoid surprise model downloads during list/store operations.
         if name == "f5_tts":
+            try:
+                from .engine_f5 import F5TTSVoiceCloningEngine
+            except Exception as e:
+                raise RuntimeError(
+                    "OpenF5 cloning requires optional dependencies.\n"
+                    "Install with:\n"
+                    "  pip install \"abstractvoice[cloning]\""
+                ) from e
             inst = F5TTSVoiceCloningEngine(whisper_model=self._whisper_model, debug=self.debug)
         elif name == "chroma":
             from .engine_chroma import ChromaVoiceCloningEngine
@@ -50,6 +57,14 @@ class VoiceCloner:
             from .engine_audiodit import AudioDiTVoiceCloningEngine
 
             inst = AudioDiTVoiceCloningEngine(
+                debug=self.debug,
+                device="auto",
+                allow_downloads=bool(self._allow_downloads),
+            )
+        elif name == "omnivoice":
+            from .engine_omnivoice import OmniVoiceVoiceCloningEngine
+
+            inst = OmniVoiceVoiceCloningEngine(
                 debug=self.debug,
                 device="auto",
                 allow_downloads=bool(self._allow_downloads),
@@ -147,8 +162,8 @@ class VoiceCloner:
         supported = {".wav", ".flac", ".ogg"}
 
         engine_name = str(engine or self._default_engine).strip().lower()
-        if engine_name not in ("f5_tts", "chroma", "audiodit"):
-            raise ValueError("engine must be one of: f5_tts|chroma|audiodit")
+        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice"):
+            raise ValueError("engine must be one of: f5_tts|chroma|audiodit|omnivoice")
 
         if p.is_dir():
             refs = sorted([x for x in p.glob("*") if x.suffix.lower() in supported])
@@ -162,9 +177,9 @@ class VoiceCloner:
                 )
             refs = [p]
 
-        if engine_name == "chroma" and len(refs) != 1:
+        if engine_name in ("chroma", "omnivoice") and len(refs) != 1:
             raise ValueError(
-                "Chroma cloning currently supports exactly one reference audio file.\n"
+                f"{engine_name} cloning currently supports exactly one reference audio file.\n"
                 "Provide a single WAV/FLAC/OGG file (not a directory with multiple files)."
             )
 

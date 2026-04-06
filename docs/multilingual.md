@@ -49,3 +49,20 @@ Language coverage note:
 
 If you need reliable French TTS today, prefer **Piper** (`/tts_engine piper` + `/language fr`).
 
+## OmniVoice (optional; k2-fsa/OmniVoice)
+
+OmniVoice is an opt-in torch/transformers engine (`abstractvoice[omnivoice]`). It operates at **24 kHz** and upstream is designed for **omnilingual** TTS (600+ languages) as well as voice cloning.
+
+Offline-first prefetch:
+
+```bash
+python -m abstractvoice download --omnivoice
+# or:
+abstractvoice-prefetch --omnivoice
+```
+
+Language handling note:
+
+- When using the OmniVoice engine, AbstractVoice treats `language` as a **pass-through hint** (it does not clamp to the small Piper catalog).
+- Common ISO codes like `fr`, `de`, `es`, `ru`, `zh` work; for the full set of IDs, see OmniVoice’s `LANG_IDS`.
+

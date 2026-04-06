@@ -47,10 +47,12 @@ Notes:
   - `auto` (deterministic default: resolves to `piper`)
   - `piper` (default core TTS)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH — other languages are not guaranteed)
+  - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
 - `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[stt]`; see `abstractvoice/vm/stt_mixin.py`).
 - `tts_model` is reserved/back-compat (Piper selection is language-driven today).
 
 Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
+For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through hint and the engine decides what it supports.
 
 ## TTS (text → audio)
 
@@ -162,6 +164,7 @@ Requires installing at least one cloning backend extra (and explicit artifact do
 - `abstractvoice[cloning]` → `f5_tts`
 - `abstractvoice[chroma]` → `chroma`
 - `abstractvoice[audiodit]` → `audiodit`
+- `abstractvoice[omnivoice]` → `omnivoice`
 
 Core cloning calls:
 
@@ -203,6 +206,7 @@ python -m abstractvoice download --piper en
 python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
 python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
 python -m abstractvoice download --audiodit # optional; requires abstractvoice[audiodit]
+python -m abstractvoice download --omnivoice # optional; requires abstractvoice[omnivoice]
 ```
 
 Or use the convenience entrypoint:
@@ -213,6 +217,7 @@ abstractvoice-prefetch --piper en
 abstractvoice-prefetch --openf5            # optional; requires abstractvoice[cloning]
 abstractvoice-prefetch --chroma            # optional; requires abstractvoice[chroma] (GPU-heavy)
 abstractvoice-prefetch --audiodit          # optional; requires abstractvoice[audiodit]
+abstractvoice-prefetch --omnivoice         # optional; requires abstractvoice[omnivoice]
 ```
 
 Notes:

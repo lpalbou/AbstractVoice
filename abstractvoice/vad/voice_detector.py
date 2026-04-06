@@ -8,7 +8,17 @@ def _import_webrtcvad():
     try:
         import webrtcvad
         return webrtcvad
-    except ImportError as e:
+    except Exception as e:
+        # Common failure mode: `webrtcvad` imports `pkg_resources`, which may be
+        # missing in newer setuptools installs. The actual VAD extension can still
+        # work, so fall back to a small compat wrapper.
+        try:
+            if "pkg_resources" in str(e):
+                from . import webrtcvad_compat as webrtcvad
+
+                return webrtcvad
+        except Exception:
+            pass
         raise ImportError(
             "Voice activity detection requires optional dependencies. Install with:\n"
             "  pip install abstractvoice[voice]  # For basic audio\n"

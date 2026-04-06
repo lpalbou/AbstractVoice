@@ -78,9 +78,37 @@ def _audiodit_factory(
     )
 
 
+def _omnivoice_factory(
+    *,
+    language: str,
+    allow_downloads: bool,
+    auto_load: bool,
+    debug_mode: bool = False,
+    **kwargs: Any,
+) -> TTSAdapter | None:
+    try:
+        from .tts_omnivoice import OmniVoiceTTSAdapter
+    except Exception as e:
+        raise RuntimeError(
+            "OmniVoice engine requires optional dependencies.\n"
+            "Install with:\n"
+            "  pip install \"abstractvoice[omnivoice]\""
+        ) from e
+    return OmniVoiceTTSAdapter(
+        language=str(language),
+        allow_downloads=bool(allow_downloads),
+        auto_load=bool(auto_load),
+        debug_mode=bool(debug_mode),
+        model_id=kwargs.get("model_id"),
+        revision=kwargs.get("revision"),
+        device=kwargs.get("device", "auto"),
+    )
+
+
 _TTS_ADAPTER_FACTORIES: dict[str, _Factory] = {
     "piper": _piper_factory,
     "audiodit": _audiodit_factory,
+    "omnivoice": _omnivoice_factory,
 }
 
 

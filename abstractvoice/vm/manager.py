@@ -48,12 +48,20 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         self.cloned_tts_streaming = bool(cloned_tts_streaming)
         self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
 
-        language = (language or "en").lower()
-        if language not in self.LANGUAGES:
-            if debug_mode:
-                available = ", ".join(self.LANGUAGES.keys())
-                print(f"⚠️ Unsupported language '{language}', using English. Available: {available}")
-            language = "en"
+        requested_engine = str(tts_engine or "auto").strip().lower() or "auto"
+
+        # Language normalization:
+        # - For Piper (default/auto), keep the historical catalog validation so
+        #   we don't try to load non-existent voices.
+        # - For other engines (e.g. OmniVoice), allow arbitrary language codes
+        #   and let the engine decide (some engines support 100s of languages).
+        language = str(language or "en").strip().lower() or "en"
+        if requested_engine in ("", "auto", "piper"):
+            if language not in self.LANGUAGES:
+                if debug_mode:
+                    available = ", ".join(self.LANGUAGES.keys())
+                    print(f"⚠️ Unsupported language '{language}', using English. Available: {available}")
+                language = "en"
         self.language = language
 
         self._tts_engine_preference = tts_engine
@@ -67,7 +75,6 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Create the playback engine as long as the selected adapter runtime is
         # importable. This keeps audio output available for cloning backends even
         # when no TTS model is cached locally (offline-first).
-        requested_engine = str(tts_engine or "auto").strip().lower() or "auto"
         try:
             self.tts_adapter, resolved_engine = create_tts_adapter(
                 engine=str(tts_engine or "auto"),

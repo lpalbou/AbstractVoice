@@ -4,7 +4,7 @@ AbstractVoice core is **Piper-first**:
 
 - **Piper (default)**: small ONNX voices downloaded/managed by `abstractvoice/adapters/tts_piper.py`
 - There is **no legacy Coqui model management** in core.
-- Heavier engines (torch/transformers) are **opt-in** via extras (e.g. `abstractvoice[chroma]`, `abstractvoice[audiodit]`).
+- Heavier engines (torch/transformers) are **opt-in** via extras (e.g. `abstractvoice[chroma]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`).
 
 ## What gets downloaded, and when?
 
@@ -25,6 +25,7 @@ Some optional engines download weights via Hugging Face and cache under `~/.cach
 
 - **Chroma cloning**: `python -m abstractvoice download --chroma` (requires `abstractvoice[chroma]`)
 - **AudioDiT (LongCat-AudioDiT-1B)**: `python -m abstractvoice download --audiodit` (requires `abstractvoice[audiodit]`)
+- **OmniVoice**: `python -m abstractvoice download --omnivoice` (requires `abstractvoice[omnivoice]`)
 
 In offline-first mode (`allow_downloads=False`) these engines will **not** fetch missing weights implicitly.
 
