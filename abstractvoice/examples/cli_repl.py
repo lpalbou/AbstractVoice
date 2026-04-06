@@ -165,6 +165,11 @@ class VoiceREPL(cmd.Cmd):
         
         # System prompt
         self.system_prompt = "You are a Helpful Voice Assistant. By design, your answers are short and conversational, unless specifically asked to detail something. You only speak, so never use any text formatting, hinting, *emotions*, emojis or markdown. Incarnate the speaker, never comment your instructions."
+
+        # Chat history is updated from both the main REPL thread and the mic callback
+        # thread. Serialize LLM calls + history updates to avoid interleaved or
+        # duplicated message sequences.
+        self._chat_lock = threading.Lock()
         
         # Message history
         self.messages = [{"role": "system", "content": self.system_prompt}]
@@ -639,6 +644,15 @@ class VoiceREPL(cmd.Cmd):
         ref_text = right.strip() if sep else ""
         reference_text = ref_text or None
 
+        # Heuristic: if the "path" is extremely long, it's almost certainly a
+        # pasted prompt (not a filesystem path). Avoid filesystem calls that can
+        # raise ENAMETOOLONG on some platforms.
+        try:
+            if len(path_str) > 1024:
+                return False
+        except Exception:
+            return False
+
         # Strip naive wrapping quotes.
         if (path_str.startswith('"') and path_str.endswith('"')) or (path_str.startswith("'") and path_str.endswith("'")):
             path_str = path_str[1:-1].strip()
@@ -650,15 +664,32 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             return False
 
-        if not p.exists():
+        try:
+            if not p.exists():
+                return False
+        except OSError:
+            # Most common misfire: user typed a long prompt and the shortcut tried
+            # to interpret it as a path. Treat as normal chat input instead.
             return False
 
         exts = {".wav", ".flac", ".ogg"}
-        if p.is_file() and p.suffix.lower() not in exts:
+        try:
+            is_file = bool(p.is_file())
+        except OSError:
             return False
-        if p.is_dir():
+        if is_file and p.suffix.lower() not in exts:
+            return False
+
+        try:
+            is_dir = bool(p.is_dir())
+        except OSError:
+            return False
+        if is_dir:
             try:
-                has_audio = any(x.is_file() and x.suffix.lower() in exts for x in p.iterdir())
+                has_audio = any(
+                    (x.is_file() and x.suffix.lower() in exts)
+                    for x in p.iterdir()
+                )
             except Exception:
                 has_audio = False
             if not has_audio:
@@ -667,7 +698,7 @@ class VoiceREPL(cmd.Cmd):
         # Build a `/clone_use` call with a stable name.
         import shlex as _shlex
 
-        default_name = p.stem if p.is_file() else p.name
+        default_name = p.stem if is_file else p.name
         args = f"{_shlex.quote(str(p))} {_shlex.quote(default_name)}"
         if reference_text:
             args += f" --text {_shlex.quote(reference_text)}"
@@ -683,6 +714,7 @@ class VoiceREPL(cmd.Cmd):
         
     def process_query(self, query):
         """Process a query and get a response from the LLM."""
+        query = str(query or "").strip()
         if not query:
             return
 
@@ -697,155 +729,166 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager.stop_speaking()
         except Exception:
             pass
-            
-        # Per-turn counts
-        user_words = self._count_words(query)
-        self.user_words += int(user_words)
-        user_tokens = self._count_tokens(query, "user")
-        
-        # Create the message
-        user_message = {"role": "user", "content": query}
-        self.messages.append(user_message)
-        
-        if self.debug_mode:
-            print(f"Sending request to: {self.provider.chat_url}")
-            
-        try:
-            payload = {
-                "model": self.model,
-                "messages": self.messages,
-                "stream": False,
-                "temperature": self.temperature,
-                "max_tokens": self.max_tokens,
-            }
-            
-            llm_t0 = time.monotonic()
-            response = requests.post(self.provider.chat_url, json=payload)
-            response.raise_for_status()
-            
+
+        # Serialize history updates + LLM call so we don't build an interleaved
+        # message list when microphone callbacks and typed input overlap.
+        with self._chat_lock:
+            # Build an in-flight message list without mutating durable history yet.
+            user_message = {"role": "user", "content": query}
+            messages_for_call = list(self.messages) + [user_message]
+
+            if self.debug_mode:
+                print(f"Sending request to: {self.provider.chat_url}")
+
             try:
-                response_data = response.json()
-                api_llm_metrics = {}
+                payload = {
+                    "model": self.model,
+                    "messages": messages_for_call,
+                    "stream": False,
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens,
+                }
 
-                # OpenAI-compat usage (prompt_tokens, completion_tokens).
-                usage = response_data.get("usage")
-                if isinstance(usage, dict):
-                    api_llm_metrics["prompt_tokens"] = usage.get("prompt_tokens")
-                    api_llm_metrics["completion_tokens"] = usage.get("completion_tokens")
+                llm_t0 = time.monotonic()
+                response = requests.post(
+                    self.provider.chat_url,
+                    json=payload,
+                    # Avoid indefinite hangs if the server stalls.
+                    timeout=(5.0, 600.0),
+                )
+                response.raise_for_status()
 
-                # OpenAI-compat response format.
-                choices = response_data.get("choices")
-                if isinstance(choices, list) and len(choices) > 0:
-                    response_text = choices[0]["message"]["content"].strip()
-                elif "message" in response_data and "content" in response_data["message"]:
-                    # Ollama native fallback (if someone passes a raw /api/chat URL).
-                    response_text = response_data["message"]["content"].strip()
-                else:
-                    response_text = str(response_data).strip()
-                    
-            except Exception as e:
-                if self.debug_mode:
-                    print(f"Error parsing JSON response: {e}")
-                response_text = response.text.strip()
-                api_llm_metrics = {}
-
-            # Discard any `<think>...</think>` blocks (chain-of-thought) before displaying
-            # or speaking the response.
-            response_text = strip_think_blocks(str(response_text or ""))
-
-            llm_t1 = time.monotonic()
-            llm_s = float(llm_t1 - llm_t0)
-            
-            # Per-turn counts
-            assistant_words = self._count_words(response_text)
-            self.assistant_words += int(assistant_words)
-            assistant_tokens = self._count_tokens(response_text, "assistant")
-            
-            # Add to message history
-            self.messages.append({"role": "assistant", "content": response_text})
-            
-            # Display the response with color
-            print(f"{Colors.CYAN}{response_text}{Colors.END}")
-            
-            # Record last-turn stats (best-effort; printed only in verbose mode).
-            self._last_turn_metrics = {
-                "stt": stt_metrics,
-                "llm": {
-                    "s": llm_s,
-                    "api": api_llm_metrics,
-                },
-                "counts": {
-                    "in_words": int(user_words),
-                    "out_words": int(assistant_words),
-                    "in_tokens": int(user_tokens) if isinstance(user_tokens, int) else None,
-                    "out_tokens": int(assistant_tokens) if isinstance(assistant_tokens, int) else None,
-                },
-            }
-            try:
-                out_tok = api_llm_metrics.get("completion_tokens") if isinstance(api_llm_metrics, dict) else None
-                if isinstance(out_tok, int) and out_tok >= 0:
-                    self.total_llm_out_tokens += int(out_tok)
-            except Exception:
-                pass
-
-            # Speak the response if voice manager is available
-            if self.voice_manager and self.use_tts:
                 try:
-                    # UX guard: never trigger big cloning downloads during normal chat.
-                    if self.current_tts_voice and not self._is_cloning_runtime_ready(voice_id=self.current_tts_voice):
-                        print(
-                            "ℹ️  Cloned voice selected but cloning runtime is not ready.\n"
-                            "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
-                        )
+                    response_data = response.json()
+                    api_llm_metrics = {}
+
+                    # OpenAI-compat usage (prompt_tokens, completion_tokens).
+                    usage = response_data.get("usage")
+                    if isinstance(usage, dict):
+                        api_llm_metrics["prompt_tokens"] = usage.get("prompt_tokens")
+                        api_llm_metrics["completion_tokens"] = usage.get("completion_tokens")
+
+                    # OpenAI-compat response format.
+                    choices = response_data.get("choices")
+                    if isinstance(choices, list) and len(choices) > 0:
+                        response_text = str(choices[0]["message"]["content"] or "").strip()
+                    elif "message" in response_data and "content" in response_data["message"]:
+                        # Ollama native fallback (if someone passes a raw /api/chat URL).
+                        response_text = str(response_data["message"]["content"] or "").strip()
                     else:
-                        self._speak_with_spinner_until_audio_starts(response_text)
+                        response_text = str(response_data).strip()
+
                 except Exception as e:
-                    print(f"❌ TTS failed: {e}")
+                    if self.debug_mode:
+                        print(f"Error parsing JSON response: {e}")
+                    response_text = response.text.strip()
+                    api_llm_metrics = {}
 
-            # Capture best-effort TTS metrics (Piper or cloned).
-            tts_metrics = None
-            try:
-                if self.voice_manager and hasattr(self.voice_manager, "pop_last_tts_metrics"):
-                    tts_metrics = self.voice_manager.pop_last_tts_metrics()
-            except Exception:
+                # Discard any `<think>...</think>` blocks (chain-of-thought) before displaying
+                # or speaking the response.
+                response_text = strip_think_blocks(str(response_text or ""))
+
+                llm_t1 = time.monotonic()
+                llm_s = float(llm_t1 - llm_t0)
+
+                # Commit durable history only after we have a response.
+                self.messages = list(messages_for_call) + [{"role": "assistant", "content": response_text}]
+
+                # Per-turn counts (only for committed history).
+                user_words = self._count_words(query)
+                assistant_words = self._count_words(response_text)
+                self.user_words += int(user_words)
+                self.assistant_words += int(assistant_words)
+                user_tokens = self._count_tokens(query, "user")
+                assistant_tokens = self._count_tokens(response_text, "assistant")
+
+                # Display the response with color
+                print(f"{Colors.CYAN}{response_text}{Colors.END}")
+
+                # Record last-turn stats (best-effort; printed only in verbose mode).
+                self._last_turn_metrics = {
+                    "stt": stt_metrics,
+                    "llm": {
+                        "s": llm_s,
+                        "api": api_llm_metrics,
+                    },
+                    "counts": {
+                        "in_words": int(user_words),
+                        "out_words": int(assistant_words),
+                        "in_tokens": int(user_tokens) if isinstance(user_tokens, int) else None,
+                        "out_tokens": int(assistant_tokens) if isinstance(assistant_tokens, int) else None,
+                    },
+                }
+                try:
+                    out_tok = api_llm_metrics.get("completion_tokens") if isinstance(api_llm_metrics, dict) else None
+                    if isinstance(out_tok, int) and out_tok >= 0:
+                        self.total_llm_out_tokens += int(out_tok)
+                except Exception:
+                    pass
+
+                # Speak the response if voice manager is available
+                if self.voice_manager and self.use_tts:
+                    try:
+                        # UX guard: never trigger big cloning downloads during normal chat.
+                        if self.current_tts_voice and not self._is_cloning_runtime_ready(voice_id=self.current_tts_voice):
+                            print(
+                                "ℹ️  Cloned voice selected but cloning runtime is not ready.\n"
+                                "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
+                            )
+                        else:
+                            self._speak_with_spinner_until_audio_starts(response_text)
+                    except Exception as e:
+                        print(f"❌ TTS failed: {e}")
+
+                # Capture best-effort TTS metrics (Piper or cloned).
                 tts_metrics = None
+                try:
+                    if self.voice_manager and hasattr(self.voice_manager, "pop_last_tts_metrics"):
+                        tts_metrics = self.voice_manager.pop_last_tts_metrics()
+                except Exception:
+                    tts_metrics = None
 
-            try:
-                if isinstance(getattr(self, "_last_turn_metrics", None), dict):
-                    self._last_turn_metrics["tts"] = tts_metrics
-            except Exception:
-                pass
+                try:
+                    if isinstance(getattr(self, "_last_turn_metrics", None), dict):
+                        self._last_turn_metrics["tts"] = tts_metrics
+                except Exception:
+                    pass
 
-            # Verbose stats (max 2 lines).
-            try:
-                if self.verbose_mode and isinstance(getattr(self, "_last_turn_metrics", None), dict):
-                    self._print_verbose_turn_stats(self._last_turn_metrics)
-            except Exception:
-                pass
-                
-        except requests.exceptions.ConnectionError as e:
-            print(f"❌ Cannot connect to {self.provider.name} at {self.provider.base_url}")
-            print(f"   Make sure the server is running and accessible.")
-            print(f"   Use /provider to switch or /models to check availability.")
-            if self.debug_mode:
-                print(f"   Connection error: {e}")
-        except requests.exceptions.HTTPError as e:
-            if "404" in str(e):
-                print(f"❌ Model '{self.model}' not found on {self.provider.name}")
-                print(f"   Use /models to list available models.")
-            else:
-                print(f"❌ HTTP error from {self.provider.name}: {e}")
-            if self.debug_mode:
-                print(f"   Full error: {e}")
-        except Exception as e:
-            error_msg = str(e).lower()
-            if "connection" in error_msg or "refused" in error_msg:
+                # Verbose stats (max 2 lines).
+                try:
+                    if self.verbose_mode and isinstance(getattr(self, "_last_turn_metrics", None), dict):
+                        self._print_verbose_turn_stats(self._last_turn_metrics)
+                except Exception:
+                    pass
+
+            except requests.exceptions.ConnectionError as e:
                 print(f"❌ Cannot connect to {self.provider.name} at {self.provider.base_url}")
-            else:
-                print(f"❌ Error: {e}")
-            if self.debug_mode:
-                import traceback
-                traceback.print_exc()
+                print(f"   Make sure the server is running and accessible.")
+                print(f"   Use /provider to switch or /models to check availability.")
+                if self.debug_mode:
+                    print(f"   Connection error: {e}")
+            except requests.exceptions.Timeout as e:
+                print(f"❌ Timed out waiting for {self.provider.name} at {self.provider.base_url}")
+                print("   The server may be overloaded or the model may be very slow.")
+                if self.debug_mode:
+                    print(f"   Timeout error: {e}")
+            except requests.exceptions.HTTPError as e:
+                if "404" in str(e):
+                    print(f"❌ Model '{self.model}' not found on {self.provider.name}")
+                    print(f"   Use /models to list available models.")
+                else:
+                    print(f"❌ HTTP error from {self.provider.name}: {e}")
+                if self.debug_mode:
+                    print(f"   Full error: {e}")
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "connection" in error_msg or "refused" in error_msg:
+                    print(f"❌ Cannot connect to {self.provider.name} at {self.provider.base_url}")
+                else:
+                    print(f"❌ Error: {e}")
+                if self.debug_mode:
+                    import traceback
+                    traceback.print_exc()
     
     def _count_tokens(self, text, role):
         """Count tokens in text."""
@@ -1975,9 +2018,18 @@ class VoiceREPL(cmd.Cmd):
             ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")[:19]
             base = f"{engine}_{voice_label}{seed_txt}_{ts}.wav"
             base = _re.sub(r"[^a-zA-Z0-9_.-]+", "_", base).strip("_")
+            # Keep filenames safely under typical per-component limits (~255 bytes).
+            # (We never want a long clone name to crash debug mode.)
+            max_name = 220
+            if len(base) > max_name:
+                suffix = ".wav"
+                base = base[: max(1, max_name - len(suffix))].rstrip("_-.") + suffix
             out_path = out_dir / base
             if out_path.exists():
-                out_path = out_dir / f"{out_path.stem}_2{out_path.suffix}"
+                alt = f"{out_path.stem}_2{out_path.suffix}"
+                if len(alt) > max_name:
+                    alt = alt[: max(1, max_name - len(out_path.suffix))].rstrip("_-.") + out_path.suffix
+                out_path = out_dir / alt
 
             # Synthesize to disk first so we can print a stable path.
             try:
@@ -3471,6 +3523,88 @@ class VoiceREPL(cmd.Cmd):
         self._clear_history()
         print("History cleared")
 
+    def do_history(self, arg):
+        """Show the in-memory LLM chat history (what is sent to the provider).
+
+        Usage:
+          /history                # last 20 non-system messages
+          /history 50             # last 50 non-system messages
+          /history 50 --all       # include system message(s)
+          /history 10 --full      # show full message content (no truncation)
+        """
+        arg = str(arg or "").strip()
+        try:
+            parts = shlex.split(arg) if arg else []
+        except Exception:
+            parts = (arg.split() if arg else [])
+
+        n = 20
+        show_all = False
+        full = False
+        for tok in parts:
+            t = str(tok or "").strip().lower()
+            if t in ("--all", "-a"):
+                show_all = True
+                continue
+            if t in ("--full", "-f"):
+                full = True
+                continue
+            try:
+                n = int(tok)
+            except Exception:
+                pass
+
+        n = max(1, min(int(n), 500))
+
+        msgs = list(getattr(self, "messages", []) or [])
+        idxs: list[int] = []
+        for i, m in enumerate(msgs):
+            try:
+                role = str(m.get("role", "")).strip().lower() if isinstance(m, dict) else ""
+            except Exception:
+                role = ""
+            if (not show_all) and role == "system":
+                continue
+            idxs.append(int(i))
+
+        take = idxs[-n:] if len(idxs) > n else idxs
+        if not take:
+            print("(history is empty)")
+            return
+
+        # Basic summary
+        counts = {"system": 0, "user": 0, "assistant": 0, "other": 0}
+        for m in msgs:
+            if not isinstance(m, dict):
+                counts["other"] += 1
+                continue
+            r = str(m.get("role", "") or "").strip().lower()
+            if r in counts:
+                counts[r] += 1
+            else:
+                counts["other"] += 1
+        print(
+            f"History: {len(msgs)} messages "
+            f"(system={counts['system']}, user={counts['user']}, assistant={counts['assistant']}, other={counts['other']})."
+        )
+        print(f"Showing {len(take)} message(s).")
+
+        for i in take:
+            m = msgs[i]
+            if not isinstance(m, dict):
+                print(f"{i:04d} unknown: {str(m)[:160]}")
+                continue
+            role = str(m.get("role", "") or "").strip()
+            content = str(m.get("content", "") or "")
+            if not full:
+                one = " ".join(content.replace("\r", "\n").split())
+                if len(one) > 220:
+                    one = one[:220].rstrip() + "…"
+                content_out = one
+            else:
+                content_out = content
+            print(f"{i:04d} {role}: {content_out}")
+
     def do_reset(self, arg):
         """Reset the session (history + current voice selection)."""
         try:
@@ -3658,6 +3792,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /help                 Show this help")
         print("  /exit                 Exit REPL  (aliases: /q, /quit)")
         print("  /clear                Clear chat history (LLM)")
+        print("  /history [n] [--all]  Show LLM chat history in memory (what is sent)")
         print("  /reset                Reset (history + voice state)")
         print("  /debug [on|off]       Debug mode (also saves synthesized WAVs)")
         print("  /verbose [on|off]     Verbose per-turn stats (timings, etc.)")
