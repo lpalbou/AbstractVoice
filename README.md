@@ -25,6 +25,9 @@ Integration points (code evidence):
   Implementation: `abstractvoice/integrations/abstractcore_plugin.py`
 - AbstractRuntime ArtifactStore adapter (optional, duck-typed): `abstractvoice/artifacts.py`
 
+**Important**: AbstractVoice is a **voice I/O library** (TTS/STT + optional cloning). It is not an agent framework and it does not implement an LLM server.
+In the AbstractFramework stack, **AbstractCore** is the intended place to run agents and expose OpenAI-compatible HTTP endpoints; AbstractVoice is discovered as a **capability backend plugin** and provides the TTS/STT implementation.
+
 ```mermaid
 flowchart LR
   App[Your app / REPL] --> VM[abstractvoice.VoiceManager]
@@ -38,7 +41,7 @@ flowchart LR
   end
 ```
 
-Note: an OpenAI-compatible audio/voice endpoint is a **planned** demo/integration layer (see `docs/backlog/planned/013_openai_compatible_audio_endpoint.md`).
+The shipped AbstractCore integration is via the capability plugin above. The `abstractvoice` REPL is a **demonstrator/smoke-test harness** (see `docs/repl_guide.md`) and includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for convenience.
 
 ---
 
@@ -57,7 +60,7 @@ pip install "abstractvoice[all]"
 ```
 
 Notes:
-- `abstractvoice[all]` enables most optional features (incl. cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime.
+- `abstractvoice[all]` enables most optional features (incl. cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime or AudioDiT.
 - For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
 ### Explicit model downloads (recommended; never implicit in the REPL)
@@ -80,6 +83,10 @@ Optional (voice cloning artifacts):
 pip install "abstractvoice[cloning]"
 abstractvoice-prefetch --openf5
 
+# Heavy (torch/transformers):
+pip install "abstractvoice[audiodit]"
+abstractvoice-prefetch --audiodit
+
 # GPU-heavy:
 pip install "abstractvoice[chroma]"
 abstractvoice-prefetch --chroma
@@ -92,6 +99,7 @@ python -m abstractvoice download --piper en
 python -m abstractvoice download --stt small
 python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
 python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
+python -m abstractvoice download --audiodit # optional; requires abstractvoice[audiodit]
 ```
 
 Notes:
@@ -113,6 +121,7 @@ python -m abstractvoice cli --verbose
 Notes:
 - Mic voice input is **off by default** for fast startup. Enable with `--voice-mode stop` (or in-session: `/voice stop`).
 - The REPL is **offline-first**: no implicit model downloads. Use the explicit download commands above.
+- The REPL is primarily a **demonstrator**. For production agent/server use in the AbstractFramework ecosystem, run AbstractCore and use AbstractVoice via its capability plugin (see `docs/api.md` → “Integrations”).
 
 See `docs/repl_guide.md`.
 

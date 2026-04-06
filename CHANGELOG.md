@@ -35,6 +35,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Cloning: `set_cloned_tts_quality(...)` now persists the preset so it also applies to cloning engines that are loaded later (engines are lazy).
 - REPL: selecting an AudioDiT cloned voice now performs a small warm-up to pay the one-time load/compile cost up front (reduces first `/speak` latency).
 - REPL: discard `<think>...</think>` blocks in LLM responses before printing/history/TTS.
+- Docs: clarify REPL as a demonstrator (minimal LLM client) and recommend AbstractCore for production agent/server integration; refreshed `llms.txt` / `llms-full.txt`.
+- Docs: clarify AudioDiT language expectations (upstream EN/ZH focus; other languages not guaranteed).
 
 ## [0.6.1] - 2026-02-04
 

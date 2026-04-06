@@ -75,7 +75,9 @@ Be aware: the Hugging Face cache is shared with other tools; deleting it can aff
 
 ### Can I use the REPL without an LLM server?
 
-Yes. Use `/speak <text>` to test TTS without calling any LLM endpoint (implemented in `abstractvoice/examples/cli_repl.py`). For full end-to-end chat, the REPL calls a configured LLM HTTP endpoint (default is a local Ollama URL; see `docs/repl_guide.md`).
+Yes. Use `/speak <text>` to test TTS without calling any LLM endpoint (implemented in `abstractvoice/examples/cli_repl.py`).
+
+For full end-to-end chat, the REPL calls a configured **OpenAI-compatible** LLM HTTP endpoint (default preset is Ollama at `http://localhost:11434`; see `docs/repl_guide.md`). The REPL’s LLM client is intentionally minimal; production agent/server use in the AbstractFramework ecosystem should be done via **AbstractCore**.
 
 ### My LLM prints `<think>...</think>` blocks. Can the REPL hide them?
 

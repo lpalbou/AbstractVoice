@@ -3,6 +3,11 @@
 
 Start with `README.md` for the primary entry flow and treat `docs/api.md` as the supported integrator contract. Requires Python `>=3.10` (see `pyproject.toml`).
 
+Positioning:
+- AbstractVoice is a **voice I/O library** (TTS/STT + optional cloning). It does not run an agent loop or an LLM server.
+- In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** (via the capability plugin entry point).
+- The REPL is a **demonstrator/smoke-test harness** and includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`).
+
 Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downloads should be explicit (see `docs/installation.md` and `docs/model-management.md`).
 
 ## Start here
@@ -26,6 +31,7 @@ Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downlo
 - [ADR 0002](docs/adr/0002_barge_in_interruption.md): barge-in modes + stop phrase + optional AEC
 - [ADR 0003](docs/adr/0003_cloning_reference_text_fallback.md): cloning `reference_text` auto-fallback
 - [ADR 0004](docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md): streaming + cancellation for cloned TTS
+- [ADR 0005](docs/adr/0005_torch_device_and_dtype_policy.md): torch device + dtype selection policy
 
 ## Core code map
 - [VoiceManager façade](abstractvoice/voice_manager.py): public import target
@@ -34,6 +40,7 @@ Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downlo
 - [TTS orchestration](abstractvoice/vm/tts_mixin.py): `speak*()` + cloning orchestration
 - [STT/listening orchestration](abstractvoice/vm/stt_mixin.py): `listen()` + `transcribe_*()`
 - [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): model caching + synthesis
+- [AudioDiT TTS adapter (optional)](abstractvoice/adapters/tts_audiodit.py): LongCat-AudioDiT engine (extra)
 - [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py): STT backend
 - [Mic/VAD/STT loop](abstractvoice/recognition.py): listening thread + stop phrase handling
 - [Stop phrase matching](abstractvoice/stop_phrase.py): normalization/matching (dependency-light)

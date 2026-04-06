@@ -46,7 +46,7 @@ Notes:
 - `tts_engine` supports:
   - `auto` (deterministic default: resolves to `piper`)
   - `piper` (default core TTS)
-  - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`)
+  - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH — other languages are not guaranteed)
 - `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[stt]`; see `abstractvoice/vm/stt_mixin.py`).
 - `tts_model` is reserved/back-compat (Piper selection is language-driven today).
 

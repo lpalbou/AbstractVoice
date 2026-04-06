@@ -7,6 +7,11 @@ AbstractVoice is a Python library for **voice I/O** around AI applications:
 
 The main entry point for integrators is `abstractvoice.VoiceManager`.
 
+AbstractVoice does **not** implement an agent loop or an LLM server. It focuses on voice primitives that can be embedded into:
+
+- your own app (desktop/headless)
+- **AbstractCore** (recommended in the AbstractFramework ecosystem): AbstractCore owns agents + OpenAI-compatible HTTP endpoints; AbstractVoice is discovered as a capability backend plugin and provides TTS/STT.
+
 See `docs/acronyms.md` for acronyms used in documentation.
 
 Next reads:
@@ -38,3 +43,4 @@ Next reads:
 
 - `python -m abstractvoice cli` is the fastest end‑to‑end smoke test.
   - The REPL is offline-first: no implicit model downloads.
+  - The REPL is a **demonstrator**: it includes a minimal OpenAI-compatible LLM HTTP client for convenience (`abstractvoice/examples/llm_provider.py`), but production agent/server use should be done via AbstractCore.

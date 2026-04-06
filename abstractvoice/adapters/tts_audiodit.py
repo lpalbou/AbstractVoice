@@ -162,9 +162,10 @@ class AudioDiTTTSAdapter(TTSAdapter):
         return True
 
     def get_supported_languages(self) -> list[str]:
-        # Keep aligned with AbstractVoice language codes; engine may still work
-        # outside this list, but defaults are tuned for these codes.
-        return ["en", "fr", "de", "es", "ru", "zh"]
+        # Upstream LongCat-AudioDiT benchmarks and examples focus on Chinese + English.
+        # Other languages may “work” at the tokenizer level but are not guaranteed to
+        # be intelligible without a language-specific frontend.
+        return ["en", "zh"]
 
     def get_sample_rate(self) -> int:
         return int(self._sample_rate or 24000)
