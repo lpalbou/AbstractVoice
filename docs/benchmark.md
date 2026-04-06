@@ -76,7 +76,7 @@ Runs the full benchmark **in separate Python processes** multiple times, then ag
 
 ```bash
 python examples/bench_tts_suite.py \
-  --out-dir untracked/bench_tts_suite_reps5_2026-04-06 \
+  --out-dir untracked/bench_tts_suite_reps5_2026-04-06_fixed \
   --experiments 5 \
   --sleep-s 2 \
   --engines piper,audiodit,omnivoice \
@@ -89,6 +89,26 @@ Outputs:
 - `suite_summary.md` / `suite_summary.json`: aggregated mean/std + between-experiment variance
 - `exp_*/`: each experiment run’s raw WAVs + per-run results
 
+## Benchmark texts (fixed prompts)
+
+Yes — the benchmark uses **fixed texts** per `(language, variant)` across **all engines** (defined in `examples/bench_tts.py`).
+
+Warmup always uses `s2` (so adapters that build caches on first use pay that cost outside the averages).
+
+### English (`en`)
+
+- **`s2`**:
+  - `Hello. This is a benchmark sentence for AbstractVoice.`
+- **`s5`**:
+  - `Hello. This is a benchmark sentence for AbstractVoice. We are measuring how long speech synthesis takes. This extra sentence increases the length of the prompt. Finally, this is the fifth sentence.`
+
+### French (`fr`)
+
+- **`s2`**:
+  - `Bonjour. Ceci est une phrase de benchmark pour AbstractVoice.`
+- **`s6`**:
+  - `Bonjour. Ceci est une phrase de benchmark pour AbstractVoice. Nous mesurons le temps nécessaire pour générer la parole. Cette phrase supplémentaire augmente la longueur du texte. Nous ajoutons encore une phrase pour arriver à cinq. Enfin, voici la sixième phrase.`
+
 ## Example results (macOS / Apple Silicon, MPS fp16) — 5 experiments × 5 reps
 
 These results were collected with:
@@ -100,18 +120,18 @@ This is intentionally “order of magnitude” oriented. If you need variance de
 
 | engine | lang | text | avg WAV gen time (s) | avg speech length (s) | RTF |
 |---|---|---|---:|---:|---:|
-| **piper** | en | 2 sentences | **0.080** | 4.237 | 0.019 |
-| **piper** | fr | 2 sentences | **0.079** | 4.282 | 0.019 |
-| **piper** | en | 5 sentences | **0.255** | 14.021 | 0.018 |
-| **piper** | fr | 5 sentences | **0.285** | 15.639 | 0.018 |
-| **omnivoice** | en | 2 sentences | 0.769 | 3.560 | 0.216 |
-| **omnivoice** | fr | 2 sentences | 0.863 | 4.000 | 0.216 |
-| **omnivoice** | en | 5 sentences | 2.199 | 12.240 | 0.180 |
-| **omnivoice** | fr | 5 sentences | 3.097 | 16.520 | 0.187 |
-| **audiodit** | en | 2 sentences | 0.710 | 7.680 | 0.092 |
-| **audiodit** | fr | 2 sentences | 0.721 | 8.277 | 0.087 |
-| **audiodit** | en | 5 sentences | 0.934 | 17.493 | 0.053 |
-| **audiodit** | fr | 5 sentences | 1.205 | 22.528 | 0.053 |
+| **piper** | en | s2 | **0.077** | 4.232 | 0.018 |
+| **piper** | fr | s2 | **0.078** | 4.250 | 0.018 |
+| **piper** | en | s5 | **0.246** | 14.023 | 0.018 |
+| **piper** | fr | s6 | **0.276** | 15.819 | 0.017 |
+| **omnivoice** | en | s2 | 0.889 | 3.560 | 0.250 |
+| **omnivoice** | fr | s2 | 0.941 | 4.000 | 0.235 |
+| **omnivoice** | en | s5 | 2.490 | 12.240 | 0.203 |
+| **omnivoice** | fr | s6 | 3.579 | 16.520 | 0.217 |
+| **audiodit** | en | s2 | 0.676 | 3.840 | 0.176 |
+| **audiodit** | fr | s2 | 0.715 | 4.267 | 0.168 |
+| **audiodit** | en | s5 | 1.072 | 13.653 | 0.079 |
+| **audiodit** | fr | s6 | 1.443 | 18.517 | 0.078 |
 
 Interpretation:
 - **Piper** is fastest by orders of magnitude (sub-second generation for these prompts).
