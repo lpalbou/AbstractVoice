@@ -8,6 +8,7 @@ This module provides a direct entry point to start AbstractVoice in voice mode.
 import argparse
 import time
 from abstractvoice.examples.cli_repl import VoiceREPL
+from abstractvoice.examples.llm_provider import PROVIDER_PRESETS, DEFAULT_PROVIDER, DEFAULT_MODEL
 
 def print_examples():
     """Print available examples."""
@@ -103,9 +104,11 @@ def parse_args():
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--verbose", action="store_true", help="Show per-turn performance stats")
-    parser.add_argument("--api", default="http://localhost:11434/api/chat",
-                      help="LLM API URL")
-    parser.add_argument("--model", default="cogito:3b",
+    parser.add_argument("--provider", default=DEFAULT_PROVIDER,
+                      help=f"LLM provider preset ({', '.join(sorted(PROVIDER_PRESETS))}) or base URL")
+    parser.add_argument("--api", default=None,
+                      help="LLM API base URL (overrides --provider)")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
                       help="LLM model name")
     parser.add_argument(
         "--whisper",
@@ -166,6 +169,7 @@ def main():
         elif args.command == "cli":
             # Import and run CLI REPL example
             repl = VoiceREPL(
+                provider=args.provider,
                 api_url=args.api,
                 model=args.model,
                 debug_mode=args.debug,
@@ -218,6 +222,7 @@ def main():
 
         # Initialize REPL.
         repl = VoiceREPL(
+            provider=args.provider,
             api_url=args.api,
             model=args.model,
             debug_mode=args.debug,
@@ -265,10 +270,10 @@ def main():
             print(f"   Your Ollama model '{args.model}' is fine")
             print("   Try: pip install --upgrade abstractvoice")
             print(f"   Or check network connectivity for model downloads")
-        elif "ollama" in error_msg or "11434" in error_msg:
-            print(f"❌ Cannot connect to Ollama at {args.api}")
-            print(f"   Make sure Ollama is running: ollama serve")
-            print(f"   Your model '{args.model}' exists but Ollama server isn't responding")
+        elif "connection" in error_msg or "refused" in error_msg:
+            provider_name = getattr(args, "provider", DEFAULT_PROVIDER)
+            print(f"❌ Cannot connect to LLM provider ({provider_name})")
+            print(f"   Make sure the server is running. Use --provider to switch.")
         elif "importerror" in error_msg or "no module" in error_msg:
             print(f"❌ Missing dependencies")
             print(f"   Try running: abstractvoice check-deps")
@@ -276,7 +281,6 @@ def main():
         else:
             print(f"❌ Application error: {e}")
             print(f"   Try running with --debug for more details")
-            print(f"   Note: Your Ollama model '{args.model}' appears to be available")
 
         if args.debug:
             import traceback

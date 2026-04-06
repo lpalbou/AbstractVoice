@@ -77,6 +77,16 @@ Be aware: the Hugging Face cache is shared with other tools; deleting it can aff
 
 Yes. Use `/speak <text>` to test TTS without calling any LLM endpoint (implemented in `abstractvoice/examples/cli_repl.py`). For full end-to-end chat, the REPL calls a configured LLM HTTP endpoint (default is a local Ollama URL; see `docs/repl_guide.md`).
 
+### My LLM prints `<think>...</think>` blocks. Can the REPL hide them?
+
+Yes. The REPL discards `<think>...</think>` blocks from the assistant response before it:
+
+- prints the answer
+- stores it in conversation history
+- sends it to TTS
+
+This prevents “chain-of-thought” style reasoning from being displayed or spoken.
+
 ### How do I enable microphone input?
 
 Mic capture is **off by default**. Enable explicitly:
@@ -185,6 +195,20 @@ Recommendations (general-purpose):
 - **Use the right transcript**:
   - AudioDiT cloning requires a correct `reference_text` (prompt transcript) matching the prompt audio.
   - For other engines, providing `reference_text` is still often beneficial.
+
+### Why do I see “Output device rejected 24000Hz; using 48000Hz (resampling)”?
+
+Because **24,000 Hz is the model/sample rate**, but your **audio output device** (speakers/headphones) often only supports **44.1 kHz or 48 kHz** for live playback streams.
+
+What this means in practice:
+
+- **Cloning + synthesis run at ~24 kHz internally** (AudioDiT/OpenF5/Chroma prompts and outputs are normalized around 24 kHz in this repo).
+- **Playback may use 48 kHz** because PortAudio/CoreAudio rejects a 24 kHz output stream for many macOS devices (built‑in speakers, Bluetooth, HDMI, etc.).
+- AbstractVoice then **resamples for playback** so you can still hear the 24 kHz model output reliably.
+
+This warning is about **speaker device constraints**, not about what sample rate the cloning model uses.
+
+Note: AbstractVoice tries to open the playback stream at the audio’s natural rate first (e.g. 24 kHz for AudioDiT). If that fails, it falls back to the device’s default (often 48 kHz) and resamples.
 
 ## Licensing
 
