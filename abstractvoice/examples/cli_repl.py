@@ -1609,23 +1609,36 @@ class VoiceREPL(cmd.Cmd):
             print("Usage: /speed <number>  (e.g., /speed 1.5)")
 
     def do_tts_quality(self, arg):
-        """Set base TTS quality preset (low|standard|high).
+        """Set TTS quality preset (low|standard|high).
 
-        This is an engine-agnostic knob. Engines that don't support it may ignore
-        it (Piper is typically a no-op).
+        This is an engine-agnostic knob.
+        - When speaking with a cloned voice (`/tts_voice clone ...`), this applies to the
+          cloning engine (same as `/clone_quality ...`).
+        - Otherwise, it applies to the active base TTS engine.
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
             return
 
+        using_clone = bool(getattr(self, "current_tts_voice", None))
+
         s = str(arg or "").strip().lower()
         if not s:
-            cur = None
-            try:
-                cur = self.voice_manager.get_tts_quality_preset()
-            except Exception:
+            if using_clone:
                 cur = None
-            print(f"Base TTS quality preset: {cur or '--'}")
+                try:
+                    cur = self.voice_manager.get_cloned_tts_quality_preset()
+                except Exception:
+                    cur = None
+                print(f"Cloned TTS quality preset: {cur or '--'}")
+                print("ℹ️  (Cloned voice is active; /tts_quality affects cloning engine.)")
+            else:
+                cur = None
+                try:
+                    cur = self.voice_manager.get_tts_quality_preset()
+                except Exception:
+                    cur = None
+                print(f"Base TTS quality preset: {cur or '--'}")
             print("Usage: /tts_quality low|standard|high")
             return
 
@@ -1638,15 +1651,24 @@ class VoiceREPL(cmd.Cmd):
             return
 
         try:
-            ok = bool(self.voice_manager.set_tts_quality_preset(s))
+            if using_clone:
+                ok = bool(self.voice_manager.set_cloned_tts_quality(s))
+            else:
+                ok = bool(self.voice_manager.set_tts_quality_preset(s))
         except Exception as e:
             print(f"❌ Failed to set preset: {e}")
             return
 
         if ok:
-            print(f"✅ Base TTS quality preset: {s}")
+            if using_clone:
+                print(f"✅ Cloned TTS quality preset: {s}")
+            else:
+                print(f"✅ Base TTS quality preset: {s}")
         else:
-            print(f"ℹ️  Current TTS engine does not support quality presets (requested: {s}).")
+            if using_clone:
+                print(f"ℹ️  Current cloning engine does not support quality presets (requested: {s}).")
+            else:
+                print(f"ℹ️  Current TTS engine does not support quality presets (requested: {s}).")
 
     def do_debug(self, arg):
         """Toggle debug mode (REPL).

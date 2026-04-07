@@ -94,6 +94,13 @@ class VoiceCloner:
             except Exception:
                 pass
 
+    def get_quality_preset(self) -> str:
+        """Return the active quality preset (best-effort)."""
+        try:
+            return str(getattr(self, "_quality_preset", "standard") or "standard")
+        except Exception:
+            return "standard"
+
     def unload_engine(self, engine: str) -> bool:
         """Best-effort unload a loaded engine to free memory.
 

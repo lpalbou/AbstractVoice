@@ -131,6 +131,19 @@ class TtsMixin:
         self._get_voice_cloner().set_quality_preset(p)
         return True
 
+    def get_cloned_tts_quality_preset(self) -> str | None:
+        """Return the current cloned TTS quality preset (best-effort)."""
+        try:
+            cloner = self._get_voice_cloner()
+        except Exception:
+            return None
+        try:
+            if hasattr(cloner, "get_quality_preset"):
+                return str(cloner.get_quality_preset() or "").strip() or None
+        except Exception:
+            return None
+        return None
+
     def set_tts_quality_preset(self, preset: str) -> bool:
         """Set base TTS engine quality preset: low|standard|high (best-effort).
 
