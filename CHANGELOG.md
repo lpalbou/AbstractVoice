@@ -16,7 +16,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - OmniVoice: “fast persistent profiles” via cached prompt tokens — profiles can build and store a tokenized reference prompt (`voice_clone_prompt`) once, then reuse it for stable voice identity without re-encoding the prompt on each utterance.
 
 ### Changed
-- Quality presets: `/tts_quality` and `/clone_quality` now use `low|standard|high` (aliases: `fast`→`low`, `balanced`→`standard`). For OmniVoice, the base/cloning `num_step` mapping is now `4/8/16`.
+- Quality presets: `/tts_quality` and `/clone_quality` now use `low|standard|high` (aliases: `fast`→`low`, `balanced`→`standard`). For OmniVoice, the base/cloning `num_step` mapping is now `8/12/24`.
 
 ### Fixed
 - Docs: refreshed repo guidance (`llms*.txt`), internal maps (`docs/architecture.md`, `docs/development.md`), and cloning/engine documentation to match current engines and commands.

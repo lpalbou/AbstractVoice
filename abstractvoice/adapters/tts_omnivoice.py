@@ -729,13 +729,13 @@ class OmniVoiceTTSAdapter(TTSAdapter):
         # `omnivoice/runtime.py` for rationale). Prefer conservative step counts
         # here; users can always raise them explicitly via engine params.
         if p == "low":
-            self._settings.num_step = 4
-            self._settings.guidance_scale = 2.0
-        elif p == "standard":
             self._settings.num_step = 8
             self._settings.guidance_scale = 2.0
+        elif p == "standard":
+            self._settings.num_step = 12
+            self._settings.guidance_scale = 2.0
         else:
-            self._settings.num_step = 16
+            self._settings.num_step = 24
             self._settings.guidance_scale = 2.0
         return True
 
