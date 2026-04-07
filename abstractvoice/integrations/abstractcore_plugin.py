@@ -1,14 +1,30 @@
 from __future__ import annotations
 
+import threading
+import weakref
 from typing import Any, Dict, Optional, Union
 
 from ..artifacts import RuntimeArtifactStoreAdapter, is_artifact_ref, get_artifact_id
+
+
+_VM_CACHE_LOCK = threading.Lock()
+_VM_CACHE: dict[tuple, Any] = {}
+_VM_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = weakref.WeakKeyDictionary()
 
 
 class _BaseVoice:
     def __init__(self, owner: Any):
         self._owner = owner
         self._vm = None
+
+    def _vm_lock(self, vm: Any) -> threading.Lock:
+        """Per-VoiceManager lock for synthesis/metrics consistency."""
+        with _VM_CACHE_LOCK:
+            lk = _VM_LOCKS.get(vm)
+            if lk is None:
+                lk = threading.Lock()
+                _VM_LOCKS[vm] = lk
+            return lk
 
     def _get_vm(self):
         if self._vm is not None:
@@ -35,6 +51,12 @@ class _BaseVoice:
         # Best-effort config overrides (optional).
         language = "en"
         allow_downloads = True
+        tts_engine = "auto"
+        stt_engine = "auto"
+        whisper_model = "base"
+        cloning_engine = "f5_tts"
+        cloned_tts_streaming = True
+        debug_mode = False
         try:
             cfg = getattr(self._owner, "config", None)
             if isinstance(cfg, dict):
@@ -42,11 +64,49 @@ class _BaseVoice:
                     language = str(cfg["voice_language"]).strip().lower()
                 if "voice_allow_downloads" in cfg:
                     allow_downloads = bool(cfg.get("voice_allow_downloads"))
+                if isinstance(cfg.get("voice_tts_engine"), str) and str(cfg["voice_tts_engine"]).strip():
+                    tts_engine = str(cfg["voice_tts_engine"]).strip().lower()
+                if isinstance(cfg.get("voice_stt_engine"), str) and str(cfg["voice_stt_engine"]).strip():
+                    stt_engine = str(cfg["voice_stt_engine"]).strip().lower()
+                if isinstance(cfg.get("voice_whisper_model"), str) and str(cfg["voice_whisper_model"]).strip():
+                    whisper_model = str(cfg["voice_whisper_model"]).strip()
+                if isinstance(cfg.get("voice_cloning_engine"), str) and str(cfg["voice_cloning_engine"]).strip():
+                    cloning_engine = str(cfg["voice_cloning_engine"]).strip().lower()
+                if "voice_cloned_tts_streaming" in cfg:
+                    cloned_tts_streaming = bool(cfg.get("voice_cloned_tts_streaming"))
+                if "voice_debug_mode" in cfg:
+                    debug_mode = bool(cfg.get("voice_debug_mode"))
         except Exception:
             pass
 
-        self._vm = VoiceManager(language=language, allow_downloads=allow_downloads)
-        return self._vm
+        key = (
+            str(language),
+            bool(allow_downloads),
+            str(tts_engine),
+            str(stt_engine),
+            str(whisper_model),
+            str(cloning_engine),
+            bool(cloned_tts_streaming),
+            bool(debug_mode),
+        )
+
+        with _VM_CACHE_LOCK:
+            cached = _VM_CACHE.get(key)
+            if cached is None:
+                cached = VoiceManager(
+                    language=language,
+                    allow_downloads=allow_downloads,
+                    debug_mode=bool(debug_mode),
+                    tts_engine=str(tts_engine),
+                    stt_engine=str(stt_engine),
+                    whisper_model=str(whisper_model),
+                    cloning_engine=str(cloning_engine),
+                    cloned_tts_streaming=bool(cloned_tts_streaming),
+                )
+                _VM_CACHE[key] = cached
+                _VM_LOCKS[cached] = threading.Lock()
+            self._vm = cached
+            return self._vm
 
     def _maybe_store_audio(
         self,
@@ -158,8 +218,30 @@ class _VoiceCapability(_BaseVoice):
         **_kwargs: Any,
     ):
         vm = self._get_vm()
-        audio = vm.speak_to_bytes(str(text), format=str(format), voice=voice)
-        return self._maybe_store_audio(audio, artifact_store=artifact_store, fmt=str(format), run_id=run_id, tags=tags, metadata=metadata)
+        lk = self._vm_lock(vm)
+        with lk:
+            audio = vm.speak_to_bytes(str(text), format=str(format), voice=voice)
+            tts_metrics = None
+            try:
+                if hasattr(vm, "pop_last_tts_metrics"):
+                    tts_metrics = vm.pop_last_tts_metrics()
+            except Exception:
+                tts_metrics = None
+
+        merged_meta: Dict[str, Any] = {}
+        if isinstance(metadata, dict):
+            merged_meta.update(metadata)
+        if isinstance(tts_metrics, dict) and tts_metrics:
+            merged_meta["abstractvoice_tts"] = dict(tts_metrics)
+
+        return self._maybe_store_audio(
+            audio,
+            artifact_store=artifact_store,
+            fmt=str(format),
+            run_id=run_id,
+            tags=tags,
+            metadata=merged_meta if merged_meta else None,
+        )
 
     def stt(
         self,

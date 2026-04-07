@@ -15,10 +15,13 @@
 
 ## Secondary goals
 
-- Provide a clean UX in the REPL:
-  - `/omnivoice profile list`
-  - `/omnivoice profile <name>`
-- Provide a library surface (non-REPL) that can select a profile by id/name.
+- Provide a clean cross-engine UX in the REPL:
+  - `/profile list` (lists profiles for the currently selected `tts_engine`)
+  - `/profile <name>` (applies the profile to the currently selected `tts_engine`)
+  - `/profile show` (shows the active profile, if any)
+- Provide a library surface (non-REPL) via a common engine interface:
+  - `selected_engine.get_profiles()`
+  - `selected_engine.set_profile(selected_profile_id)`
 
 ---
 
@@ -45,9 +48,13 @@ Today, users must assemble these settings manually. This is error-prone and make
 
 ## Proposed design
 
-### 1) Introduce a shared “voice profile” concept (recommended dependency)
+### 1) Dependency: shared “voice profile” abstraction (Task 036)
 
-This task is easiest if we have a cross-engine profile abstraction (see Task 013 improvements / “voice profile” concept).
+OmniVoice profiles should be implemented through a common cross-engine interface so that:
+- the REPL can expose a single `/profile ...` command (no `/omnivoice profile ...` special-casing)
+- AbstractCore integrations can forward profile selection without knowing per-engine parameters
+
+See: `docs/backlog/planned/036_voice_profile_abstraction.md`.
 
 Minimum viable profile payload for OmniVoice:
 
@@ -85,12 +92,12 @@ Rules:
 
 ## Implementation plan
 
-- Add built-in profiles (JSON asset + loader).
-- Add `VoiceManager`/adapter helper to apply profile params (best-effort).
-- Extend REPL command surface:
-  - list profiles
-  - select by name
-  - show current profile
+- Add built-in profiles (JSON asset + loader) for OmniVoice.
+- Implement OmniVoice adapter profile provider methods:
+  - `get_profiles()` (returns the available OmniVoice profiles)
+  - `set_profile(profile_id)` (applies `instruct`/`seed`/temps)
+  - `get_active_profile()` (best-effort)
+- Wire the REPL `/profile ...` command to the active engine via Task 036 (no engine-specific profile commands).
 - Update docs (`docs/repl_guide.md`, `docs/faq.md`) with examples and determinism caveats.
 
 ---
@@ -99,7 +106,7 @@ Rules:
 
 - A user can run:
   - `/tts_engine omnivoice`
-  - `/omnivoice profile female_01`
+  - `/profile female_01`
   - `/speak ...`
   - and get a stable designed voice across turns without needing to remember parameter details.
 - Profiles are deterministic “best-effort” when `seed` is fixed, and the docs clearly explain remaining nondeterminism risks.

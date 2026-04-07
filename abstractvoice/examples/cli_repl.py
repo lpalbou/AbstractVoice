@@ -397,10 +397,12 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             return "--"
 
-    def _fmt_wtok(self, words: int | None, tokens: int | None) -> str:
+    def _fmt_wtok(self, words: int | None, tokens: int | str | None) -> str:
         w = int(words) if isinstance(words, int) else (int(words) if words is not None else 0)
         if isinstance(tokens, int):
             return f"{w}w/{int(tokens)}tok"
+        if isinstance(tokens, str) and tokens.strip():
+            return f"{w}w/{tokens.strip()}tok"
         return f"{w}w/--tok"
 
     def _summarize_audio_source(self, source: str) -> tuple[int | None, float | None]:
@@ -1869,13 +1871,26 @@ class VoiceREPL(cmd.Cmd):
             self._speak_with_spinner_until_audio_starts(text)
             if self.verbose_mode:
                 out_words = self._count_words(text)
-                out_tokens = None
+                out_tokens: int | str | None = None
                 try:
                     enc = self._get_tiktoken_encoding()
                     if enc is not None:
                         out_tokens = int(len(enc.encode(str(text or ""))))
+                    else:
+                        # Best-effort approximation (useful when `tiktoken` isn't installed).
+                        # Rule of thumb: ~4 chars/token in Latin scripts.
+                        s = str(text or "").strip()
+                        approx = int(round(len(s) / 4.0)) if s else 0
+                        approx = max(1, approx) if s else 0
+                        out_tokens = f"~{approx}" if approx else None
                 except Exception:
-                    out_tokens = None
+                    try:
+                        s = str(text or "").strip()
+                        approx = int(round(len(s) / 4.0)) if s else 0
+                        approx = max(1, approx) if s else 0
+                        out_tokens = f"~{approx}" if approx else None
+                    except Exception:
+                        out_tokens = None
 
                 tts_metrics = None
                 try:
