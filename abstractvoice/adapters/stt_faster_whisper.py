@@ -39,6 +39,13 @@ class FasterWhisperAdapter(STTAdapter):
         'large-v2': {'params': '1550M', 'speed': 'very_slow', 'accuracy': 'best'},
         'large-v3': {'params': '1550M', 'speed': 'very_slow', 'accuracy': 'best'},
     }
+
+    # Friendly aliases (kept intentionally small).
+    # Many users expect openai-whisper style "large" to work; in faster-whisper this
+    # is typically best mapped to the latest `large-v3`.
+    _MODEL_ALIASES = {
+        "large": "large-v3",
+    }
     
     # Supported languages
     LANGUAGES = [
@@ -102,10 +109,23 @@ class FasterWhisperAdapter(STTAdapter):
         """
         if not self._faster_whisper_available:
             return False
-        
-        if model_size not in self.MODELS:
-            logger.warning(f"⚠️  Unknown model size '{model_size}', using 'base'")
-            model_size = 'base'
+
+        # We accept:
+        # - canonical short names in `MODELS` (tiny/base/small/medium/large-v2/large-v3)
+        # - a small set of aliases (e.g. "large" -> "large-v3")
+        # - arbitrary Hugging Face model ids (e.g. distil / turbo CT2 repos)
+        # For unknown ids we skip metadata, but still try to load.
+        raw = str(model_size or "").strip()
+        if not raw:
+            raw = "base"
+        key = raw.strip().lower()
+        if key in self._MODEL_ALIASES:
+            model_size = str(self._MODEL_ALIASES[key])
+        elif key in self.MODELS:
+            model_size = key
+        else:
+            # Keep user-provided id as-is (could be HF repo id / local path).
+            model_size = raw
         
         try:
             from ..compute import best_faster_whisper_device
@@ -113,7 +133,10 @@ class FasterWhisperAdapter(STTAdapter):
             if device == "auto":
                 device = best_faster_whisper_device()
 
-            logger.info(f"⬇️  Loading Faster-Whisper model: {model_size} ({self.MODELS[model_size]['params']}) on {device}")
+            meta = self.MODELS.get(str(model_size).strip().lower())
+            params = meta.get("params") if isinstance(meta, dict) else None
+            params_txt = f" ({params})" if params else ""
+            logger.info(f"⬇️  Loading Faster-Whisper model: {model_size}{params_txt} on {device}")
 
             # Load model (may auto-download if not cached).
             # When downloads are not allowed, force HF offline mode so we never pull
@@ -275,6 +298,8 @@ class FasterWhisperAdapter(STTAdapter):
         hotwords: Optional[str] = None,
         initial_prompt: Optional[str] = None,
         condition_on_previous_text: bool = True,
+        beam_size: int | None = None,
+        best_of: int | None = None,
     ) -> str:
         """Transcribe audio from numpy array.
         
@@ -306,11 +331,16 @@ class FasterWhisperAdapter(STTAdapter):
 
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=RuntimeWarning, message=r".*encountered in matmul.*")
+                # Mic / PTT transcription quality is sensitive to decoding settings.
+                # Default to higher-quality beam search here, while allowing callers
+                # (e.g. stop-phrase detection) to override for speed.
+                beam = int(beam_size) if beam_size is not None else 5
+                best = int(best_of) if best_of is not None else 5
                 segments, info = self._model.transcribe(
                     x,
                     language=language,
-                    beam_size=2,
-                    best_of=2,
+                    beam_size=beam,
+                    best_of=best,
                     temperature=0.0,
                     vad_filter=False,
                     hotwords=hotwords,

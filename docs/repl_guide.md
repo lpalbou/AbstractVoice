@@ -142,7 +142,8 @@ python -m abstractvoice download --omnivoice
 Commands:
 - `/clones` (list cloned voices)
 - `/clone <path> [name]` (clone from a WAV file or a folder containing WAVs)
-- `/clone-my-voice` (records a short prompt and creates `my_voice`)
+- `/clone myvoice [name]` (interactive mic cloning; SPACE start/stop; `myvoice` is a special keyword)
+- `/clone_use myvoice [name]` (same, but also selects the cloned voice immediately)
 - `/tts_voice piper` or `/tts_voice clone <id-or-name>` (choose which voice is used for speaking)
 - `/clone_rm <id-or-name>` or `/clone_rm_all --yes` (delete clones)
 - `/cloning_status` (check local readiness; no downloads)

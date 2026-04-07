@@ -600,7 +600,17 @@ class VoiceREPL(cmd.Cmd):
         # Commands still use leading "/". In PTT mode we don't accept typed input.
         s = line.strip()
         if s.startswith("/"):
-            return super().parseline(s[1:].strip())
+            raw = s[1:].strip()
+            # Accept hyphenated command spellings as aliases for underscore commands.
+            # Example: `/clone-my-voice` -> `clone_my_voice`
+            try:
+                cmd, sep, rest = raw.partition(" ")
+                if cmd:
+                    cmd = cmd.replace("-", "_")
+                    raw = cmd + (sep + rest if sep else "")
+            except Exception:
+                pass
+            return super().parseline(raw)
         return super().parseline(line.strip())
         
     def default(self, line):
@@ -2238,7 +2248,7 @@ class VoiceREPL(cmd.Cmd):
         try:
             voices = self.voice_manager.list_cloned_voices()
             if not voices:
-                print("No cloned voices yet. Use /clone <path> or /clone-my-voice.")
+                print("No cloned voices yet. Use /clone <path> or /clone myvoice.")
                 return
             print(f"\n{Colors.CYAN}Cloned voices:{Colors.END}")
             for v in voices:
@@ -2262,6 +2272,68 @@ class VoiceREPL(cmd.Cmd):
             if wanted == vid or vid.startswith(wanted) or wanted == name:
                 return vid
         return None
+
+    def _is_mic_clone_keyword(self, value: str) -> bool:
+        """Return True if `value` requests interactive mic recording for cloning."""
+        v = str(value or "").strip().lower()
+        return v in ("myvoice", "my_voice", "mic", "microphone")
+
+    def _default_mic_clone_engine(self) -> str:
+        """Pick a sensible default cloning engine for mic-driven cloning.
+
+        Prefer the currently selected TTS engine *when it is also a cloning backend*,
+        otherwise fall back to the configured cloning default (usually f5_tts).
+        """
+        eng = ""
+        try:
+            vm = getattr(self, "voice_manager", None)
+            eng = str(getattr(vm, "_tts_engine_name", "") or "").strip().lower()
+        except Exception:
+            eng = ""
+        if not eng:
+            try:
+                vm = getattr(self, "voice_manager", None)
+                a = getattr(vm, "tts_adapter", None) if vm else None
+                eng = str(getattr(a, "engine_id", "") or "").strip().lower()
+            except Exception:
+                eng = ""
+
+        # Only choose engines that are both TTS adapters and cloning backends.
+        if eng in ("omnivoice", "audiodit"):
+            return eng
+
+        fallback = str(getattr(self, "cloning_engine", "") or "f5_tts").strip().lower() or "f5_tts"
+        return fallback
+
+    def _default_mic_clone_prompt(self, *, language: str) -> str:
+        """Return a short, phonetically diverse default prompt for mic cloning."""
+        lang = str(language or "").strip().lower() or "en"
+        prompts = {
+            "en": (
+                "The quick brown fox jumps over the lazy dog. "
+                "Today I am recording a short reference sample for voice cloning."
+            ),
+            "fr": (
+                "Le vif renard brun saute par-dessus le chien paresseux. "
+                "Aujourd'hui, j'enregistre un court extrait de ma voix pour un test de clonage."
+            ),
+            "de": (
+                "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern. "
+                "Heute nehme ich eine kurze Referenzaufnahme für das Stimmklonen auf."
+            ),
+            "es": (
+                "El veloz murciélago hindú comía feliz cardillo y kiwi. "
+                "Hoy grabo una muestra corta de mi voz para clonación."
+            ),
+            "ru": (
+                "Съешь же ещё этих мягких французских булок, да выпей чаю. "
+                "Сегодня я записываю короткий образец голоса для клонирования."
+            ),
+            "zh": (
+                "今天天气很好，我们来录一段参考语音，用于声音克隆测试。"
+            ),
+        }
+        return str(prompts.get(lang, prompts["en"]))
 
     def _resolve_clone_id_by_source(self, source: str, *, engine: str | None = None) -> str | None:
         """Find a cloned voice by its stored meta.source (best-effort)."""
@@ -2496,6 +2568,9 @@ class VoiceREPL(cmd.Cmd):
 
         Usage:
           /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice] [--text "reference transcript"]
+
+        Special source:
+          /clone myvoice [name] [...]   # record from mic (SPACE start/stop, ESC cancel)
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
@@ -2542,9 +2617,55 @@ class VoiceREPL(cmd.Cmd):
 
         path = pos[0]
         name = pos[1] if len(pos) > 1 else None
+        is_mic = self._is_mic_clone_keyword(path)
+        mic_audio_s = None
+
         try:
             t0 = time.monotonic()
-            voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine)
+            if is_mic:
+                # Default name for the "myvoice" shortcut.
+                if not name:
+                    name = "my_voice"
+
+                # Default engine: follow the current TTS engine when it supports cloning.
+                engine_name = str(engine or "").strip().lower() or self._default_mic_clone_engine()
+
+                # Default prompt text: language-sensitive (caller can override with --text).
+                prompt = str(reference_text or self._default_mic_clone_prompt(language=self.current_language)).strip()
+                if not prompt:
+                    prompt = self._default_mic_clone_prompt(language="en")
+
+                # Avoid microphone conflicts: stop any ongoing listen session before recording.
+                try:
+                    self.voice_manager.stop_listening()
+                except Exception:
+                    pass
+                self.voice_mode_active = False
+
+                print("You will record a short reference sample for voice cloning.")
+                print(f"Engine: {engine_name}")
+                print()
+                print("Read this aloud (once, natural pace):")
+                print(f"  {prompt}")
+                print()
+                print("SPACE: start/stop recording")
+                print("ESC:   cancel")
+
+                rec = self._record_wav_bytes_spacebar(sample_rate=24000, min_seconds=3.0, max_seconds=20.0)
+                if rec is None:
+                    print("ℹ️  Cancelled.")
+                    return
+                wav_bytes, mic_audio_s = rec
+
+                voice_id = self.voice_manager.clone_voice_from_wav_bytes(
+                    wav_bytes,
+                    name=str(name),
+                    reference_text=prompt,
+                    engine=engine_name,
+                )
+                reference_text = prompt
+            else:
+                voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine)
             t1 = time.monotonic()
 
             eng = ""
@@ -2603,7 +2724,10 @@ class VoiceREPL(cmd.Cmd):
                 print("   Optional (often best quality): /clone_set_ref_text <id-or-name> \"...\"  (or re-run /clone ... --text \"...\")")
 
             if self.verbose_mode:
-                n_files, ref_audio_s = self._summarize_audio_source(path)
+                if is_mic:
+                    n_files, ref_audio_s = 1, float(mic_audio_s or 0.0)
+                else:
+                    n_files, ref_audio_s = self._summarize_audio_source(path)
                 n_txt = str(n_files) if isinstance(n_files, int) else "--"
                 src_txt = ref_src or ("manual" if (reference_text or "").strip() else "--")
                 msg = f"CLONE {eng or (engine or self.cloning_engine)} | refs {n_txt} a{self._fmt_s(ref_audio_s)} | ref_text {src_txt} | {self._fmt_s(float(t1 - t0))}"
@@ -2619,6 +2743,9 @@ class VoiceREPL(cmd.Cmd):
 
         Shortcut:
           - Paste a WAV/FLAC/OGG path directly (optionally: `path.wav | transcript`).
+
+        Special source:
+          /clone_use myvoice [name] [...]   # record from mic (SPACE start/stop, ESC cancel)
         """
         if not self.voice_manager:
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
@@ -2665,65 +2792,133 @@ class VoiceREPL(cmd.Cmd):
 
         path = pos[0]
         name = pos[1] if len(pos) > 1 else None
+        is_mic = self._is_mic_clone_keyword(path)
+        mic_audio_s = None
 
-        engine_name = str(engine or self.cloning_engine or "f5_tts").strip().lower()
+        engine_name = str(engine or "").strip().lower() or (self._default_mic_clone_engine() if is_mic else str(self.cloning_engine or "f5_tts").strip().lower())
 
         # If name isn't provided, use something stable for UX.
         if not name:
-            try:
-                from pathlib import Path
-
-                p = Path(path)
-                name = p.stem if p.is_file() else p.name
-            except Exception:
-                name = None
-
-        # Reuse a prior clone created from the same source path + engine.
-        voice_id = self._resolve_clone_id_by_source(path, engine=engine_name)
-        if voice_id:
-            if reference_text:
-                try:
-                    self.voice_manager.set_cloned_voice_reference_text(voice_id, reference_text)
-                    print("✅ Reusing cloned voice and updating reference text.")
-                except Exception:
-                    print("✅ Reusing cloned voice.")
+            if is_mic:
+                name = "my_voice"
             else:
-                print("✅ Reusing cloned voice.")
-        else:
+                try:
+                    from pathlib import Path
+
+                    p = Path(path)
+                    name = p.stem if p.is_file() else p.name
+                except Exception:
+                    name = None
+
+        if is_mic:
+            # Default prompt text: language-sensitive (caller can override with --text).
+            prompt = str(reference_text or self._default_mic_clone_prompt(language=self.current_language)).strip()
+            if not prompt:
+                prompt = self._default_mic_clone_prompt(language="en")
+
+            # Avoid microphone conflicts: stop any ongoing listen session before recording.
+            try:
+                self.voice_manager.stop_listening()
+            except Exception:
+                pass
+            self.voice_mode_active = False
+
+            print("You will record a short reference sample for voice cloning.")
+            print(f"Engine: {engine_name}")
+            print()
+            print("Read this aloud (once, natural pace):")
+            print(f"  {prompt}")
+            print()
+            print("SPACE: start/stop recording")
+            print("ESC:   cancel")
+
+            rec = self._record_wav_bytes_spacebar(sample_rate=24000, min_seconds=3.0, max_seconds=20.0)
+            if rec is None:
+                print("ℹ️  Cancelled.")
+                return
+            wav_bytes, mic_audio_s = rec
+            reference_text = prompt
+
             try:
                 t0 = time.monotonic()
-                voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine_name)
+                voice_id = self.voice_manager.clone_voice_from_wav_bytes(
+                    wav_bytes,
+                    name=str(name or "my_voice"),
+                    reference_text=prompt,
+                    engine=str(engine_name),
+                )
                 t1 = time.monotonic()
-
-                eng = ""
-                ref_src = ""
-                try:
-                    info = self.voice_manager.get_cloned_voice(voice_id) or {}
-                    eng = str(info.get("engine") or "").strip()
-                    ref_src = str((info.get("meta") or {}).get("reference_text_source") or "").strip()
-                except Exception:
-                    eng = ""
-                    ref_src = ""
-
-                eng_txt = f" (engine: {eng})" if eng else ""
-                print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
-                if reference_text:
-                    print("   (Reference text provided)")
-                else:
-                    print("   Tip: set reference text for best quality:")
-                    print("     /clone_set_ref_text <id-or-name> \"...\"")
-                    if str(eng or engine_name or "").strip().lower() == "chroma":
-                        print("   ℹ️  No transcript provided; STT auto-fallback runs on first speak (requires cached STT model).")
-
-                if self.verbose_mode:
-                    n_files, ref_audio_s = self._summarize_audio_source(path)
-                    n_txt = str(n_files) if isinstance(n_files, int) else "--"
-                    src_txt = ref_src or ("manual" if (reference_text or "").strip() else "--")
-                    msg = f"CLONE {eng or engine_name} | refs {n_txt} a{self._fmt_s(ref_audio_s)} | ref_text {src_txt} | {self._fmt_s(float(t1 - t0))}"
-                    print(f"{Colors.YELLOW}{msg}{Colors.END}")
             except Exception as e:
                 print(f"❌ Clone failed: {e}")
                 return
+        else:
+            # Reuse a prior clone created from the same source path + engine.
+            voice_id = self._resolve_clone_id_by_source(path, engine=engine_name)
+            if voice_id:
+                if reference_text:
+                    try:
+                        self.voice_manager.set_cloned_voice_reference_text(voice_id, reference_text)
+                        print("✅ Reusing cloned voice and updating reference text.")
+                    except Exception:
+                        print("✅ Reusing cloned voice.")
+                else:
+                    print("✅ Reusing cloned voice.")
+            else:
+                try:
+                    t0 = time.monotonic()
+                    voice_id = self.voice_manager.clone_voice(path, name=name, reference_text=reference_text, engine=engine_name)
+                    t1 = time.monotonic()
+
+                    eng = ""
+                    ref_src = ""
+                    try:
+                        info = self.voice_manager.get_cloned_voice(voice_id) or {}
+                        eng = str(info.get("engine") or "").strip()
+                        ref_src = str((info.get("meta") or {}).get("reference_text_source") or "").strip()
+                    except Exception:
+                        eng = ""
+                        ref_src = ""
+
+                    eng_txt = f" (engine: {eng})" if eng else ""
+                    print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
+                    if reference_text:
+                        print("   (Reference text provided)")
+                    else:
+                        print("   Tip: set reference text for best quality:")
+                        print("     /clone_set_ref_text <id-or-name> \"...\"")
+                        if str(eng or engine_name or "").strip().lower() == "chroma":
+                            print("   ℹ️  No transcript provided; STT auto-fallback runs on first speak (requires cached STT model).")
+
+                    if self.verbose_mode:
+                        n_files, ref_audio_s = self._summarize_audio_source(path)
+                        n_txt = str(n_files) if isinstance(n_files, int) else "--"
+                        src_txt = ref_src or ("manual" if (reference_text or "").strip() else "--")
+                        msg = f"CLONE {eng or engine_name} | refs {n_txt} a{self._fmt_s(ref_audio_s)} | ref_text {src_txt} | {self._fmt_s(float(t1 - t0))}"
+                        print(f"{Colors.YELLOW}{msg}{Colors.END}")
+                except Exception as e:
+                    print(f"❌ Clone failed: {e}")
+                    return
+
+        # Print a consistent "created" summary for mic clones too.
+        if is_mic:
+            eng = ""
+            ref_src = ""
+            try:
+                info = self.voice_manager.get_cloned_voice(voice_id) or {}
+                eng = str(info.get("engine") or "").strip()
+                ref_src = str((info.get("meta") or {}).get("reference_text_source") or "").strip()
+            except Exception:
+                eng = ""
+                ref_src = ""
+            eng_txt = f" (engine: {eng})" if eng else ""
+            print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
+            print("   (Reference text provided)")
+            if self.verbose_mode:
+                n_files, ref_audio_s = 1, float(mic_audio_s or 0.0)
+                n_txt = str(n_files)
+                src_txt = ref_src or "manual"
+                msg = f"CLONE {eng or engine_name} | refs {n_txt} a{self._fmt_s(ref_audio_s)} | ref_text {src_txt} | {self._fmt_s(float(t1 - t0))}"
+                print(f"{Colors.YELLOW}{msg}{Colors.END}")
 
         # Select if runtime is ready (no surprise downloads).
         if not self._is_cloning_runtime_ready(voice_id=voice_id):
@@ -2967,32 +3162,217 @@ class VoiceREPL(cmd.Cmd):
                 print("⚠️  Preload skipped. (Enable /debug for details.)")
 
     def do_clone_my_voice(self, arg):
-        """Interactive voice cloning from microphone.
+        """Backward-compatible alias for interactive mic cloning.
 
-        This records a short prompt to WAV and adds it to the voice store.
+        Preferred workflow:
+          /clone myvoice [name] [--engine ...] [--text "..."]
+          /clone_use myvoice [name] [--engine ...] [--text "..."]   # clone + select
         """
-        if not self.voice_manager:
-            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
-            return
+        tail = str(arg or "").strip()
+        cmd = ("myvoice " + tail).strip()
+        return self.do_clone(cmd)
 
-        prompt = "Good evening, Dave."
-        seconds = 6.0
-        print("You will record a short reference sample for voice cloning.")
-        print(f"Please read this aloud (once): {prompt}")
-        input("Press Enter to start recording...")
+    def _record_wav_bytes_spacebar(
+        self,
+        *,
+        sample_rate: int = 24000,
+        min_seconds: float = 3.0,
+        max_seconds: float = 20.0,
+    ) -> tuple[bytes, float] | None:
+        """Record a single utterance to WAV bytes (SPACE start/stop, ESC cancel)."""
+        # Lazy imports: keep REPL startup snappy.
+        import io
+        import sys
+        import wave
+
         try:
-            import appdirs
-            from pathlib import Path
-            from abstractvoice.audio import record_wav
-
-            out_dir = Path(appdirs.user_data_dir("abstractvoice")) / "recordings"
-            out_path = out_dir / "my_voice.wav"
-            record_wav(out_path, seconds=seconds, sample_rate=24000, channels=1)
-            voice_id = self.voice_manager.clone_voice(str(out_path), name="my_voice", reference_text=prompt)
-            print(f"✅ Recorded and cloned: {voice_id}")
-            print("   Use /tts_voice clone <id-or-name> to select it.")
+            import sounddevice as sd
         except Exception as e:
-            print(f"❌ /clone-my-voice failed: {e}")
+            print(f"❌ Microphone recording requires sounddevice: {e}")
+            return None
+
+        sr = int(sample_rate)
+        frames: list[bytes] = []
+        stream = {"obj": None}
+        recording = {"active": False}
+
+        cols = 80
+        try:
+            cols = int(shutil.get_terminal_size((80, 20)).columns)
+        except Exception:
+            cols = 80
+
+        def _clear_status() -> None:
+            try:
+                sys.stdout.write("\r" + (" " * max(10, cols - 1)) + "\r")
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        def _status_line(msg: str) -> None:
+            try:
+                _clear_status()
+                sys.stdout.write(str(msg)[: max(0, cols - 1)])
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        def _println(msg: str = "") -> None:
+            # Raw-mode friendly print (CRLF).
+            try:
+                _clear_status()
+                sys.stdout.write("\r\n" + str(msg) + "\r\n")
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        def _stop_stream() -> None:
+            try:
+                if stream["obj"] is not None:
+                    try:
+                        stream["obj"].stop()
+                    except Exception:
+                        pass
+                    try:
+                        stream["obj"].close()
+                    except Exception:
+                        pass
+            finally:
+                stream["obj"] = None
+
+        def _start_recording() -> None:
+            nonlocal sr, frames
+            if recording["active"]:
+                return
+            frames = []
+
+            # Interrupt any speech immediately (expected UX).
+            try:
+                self.voice_manager.stop_speaking()
+            except Exception:
+                pass
+
+            def _cb(indata, _frames, _time, status):
+                if status and self.debug_mode:
+                    pass
+                try:
+                    frames.append(indata.copy().tobytes())
+                except Exception:
+                    pass
+
+            last_e = None
+            for attempt_sr in ([sr, 16000] if sr != 16000 else [sr]):
+                try:
+                    stream["obj"] = sd.InputStream(
+                        samplerate=int(attempt_sr),
+                        channels=1,
+                        dtype="int16",
+                        callback=_cb,
+                        blocksize=int(int(attempt_sr) * 0.03),
+                    )
+                    stream["obj"].start()
+                    sr = int(attempt_sr)
+                    recording["active"] = True
+                    _status_line("🎙️  Recording… (SPACE to stop, ESC to cancel)")
+                    return
+                except Exception as e:
+                    last_e = e
+                    _stop_stream()
+                    continue
+
+            recording["active"] = False
+            if last_e is not None:
+                _println(f"❌ Failed to start microphone stream: {last_e}")
+
+        def _stop_recording_and_build_wav() -> tuple[bytes, float] | None:
+            if not recording["active"]:
+                return None
+            recording["active"] = False
+            _clear_status()
+            _stop_stream()
+
+            pcm = b"".join(frames)
+            audio_s = 0.0
+            try:
+                if sr and sr > 0:
+                    audio_s = float(len(pcm)) / float(int(sr) * 2)
+            except Exception:
+                audio_s = 0.0
+
+            if audio_s < float(min_seconds):
+                _println(f"…(too short: {audio_s:0.1f}s; aim for ~6–12s, try again)")
+                return None
+            if max_seconds is not None and audio_s > float(max_seconds):
+                _println(f"…(too long: {audio_s:0.1f}s; keep it under {float(max_seconds):0.0f}s, try again)")
+                return None
+
+            buf = io.BytesIO()
+            with wave.open(buf, "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(int(sr))
+                w.writeframes(pcm)
+            return buf.getvalue(), float(audio_s)
+
+        _status_line("Ready. (SPACE to start, ESC to cancel)")
+
+        import sys as _sys
+        if _sys.platform == "win32":
+            import msvcrt
+
+            try:
+                while True:
+                    ch = msvcrt.getwch()
+                    if ch == "\x1b":  # ESC
+                        break
+                    if ch == " ":
+                        if not recording["active"]:
+                            _start_recording()
+                        else:
+                            out = _stop_recording_and_build_wav()
+                            if out is not None:
+                                return out
+            finally:
+                _stop_stream()
+                _clear_status()
+                try:
+                    sys.stdout.write("\r\n")
+                    sys.stdout.flush()
+                except Exception:
+                    pass
+            return None
+
+        import termios
+        import tty
+
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            while True:
+                ch = sys.stdin.read(1)
+                if ch == "\x1b":  # ESC
+                    break
+                if ch == " ":
+                    if not recording["active"]:
+                        _start_recording()
+                    else:
+                        out = _stop_recording_and_build_wav()
+                        if out is not None:
+                            return out
+        finally:
+            try:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            except Exception:
+                pass
+            _stop_stream()
+            _clear_status()
+            try:
+                sys.stdout.write("\r\n")
+                sys.stdout.flush()
+            except Exception:
+                pass
+        return None
 
     def do_cloning_status(self, arg):
         """Show whether cloning runtime is ready locally (no downloads)."""
@@ -3992,6 +4372,8 @@ class VoiceREPL(cmd.Cmd):
         print("  /cloning_download <e>  Download artifacts: f5_tts|chroma|audiodit|omnivoice")
         print("  /clone <path> [name] [--engine ...] [--text \"...\"]")
         print("  /clone_use <path> ...  Clone (or reuse existing) and select it")
+        print("  /clone myvoice ...     Interactive mic cloning (SPACE start/stop)")
+        print("  /clone_use myvoice ... Interactive mic cloning + select")
         print("  /clones                List cloned voices")
         print("  /tts_voice base        Use the current TTS engine (alias: /tts_voice piper)")
         print("  /tts_voice clone <id>  Speak with a cloned voice")

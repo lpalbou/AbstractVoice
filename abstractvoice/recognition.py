@@ -143,10 +143,20 @@ class VoiceRecognizer:
             self.stt_adapter = stt_adapter
         else:
             STTAdapter = _import_transcriber()
+            # Pick a reasonable compute type:
+            # - CPU: INT8 weights (fast, low memory)
+            # - CUDA: INT8 weights + FP16 compute (best speed/memory balance)
+            try:
+                from .compute.device import best_faster_whisper_device
+
+                _best = str(best_faster_whisper_device() or "cpu").strip().lower() or "cpu"
+                compute_type = "int8_float16" if _best == "cuda" else "int8"
+            except Exception:
+                compute_type = "int8"
             self.stt_adapter = STTAdapter(
                 model_size=whisper_model,
                 device="auto",
-                compute_type="int8",
+                compute_type=compute_type,
                 allow_downloads=bool(self.allow_downloads),
             )
         self.min_transcription_length = min_transcription_length
@@ -416,12 +426,19 @@ class VoiceRecognizer:
 
         audio = np.frombuffer(pcm16_bytes, dtype=np.int16).astype(np.float32) / 32768.0
         lang = language if language is not None else self.language
+        # Use higher-quality decoding for normal transcriptions; keep the stop-phrase
+        # rolling detector fast (it runs periodically during playback).
+        is_stop_probe = bool(hotwords) and ("stop" in str(hotwords).lower())
+        beam_size = 2 if is_stop_probe else 5
+        best_of = 2 if is_stop_probe else 5
         text = self.stt_adapter.transcribe_from_array(
             audio,
             sample_rate=self.sample_rate,
             language=lang,
             hotwords=hotwords,
             condition_on_previous_text=bool(condition_on_previous_text),
+            beam_size=int(beam_size),
+            best_of=int(best_of),
         )
         return (text or "").strip()
 
@@ -655,10 +672,17 @@ class VoiceRecognizer:
         try:
             # Recreate adapter to switch model size.
             STTAdapter = _import_transcriber()
+            try:
+                from .compute.device import best_faster_whisper_device
+
+                _best = str(best_faster_whisper_device() or "cpu").strip().lower() or "cpu"
+                compute_type = "int8_float16" if _best == "cuda" else "int8"
+            except Exception:
+                compute_type = "int8"
             self.stt_adapter = STTAdapter(
                 model_size=model_name,
                 device="auto",
-                compute_type="int8",
+                compute_type=compute_type,
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
             )
             return True

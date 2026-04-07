@@ -240,6 +240,57 @@ class VoiceCloneStore:
         self._write_index(index)
         return voice_id
 
+    def create_voice_from_wav_bytes(
+        self,
+        wav_bytes: bytes,
+        *,
+        name: Optional[str] = None,
+        reference_text: Optional[str] = None,
+        engine: str = "f5_tts",
+        meta: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Create a cloned voice from an in-memory WAV payload.
+
+        This is primarily intended for client/server integrations where reference
+        audio arrives as uploaded bytes instead of an existing local file path.
+        """
+        if not wav_bytes:
+            raise ValueError("wav_bytes must be non-empty")
+
+        voice_id = uuid.uuid4().hex
+        vdir = self._voice_dir(voice_id)
+        vdir.mkdir(parents=True, exist_ok=True)
+
+        dest = vdir / "ref_0.wav"
+        dest.write_bytes(wav_bytes)
+
+        # Best-effort normalization: if the WAV container is actually MPEG-compressed,
+        # rewrite it as PCM16 WAV to avoid noisy native decoder stderr later.
+        try:
+            self._normalize_wav_mpeg_to_pcm_inplace(dest)
+        except Exception:
+            pass
+
+        meta_out = dict(meta or {})
+        if (reference_text or "").strip() and not meta_out.get("reference_text_source"):
+            # Keep metadata consistent with `set_reference_text(..., source="manual")`.
+            meta_out["reference_text_source"] = "manual"
+
+        record = ClonedVoice(
+            voice_id=voice_id,
+            name=name or f"voice_{voice_id[:8]}",
+            created_at=time.time(),
+            reference_files=[dest.name],
+            reference_text=reference_text,
+            engine=str(engine or "f5_tts"),
+            meta=meta_out,
+        )
+
+        index = self._read_index()
+        index[voice_id] = asdict(record)
+        self._write_index(index)
+        return voice_id
+
     def get_voice(self, voice_id: str) -> ClonedVoice:
         index = self._read_index()
         if voice_id not in index:
