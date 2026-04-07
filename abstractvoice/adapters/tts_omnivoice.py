@@ -22,6 +22,7 @@ import soundfile as sf
 
 from .base import TTSAdapter
 from ..omnivoice.runtime import OmniVoiceRuntime, OmniVoiceSettings
+from ..voice_profiles import VoiceProfile, find_voice_profile, get_builtin_voice_profiles
 
 
 class OmniVoiceTTSAdapter(TTSAdapter):
@@ -54,6 +55,8 @@ class OmniVoiceTTSAdapter(TTSAdapter):
         self._instruct: str | None = None
         # Optional fixed duration override (seconds). When set, OmniVoice ignores `speed`.
         self._duration_s: float | None = None
+        # Best-effort active profile marker (set via `set_profile(...)`).
+        self._active_profile_id: str | None = None
 
         # Engine-agnostic quality preset mapping.
         self._quality_preset = "balanced"
@@ -63,6 +66,13 @@ class OmniVoiceTTSAdapter(TTSAdapter):
         if bool(auto_load):
             # Eagerly surface missing weights/deps for explicit engine selection.
             _ = self._runtime.get_model()
+
+        # If built-in profiles exist, treat "default" as the baseline.
+        # This is best-effort and must never fail adapter construction.
+        try:
+            self.set_profile("default")
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Optional knobs (non-breaking)
@@ -98,6 +108,62 @@ class OmniVoiceTTSAdapter(TTSAdapter):
             }
         )
         return dict(settings)
+
+    # ------------------------------------------------------------------
+    # Voice profile interface (engine-agnostic presets)
+    # ------------------------------------------------------------------
+
+    def get_profiles(self) -> list[VoiceProfile]:
+        return list(get_builtin_voice_profiles(str(getattr(self, "engine_id", "omnivoice") or "omnivoice")))
+
+    def set_profile(self, profile_id: str) -> bool:
+        pid = str(profile_id or "").strip()
+        if not pid:
+            raise ValueError("profile_id must be a non-empty string")
+
+        profiles = self.get_profiles()
+        p = find_voice_profile(profiles, pid)
+        if p is None:
+            supported = ", ".join([pp.profile_id for pp in profiles]) if profiles else "(none)"
+            raise ValueError(f"Unknown profile_id '{pid}'. Supported: {supported}")
+
+        params = dict(getattr(p, "params", {}) or {})
+
+        # Apply in a stable order for readability and predictability.
+        if "quality_preset" in params:
+            try:
+                self.set_quality_preset(str(params.get("quality_preset") or "balanced"))
+            except Exception:
+                # Best-effort only; fall back to current preset.
+                pass
+        if "language" in params:
+            try:
+                self.set_language(str(params.get("language") or "").strip())
+            except Exception:
+                pass
+
+        # Apply remaining engine params via the adapter's validated setter.
+        for k, v in list(params.items()):
+            kk = str(k or "").strip()
+            if not kk or kk in ("quality_preset", "language"):
+                continue
+            try:
+                self.set_param(kk, v)
+            except Exception:
+                # Profiles are best-effort; ignore unknown/invalid keys.
+                continue
+
+        self._active_profile_id = str(p.profile_id)
+        return True
+
+    def get_active_profile(self) -> VoiceProfile | None:
+        pid = str(getattr(self, "_active_profile_id", None) or "").strip()
+        profiles = self.get_profiles()
+        if pid:
+            p = find_voice_profile(profiles, pid)
+            return p
+        # If never explicitly set, treat "default" (when present) as the baseline.
+        return find_voice_profile(profiles, "default")
 
     def _coerce_bool(self, value: Any) -> bool:
         if isinstance(value, bool):

@@ -15,6 +15,7 @@ Code evidence (where these methods live):
 ## Primary entry point
 
 - `abstractvoice.VoiceManager`
+- `abstractvoice.VoiceProfile` (data type; used by the voice-profile APIs)
 
 ```python
 from abstractvoice import VoiceManager
@@ -68,6 +69,14 @@ For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through 
   - Engine-agnostic speed/quality knob (`fast|balanced|high`).
   - Engines that don’t support quality tuning may return `False` / `None` (Piper is typically a no-op).
   - For AudioDiT this primarily maps to diffusion `steps` (and a small guidance-strength tweak).
+
+- `get_profiles(*, kind: str = "tts") -> list[VoiceProfile]`
+- `set_profile(profile_id: str, *, kind: str = "tts") -> bool`
+- `get_active_profile(*, kind: str = "tts") -> VoiceProfile | None`
+  - Cross-engine **voice profile** abstraction (preset packs).
+  - Profiles are **engine-local**: you select `tts_engine` first, then apply a profile id for that engine.
+  - Engines without profiles return an empty list / False / None.
+  - **Concurrency note**: profile selection mutates engine state. For servers, prefer one `VoiceManager` per session (or guard profile changes with a lock).
 
 - `pause_speaking() -> bool`, `resume_speaking() -> bool`, `stop_speaking() -> bool`
   - Playback control.
@@ -282,6 +291,12 @@ If you prefer to wire tools explicitly, `abstractvoice/integrations/abstractcore
   - Requires `abstractcore` at runtime (it imports `abstractcore.tool`).
   - `store` can be a MediaStore-like object, or an AbstractRuntime-like ArtifactStore (adapted via `RuntimeArtifactStoreAdapter` in `abstractvoice/artifacts.py`).
 
+Tools exposed by `make_voice_tools(...)` (current):
+- `voice_tts(text, voice=None, format="wav", run_id=None) -> artifact_ref`
+- `voice_profile_list(kind="tts") -> {profiles, active_profile}`
+- `voice_profile_set(profile_id, kind="tts") -> {ok, active_profile}`
+- `audio_transcribe(audio_artifact|audio_b64, ...) -> {text, transcript_artifact}`
+
 Minimal sketch:
 
 ```python
@@ -290,6 +305,14 @@ from abstractvoice.integrations.abstractcore import make_voice_tools
 
 vm = VoiceManager()
 tools = make_voice_tools(voice_manager=vm, store=artifact_store)
+```
+
+Example (engine-agnostic profile selection):
+
+```python
+vm = VoiceManager(tts_engine="omnivoice", allow_downloads=False)
+vm.set_profile("female_01", kind="tts")
+wav_bytes = vm.speak_to_bytes("Hello.", format="wav")
 ```
 
 TTS metrics (library-level):

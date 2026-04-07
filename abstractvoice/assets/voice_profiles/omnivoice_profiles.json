@@ -1,0 +1,56 @@
+[
+  {
+    "profile_id": "default",
+    "label": "Default",
+    "description": "OmniVoice defaults: no voice-design instruct; no fixed seed (best-effort nondeterministic).",
+    "params": {
+      "instruct": null,
+      "seed": null,
+      "duration": null,
+      "position_temperature": 5.0,
+      "class_temperature": 0.0,
+      "denoise": true,
+      "preprocess_prompt": true,
+      "postprocess_output": true
+    },
+    "tags": {
+      "style": "default"
+    }
+  },
+  {
+    "profile_id": "female_01",
+    "label": "Female 01 (demo)",
+    "description": "Demo profile for validating the cross-engine profile abstraction (not yet curated).",
+    "params": {
+      "instruct": "female, young adult, moderate pitch",
+      "seed": 123,
+      "duration": null,
+      "position_temperature": 5.0,
+      "class_temperature": 0.0,
+      "denoise": true,
+      "preprocess_prompt": true,
+      "postprocess_output": true
+    },
+    "tags": {
+      "gender": "female"
+    }
+  },
+  {
+    "profile_id": "male_01",
+    "label": "Male 01 (demo)",
+    "description": "Demo profile for validating the cross-engine profile abstraction (not yet curated).",
+    "params": {
+      "instruct": "male, young adult, low pitch",
+      "seed": 456,
+      "duration": null,
+      "position_temperature": 5.0,
+      "class_temperature": 0.0,
+      "denoise": true,
+      "preprocess_prompt": true,
+      "postprocess_output": true
+    },
+    "tags": {
+      "gender": "male"
+    }
+  }
+]

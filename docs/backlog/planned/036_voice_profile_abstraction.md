@@ -1,7 +1,7 @@
 ## Task 036: Voice profile abstraction (cross-engine) + API exposure
 
 **Date**: 2026-04-07  
-**Status**: Planned  
+**Status**: Implemented  
 **Priority**: P1  
 
 ---
@@ -147,3 +147,19 @@ This task should define the recommended pattern and document it.
 - Third-party integration can call:
   - `vm.get_profiles(...)` and `vm.set_profile(...)`
 - AbstractCore integration can forward a `profile` parameter without engine-specific code.
+
+---
+
+## Implementation notes (2026-04-07)
+
+Implemented in this repo:
+- Type + loader: `abstractvoice/voice_profiles.py`
+- Adapter interface: `abstractvoice/adapters/base.py` (optional `get_profiles/set_profile/get_active_profile`)
+- VoiceManager API: `abstractvoice/vm/manager.py`
+- REPL UX: `abstractvoice/examples/cli_repl.py` (`/profile list|show|<id>`)
+- Built-in demo pack (OmniVoice): `abstractvoice/assets/voice_profiles/omnivoice_profiles.json`
+- AbstractCore tool wiring: `abstractvoice/integrations/abstractcore.py` (`voice_profile_list`, `voice_profile_set`)
+
+Validation on OmniVoice:
+- Prefetch OmniVoice weights: `python -m abstractvoice download --omnivoice`
+- In REPL: `/tts_engine omnivoice` → `/profile list` → `/profile female_01` → `/speak ...`

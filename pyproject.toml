@@ -173,3 +173,7 @@ version = {attr = "abstractvoice.__version__"}
 # (or any other repo folder) as an installable top-level package.
 include = ["abstractvoice*"]
 exclude = ["audio_samples*", "tests*", "docs*"]
+
+[tool.setuptools.package-data]
+# Ship built-in voice profile preset packs (JSON).
+abstractvoice = ["assets/**/*.json"]

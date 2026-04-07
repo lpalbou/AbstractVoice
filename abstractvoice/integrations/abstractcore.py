@@ -95,6 +95,67 @@ def make_voice_tools(
             metadata={"abstractvoice_tts": dict(tts_metrics)} if isinstance(tts_metrics, dict) and tts_metrics else None,
         )
 
+    def _profile_to_dict(p: Any) -> Dict[str, Any]:
+        try:
+            return {
+                "engine_id": getattr(p, "engine_id", None),
+                "profile_id": getattr(p, "profile_id", None),
+                "label": getattr(p, "label", None),
+                "description": getattr(p, "description", None),
+                "params": getattr(p, "params", None),
+                "tags": getattr(p, "tags", None),
+                "provenance": getattr(p, "provenance", None),
+            }
+        except Exception:
+            return {}
+
+    @tool(
+        name="voice_profile_list",
+        description="List available base-TTS voice profiles for the active engine.",
+        tags=["voice", "tts", "profiles"],
+        when_to_use="Use when you need to list preset voice profiles for the currently selected base TTS engine.",
+    )
+    def voice_profile_list(kind: str = "tts") -> Dict[str, Any]:
+        profiles = []
+        try:
+            if hasattr(voice_manager, "get_profiles"):
+                profiles = list(voice_manager.get_profiles(kind=str(kind)))
+        except Exception:
+            profiles = []
+        active = None
+        try:
+            if hasattr(voice_manager, "get_active_profile"):
+                active = voice_manager.get_active_profile(kind=str(kind))
+        except Exception:
+            active = None
+        return {
+            "kind": str(kind or "tts"),
+            "active_profile": _profile_to_dict(active) if active is not None else None,
+            "profiles": [_profile_to_dict(p) for p in profiles],
+        }
+
+    @tool(
+        name="voice_profile_set",
+        description="Select/apply a base-TTS voice profile by id for the active engine.",
+        tags=["voice", "tts", "profiles"],
+        when_to_use="Use when you need to select a preset voice profile for the current base TTS engine before synthesizing speech.",
+    )
+    def voice_profile_set(profile_id: str, kind: str = "tts") -> Dict[str, Any]:
+        ok = False
+        try:
+            if hasattr(voice_manager, "set_profile"):
+                ok = bool(voice_manager.set_profile(str(profile_id), kind=str(kind)))
+        except Exception as e:
+            return {"ok": False, "error": str(e), "profile_id": str(profile_id), "kind": str(kind or "tts")}
+
+        active = None
+        try:
+            if hasattr(voice_manager, "get_active_profile"):
+                active = voice_manager.get_active_profile(kind=str(kind))
+        except Exception:
+            active = None
+        return {"ok": bool(ok), "kind": str(kind or "tts"), "active_profile": _profile_to_dict(active) if active is not None else None}
+
     @tool(
         name="audio_transcribe",
         description="Transcribe audio (speech-to-text) and return text plus a transcript artifact ref.",
@@ -119,5 +180,5 @@ def make_voice_tools(
         )
         return {"text": text, "transcript_artifact": transcript_ref}
 
-    return [voice_tts, audio_transcribe]
+    return [voice_tts, voice_profile_list, voice_profile_set, audio_transcribe]
 

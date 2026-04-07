@@ -28,6 +28,7 @@ warnings.filterwarnings(
 
 # Import the main class for public API
 from .voice_manager import VoiceManager
+from .voice_profiles import VoiceProfile
 
 __version__ = "0.7.0"
-__all__ = ["VoiceManager"]
+__all__ = ["VoiceManager", "VoiceProfile"]
