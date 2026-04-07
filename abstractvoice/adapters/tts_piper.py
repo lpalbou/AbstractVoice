@@ -29,6 +29,8 @@ class PiperTTSAdapter(TTSAdapter):
     This adapter provides cross-platform TTS without system dependencies,
     making it ideal for easy installation on Windows, macOS, and Linux.
     """
+
+    engine_id = "piper"
     
     # Language-to-voice mapping (using quality 'medium' models for balance of size/quality)
     # Format: language_code -> (hf_path, model_filename)
