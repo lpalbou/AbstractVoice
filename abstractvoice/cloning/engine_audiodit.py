@@ -37,7 +37,7 @@ class AudioDiTVoiceCloningEngine:
         self._guidance_method = str(guidance_method or "apg").strip().lower()
 
         self._runtime = None
-        self._quality_preset = "balanced"
+        self._quality_preset = "standard"
 
     def runtime_info(self) -> dict:
         try:
@@ -48,14 +48,14 @@ class AudioDiTVoiceCloningEngine:
         return {"requested_device": self._device_pref, "quality_preset": self._quality_preset}
 
     def set_quality_preset(self, preset: str) -> None:
-        p = (preset or "").strip().lower()
-        if p not in ("fast", "balanced", "high"):
-            raise ValueError("preset must be one of: fast|balanced|high")
-        self._quality_preset = p
-        if p == "fast":
+        from ..quality_preset import normalize_quality_preset
+
+        p = normalize_quality_preset(str(preset))
+        self._quality_preset = str(p)
+        if p == "low":
             self._steps = 8
             self._cfg_strength = 3.5
-        elif p == "balanced":
+        elif p == "standard":
             self._steps = 16
             self._cfg_strength = 4.0
         else:

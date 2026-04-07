@@ -114,14 +114,14 @@ class ChromaVoiceCloningEngine:
         return info
 
     def set_quality_preset(self, preset: str) -> None:
-        p = (preset or "").strip().lower()
-        if p not in ("fast", "balanced", "high"):
-            raise ValueError("preset must be one of: fast|balanced|high")
-        if p == "fast":
+        from ..quality_preset import normalize_quality_preset
+
+        p = normalize_quality_preset(str(preset))
+        if p == "low":
             self._temperature = 0.6
             self._top_k = 30
             self._max_new_tokens_per_chunk = 384
-        elif p == "balanced":
+        elif p == "standard":
             self._temperature = 0.7
             self._top_k = 50
             self._max_new_tokens_per_chunk = 512

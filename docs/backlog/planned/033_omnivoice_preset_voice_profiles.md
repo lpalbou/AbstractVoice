@@ -11,7 +11,8 @@
 - Ship a small set of **curated OmniVoice “voice profiles”** that users can select easily:
   - **3 male** presets
   - **3 female** presets
-- Make profiles **stable across turns** (same voice within a discussion) and **portable** across machines when the same settings are used.
+- Make profiles **stable across turns** (same voice within a discussion).
+  - For strong persistence, prefer anchoring the voice in a cached, tokenized prompt (`voice_clone_prompt`) rather than relying on voice-design RNG alone.
 
 ## Secondary goals
 
@@ -33,6 +34,7 @@ OmniVoice supports “voice design” via:
 - sampling controls (`position_temperature`, `class_temperature`, etc.)
 
 Today, users must assemble these settings manually. This is error-prone and makes it harder to quickly compare voices or provide a consistent “default voice pack” UX.
+In practice, voice-design determinism is **best-effort** (accelerators like MPS can remain nondeterministic). For robust persistence, it is preferable to cache a tokenized reference prompt once and reuse it for subsequent synthesis.
 
 ---
 
@@ -67,6 +69,10 @@ Minimum viable profile payload for OmniVoice:
   - `guidance_scale: float`
   - `position_temperature: float`
   - `class_temperature: float`
+  - optional persistence:
+    - `persistent_prompt: bool` (enable prompt-token caching)
+    - `prompt_text: str` (reference prompt text used to build the cached prompt)
+    - `prompt_duration_s: float` (reference prompt duration)
 
 ### 2) Preset set: 6 curated profiles
 
@@ -77,7 +83,7 @@ Example naming convention:
 Each profile should include:
 - a short `instruct` string built from the documented “valid items”
 - a fixed `seed` for stability
-- a quality preset mapping (`fast|balanced|high`) or explicit `num_step` defaults
+- a quality preset mapping (`low|standard|high`; aliases: `fast`, `balanced`) or explicit `num_step` defaults
 
 ### 3) Storage + override rules
 
@@ -108,6 +114,6 @@ Rules:
   - `/tts_engine omnivoice`
   - `/profile female_01`
   - `/speak ...`
-  - and get a stable designed voice across turns without needing to remember parameter details.
-- Profiles are deterministic “best-effort” when `seed` is fixed, and the docs clearly explain remaining nondeterminism risks.
+  - and get a stable voice across turns without needing to remember parameter details.
+- Profiles are deterministic **best-effort** when `seed` is fixed; for strong persistence, profiles can build and reuse a cached tokenized prompt (one-time cost, then fast).
 

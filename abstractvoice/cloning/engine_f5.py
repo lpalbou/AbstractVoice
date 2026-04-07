@@ -82,7 +82,7 @@ class F5TTSVoiceCloningEngine:
         self._vocoder_name = str(vocoder_name)
         self._target_rms = float(target_rms)
         self._cross_fade_duration = float(cross_fade_duration)
-        self._quality_preset = "balanced"
+        self._quality_preset = "standard"
 
         # Lazy heavy objects (loaded on first inference).
         self._f5_model = None
@@ -145,14 +145,14 @@ class F5TTSVoiceCloningEngine:
 
         Presets tune diffusion steps; lower steps are faster but can reduce quality.
         """
-        p = (preset or "").strip().lower()
-        if p not in ("fast", "balanced", "high"):
-            raise ValueError("preset must be one of: fast|balanced|high")
-        self._quality_preset = p
-        if p == "fast":
+        from ..quality_preset import normalize_quality_preset
+
+        p = normalize_quality_preset(str(preset))
+        self._quality_preset = str(p)
+        if p == "low":
             self._nfe_step = 8
             self._cfg_strength = 1.8
-        elif p == "balanced":
+        elif p == "standard":
             self._nfe_step = 16
             self._cfg_strength = 2.0
         else:

@@ -156,7 +156,7 @@ def _to_markdown(cfg: SuiteConfig, summary: dict[str, Any]) -> str:
     lines.append("")
     lines.append("Notes:")
     lines.append("- `between_exp_sd_s` is the standard deviation of per-experiment mean times (captures time/thermal variance).")
-    lines.append("- `text`: `s2` = 2 short sentences, `s5` = 5 short sentences.")
+    lines.append("- `text`: `s2` = 2 short sentences, `s5` = 5 short sentences, `s6` = 6 short sentences.")
     lines.append("- `avg_wav_gen_s`: average wall time to write a WAV via `VoiceManager.speak_to_file(...)`.")
     lines.append("- `avg_speech_s`: average duration of the generated WAV.")
     lines.append("- `rtf`: `avg_wav_gen_s / avg_speech_s` (lower is faster; `<1` means faster than real time).")

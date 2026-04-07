@@ -73,7 +73,7 @@ class OmniVoiceVoiceCloningEngine:
         model_id: str | None = None,
         revision: str | None = None,
         allow_downloads: bool = True,
-        num_step: int = 32,
+        num_step: int = 8,
         guidance_scale: float = 2.0,
     ):
         self.debug = bool(debug)
@@ -86,7 +86,7 @@ class OmniVoiceVoiceCloningEngine:
         self._guidance_scale = float(guidance_scale)
 
         self._runtime = None
-        self._quality_preset = "balanced"
+        self._quality_preset = "standard"
 
     def runtime_info(self) -> dict:
         try:
@@ -102,18 +102,18 @@ class OmniVoiceVoiceCloningEngine:
         }
 
     def set_quality_preset(self, preset: str) -> None:
-        p = (preset or "").strip().lower()
-        if p not in ("fast", "balanced", "high"):
-            raise ValueError("preset must be one of: fast|balanced|high")
-        self._quality_preset = p
-        if p == "fast":
-            self._num_step = 16
+        from ..quality_preset import normalize_quality_preset
+
+        p = normalize_quality_preset(str(preset))
+        self._quality_preset = str(p)
+        if p == "low":
+            self._num_step = 4
             self._guidance_scale = 2.0
-        elif p == "balanced":
-            self._num_step = 32
+        elif p == "standard":
+            self._num_step = 8
             self._guidance_scale = 2.0
         else:
-            self._num_step = 48
+            self._num_step = 16
             self._guidance_scale = 2.0
 
     def _get_runtime(self):

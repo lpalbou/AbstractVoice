@@ -29,7 +29,7 @@ class VoiceCloner:
         self._allow_downloads = bool(allow_downloads)
         self._default_engine = str(default_engine or "f5_tts").strip().lower()
         self._engines: Dict[str, Any] = {}
-        self._quality_preset = "balanced"
+        self._quality_preset = "standard"
 
     def _get_engine(self, engine: str) -> Any:
         name = str(engine or "").strip().lower()
@@ -75,7 +75,7 @@ class VoiceCloner:
         # Apply the current preset to newly-instantiated engines (important: engines are lazy).
         try:
             if hasattr(inst, "set_quality_preset"):
-                inst.set_quality_preset(str(getattr(self, "_quality_preset", "balanced") or "balanced"))
+                inst.set_quality_preset(str(getattr(self, "_quality_preset", "standard") or "standard"))
         except Exception:
             pass
 
@@ -84,10 +84,10 @@ class VoiceCloner:
 
     def set_quality_preset(self, preset: str) -> None:
         # Best-effort across loaded engines (new engines are lazy-instantiated).
-        p = (preset or "").strip().lower()
-        if p not in ("fast", "balanced", "high"):
-            raise ValueError("preset must be one of: fast|balanced|high")
-        self._quality_preset = p
+        from ..quality_preset import normalize_quality_preset
+
+        p = normalize_quality_preset(str(preset))
+        self._quality_preset = str(p)
         for eng in list(self._engines.values()):
             try:
                 eng.set_quality_preset(p)

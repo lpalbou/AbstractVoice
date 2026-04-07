@@ -69,6 +69,7 @@ class TtsBenchmarker:
         # Text variants:
         # - s2: 2 short sentences
         # - s5: 5 short sentences
+        # - s6: 6 short sentences (French long prompt)
         #
         # Keep these semantically similar across languages so timing comparisons
         # are meaningful.
@@ -84,12 +85,12 @@ class TtsBenchmarker:
             },
             "fr": {
                 "s2": "Bonjour. Ceci est une phrase de benchmark pour AbstractVoice.",
-                "s5": (
+                "s6": (
                     "Bonjour. Ceci est une phrase de benchmark pour AbstractVoice. "
                     "Nous mesurons le temps nécessaire pour générer la parole. "
                     "Cette phrase supplémentaire augmente la longueur du texte. "
                     "Nous ajoutons encore une phrase pour arriver à cinq. "
-                    "Enfin, voici la cinquième phrase."
+                    "Enfin, voici la sixième phrase."
                 ),
             },
         }
@@ -523,7 +524,7 @@ class TtsBenchmarker:
             )
         lines.append("")
         lines.append("Notes:")
-        lines.append("- `text`: `s2` = 2 short sentences, `s5` = 5 short sentences.")
+        lines.append("- `text`: `s2` = 2 short sentences, `s5` = 5 short sentences, `s6` = 6 short sentences.")
         lines.append("- `avg_wav_gen_s`: average wall time to write a WAV via `VoiceManager.speak_to_file(...)`.")
         lines.append("- `avg_speech_s`: average duration of the generated WAV.")
         lines.append("- `rtf`: `avg_wav_gen_s / avg_speech_s` (lower is faster; `<1` means faster than real time).")
@@ -541,7 +542,7 @@ def _parse_args() -> BenchConfig:
         help="Comma-separated engine ids (subset of known engines). Default: piper,audiodit,omnivoice",
     )
     p.add_argument("--languages", default="en,fr", help="Comma-separated language codes. Default: en,fr")
-    p.add_argument("--variants", default="s2,s5", help="Comma-separated text variants. Default: s2,s5")
+    p.add_argument("--variants", default="s2,s5,s6", help="Comma-separated text variants. Default: s2,s5,s6")
     p.add_argument("--repetitions", type=int, default=4, help="Repetitions per variant (excludes warmup). Default: 4")
     p.add_argument("--allow-downloads", action="store_true", help="Allow on-demand downloads (not recommended for benchmarks).")
     p.add_argument("--audiodit-seed", type=int, default=1024, help="AudioDiT seed (best-effort). Default: 1024")

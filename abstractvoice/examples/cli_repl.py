@@ -329,7 +329,7 @@ class VoiceREPL(cmd.Cmd):
         intro += "  • Voice input (mic): off by default. Enable: /voice stop  (or start with --voice-mode stop)\n"
         intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
         intro += "  • TTS engine: /tts_engine piper|audiodit|omnivoice  (offline-first: prefetch first)\n"
-        intro += "  • Base TTS quality: /tts_quality fast|balanced|high\n"
+        intro += "  • Base TTS quality: /tts_quality low|standard|high\n"
         intro += "  • Voice profiles: /profile list  then /profile <id>  (depends on active TTS engine)\n"
         intro += "  • OmniVoice design/params: /omnivoice  (advanced; only when OmniVoice is active)\n"
         intro += "  • Language: /language <code>  (Piper: en/fr/de/es/ru/zh; OmniVoice: many)\n"
@@ -1609,7 +1609,7 @@ class VoiceREPL(cmd.Cmd):
             print("Usage: /speed <number>  (e.g., /speed 1.5)")
 
     def do_tts_quality(self, arg):
-        """Set base TTS quality preset (fast|balanced|high).
+        """Set base TTS quality preset (low|standard|high).
 
         This is an engine-agnostic knob. Engines that don't support it may ignore
         it (Piper is typically a no-op).
@@ -1626,11 +1626,15 @@ class VoiceREPL(cmd.Cmd):
             except Exception:
                 cur = None
             print(f"Base TTS quality preset: {cur or '--'}")
-            print("Usage: /tts_quality fast|balanced|high")
+            print("Usage: /tts_quality low|standard|high")
             return
 
-        if s not in ("fast", "balanced", "high"):
-            print("Usage: /tts_quality fast|balanced|high")
+        try:
+            from abstractvoice.quality_preset import normalize_quality_preset
+
+            s = str(normalize_quality_preset(s))
+        except Exception:
+            print("Usage: /tts_quality low|standard|high")
             return
 
         try:
@@ -3046,14 +3050,18 @@ class VoiceREPL(cmd.Cmd):
         """Set cloned TTS quality preset (speed/quality tradeoff).
 
         Usage:
-          /clone_quality fast|balanced|high
+          /clone_quality low|standard|high
         """
         if not self.voice_manager:
             print("🔇 Voice features are disabled. Use '/tts on' to enable.")
             return
         preset = (arg or "").strip().lower()
-        if preset not in ("fast", "balanced", "high"):
-            print("Usage: /clone_quality fast|balanced|high")
+        try:
+            from abstractvoice.quality_preset import normalize_quality_preset
+
+            preset = str(normalize_quality_preset(preset))
+        except Exception:
+            print("Usage: /clone_quality low|standard|high")
             return
         try:
             self.voice_manager.set_cloned_tts_quality(preset)
@@ -3306,6 +3314,10 @@ class VoiceREPL(cmd.Cmd):
             return
 
         self.voice_manager = new_vm
+        # Switching the base TTS engine recreates the VoiceManager (and its loaded
+        # cloning runtimes). Reset to base voice to avoid confusing situations
+        # where a previously-selected cloned voice silently fails after a switch.
+        self.current_tts_voice = None
         try:
             if old:
                 old.cleanup()
@@ -3502,7 +3514,7 @@ class VoiceREPL(cmd.Cmd):
 
         if cmd in ("preset", "quality"):
             if len(parts) < 2:
-                print("Usage: /omnivoice preset fast|balanced|high")
+                print("Usage: /omnivoice preset low|standard|high")
                 return
             self.do_tts_quality(str(parts[1]))
             return
@@ -3938,7 +3950,7 @@ class VoiceREPL(cmd.Cmd):
         print("TTS (speaking)")
         print("  /tts on|off            Toggle TTS playback")
         print("  /tts_engine <engine>   Switch TTS engine: auto|piper|audiodit|omnivoice")
-        print("  /tts_quality <preset>  Base TTS quality preset: fast|balanced|high")
+        print("  /tts_quality <preset>  Base TTS quality preset: low|standard|high")
         print("  /profile ...           Voice profiles for the active TTS engine: list|show|<id>")
         print("  /omnivoice ...         OmniVoice voice design + parameters (only when OmniVoice is active)")
         print("  /language <code>       Switch language (Piper: en/fr/de/es/ru/zh; OmniVoice: many ISO codes)")
@@ -3963,7 +3975,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /tts_voice clone <id>  Speak with a cloned voice")
         print("  /clone_ref <id>        Show stored reference transcript")
         print("  /clone_set_ref_text <id> <text...>   Set/override reference transcript")
-        print("  /clone_quality fast|balanced|high    Cloned speech quality preset")
+        print("  /clone_quality low|standard|high    Cloned speech quality preset")
         print()
         print("STT / transcription")
         print("  /stt_engine <engine>   auto|faster_whisper|whisper")

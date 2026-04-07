@@ -20,7 +20,7 @@
   {
     "profile_id": "female_01",
     "label": "Female 01 (demo)",
-    "description": "Demo profile for validating the cross-engine profile abstraction (not yet curated).",
+    "description": "Demo profile for validating the cross-engine profile abstraction. Uses a cached prompt (one-time build) for fast persistence.",
     "params": {
       "instruct": "female, young adult, moderate pitch",
       "seed": 123,
@@ -29,7 +29,16 @@
       "class_temperature": 0.0,
       "denoise": true,
       "preprocess_prompt": true,
-      "postprocess_output": true
+      "postprocess_output": true,
+      "persistent_prompt": true,
+      "prompt_text": "The quick brown fox jumps over the lazy dog.",
+      "prompt_duration_s": null,
+      "prompt_attempts": 4,
+      "prompt_save_wav": true,
+      "prompt_position_temperature": 1.0,
+      "prompt_class_temperature": 0.5,
+      "prompt_num_step": 48,
+      "prompt_guidance_scale": 2.0
     },
     "tags": {
       "gender": "female"
@@ -38,16 +47,25 @@
   {
     "profile_id": "male_01",
     "label": "Male 01 (demo)",
-    "description": "Demo profile for validating the cross-engine profile abstraction (not yet curated).",
+    "description": "Demo profile for validating the cross-engine profile abstraction. Uses a cached prompt (one-time build) for fast persistence.",
     "params": {
-      "instruct": "male, young adult, low pitch",
+      "instruct": "male, young adult, moderate pitch",
       "seed": 456,
       "duration": null,
       "position_temperature": 5.0,
       "class_temperature": 0.0,
       "denoise": true,
       "preprocess_prompt": true,
-      "postprocess_output": true
+      "postprocess_output": true,
+      "persistent_prompt": true,
+      "prompt_text": "The quick brown fox jumps over the lazy dog.",
+      "prompt_duration_s": null,
+      "prompt_attempts": 4,
+      "prompt_save_wav": true,
+      "prompt_position_temperature": 1.0,
+      "prompt_class_temperature": 0.5,
+      "prompt_num_step": 48,
+      "prompt_guidance_scale": 2.0
     },
     "tags": {
       "gender": "male"
