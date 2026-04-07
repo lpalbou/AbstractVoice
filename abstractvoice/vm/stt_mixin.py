@@ -44,12 +44,19 @@ class SttMixin:
             return None
 
         try:
+            from ..compute import best_faster_whisper_device
             from ..adapters.stt_faster_whisper import FasterWhisperAdapter
+
+            device = str(best_faster_whisper_device() or "cpu").strip().lower() or "cpu"
+            # Reasonable default mapping:
+            # - CPU: INT8 (fast, low memory)
+            # - CUDA: INT8 weights + FP16 compute (good speed/memory balance)
+            compute_type = "int8_float16" if device == "cuda" else "int8"
 
             self.stt_adapter = FasterWhisperAdapter(
                 model_size=self.whisper_model,
-                device="cpu",
-                compute_type="int8",
+                device=device,
+                compute_type=compute_type,
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
             )
             if self.stt_adapter.is_available():

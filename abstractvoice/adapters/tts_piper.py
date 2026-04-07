@@ -70,6 +70,8 @@ class PiperTTSAdapter(TTSAdapter):
         self._current_language = None
         self._sample_rate = 22050  # Piper default
         self._allow_downloads = bool(allow_downloads)
+        # Track whether we requested CUDA for ONNX runtime (best-effort).
+        self._use_cuda: bool = False
         
         # Set model directory
         if model_dir is None:
@@ -101,6 +103,50 @@ class PiperTTSAdapter(TTSAdapter):
                 "This will enable zero-dependency TTS on all platforms."
             )
     
+    def _coerce_bool_env(self, key: str) -> Optional[bool]:
+        """Parse common boolean env var values.
+
+        Returns:
+        - True/False when key is present and parseable
+        - None when key is unset/empty
+        """
+        raw = os.environ.get(str(key), None)
+        if raw is None:
+            return None
+        s = str(raw).strip().lower()
+        if not s:
+            return None
+        if s in ("1", "true", "yes", "y", "on"):
+            return True
+        if s in ("0", "false", "no", "n", "off"):
+            return False
+        return None
+
+    def _onnx_cuda_available(self) -> bool:
+        """Return True if ONNX Runtime advertises CUDAExecutionProvider."""
+        try:
+            import onnxruntime as ort  # type: ignore
+
+            providers = ort.get_available_providers()  # type: ignore[attr-defined]
+            return "CUDAExecutionProvider" in list(providers or [])
+        except Exception:
+            return False
+
+    def _resolve_use_cuda(self) -> bool:
+        """Best-effort policy for Piper CUDA usage.
+
+        Piper uses ONNX Runtime. On NVIDIA machines, CUDA can be enabled when the
+        environment has onnxruntime-gpu (CUDAExecutionProvider).
+
+        Control:
+        - ABSTRACTVOICE_PIPER_USE_CUDA=1/0 forces on/off
+        - default: enable when CUDAExecutionProvider is available
+        """
+        forced = self._coerce_bool_env("ABSTRACTVOICE_PIPER_USE_CUDA")
+        if forced is not None:
+            return bool(forced)
+        return bool(self._onnx_cuda_available())
+
     def _get_model_path(self, language: str) -> tuple[Path, Path]:
         """Get paths for model and config files.
         
@@ -253,7 +299,22 @@ class PiperTTSAdapter(TTSAdapter):
         # Load the voice
         try:
             logger.debug(f"Loading Piper voice: {model_path}")
-            self._voice = self._PiperVoice.load(str(model_path), str(config_path))
+            use_cuda = bool(self._resolve_use_cuda())
+            try:
+                self._voice = self._PiperVoice.load(str(model_path), str(config_path), use_cuda=bool(use_cuda))
+                self._use_cuda = bool(use_cuda)
+            except TypeError:
+                # Backward-compat for older piper versions without use_cuda kwarg.
+                self._voice = self._PiperVoice.load(str(model_path), str(config_path))
+                self._use_cuda = False
+            except Exception:
+                # If CUDA was requested but runtime doesn't support it (or driver issues),
+                # fall back to CPU for robustness.
+                if use_cuda:
+                    self._voice = self._PiperVoice.load(str(model_path), str(config_path), use_cuda=False)
+                    self._use_cuda = False
+                else:
+                    raise
             self._current_language = language
             
             # Update sample rate from config
@@ -433,8 +494,16 @@ class PiperTTSAdapter(TTSAdapter):
             'current_language': self._current_language,
             'model_dir': str(self._model_dir),
             'requires_system_deps': False,
-            'cross_platform': True
+            'cross_platform': True,
+            'use_cuda': bool(getattr(self, "_use_cuda", False)),
         })
+        # Best-effort: expose available ONNX Runtime providers for debugging.
+        try:
+            import onnxruntime as ort  # type: ignore
+
+            info["onnxruntime_providers_available"] = list(ort.get_available_providers() or [])  # type: ignore[attr-defined]
+        except Exception:
+            pass
         return info
 
     def list_available_models(self, language: Optional[str] = None) -> Dict[str, Any]:

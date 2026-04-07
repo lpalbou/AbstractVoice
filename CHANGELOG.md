@@ -19,6 +19,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 - AudioDiT: avoid re-encoding prompt audio for every chunk by pre-encoding to a reusable prompt latent (improves long-form + cloning performance); session prompt now caches the encoded latent best-effort.
 - AbstractCore integration: cache `VoiceManager` instances in-process (keyed by config like `voice_tts_engine`) so heavy TTS engines are not reloaded per request; attach best-effort TTS metrics to stored audio artifact metadata (`abstractvoice_tts`).
 - API/REPL: `speak_to_bytes(...)` / `speak_to_file(...)` now record best-effort TTS metrics (synth time, audio duration, RTF); `/speak` now approximates token counts when `tiktoken` is unavailable, and verbose output reports the active adapter engine id.
+- STT (headless): `VoiceManager.transcribe_*()` now uses the faster-whisper backend with **CUDA when available** (previously forced CPU), and CUDA detection no longer depends on PyTorch being installed.
+- Piper: enable **CUDA** automatically when ONNX Runtime advertises `CUDAExecutionProvider` (best-effort; CPU fallback), and expose ONNX provider info in adapter metadata for debugging.
 
 ## [0.7.0] - 2026-04-06
 
