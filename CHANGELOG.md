@@ -13,6 +13,10 @@ Older changelog entries may reference historical CLI commands or model choices.
 ### Added
 - `third_party_licenses/` with vendored-code license texts (currently: LongCat-AudioDiT MIT license).
 - Voice profiles: cross-engine `VoiceProfile` abstraction with `VoiceManager.get_profiles/set_profile/get_active_profile`, REPL `/profile ...`, and an initial OmniVoice demo preset pack (`omnivoice_profiles.json`) to validate the interface.
+- OmniVoice: “fast persistent profiles” via cached prompt tokens — profiles can build and store a tokenized reference prompt (`voice_clone_prompt`) once, then reuse it for stable voice identity without re-encoding the prompt on each utterance.
+
+### Changed
+- Quality presets: `/tts_quality` and `/clone_quality` now use `low|standard|high` (aliases: `fast`→`low`, `balanced`→`standard`). For OmniVoice, the base/cloning `num_step` mapping is now `4/8/16`.
 
 ### Fixed
 - Docs: refreshed repo guidance (`llms*.txt`), internal maps (`docs/architecture.md`, `docs/development.md`), and cloning/engine documentation to match current engines and commands.
@@ -20,6 +24,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 - AudioDiT: avoid re-encoding prompt audio for every chunk by pre-encoding to a reusable prompt latent (improves long-form + cloning performance); session prompt now caches the encoded latent best-effort.
 - AbstractCore integration: cache `VoiceManager` instances in-process (keyed by config like `voice_tts_engine`) so heavy TTS engines are not reloaded per request; attach best-effort TTS metrics to stored audio artifact metadata (`abstractvoice_tts`).
 - API/REPL: `speak_to_bytes(...)` / `speak_to_file(...)` now record best-effort TTS metrics (synth time, audio duration, RTF); `/speak` now approximates token counts when `tiktoken` is unavailable, and verbose output reports the active adapter engine id.
+- OmniVoice persistent prompt profiles: avoid “blurb/no voice” outputs by keeping `instruct` enabled during prompt-conditioned synthesis; refreshed the demo preset prompt-build defaults and adjusted the demo male preset to a stable instruct string.
+- OmniVoice performance (macOS): `device="auto"` uses **MPS (Metal)** by default on Apple Silicon; OmniVoice base + cloning quality presets now use more practical default step counts.
 - STT (headless): `VoiceManager.transcribe_*()` now uses the faster-whisper backend with **CUDA when available** (previously forced CPU), and CUDA detection no longer depends on PyTorch being installed.
 - Piper: enable **CUDA** automatically when ONNX Runtime advertises `CUDAExecutionProvider` (best-effort; CPU fallback), and expose ONNX provider info in adapter metadata for debugging.
 
@@ -49,7 +55,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - REPL: added `/debug` and (when enabled) persist each synthesized utterance to `untracked/generated_wavs/` and print the path.
 - AudioDiT: expand English digits/years into words for more reliable pronunciation (e.g. “5”, “2025”).
 - AudioDiT: load model weights in the resolved torch dtype (MPS default fp16; override via `ABSTRACTVOICE_TORCH_DTYPE`) for better accelerator performance.
-- Added engine-agnostic TTS quality presets (`fast|balanced|high`) via `VoiceManager.set_tts_quality_preset(...)` (where supported by the active TTS adapter).
+- Added engine-agnostic TTS quality presets (`low|standard|high`; aliases: `fast`, `balanced`) via `VoiceManager.set_tts_quality_preset(...)` (where supported by the active TTS adapter).
 - Cloning: `set_cloned_tts_quality(...)` now persists the preset so it also applies to cloning engines that are loaded later (engines are lazy).
 - REPL: selecting an AudioDiT cloned voice now performs a small warm-up to pay the one-time load/compile cost up front (reduces first `/speak` latency).
 - REPL: discard `<think>...</think>` blocks in LLM responses before printing/history/TTS.

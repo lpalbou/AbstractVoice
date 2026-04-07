@@ -54,7 +54,7 @@ Define each profile as:
 - a fixed `seed`
 - a fixed **anchor phrase** (short, stable sentence)
 - a fixed `session_prompt_seconds`
-- a quality preset (`fast|balanced|high`)
+- a quality preset (`low|standard|high`; aliases: `fast`, `balanced`)
 
 Mechanism:
 - When a profile is selected, we synthesize the anchor phrase once and use it to seed the session prompt cache.
@@ -94,7 +94,7 @@ Minimum viable profile payload:
 - `name: str`
 - `params`:
   - `seed: int`
-  - `quality_preset: "fast"|"balanced"|"high"`
+  - `quality_preset: "low"|"standard"|"high"`  (aliases: `"fast"`, `"balanced"`)
   - `anchor_text: str`
   - `session_prompt_seconds: float`
 

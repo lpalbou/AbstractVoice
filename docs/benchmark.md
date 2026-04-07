@@ -62,7 +62,7 @@ python examples/bench_tts.py \
   --out-dir untracked/bench_tts_rep5_s2s5 \
   --engines piper,audiodit,omnivoice \
   --languages en,fr \
-  --variants s2,s5 \
+  --variants s2,s5,s6 \
   --repetitions 5
 ```
 
@@ -81,7 +81,7 @@ python examples/bench_tts_suite.py \
   --sleep-s 2 \
   --engines piper,audiodit,omnivoice \
   --languages en,fr \
-  --variants s2,s5 \
+  --variants s2,s5,s6 \
   --repetitions 5
 ```
 
@@ -109,16 +109,12 @@ Warmup always uses `s2` (so adapters that build caches on first use pay that cos
 - **`s6`**:
   - `Bonjour. Ceci est une phrase de benchmark pour AbstractVoice. Nous mesurons le temps nécessaire pour générer la parole. Cette phrase supplémentaire augmente la longueur du texte. Nous ajoutons encore une phrase pour arriver à cinq. Enfin, voici la sixième phrase.`
 
-## Example results (macOS / Apple Silicon, MPS fp16) — 5 experiments × 5 reps
+## Example results (macOS / Apple Silicon) — 1 experiment × 5 reps (2026‑04‑07)
 
 These results were collected with:
-- torch device: `mps`
-- torch dtype: `float16`
-- 5 experiments × 5 repetitions per condition → **25 WAV generations per condition**
-
-Important clarification:
-- The **torch device/dtype** settings apply to **torch-based engines** only (AudioDiT, OmniVoice, and most cloning engines).
-- **Piper** does **not** use torch; it runs via **ONNX Runtime**. On macOS this is typically CPU-backed (still very fast).
+- **Piper**: ONNX Runtime (CPU)
+- **AudioDiT**: torch device `mps`, dtype `float16` (default device/dtype policy)
+- **OmniVoice**: torch device `mps`, dtype `float16` (Apple Silicon / Metal)
 
 This is intentionally “order of magnitude” oriented. If you need variance details (standard deviation / min / max), run the suite yourself and inspect the generated `suite_summary.md`.
 

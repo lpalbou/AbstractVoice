@@ -124,24 +124,33 @@ class TtsMixin:
         return self._get_voice_cloner().import_voice(path)
 
     def set_cloned_tts_quality(self, preset: str) -> bool:
-        """Set cloned TTS quality preset: fast|balanced|high."""
-        self._get_voice_cloner().set_quality_preset(preset)
+        """Set cloned TTS quality preset: low|standard|high (aliases: fast, balanced)."""
+        from ..quality_preset import normalize_quality_preset
+
+        p = normalize_quality_preset(str(preset))
+        self._get_voice_cloner().set_quality_preset(p)
         return True
 
     def set_tts_quality_preset(self, preset: str) -> bool:
-        """Set base TTS engine quality preset: fast|balanced|high (best-effort).
+        """Set base TTS engine quality preset: low|standard|high (best-effort).
 
         This is an engine-agnostic knob. Engines that don't support quality tuning
         may ignore it and return False.
         """
         if not getattr(self, "tts_adapter", None):
             return False
+        from ..quality_preset import normalize_quality_preset
+
+        try:
+            p = normalize_quality_preset(str(preset))
+        except Exception:
+            return False
         try:
             adapter = getattr(self, "tts_adapter", None)
             if adapter is None:
                 return False
             if hasattr(adapter, "set_quality_preset"):
-                return bool(adapter.set_quality_preset(preset))
+                return bool(adapter.set_quality_preset(p))
         except Exception:
             return False
         return False

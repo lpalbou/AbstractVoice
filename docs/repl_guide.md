@@ -72,7 +72,7 @@ python -m abstractvoice download --piper de
 
 Engine knobs (base TTS):
 
-- `/tts_quality fast|balanced|high` (best-effort speed/quality preset)
+- `/tts_quality low|standard|high` (best-effort speed/quality preset; aliases: `fast`→`low`, `balanced`→`standard`)
 - `/speed 0.9` / `/speed 1.1` (native for OmniVoice; AudioDiT ignores speed)
 - `/profile list` / `/profile reload` / `/profile show` / `/profile <id>` (voice profiles for the active base TTS engine)
 - OmniVoice-specific parameters + voice design: `/omnivoice` (prints current params + examples)
@@ -88,12 +88,16 @@ OmniVoice voice design (`instruct`) and stability (`seed`):
   - `whisper`
   - `american accent`, `australian accent`, `british accent`, `canadian accent`, `chinese accent`, `indian accent`, `japanese accent`, `korean accent`, `portuguese accent`, `russian accent`
 - **Staying on the “same designed voice” across turns**: voice design is stochastic (driven mainly by `position_temperature` / `class_temperature`).
-  - Option A (fully deterministic): `/omnivoice position_temperature 0` + `/omnivoice class_temperature 0`
-  - Option B (recommended): keep temperatures > 0, but pin a **seed**:
+  - If you need **true persistence**, prefer a profile that uses a cached prompt (see Option C).
+  - Option A (best-effort deterministic): `/omnivoice position_temperature 0` + `/omnivoice class_temperature 0`
+  - Option B (best-effort): keep temperatures > 0, but pin a **seed**:
     - `/omnivoice seed 123` (stable across turns)
     - change the seed to “pick another” voice: `/omnivoice seed 124`
     - clear: `/omnivoice seed off`
-  - Cross-computer note: you’ll get the closest match when both machines use the **same OmniVoice model snapshot** (and similar `torch/omnivoice` versions). Exact waveform parity across different accelerators/dtypes is not guaranteed, but speaker identity should remain consistent in practice.
+  - Option C (recommended for **fast persistence**): use a preset `/profile <id>` that enables **persistent prompt caching** (tokenized reference prompt).
+    - First selection pays a one-time build cost; subsequent `/speak` calls reuse cached tokens and keep the same voice.
+    - Cache location: `appdirs.user_data_dir("abstractvoice")/omnivoice_prompt_cache` (e.g. `~/Library/Application Support/abstractvoice/omnivoice_prompt_cache` on macOS).
+  - Cross-computer note: exact waveform parity is not guaranteed across accelerators/dtypes (CPU vs MPS vs CUDA). For strong portability, anchor the voice in audio (voice prompt / clone prompt) rather than RNG.
 
 ### 5) Voice catalog (Piper)
 

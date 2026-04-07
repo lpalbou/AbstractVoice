@@ -196,9 +196,11 @@ AbstractVoice has multiple TTS/cloning backends. **Language coverage is engine-s
     - pitch: `very low pitch`, `low pitch`, `moderate pitch`, `high pitch`, `very high pitch`
     - style: `whisper`
     - accent: `american accent`, `australian accent`, `british accent`, `canadian accent`, `chinese accent`, `indian accent`, `japanese accent`, `korean accent`, `portuguese accent`, `russian accent`
-  - “Same designed voice across turns”: voice design is stochastic (mainly `position_temperature` / `class_temperature`). Pin a seed:
-    - REPL: `/omnivoice seed 123` (stable), change to pick another, clear with `/omnivoice seed off`
-    - Cross-computer note: you’ll get the closest match when both machines use the same OmniVoice model snapshot (and similar `torch/omnivoice` versions). Exact waveform parity across different accelerators/dtypes is not guaranteed.
+  - “Same voice across turns”:
+    - Voice design is stochastic (mainly `position_temperature` / `class_temperature`). Pinning a seed is **best-effort** and some accelerators (notably MPS) can still be nondeterministic.
+    - REPL (best-effort): `/omnivoice seed 123` (stable-ish), change to pick another, clear with `/omnivoice seed off`
+    - For **strong persistence**, anchor the voice in a tokenized prompt (`voice_clone_prompt`): use `/profile <id>` presets that cache a prompt once (fast thereafter) or use full cloning.
+    - Cross-computer note: exact waveform parity across different accelerators/dtypes is not guaranteed.
 
 - **Voice cloning engines (optional)**:
   - Cloning engines inherit the language behavior of the underlying model they ship with (they are not universal multilingual frontends).
@@ -226,6 +228,8 @@ Cross-computer expectations:
 - Exact **bit-identical waveforms** are not guaranteed across different accelerators/dtypes (CPU vs MPS vs CUDA).
 
 If you need **strong portability** (the safest “same voice everywhere”), anchor the voice in **audio**:
+
+- **Fast local persistence** (one-time cost, then fast): build and cache a tokenized prompt (`voice_clone_prompt`) once. AbstractVoice’s OmniVoice preset profiles can do this; the cache lives under `appdirs.user_data_dir("abstractvoice")/omnivoice_prompt_cache`. If you want to move it across computers, copy that folder.
 
 1. Generate a short “voice card” WAV once (using your `instruct` + `seed`).
 2. Create an OmniVoice clone from that WAV (`/clone ... --engine omnivoice --text "..."`).
@@ -274,7 +278,11 @@ Engine-specific notes in this repo:
 
 Two different things can be meant here:
 
-- **(A) Avoid prompt-audio overhead** (practical): OmniVoice already supports a reusable “prompt” representation (`VoiceClonePrompt`). In AbstractVoice today, we store the reference audio + transcript and recompute the prompt when needed. This avoids *re-training*, but does not remove OmniVoice’s core generation cost.
+- **(A) Avoid prompt-audio overhead** (practical): OmniVoice already supports a reusable “prompt” representation (`VoiceClonePrompt`). In AbstractVoice today:
+  - for **preset profiles** that enable persistent prompt caching, we store the tokenized prompt once and reuse it
+  - for **cloned voices**, we store the reference audio + transcript and recompute the prompt when needed
+  
+  This avoids *re-training*, but does not remove OmniVoice’s core generation cost.
 - **(B) Train a speaker into the model** (true fine-tuning): this can remove the need to provide reference audio at inference (you select a speaker by `instruct`), but it requires a **dataset** and **GPU training**.
 
 Upstream OmniVoice supports fine-tuning on custom data (via `accelerate`) and provides a runnable recipe:

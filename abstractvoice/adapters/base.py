@@ -144,7 +144,8 @@ class TTSAdapter(ABC):
     def set_quality_preset(self, preset: str) -> bool:
         """Best-effort speed/quality preset for this TTS engine.
 
-        Presets are intended to be engine-agnostic (e.g. `fast|balanced|high`).
+        Presets are intended to be engine-agnostic (`low|standard|high`).
+        Backward-compatible aliases may exist (`fast`→`low`, `balanced`→`standard`).
         Engines that do not support quality tuning may return False.
         """
         _ = preset

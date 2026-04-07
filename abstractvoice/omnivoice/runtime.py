@@ -28,11 +28,16 @@ class OmniVoiceSettings:
     """Engine settings that map to OmniVoice generation parameters.
 
     Keep this small and stable; higher-level adapters can expose engine-agnostic
-    presets (fast|balanced|high) and map them onto these fields.
+    presets (low|standard|high) and map them onto these fields.
     """
 
     # Decoding / guidance
-    num_step: int = 32
+    # NOTE: OmniVoice can be extremely slow on MPS in practice because upstream
+    # loads the audio tokenizer on CPU when the model device is MPS (see OmniVoice
+    # `from_pretrained`), which can introduce heavy cross-device overhead.
+    #
+    # We keep a moderate default here; adapters expose higher-level quality presets.
+    num_step: int = 8
     guidance_scale: float = 2.0
     t_shift: float = 0.1
 
@@ -111,6 +116,8 @@ class OmniVoiceRuntime:
     def _resolve_device_base(self) -> str:
         pref = str(self._device_pref or "auto").strip().lower() or "auto"
         if pref == "auto":
+            # Auto means: choose the best available torch device.
+            # On Apple Silicon this is typically MPS (Metal).
             return str(best_torch_device()).strip().lower() or "cpu"
         return pref
 
@@ -283,11 +290,12 @@ class OmniVoiceRuntime:
         text: str,
         language: str | None,
         instruct: str | None,
+        voice_clone_prompt: Any | None = None,
         duration: float | None,
         speed: float | None,
         settings: OmniVoiceSettings,
     ) -> tuple[np.ndarray, int]:
-        """Generate a mono float32 waveform (auto/design voice)."""
+        """Generate a mono float32 waveform (voice design or clone prompt)."""
         model = self.get_model()
         kwargs = settings.to_generate_kwargs()
         if duration is not None:
@@ -298,6 +306,8 @@ class OmniVoiceRuntime:
             kwargs["language"] = str(language)
         if instruct is not None:
             kwargs["instruct"] = str(instruct)
+        if voice_clone_prompt is not None:
+            kwargs["voice_clone_prompt"] = voice_clone_prompt
 
         seed = getattr(settings, "seed", None)
         seed_i = None

@@ -66,7 +66,7 @@ For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through 
   - Adjusts the default speaking speed used by `speak_to_*()` and the REPL.
 
 - `set_tts_quality_preset(preset: str) -> bool`, `get_tts_quality_preset() -> str | None`
-  - Engine-agnostic speed/quality knob (`fast|balanced|high`).
+  - Engine-agnostic speed/quality knob (`low|standard|high`). Back-compat aliases: `fast`→`low`, `balanced`→`standard`.
   - Engines that don’t support quality tuning may return `False` / `None` (Piper is typically a no-op).
   - For AudioDiT this primarily maps to diffusion `steps` (and a small guidance-strength tweak).
 
@@ -77,6 +77,9 @@ For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through 
   - Profiles are **engine-local**: you select `tts_engine` first, then apply a profile id for that engine.
   - Engines without profiles return an empty list / False / None.
   - **Concurrency note**: profile selection mutates engine state. For servers, prefer one `VoiceManager` per session (or guard profile changes with a lock).
+  - **OmniVoice notes**:
+    - Some profiles may enable **persistent prompt caching** (a tokenized `voice_clone_prompt`). The first `set_profile(...)` can pay a one-time build cost; later synthesis reuses cached tokens for stable voice identity. Prompt‑conditioned synthesis can be heavier than pure voice design; use `/tts_quality low|standard|high` (or `VoiceManager.set_tts_quality_preset(...)`) to tune the trade-off.
+    - On macOS / Apple Silicon, OmniVoice uses **MPS (Metal)** by default when `device="auto"`.
 
 - `pause_speaking() -> bool`, `resume_speaking() -> bool`, `stop_speaking() -> bool`
   - Playback control.
@@ -187,7 +190,7 @@ Clone management helpers:
 - `rename_cloned_voice(voice_id: str, new_name: str) -> bool`
 - `delete_cloned_voice(voice_id: str) -> bool`
 - `export_voice(voice_id: str, path: str) -> str`, `import_voice(path: str) -> str`
-- `set_cloned_tts_quality(preset: str) -> bool` (`fast|balanced|high`)
+- `set_cloned_tts_quality(preset: str) -> bool` (`low|standard|high`; aliases: `fast`, `balanced`)
 - `get_cloning_runtime_info() -> dict`
 - `unload_cloning_engines(*, keep_engine: str | None = None) -> int` (best-effort memory relief)
 - `unload_piper_voice() -> bool` (best-effort memory relief)
