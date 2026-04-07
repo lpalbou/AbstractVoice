@@ -59,14 +59,37 @@ def best_faster_whisper_device() -> str:
     """
     forced = (os.environ.get("ABSTRACTVOICE_WHISPER_DEVICE") or "").strip().lower()
     if forced:
+        # Be tolerant of common spellings like "cuda:0".
+        if forced.startswith("cuda"):
+            return "cuda"
         return forced
 
+    # IMPORTANT:
+    # faster-whisper is backed by CTranslate2 and can be CUDA-enabled even when
+    # PyTorch is not installed. Therefore, CUDA detection must not rely on torch.
     try:
-        import torch
+        import ctranslate2  # type: ignore
 
-        if torch.cuda.is_available():
-            return "cuda"
+        # Preferred: explicit device count (available on modern ctranslate2).
+        if hasattr(ctranslate2, "get_cuda_device_count"):
+            try:
+                n = int(ctranslate2.get_cuda_device_count())  # type: ignore[attr-defined]
+                if n > 0:
+                    return "cuda"
+            except Exception:
+                # If the package wasn't compiled with CUDA support, some builds raise.
+                pass
+
+        # Fallback: probe supported compute types on CUDA device 0.
+        if hasattr(ctranslate2, "get_supported_compute_types"):
+            try:
+                types = ctranslate2.get_supported_compute_types("cuda", 0)  # type: ignore[attr-defined]
+                if types:
+                    return "cuda"
+            except Exception:
+                pass
     except Exception:
+        # If ctranslate2 isn't importable, keep a conservative fallback.
         pass
 
     return "cpu"

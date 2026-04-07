@@ -116,6 +116,10 @@ These results were collected with:
 - torch dtype: `float16`
 - 5 experiments × 5 repetitions per condition → **25 WAV generations per condition**
 
+Important clarification:
+- The **torch device/dtype** settings apply to **torch-based engines** only (AudioDiT, OmniVoice, and most cloning engines).
+- **Piper** does **not** use torch; it runs via **ONNX Runtime**. On macOS this is typically CPU-backed (still very fast).
+
 This is intentionally “order of magnitude” oriented. If you need variance details (standard deviation / min / max), run the suite yourself and inspect the generated `suite_summary.md`.
 
 | engine | lang | text | avg WAV gen time (s) | avg speech length (s) | RTF |

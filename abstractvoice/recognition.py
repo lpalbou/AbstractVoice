@@ -655,7 +655,12 @@ class VoiceRecognizer:
         try:
             # Recreate adapter to switch model size.
             STTAdapter = _import_transcriber()
-            self.stt_adapter = STTAdapter(model_size=model_name, device="cpu", compute_type="int8")
+            self.stt_adapter = STTAdapter(
+                model_size=model_name,
+                device="auto",
+                compute_type="int8",
+                allow_downloads=bool(getattr(self, "allow_downloads", True)),
+            )
             return True
         except Exception as e:
             if self.debug_mode:
