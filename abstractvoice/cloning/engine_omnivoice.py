@@ -107,13 +107,13 @@ class OmniVoiceVoiceCloningEngine:
         p = normalize_quality_preset(str(preset))
         self._quality_preset = str(p)
         if p == "low":
-            self._num_step = 4
-            self._guidance_scale = 2.0
-        elif p == "standard":
             self._num_step = 8
             self._guidance_scale = 2.0
+        elif p == "standard":
+            self._num_step = 12
+            self._guidance_scale = 2.0
         else:
-            self._num_step = 16
+            self._num_step = 28
             self._guidance_scale = 2.0
 
     def _get_runtime(self):
@@ -223,6 +223,14 @@ class OmniVoiceVoiceCloningEngine:
                 speed=float(speed) if (speed is not None) else None,
                 num_step=int(self._num_step),
                 guidance_scale=float(self._guidance_scale),
+                # With a fixed `voice_clone_prompt`, we prefer stable decoding.
+                # Empirically, leaving OmniVoice's default sampling temperatures can produce
+                # noticeable run-to-run variability for identical text (including occasional
+                # "early end" / cut-off sounding outputs). Greedy selection stabilizes both
+                # duration and tail behavior without changing the cloned identity anchor.
+                position_temperature=0.0,
+                class_temperature=0.0,
+                postprocess_output=True,
             )
             if not audios:
                 continue
