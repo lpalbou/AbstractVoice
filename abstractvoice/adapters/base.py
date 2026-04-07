@@ -9,6 +9,8 @@ from typing import Optional, Dict, Any, Union
 import numpy as np
 import io
 
+from ..voice_profiles import VoiceProfile
+
 
 class TTSAdapter(ABC):
     """Abstract base class for Text-to-Speech adapters.
@@ -111,6 +113,29 @@ class TTSAdapter(ABC):
             'sample_rate': self.get_sample_rate(),
             'available': self.is_available()
         }
+
+    # ---------------------------------------------------------------------
+    # Optional voice profile interface (engine-agnostic presets)
+    # ---------------------------------------------------------------------
+
+    def get_profiles(self) -> list[VoiceProfile]:
+        """Return available voice profiles for this adapter (best-effort).
+
+        Engines without a profile notion should return an empty list.
+        """
+        return []
+
+    def set_profile(self, profile_id: str) -> bool:
+        """Apply a voice profile by id (best-effort).
+
+        Engines without profiles should return False.
+        """
+        _ = profile_id
+        return False
+
+    def get_active_profile(self) -> VoiceProfile | None:
+        """Return the active profile, if known (best-effort)."""
+        return None
 
     # ---------------------------------------------------------------------
     # Optional quality preset (engine-agnostic knob)

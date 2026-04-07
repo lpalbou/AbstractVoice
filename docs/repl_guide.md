@@ -74,10 +74,12 @@ Engine knobs (base TTS):
 
 - `/tts_quality fast|balanced|high` (best-effort speed/quality preset)
 - `/speed 0.9` / `/speed 1.1` (native for OmniVoice; AudioDiT ignores speed)
+- `/profile list` / `/profile reload` / `/profile show` / `/profile <id>` (voice profiles for the active base TTS engine)
 - OmniVoice-specific parameters + voice design: `/omnivoice` (prints current params + examples)
 
 OmniVoice voice design (`instruct`) and stability (`seed`):
 
+- If available, prefer presets via `/profile <id>` (engine-agnostic). See `/profile list`.
 - **`/omnivoice instruct "..."`** enables **voice design mode** (attribute-based speaker). OmniVoice validates `instruct` items upstream.
 - **Valid English items** (case-insensitive; comma-separated; one per category):
   - `male`, `female`

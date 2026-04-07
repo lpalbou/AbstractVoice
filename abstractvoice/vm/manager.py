@@ -12,6 +12,7 @@ from typing import Optional
 from ..config.voice_catalog import LANGUAGES, SAFE_FALLBACK
 from ..adapters.tts_registry import create_tts_adapter
 from ..tts.adapter_tts_engine import AdapterTTSEngine
+from ..voice_profiles import VoiceProfile
 
 from .core import VoiceManagerCore
 from .stt_mixin import SttMixin
@@ -118,6 +119,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
 
         # Cloned-speech cancellation token (best-effort).
         self._cloned_cancel_event = threading.Event()
+
         # Tracks whether cloned TTS synthesis is currently running (separate from playback).
         self._cloned_synthesis_active = threading.Event()
 
@@ -131,3 +133,45 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Default to "wait" for robustness without echo cancellation.
         # "full" is intended for headset / echo-controlled environments.
         self._voice_mode = "wait"
+
+    # ------------------------------------------------------------------
+    # Voice profiles (cross-engine)
+    # ------------------------------------------------------------------
+
+    def get_profiles(self, *, kind: str = "tts") -> list[VoiceProfile]:
+        """List available profiles for the active engine (best-effort)."""
+        k = str(kind or "").strip().lower() or "tts"
+        if k != "tts":
+            raise ValueError("Only kind='tts' is supported for now.")
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None:
+            return []
+        try:
+            out = adapter.get_profiles()
+            return list(out) if isinstance(out, list) else list(out or [])
+        except Exception:
+            return []
+
+    def set_profile(self, profile_id: str, *, kind: str = "tts") -> bool:
+        """Apply a profile by id for the active engine."""
+        k = str(kind or "").strip().lower() or "tts"
+        if k != "tts":
+            raise ValueError("Only kind='tts' is supported for now.")
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None:
+            return False
+        return bool(adapter.set_profile(str(profile_id)))
+
+    def get_active_profile(self, *, kind: str = "tts") -> VoiceProfile | None:
+        """Return the active profile for the active engine (best-effort)."""
+        k = str(kind or "").strip().lower() or "tts"
+        if k != "tts":
+            raise ValueError("Only kind='tts' is supported for now.")
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None:
+            return None
+        try:
+            p = adapter.get_active_profile()
+            return p if isinstance(p, VoiceProfile) else None
+        except Exception:
+            return None

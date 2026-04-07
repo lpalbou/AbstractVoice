@@ -330,7 +330,8 @@ class VoiceREPL(cmd.Cmd):
         intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
         intro += "  • TTS engine: /tts_engine piper|audiodit|omnivoice  (offline-first: prefetch first)\n"
         intro += "  • Base TTS quality: /tts_quality fast|balanced|high\n"
-        intro += "  • OmniVoice design/params: /omnivoice  (then /omnivoice instruct \"female, young adult, ...\")\n"
+        intro += "  • Voice profiles: /profile list  then /profile <id>  (depends on active TTS engine)\n"
+        intro += "  • OmniVoice design/params: /omnivoice  (advanced; only when OmniVoice is active)\n"
         intro += "  • Language: /language <code>  (Piper: en/fr/de/es/ru/zh; OmniVoice: many)\n"
         intro += "  • Cloning: /clone <ref.wav> my_voice --engine omnivoice --text \"...\"  then /tts_voice clone my_voice\n"
         intro += "  • Type /help for full command list\n"
@@ -528,6 +529,14 @@ class VoiceREPL(cmd.Cmd):
                     label = eng
                 else:
                     label = "tts"
+
+                # Best-effort: include active base-TTS profile id when available.
+                try:
+                    pid = str(tts.get("profile_id") or "").strip()
+                except Exception:
+                    pid = ""
+                if pid and eng != "clone":
+                    label = f"{label}[{pid}]"
 
                 err = (tts.get("error") or "").strip()
                 if err:
@@ -3304,6 +3313,107 @@ class VoiceREPL(cmd.Cmd):
             pass
         print(f"✅ TTS engine set to: {engine}")
 
+    def do_profile(self, arg):
+        """List/apply voice profiles for the active base TTS engine.
+
+        Usage:
+          /profile list
+          /profile reload
+          /profile show
+          /profile <profile_id>
+        """
+        if not self.voice_manager:
+            print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+            return
+
+        adapter = getattr(self.voice_manager, "tts_adapter", None)
+        try:
+            engine_id = str(getattr(adapter, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine_id = ""
+        if not engine_id:
+            engine_id = "tts"
+
+        raw = str(arg or "").strip()
+        if not raw or raw.lower() in ("help", "?"):
+            print("Voice profiles (engine-agnostic):")
+            print("  /profile list")
+            print("  /profile show")
+            print("  /profile <profile_id>")
+            print()
+            print(f"Active TTS engine: {engine_id}")
+            try:
+                p = self.voice_manager.get_active_profile(kind="tts")
+            except Exception:
+                p = None
+            if p is not None:
+                print(f"Active profile: {p.profile_id}  ({p.label})")
+            else:
+                print("Active profile: (none)")
+            return
+
+        cmd = raw.strip().lower()
+        if cmd in ("reload", "refresh"):
+            try:
+                from ..voice_profiles import clear_builtin_voice_profiles_cache
+
+                clear_builtin_voice_profiles_cache(engine_id)
+                print(f"✅ Reloaded built-in profiles for engine '{engine_id}'.")
+            except Exception as e:
+                print(f"❌ Failed to reload profiles: {e}")
+            return
+        if cmd == "list":
+            try:
+                profiles = list(self.voice_manager.get_profiles(kind="tts") or [])
+            except Exception:
+                profiles = []
+            if not profiles:
+                print(f"No built-in profiles available for engine '{engine_id}'.")
+                return
+            print(f"Profiles for engine '{engine_id}':")
+            for p in profiles:
+                try:
+                    desc = str(getattr(p, "description", "") or "").strip()
+                except Exception:
+                    desc = ""
+                if desc:
+                    print(f"  - {p.profile_id}: {p.label} — {desc}")
+                else:
+                    print(f"  - {p.profile_id}: {p.label}")
+            return
+
+        if cmd == "show":
+            try:
+                p = self.voice_manager.get_active_profile(kind="tts")
+            except Exception:
+                p = None
+            if p is None:
+                print(f"Active profile: (none)  [engine={engine_id}]")
+                return
+            print(f"Active profile: {p.profile_id}  ({p.label})  [engine={engine_id}]")
+            return
+
+        # Treat the full raw string as the profile id (engine-local).
+        profile_id = raw
+        try:
+            ok = bool(self.voice_manager.set_profile(profile_id, kind="tts"))
+        except Exception as e:
+            print(f"❌ Failed to set profile '{profile_id}': {e}")
+            return
+
+        if ok:
+            try:
+                p = self.voice_manager.get_active_profile(kind="tts")
+            except Exception:
+                p = None
+            if p is not None:
+                print(f"✅ Profile set: {p.profile_id}  ({p.label})  [engine={engine_id}]")
+            else:
+                print(f"✅ Profile set: {profile_id}  [engine={engine_id}]")
+            return
+
+        print(f"❌ Profiles are not supported by engine '{engine_id}'.")
+
     def do_omnivoice(self, arg):
         """Configure OmniVoice TTS parameters (only when OmniVoice is active).
 
@@ -3829,6 +3939,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /tts on|off            Toggle TTS playback")
         print("  /tts_engine <engine>   Switch TTS engine: auto|piper|audiodit|omnivoice")
         print("  /tts_quality <preset>  Base TTS quality preset: fast|balanced|high")
+        print("  /profile ...           Voice profiles for the active TTS engine: list|show|<id>")
         print("  /omnivoice ...         OmniVoice voice design + parameters (only when OmniVoice is active)")
         print("  /language <code>       Switch language (Piper: en/fr/de/es/ru/zh; OmniVoice: many ISO codes)")
         print("  /speed <number>        Set speed (native when supported; otherwise time-stretch)")
@@ -3874,7 +3985,9 @@ class VoiceREPL(cmd.Cmd):
         print("Examples")
         print("  OmniVoice TTS (French):")
         print("    /tts_engine omnivoice")
-        print("    /omnivoice instruct \"female, young adult, moderate pitch\"")
+        print("    /profile female_01    # optional (demo preset; use /profile list)")
+        print("    # Or manual voice design:")
+        print("    # /omnivoice instruct \"female, young adult, moderate pitch\"")
         print("    /language fr")
         print("    /speak Bonjour. Ceci est un test.")
         print()

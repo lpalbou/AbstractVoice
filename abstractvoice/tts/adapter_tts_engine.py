@@ -131,6 +131,15 @@ class AdapterTTSEngine:
             "speed": float(speed or 1.0),
             "ts": time.time(),
         }
+        # Best-effort: attach active profile info when supported by the adapter.
+        try:
+            p = getattr(self.adapter, "get_active_profile", None)
+            prof = p() if callable(p) else None
+            if prof is not None:
+                self.last_tts_metrics["profile_id"] = getattr(prof, "profile_id", None)
+                self.last_tts_metrics["profile_label"] = getattr(prof, "label", None)
+        except Exception:
+            pass
 
         self.audio_player.play_audio(audio, sample_rate=sr)
         return True

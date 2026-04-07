@@ -539,6 +539,15 @@ class TtsMixin:
                 "language": str(getattr(self, "language", None) or "en"),
                 "ts": time.time(),
             }
+            # Best-effort: attach active profile info when supported by the adapter.
+            try:
+                p = getattr(self.tts_adapter, "get_active_profile", None)
+                prof = p() if callable(p) else None
+                if prof is not None:
+                    metrics["profile_id"] = getattr(prof, "profile_id", None)
+                    metrics["profile_label"] = getattr(prof, "label", None)
+            except Exception:
+                pass
             metrics.update(_analyze_audio_bytes(bytes(out)))
             try:
                 audio_s = metrics.get("audio_s")
@@ -603,6 +612,15 @@ class TtsMixin:
                 "language": str(getattr(self, "language", None) or "en"),
                 "ts": time.time(),
             }
+            # Best-effort: attach active profile info when supported by the adapter.
+            try:
+                p = getattr(self.tts_adapter, "get_active_profile", None)
+                prof = p() if callable(p) else None
+                if prof is not None:
+                    metrics["profile_id"] = getattr(prof, "profile_id", None)
+                    metrics["profile_label"] = getattr(prof, "label", None)
+            except Exception:
+                pass
 
             try:
                 import soundfile as sf
