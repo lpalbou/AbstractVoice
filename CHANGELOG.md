@@ -14,6 +14,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - `third_party_licenses/` with vendored-code license texts (currently: LongCat-AudioDiT MIT license).
 - Voice profiles: cross-engine `VoiceProfile` abstraction with `VoiceManager.get_profiles/set_profile/get_active_profile`, REPL `/profile ...`, and an initial OmniVoice demo preset pack (`omnivoice_profiles.json`) to validate the interface.
 - OmniVoice: “fast persistent profiles” via cached prompt tokens — profiles can build and store a tokenized reference prompt (`voice_clone_prompt`) once, then reuse it for stable voice identity without re-encoding the prompt on each utterance.
+- Voice cloning: `clone_voice_from_wav_bytes(...)` API (upload/bytes-friendly) and improved REPL mic workflow via `/clone myvoice` (SPACE start/stop; `myvoice` keyword). (`/clone_my_voice` remains as a backward-compatible alias.)
 
 ### Changed
 - Quality presets: `/tts_quality` and `/clone_quality` now use `low|standard|high` (aliases: `fast`→`low`, `balanced`→`standard`). For OmniVoice, the base/cloning `num_step` mapping is now `8/12/24`.
@@ -24,6 +25,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - AudioDiT: avoid re-encoding prompt audio for every chunk by pre-encoding to a reusable prompt latent (improves long-form + cloning performance); session prompt now caches the encoded latent best-effort.
 - AbstractCore integration: cache `VoiceManager` instances in-process (keyed by config like `voice_tts_engine`) so heavy TTS engines are not reloaded per request; attach best-effort TTS metrics to stored audio artifact metadata (`abstractvoice_tts`).
 - API/REPL: `speak_to_bytes(...)` / `speak_to_file(...)` now record best-effort TTS metrics (synth time, audio duration, RTF); `/speak` now approximates token counts when `tiktoken` is unavailable, and verbose output reports the active adapter engine id.
+- STT (mic/PTT): improved Faster-Whisper decode quality for live transcriptions (higher-quality beam search), kept the stop-phrase rolling detector fast, and made `/whisper large` map to `large-v3` (also allows arbitrary Hugging Face faster-whisper model ids instead of forcing a fallback to `base`).
 - OmniVoice persistent prompt profiles: avoid “blurb/no voice” outputs by keeping `instruct` enabled during prompt-conditioned synthesis; refreshed the demo preset prompt-build defaults and adjusted the demo male preset to a stable instruct string.
 - OmniVoice performance (macOS): `device="auto"` uses **MPS (Metal)** by default on Apple Silicon; OmniVoice base + cloning quality presets now use more practical default step counts.
 - STT (headless): `VoiceManager.transcribe_*()` now uses the faster-whisper backend with **CUDA when available** (previously forced CPU), and CUDA detection no longer depends on PyTorch being installed.

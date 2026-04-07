@@ -181,6 +181,7 @@ Requires installing at least one cloning backend extra (and explicit artifact do
 Core cloning calls:
 
 - `clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -> str`
+- `clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -> str`
 - `speak(..., voice="<voice_id>")` / `speak_to_bytes(..., voice="<voice_id>")` / `speak_to_file(..., voice="<voice_id>")`
 - `list_cloned_voices()`, `get_cloned_voice(voice_id: str) -> dict`
 

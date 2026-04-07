@@ -199,6 +199,35 @@ class VoiceCloner:
         )
         return voice_id
 
+    def clone_voice_from_wav_bytes(
+        self,
+        wav_bytes: bytes,
+        name: str | None = None,
+        *,
+        reference_text: str | None = None,
+        engine: str | None = None,
+        meta: Dict[str, Any] | None = None,
+    ) -> str:
+        """Create a new cloned voice from an in-memory WAV payload."""
+        if not wav_bytes:
+            raise ValueError("wav_bytes must be non-empty")
+
+        engine_name = str(engine or self._default_engine).strip().lower()
+        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice"):
+            raise ValueError("engine must be one of: f5_tts|chroma|audiodit|omnivoice")
+
+        meta_out = dict(meta or {})
+        meta_out.setdefault("source", "bytes")
+
+        voice_id = self.store.create_voice_from_wav_bytes(
+            wav_bytes,
+            name=name,
+            reference_text=reference_text,
+            engine=engine_name,
+            meta=meta_out,
+        )
+        return voice_id
+
     def get_store_base_dir(self) -> str:
         """Return the on-disk folder where cloned voices are stored."""
         try:

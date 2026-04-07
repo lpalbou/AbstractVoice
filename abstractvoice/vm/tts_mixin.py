@@ -96,6 +96,50 @@ class TtsMixin:
             engine=engine,
         )
 
+    def clone_voice_from_wav_bytes(
+        self,
+        wav_bytes: bytes,
+        name: str | None = None,
+        *,
+        reference_text: str | None = None,
+        engine: str | None = None,
+    ) -> str:
+        """Create a new cloned voice from an in-memory WAV payload.
+
+        This is the API surface used by client/server integrations where the
+        reference audio arrives as uploaded bytes rather than a local file path.
+        """
+        cloner = self._get_voice_cloner()
+        if hasattr(cloner, "clone_voice_from_wav_bytes"):
+            return cloner.clone_voice_from_wav_bytes(
+                wav_bytes,
+                name=name,
+                reference_text=reference_text,
+                engine=engine,
+            )
+        # Backward-compatible fallback for older cloner versions (should not
+        # normally be needed inside this repo).
+        import tempfile
+        from pathlib import Path
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp_path = Path(tmp.name)
+        try:
+            tmp.write(wav_bytes)
+            tmp.flush()
+        finally:
+            try:
+                tmp.close()
+            except Exception:
+                pass
+        try:
+            return self.clone_voice(str(tmp_path), name=name, reference_text=reference_text, engine=engine)
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)  # type: ignore[arg-type]
+            except Exception:
+                pass
+
     def list_cloned_voices(self):
         return self._get_voice_cloner().list_cloned_voices()
 

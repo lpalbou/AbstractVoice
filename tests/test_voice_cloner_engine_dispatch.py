@@ -42,6 +42,32 @@ def test_voice_cloner_dispatches_by_engine(tmp_path: Path):
     assert len(audio) == 10
 
 
+def test_voice_cloner_clone_from_wav_bytes_sets_engine(tmp_path: Path):
+    import io
+    import wave
+    import numpy as np
+
+    from abstractvoice.cloning.manager import VoiceCloner
+    from abstractvoice.cloning.store import VoiceCloneStore
+
+    sr = 24000
+    pcm = np.zeros((int(sr * 0.5),), dtype=np.int16).tobytes()
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(pcm)
+    wav_bytes = buf.getvalue()
+
+    store = VoiceCloneStore(base_dir=tmp_path / "store")
+    cloner = VoiceCloner(store=store, allow_downloads=False)
+
+    voice_id = cloner.clone_voice_from_wav_bytes(wav_bytes, name="v", reference_text="hello.", engine="chroma")
+    voice = store.get_voice(voice_id)
+    assert voice.engine == "chroma"
+
+
 def test_voice_cloner_rejects_unsupported_reference_file(tmp_path: Path):
     from abstractvoice.cloning.manager import VoiceCloner
     from abstractvoice.cloning.store import VoiceCloneStore
