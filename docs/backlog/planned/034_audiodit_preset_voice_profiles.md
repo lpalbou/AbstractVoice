@@ -81,6 +81,14 @@ Cons:
 
 ## Proposed design
 
+### Dependency: shared “voice profile” abstraction (Task 036)
+
+AudioDiT profiles should be exposed through the same cross-engine interface as other engines (list/apply/show) so that:
+- the REPL can expose a single `/profile ...` surface (no `/audiodit profile ...` special-casing)
+- AbstractCore and third-party integrations can forward `profile_id` without engine-specific glue
+
+See: `docs/backlog/planned/036_voice_profile_abstraction.md`.
+
 Minimum viable profile payload:
 - `engine: "audiodit"`
 - `name: str`
@@ -104,8 +112,8 @@ Profiles should be stored as a JSON asset and applied through:
   - reset any session prompt state
   - synthesize anchor text once (no playback), capture session prompt
 - Add REPL UX:
-  - `/audiodit profile list`
-  - `/audiodit profile <name>`
+  - `/profile list` (when `tts_engine=audiodit`)
+  - `/profile <name>` (applies to the active `tts_engine`)
 - Document caveats:
   - French is not guaranteed
   - “male/female” labeling is best-effort and may need revision

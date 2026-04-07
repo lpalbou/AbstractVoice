@@ -99,14 +99,22 @@ References:
 OpenAI (and other commercial providers) have a first-class notion of “voice” (built-in voices and gated custom voices).
 AbstractVoice also has “voices”, but today that primarily means **local cloned voices** stored in the local voice store.
 
-To support commercial TTS/STT/cloning cleanly, we should introduce a **provider-agnostic voice profile** concept:
+To support commercial TTS/STT/cloning cleanly (and keep local presets consistent), we should introduce a **provider-agnostic voice profile** concept with a **common engine interface**.
+
+This should be tracked as a dedicated foundational task:
+- `docs/backlog/planned/036_voice_profile_abstraction.md`
 
 - **VoiceProfile** (concept)
-  - `profile_id`: stable id (e.g. `omnivoice_female_01`, `openai_alloy`, `openai_voice_123abc`)
-  - `engine`: which backend applies this profile (`piper|audiodit|omnivoice|openai|...`)
+  - `engine_id`: which backend applies this profile (`piper|audiodit|omnivoice|openai|...`)
+  - `profile_id`: stable id within the engine (e.g. `female_01`, `en_female_01`, `alloy`, `voice_...`)
   - `label`: human-friendly name
   - `params`: engine-specific parameters (typed best-effort; validated per engine)
   - `provenance`: optional metadata (where created, consent requirements, timestamps)
+
+Common engine interface (planned):
+- `selected_engine.get_profiles() -> list[VoiceProfile]`
+- `selected_engine.set_profile(profile_id: str) -> bool`
+- `selected_engine.get_active_profile() -> VoiceProfile | None`
 
 Why this matters:
 - Gives us a single concept that can represent:
@@ -120,12 +128,13 @@ Related planned work:
 - OmniVoice presets: `docs/backlog/planned/033_omnivoice_preset_voice_profiles.md`
 - AudioDiT presets: `docs/backlog/planned/034_audiodit_preset_voice_profiles.md`
 - Piper true voice selection + presets: `docs/backlog/planned/035_piper_voice_profiles_and_voice_selection.md`
+ - Cross-engine profile abstraction: `docs/backlog/planned/036_voice_profile_abstraction.md`
 
 OpenAI-specific mapping:
 - The OpenAI TTS adapter should accept `voice` as either:
   - a built-in voice name (string), or
   - a custom voice id (`voice_...`)
-- If we add `VoiceProfile` in AbstractVoice, OpenAI profiles become simple aliases that set that `voice` field (plus optional `instructions` defaults).
+- With `VoiceProfile` (Task 036), OpenAI profiles become simple aliases that set the OpenAI `voice` field (plus optional `instructions` defaults).
 
 ### Adapters (Phase 1: synchronous)
 

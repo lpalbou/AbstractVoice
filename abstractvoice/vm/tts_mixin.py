@@ -446,21 +446,108 @@ class TtsMixin:
         - If `voice` is None: use the active TTS engine/adapter (default: Piper).
         - If `voice` is provided: treat as a cloned voice_id (requires `abstractvoice[cloning]`).
         """
+        # Clear prior metrics for this new utterance.
+        self._set_last_tts_metrics(None)
+
         speak_text = str(text)
         if _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax):
             speak_text = sanitize_markdown_for_speech(speak_text)
+
+        fmt = str(format or "wav").strip().lower() or "wav"
+
+        def _analyze_audio_bytes(b: bytes) -> dict:
+            metrics: dict = {}
+            try:
+                import io
+
+                import soundfile as sf
+
+                info = sf.info(io.BytesIO(bytes(b)))
+                try:
+                    metrics["sample_rate"] = int(getattr(info, "samplerate", 0) or 0) or None
+                except Exception:
+                    metrics["sample_rate"] = None
+                try:
+                    metrics["channels"] = int(getattr(info, "channels", 0) or 0) or None
+                except Exception:
+                    metrics["channels"] = None
+                try:
+                    frames = int(getattr(info, "frames", 0) or 0)
+                    metrics["audio_frames"] = frames if frames > 0 else None
+                except Exception:
+                    metrics["audio_frames"] = None
+                try:
+                    d = float(getattr(info, "duration", 0.0) or 0.0)
+                    metrics["audio_s"] = float(d) if d > 0 else None
+                except Exception:
+                    metrics["audio_s"] = None
+            except Exception:
+                pass
+            return metrics
+
+        t0 = time.monotonic()
         if voice:
             cloner = self._get_voice_cloner()
-            return cloner.speak_to_bytes(
+            out = cloner.speak_to_bytes(
                 speak_text,
                 voice_id=voice,
-                format=format,
+                format=fmt,
                 speed=self.speed,
                 language=str(getattr(self, "language", None) or "en"),
             )
+            synth_s = float(time.monotonic() - t0)
+
+            clone_engine_name = None
+            try:
+                info = cloner.get_cloned_voice(str(voice)) or {}
+                clone_engine_name = str(info.get("engine") or "").strip().lower() or None
+            except Exception:
+                clone_engine_name = None
+
+            metrics = {
+                "engine": "clone",
+                "clone_engine": clone_engine_name,
+                "voice_id": str(voice),
+                "streaming": False,
+                "synth_s": synth_s,
+                "format": fmt,
+                "speed": float(getattr(self, "speed", 1.0) or 1.0),
+                "language": str(getattr(self, "language", None) or "en"),
+                "ts": time.time(),
+            }
+            metrics.update(_analyze_audio_bytes(bytes(out)))
+            try:
+                audio_s = metrics.get("audio_s")
+                if isinstance(audio_s, (int, float)) and float(audio_s) > 0:
+                    metrics["rtf"] = float(synth_s) / float(audio_s)
+            except Exception:
+                pass
+            self._set_last_tts_metrics(metrics)
+            return out
 
         if self.tts_adapter and self.tts_adapter.is_available():
-            return self.tts_adapter.synthesize_to_bytes(speak_text, format=format)
+            out = self.tts_adapter.synthesize_to_bytes(speak_text, format=fmt)
+            synth_s = float(time.monotonic() - t0)
+            try:
+                engine_id = str(getattr(self.tts_adapter, "engine_id", "") or "").strip().lower()
+            except Exception:
+                engine_id = ""
+            metrics = {
+                "engine": engine_id or "tts",
+                "synth_s": synth_s,
+                "format": fmt,
+                "language": str(getattr(self, "language", None) or "en"),
+                "ts": time.time(),
+            }
+            metrics.update(_analyze_audio_bytes(bytes(out)))
+            try:
+                audio_s = metrics.get("audio_s")
+                if isinstance(audio_s, (int, float)) and float(audio_s) > 0:
+                    metrics["rtf"] = float(synth_s) / float(audio_s)
+            except Exception:
+                pass
+            self._set_last_tts_metrics(metrics)
+            return out
         raise NotImplementedError("speak_to_bytes() requires a functional TTS adapter.")
 
     def speak_to_file(
@@ -473,21 +560,85 @@ class TtsMixin:
         sanitize_syntax: bool = True,
         saninitze_syntax: bool | None = None,
     ) -> str:
+        # Clear prior metrics for this new utterance.
+        self._set_last_tts_metrics(None)
+
         sanitize = _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax)
         speak_text = str(text)
         if sanitize:
             speak_text = sanitize_markdown_for_speech(speak_text)
         if voice:
-            data = self.speak_to_bytes(speak_text, format=(format or "wav"), voice=voice, sanitize_syntax=False)
             from pathlib import Path
 
+            # For cloned voices, we only have a bytes API; write it out here.
+            fmt = str(format or Path(output_path).suffix.lstrip(".") or "wav").strip().lower() or "wav"
+            data = self.speak_to_bytes(speak_text, format=fmt, voice=voice, sanitize_syntax=False)
             out = Path(output_path)
             out.parent.mkdir(parents=True, exist_ok=True)
-            out.write_bytes(data)
+            out.write_bytes(bytes(data))
             return str(out)
 
         if self.tts_adapter and self.tts_adapter.is_available():
-            return self.tts_adapter.synthesize_to_file(speak_text, output_path, format=format)
+            t0 = time.monotonic()
+            out_path = self.tts_adapter.synthesize_to_file(speak_text, output_path, format=format)
+            synth_s = float(time.monotonic() - t0)
+
+            try:
+                engine_id = str(getattr(self.tts_adapter, "engine_id", "") or "").strip().lower()
+            except Exception:
+                engine_id = ""
+
+            fmt_used = None
+            try:
+                from pathlib import Path
+
+                fmt_used = str(format or Path(str(out_path)).suffix.lstrip(".") or "wav").strip().lower() or "wav"
+            except Exception:
+                fmt_used = str(format or "wav").strip().lower() or "wav"
+
+            metrics: dict = {
+                "engine": engine_id or "tts",
+                "synth_s": synth_s,
+                "format": fmt_used,
+                "language": str(getattr(self, "language", None) or "en"),
+                "ts": time.time(),
+            }
+
+            try:
+                import soundfile as sf
+
+                info = sf.info(str(out_path))
+                try:
+                    metrics["sample_rate"] = int(getattr(info, "samplerate", 0) or 0) or None
+                except Exception:
+                    metrics["sample_rate"] = None
+                try:
+                    metrics["channels"] = int(getattr(info, "channels", 0) or 0) or None
+                except Exception:
+                    metrics["channels"] = None
+                try:
+                    frames = int(getattr(info, "frames", 0) or 0)
+                    metrics["audio_frames"] = frames if frames > 0 else None
+                except Exception:
+                    metrics["audio_frames"] = None
+                try:
+                    d = float(getattr(info, "duration", 0.0) or 0.0)
+                    metrics["audio_s"] = float(d) if d > 0 else None
+                except Exception:
+                    metrics["audio_s"] = None
+            except Exception:
+                pass
+
+            try:
+                audio_s = metrics.get("audio_s")
+                if isinstance(audio_s, (int, float)) and float(audio_s) > 0:
+                    metrics["rtf"] = float(synth_s) / float(audio_s)
+            except Exception:
+                pass
+
+            self._set_last_tts_metrics(metrics)
+            return str(out_path)
+
         raise NotImplementedError("speak_to_file() requires a functional TTS adapter.")
 
     def stop_speaking(self):

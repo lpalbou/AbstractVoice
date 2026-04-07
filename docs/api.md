@@ -225,6 +225,22 @@ Notes:
 
 See also: `docs/installation.md`, `docs/model-management.md`, and `docs/voices-and-licenses.md`.
 
+## Performance note: prefetch vs preload (important for servers)
+
+- **Prefetch** (download to disk): `python -m abstractvoice download ...` / `abstractvoice-prefetch ...`
+- **Preload** (load into memory): create a **long-lived** `VoiceManager` (or adapter) and reuse it.
+
+If you construct a new `VoiceManager` for every request, heavy engines (AudioDiT/OmniVoice) will pay a large one-time cost repeatedly (imports + weight load + accelerator kernel compilation).
+
+Recommended pattern (server/process startup):
+
+```python
+from abstractvoice import VoiceManager
+
+# Load once, reuse for all requests.
+vm = VoiceManager(language="en", tts_engine="omnivoice", stt_engine="auto", allow_downloads=False)
+```
+
 ## Integrations (AbstractFramework ecosystem)
 
 AbstractVoice is designed to work standalone, and also integrate cleanly into the AbstractFramework ecosystem (AbstractCore + AbstractRuntime). Overview and links: `README.md`.
@@ -241,6 +257,22 @@ The plugin registers:
 - an audio backend (`backend_id="abstractvoice:stt"`) for STT-only
 
 Audio outputs can optionally be stored into an AbstractRuntime-like `artifact_store` via the duck-typed adapter in `abstractvoice/artifacts.py`.
+
+Plugin configuration (owner `config` dict, best-effort):
+- `voice_language`: default language (e.g. `"en"`)
+- `voice_allow_downloads`: allow on-demand downloads (bool)
+- `voice_tts_engine`: base TTS engine (`"auto"|"piper"|"audiodit"|"omnivoice"`)
+- `voice_stt_engine`: STT engine (currently `"auto"` for faster-whisper)
+- `voice_whisper_model`: faster-whisper model size (e.g. `"base"`, `"small"`)
+- `voice_cloning_engine`: default cloning backend (`"f5_tts"|"chroma"|"audiodit"|"omnivoice"`)
+- `voice_cloned_tts_streaming`: stream cloned-voice chunks for faster time-to-first-audio (bool)
+- `voice_debug_mode`: enable debug prints (bool)
+
+Performance note:
+- The capability plugin caches `VoiceManager` instances **in-process** (keyed by the config above) so engines are **not reloaded per request**.
+
+TTS metrics:
+- After synthesis, the plugin stores best-effort stats in artifact metadata under `abstractvoice_tts` (when `artifact_store` is used).
 
 ### AbstractCore tool helpers (manual wiring)
 
@@ -259,6 +291,10 @@ from abstractvoice.integrations.abstractcore import make_voice_tools
 vm = VoiceManager()
 tools = make_voice_tools(voice_manager=vm, store=artifact_store)
 ```
+
+TTS metrics (library-level):
+- `VoiceManager.speak_to_bytes(...)` / `VoiceManager.speak_to_file(...)` record best-effort stats for the *last* synthesis.
+- Call `vm.pop_last_tts_metrics()` to retrieve and clear them (dict with fields like `engine`, `synth_s`, `audio_s`, `rtf`, `sample_rate`).
 
 ## Non-contract surface (may change without notice)
 

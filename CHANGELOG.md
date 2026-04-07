@@ -17,6 +17,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Docs: refreshed repo guidance (`llms*.txt`), internal maps (`docs/architecture.md`, `docs/development.md`), and cloning/engine documentation to match current engines and commands.
 - Licensing: updated root `LICENSE` copyright year and linked vendored-code license text from docs/manifests.
 - AudioDiT: avoid re-encoding prompt audio for every chunk by pre-encoding to a reusable prompt latent (improves long-form + cloning performance); session prompt now caches the encoded latent best-effort.
+- AbstractCore integration: cache `VoiceManager` instances in-process (keyed by config like `voice_tts_engine`) so heavy TTS engines are not reloaded per request; attach best-effort TTS metrics to stored audio artifact metadata (`abstractvoice_tts`).
+- API/REPL: `speak_to_bytes(...)` / `speak_to_file(...)` now record best-effort TTS metrics (synth time, audio duration, RTF); `/speak` now approximates token counts when `tiktoken` is unavailable, and verbose output reports the active adapter engine id.
 
 ## [0.7.0] - 2026-04-06
 

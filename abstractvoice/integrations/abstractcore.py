@@ -80,12 +80,19 @@ def make_voice_tools(
         run_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         audio = voice_manager.speak_to_bytes(str(text), format=str(format), voice=voice)
+        tts_metrics = None
+        try:
+            if hasattr(voice_manager, "pop_last_tts_metrics"):
+                tts_metrics = voice_manager.pop_last_tts_metrics()
+        except Exception:
+            tts_metrics = None
         return media_store.store_bytes(
             bytes(audio),
             content_type=f"audio/{str(format).lower()}",
             filename=f"tts.{str(format).lower()}",
             run_id=str(run_id) if run_id else None,
             tags={"kind": "generated_media", "modality": "audio", "task": "tts"},
+            metadata={"abstractvoice_tts": dict(tts_metrics)} if isinstance(tts_metrics, dict) and tts_metrics else None,
         )
 
     @tool(
