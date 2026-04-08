@@ -60,3 +60,26 @@ def apply_edge_fades(
         y[-fade_n:] *= ramp[::-1]
     return y
 
+
+def ensure_headroom(mono: np.ndarray, *, headroom: float = 0.98) -> np.ndarray:
+    """Scale down (only if needed) so peak amplitude stays under `headroom`."""
+    x = np.asarray(mono, dtype=np.float32).reshape(-1)
+    if x.size <= 0:
+        return x
+    try:
+        hr = float(headroom)
+    except Exception:
+        hr = 0.98
+    if not (0.0 < hr <= 1.0):
+        hr = 0.98
+    try:
+        peak = float(np.max(np.abs(x)))
+    except Exception:
+        peak = 0.0
+    if not (peak > 0.0):
+        return x
+    if peak <= hr:
+        return x
+    scale = hr / peak
+    return (x * float(scale)).astype(np.float32, copy=False)
+

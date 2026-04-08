@@ -31,6 +31,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - OmniVoice performance (macOS): `device="auto"` uses **MPS (Metal)** by default on Apple Silicon; OmniVoice base + cloning quality presets now use more practical default step counts.
 - STT (headless): `VoiceManager.transcribe_*()` now uses the faster-whisper backend with **CUDA when available** (previously forced CPU), and CUDA detection no longer depends on PyTorch being installed.
 - Piper: enable **CUDA** automatically when ONNX Runtime advertises `CUDAExecutionProvider` (best-effort; CPU fallback), and expose ONNX provider info in adapter metadata for debugging.
+- OmniVoice (clone streaming): reduce click/scratch artifacts when stitching chunks by applying short edge fades and enforcing a small peak headroom.
 
 ## [0.7.0] - 2026-04-06
 
