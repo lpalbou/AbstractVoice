@@ -172,9 +172,10 @@ class OmniVoiceVoiceCloningEngine:
 
         sr_out = int(runtime.get_sample_rate())
         try:
-            from ..audio.fade import apply_edge_fades
+            from ..audio.fade import apply_edge_fades, ensure_headroom
         except Exception:
             apply_edge_fades = None  # type: ignore[assignment]
+            ensure_headroom = None  # type: ignore[assignment]
 
         for i, chunk_text in enumerate(chunks):
             audios = model.generate(
@@ -210,6 +211,11 @@ class OmniVoiceVoiceCloningEngine:
                         fade_in=True,
                         fade_out=bool(i < (len(chunks) - 1)),
                     )
+                except Exception:
+                    pass
+            if ensure_headroom is not None:
+                try:
+                    mono = ensure_headroom(mono, headroom=0.98)
                 except Exception:
                     pass
             yield mono, int(sr_out)
