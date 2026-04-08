@@ -31,6 +31,9 @@ Notes:
 
 - Type a short message to the assistant (it will call your configured LLM endpoint).
 - Or use `/speak <text>` to test TTS without calling the LLM.
+- For low time-to-first-voice (LLM streaming → TTS streaming), try:
+  - `/tts_delivery streamed`
+  - `/llm_stream on`
 - Use:
   - `/pause`
   - `/resume`
@@ -73,6 +76,7 @@ python -m abstractvoice download --piper de
 Engine knobs (base TTS):
 
 - `/tts_quality low|standard|high` (best-effort speed/quality preset; aliases: `fast`→`low`, `balanced`→`standard`)
+- `/tts_delivery buffered|streamed` (audio delivery mode; streamed enqueues chunks progressively when supported)
 - `/speed 0.9` / `/speed 1.1` (native for OmniVoice; AudioDiT ignores speed)
 - `/profile list` / `/profile reload` / `/profile show` / `/profile <id>` (voice profiles for the active base TTS engine)
 - OmniVoice-specific parameters + voice design: `/omnivoice` (prints current params + examples)

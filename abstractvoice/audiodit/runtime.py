@@ -20,7 +20,6 @@ from ..compute import best_torch_device
 
 _RE_QUOTE = re.compile(r"""["“”‘’]""")
 _RE_WS = re.compile(r"\s+")
-_RE_SENT_END = re.compile(r"(?<=[\.\!\?\。\！\？])\s+")
 _RE_YEAR_EN = re.compile(r"\b(19\d{2}|20\d{2})\b")
 _RE_NUM_EN = re.compile(r"\b\d+\b")
 
@@ -185,47 +184,9 @@ def _approx_duration_from_text(text: str, *, max_duration: float) -> float:
 
 def _split_text_batches(text: str, *, max_chars: int = 240) -> list[str]:
     """Split text into short batches, preferring sentence boundaries."""
-    s = " ".join(str(text or "").replace("\n", " ").split()).strip()
-    if not s:
-        return []
-    if len(s) <= max_chars:
-        return [s]
+    from ..tts.text_chunking import split_text_batches
 
-    # Split on common sentence terminators (keep it simple + multilingual).
-    parts = re.split(_RE_SENT_END, s)
-    out: list[str] = []
-    cur = ""
-    for p in parts:
-        p = p.strip()
-        if not p:
-            continue
-        if len(p) > max_chars:
-            # Fallback: word-based chunking for very long sentences.
-            words = p.split(" ")
-            tmp = ""
-            for w in words:
-                cand = (tmp + " " + w).strip()
-                if len(cand) <= max_chars:
-                    tmp = cand
-                else:
-                    if tmp:
-                        out.append(tmp)
-                    tmp = w
-            if tmp:
-                out.append(tmp)
-            cur = ""
-            continue
-
-        cand = (cur + " " + p).strip()
-        if len(cand) <= max_chars:
-            cur = cand
-        else:
-            if cur:
-                out.append(cur)
-            cur = p
-    if cur:
-        out.append(cur)
-    return out
+    return split_text_batches(str(text or ""), max_chars=int(max_chars))
 
 
 def _audio_metrics(mono: np.ndarray, *, sample_rate: int) -> dict[str, float]:

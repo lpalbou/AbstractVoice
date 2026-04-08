@@ -5,7 +5,7 @@ must implement, ensuring consistent API across different backends.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, Iterable, Tuple
 import numpy as np
 import io
 
@@ -31,6 +31,34 @@ class TTSAdapter(ABC):
             Audio data as numpy array (shape: [samples,], dtype: float32, range: -1.0 to 1.0)
         """
         pass
+
+    # ---------------------------------------------------------------------
+    # Optional chunked synthesis (delivery streaming)
+    # ---------------------------------------------------------------------
+
+    def synthesize_to_audio_chunks(self, text: str) -> Iterable[Tuple[np.ndarray, int]]:
+        """Best-effort chunked synthesis.
+
+        Returns an iterable of `(audio_chunk, sample_rate)` tuples. Engines with
+        native chunked output (e.g. Piper) can override this to stream audio
+        incrementally. Engines without native chunking should fall back to a
+        single full chunk (default implementation).
+        """
+        audio = self.synthesize(str(text))
+        try:
+            sr = int(self.get_sample_rate())
+        except Exception:
+            sr = 0
+        yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr or 0)
+
+    def get_max_chars(self) -> int:
+        """Suggested max characters per text segment for streamed delivery.
+
+        Engines may override this to trade off:
+        - time-to-first-audio (smaller segments)
+        - continuity/efficiency (larger segments)
+        """
+        return 240
     
     @abstractmethod
     def synthesize_to_bytes(self, text: str, format: str = 'wav') -> bytes:

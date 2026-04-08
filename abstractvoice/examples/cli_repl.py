@@ -120,6 +120,9 @@ class VoiceREPL(cmd.Cmd):
         self.model = model or DEFAULT_MODEL
         self.temperature = 0.4
         self.max_tokens = 4096
+        # When enabled, request OpenAI-compatible streaming responses and allow
+        # low-latency "LLM stream -> TTS stream" pipelining.
+        self.llm_streaming = False
 
         # Language settings
         self.current_language = language
@@ -549,12 +552,21 @@ class VoiceREPL(cmd.Cmd):
                     synth_s = tts.get("synth_s")
                     audio_s = tts.get("audio_s")
                     rtf = tts.get("rtf")
-                    tts_txt = f"TTS {label} {self._fmt_s(synth_s)}→{self._fmt_s(audio_s)}"
+                    mode = None
+                    try:
+                        if tts.get("streaming") is True:
+                            mode = "stream"
+                        elif tts.get("streaming") is False:
+                            mode = "buf"
+                    except Exception:
+                        mode = None
+                    mode_txt = f"{mode} " if mode else ""
+                    tts_txt = f"TTS {label} {mode_txt}{self._fmt_s(synth_s)}→{self._fmt_s(audio_s)}"
                     if rtf is not None:
                         tts_txt += f" rtf{self._fmt_num(rtf, digits=2)}"
 
-                    # Extra clone streaming details when available.
-                    if eng == "clone" and bool(tts.get("streaming")):
+                    # Extra streaming details when available.
+                    if bool(tts.get("streaming")):
                         ttfb_s = tts.get("ttfb_s")
                         if ttfb_s is not None:
                             tts_txt += f" ttfb{self._fmt_s(ttfb_s)}"
@@ -774,45 +786,183 @@ class VoiceREPL(cmd.Cmd):
                 payload = {
                     "model": self.model,
                     "messages": messages_for_call,
-                    "stream": False,
+                    "stream": bool(getattr(self, "llm_streaming", False)),
                     "temperature": self.temperature,
                     "max_tokens": self.max_tokens,
                 }
 
                 llm_t0 = time.monotonic()
-                response = requests.post(
-                    self.provider.chat_url,
-                    json=payload,
-                    # Avoid indefinite hangs if the server stalls.
-                    timeout=(5.0, 600.0),
-                )
-                response.raise_for_status()
+                api_llm_metrics = {}
+                response_text = ""
+                tts_pipelined = False
 
-                try:
-                    response_data = response.json()
-                    api_llm_metrics = {}
+                if not bool(payload.get("stream")):
+                    response = requests.post(
+                        self.provider.chat_url,
+                        json=payload,
+                        # Avoid indefinite hangs if the server stalls.
+                        timeout=(5.0, 600.0),
+                    )
+                    response.raise_for_status()
 
-                    # OpenAI-compat usage (prompt_tokens, completion_tokens).
-                    usage = response_data.get("usage")
-                    if isinstance(usage, dict):
-                        api_llm_metrics["prompt_tokens"] = usage.get("prompt_tokens")
-                        api_llm_metrics["completion_tokens"] = usage.get("completion_tokens")
+                    try:
+                        response_data = response.json()
 
-                    # OpenAI-compat response format.
-                    choices = response_data.get("choices")
-                    if isinstance(choices, list) and len(choices) > 0:
-                        response_text = str(choices[0]["message"]["content"] or "").strip()
-                    elif "message" in response_data and "content" in response_data["message"]:
-                        # Ollama native fallback (if someone passes a raw /api/chat URL).
-                        response_text = str(response_data["message"]["content"] or "").strip()
-                    else:
-                        response_text = str(response_data).strip()
+                        # OpenAI-compat usage (prompt_tokens, completion_tokens).
+                        usage = response_data.get("usage")
+                        if isinstance(usage, dict):
+                            api_llm_metrics["prompt_tokens"] = usage.get("prompt_tokens")
+                            api_llm_metrics["completion_tokens"] = usage.get("completion_tokens")
 
-                except Exception as e:
-                    if self.debug_mode:
-                        print(f"Error parsing JSON response: {e}")
-                    response_text = response.text.strip()
-                    api_llm_metrics = {}
+                        # OpenAI-compat response format.
+                        choices = response_data.get("choices")
+                        if isinstance(choices, list) and len(choices) > 0:
+                            response_text = str(choices[0]["message"]["content"] or "").strip()
+                        elif "message" in response_data and "content" in response_data["message"]:
+                            # Ollama native fallback (if someone passes a raw /api/chat URL).
+                            response_text = str(response_data["message"]["content"] or "").strip()
+                        else:
+                            response_text = str(response_data).strip()
+
+                    except Exception as e:
+                        if self.debug_mode:
+                            print(f"Error parsing JSON response: {e}")
+                        response_text = response.text.strip()
+                        api_llm_metrics = {}
+                else:
+                    # Stream OpenAI-compatible deltas and optionally pipe into streamed TTS.
+                    response = requests.post(
+                        self.provider.chat_url,
+                        json=payload,
+                        stream=True,
+                        # Avoid indefinite hangs if the server stalls.
+                        timeout=(5.0, 600.0),
+                    )
+                    response.raise_for_status()
+
+                    response_parts: list[str] = []
+                    in_think = False
+
+                    tts_stream = None
+                    try:
+                        if self.voice_manager and self.use_tts:
+                            try:
+                                # UX guard: never trigger big cloning downloads during normal chat.
+                                if self.current_tts_voice and not self._is_cloning_runtime_ready(voice_id=self.current_tts_voice):
+                                    print(
+                                        "ℹ️  Cloned voice selected but cloning runtime is not ready.\n"
+                                        "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
+                                    )
+                                else:
+                                    # Only stream voice when delivery mode is streamed for the active voice type.
+                                    modes = self.voice_manager.get_tts_delivery_modes()
+                                    effective = modes.get("clone") if self.current_tts_voice else modes.get("base")
+                                    if str(effective) == "streamed":
+                                        tts_stream = self.voice_manager.open_tts_text_stream(voice=self.current_tts_voice)
+                                        tts_pipelined = bool(tts_stream is not None)
+                            except Exception:
+                                tts_stream = None
+
+                        # Print in cyan while streaming.
+                        try:
+                            sys.stdout.write(Colors.CYAN)
+                            sys.stdout.flush()
+                        except Exception:
+                            pass
+
+                        def _filter_think_delta(delta: str) -> str:
+                            nonlocal in_think
+                            s = str(delta or "")
+                            out = ""
+                            while s:
+                                if not in_think:
+                                    i = s.find("<think>")
+                                    if i < 0:
+                                        out += s
+                                        s = ""
+                                    else:
+                                        out += s[:i]
+                                        s = s[i + len("<think>") :]
+                                        in_think = True
+                                else:
+                                    j = s.find("</think>")
+                                    if j < 0:
+                                        s = ""
+                                    else:
+                                        s = s[j + len("</think>") :]
+                                        in_think = False
+                            return out
+
+                        for raw_line in response.iter_lines(decode_unicode=True):
+                            if raw_line is None:
+                                continue
+                            line = str(raw_line).strip()
+                            if not line:
+                                continue
+                            if not line.startswith("data:"):
+                                continue
+                            data = line[len("data:") :].strip()
+                            if not data:
+                                continue
+                            if data == "[DONE]":
+                                break
+                            try:
+                                event = json.loads(data)
+                            except Exception:
+                                continue
+
+                            delta_txt = ""
+                            try:
+                                choices = event.get("choices")
+                                if isinstance(choices, list) and choices:
+                                    c0 = choices[0] if isinstance(choices[0], dict) else {}
+                                    delta = c0.get("delta") if isinstance(c0, dict) else None
+                                    if isinstance(delta, dict):
+                                        delta_txt = str(delta.get("content") or "")
+                                    else:
+                                        # Some providers send `message` chunks; best-effort.
+                                        msg = c0.get("message") if isinstance(c0, dict) else None
+                                        if isinstance(msg, dict):
+                                            delta_txt = str(msg.get("content") or "")
+                            except Exception:
+                                delta_txt = ""
+
+                            if not delta_txt:
+                                continue
+
+                            clean = _filter_think_delta(delta_txt)
+                            if not clean:
+                                continue
+
+                            response_parts.append(clean)
+                            try:
+                                sys.stdout.write(clean)
+                                sys.stdout.flush()
+                            except Exception:
+                                pass
+
+                            if tts_stream is not None:
+                                try:
+                                    tts_stream.push(clean)
+                                except Exception:
+                                    pass
+                    finally:
+                        try:
+                            sys.stdout.write(Colors.END + "\n")
+                            sys.stdout.flush()
+                        except Exception:
+                            pass
+                        try:
+                            if tts_stream is not None:
+                                tts_stream.close()
+                        except Exception:
+                            pass
+                        try:
+                            response.close()
+                        except Exception:
+                            pass
+
+                    response_text = "".join(response_parts).strip()
 
                 # Discard any `<think>...</think>` blocks (chain-of-thought) before displaying
                 # or speaking the response.
@@ -832,8 +982,9 @@ class VoiceREPL(cmd.Cmd):
                 user_tokens = self._count_tokens(query, "user")
                 assistant_tokens = self._count_tokens(response_text, "assistant")
 
-                # Display the response with color
-                print(f"{Colors.CYAN}{response_text}{Colors.END}")
+                # Display the response with color (unless we already streamed it).
+                if not bool(payload.get("stream")):
+                    print(f"{Colors.CYAN}{response_text}{Colors.END}")
 
                 # Record last-turn stats (best-effort; printed only in verbose mode).
                 self._last_turn_metrics = {
@@ -856,8 +1007,8 @@ class VoiceREPL(cmd.Cmd):
                 except Exception:
                     pass
 
-                # Speak the response if voice manager is available
-                if self.voice_manager and self.use_tts:
+                # Speak the response if voice manager is available (unless pipelined).
+                if self.voice_manager and self.use_tts and not bool(tts_pipelined):
                     try:
                         # UX guard: never trigger big cloning downloads during normal chat.
                         if self.current_tts_voice and not self._is_cloning_runtime_ready(voice_id=self.current_tts_voice):
@@ -1618,6 +1769,46 @@ class VoiceREPL(cmd.Cmd):
         except ValueError:
             print("Usage: /speed <number>  (e.g., /speed 1.5)")
 
+    def do_tts_delivery(self, arg):
+        """Set TTS delivery mode: buffered|streamed.
+
+        - buffered: synthesize full audio first (smooth playback)
+        - streamed: enqueue audio chunks progressively (lower time-to-first-audio when supported)
+
+        Applies to both base TTS and cloned voices.
+        """
+        if not self.voice_manager:
+            print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
+            return
+
+        s = str(arg or "").strip().lower()
+        if not s:
+            try:
+                modes = self.voice_manager.get_tts_delivery_modes()
+                cur = self.voice_manager.get_tts_delivery_mode()
+                ov = modes.get("override") or "--"
+                print(f"TTS delivery: {cur} (base={modes.get('base')}, clone={modes.get('clone')}, override={ov})")
+            except Exception:
+                print("TTS delivery: --")
+            print("Usage: /tts_delivery buffered|streamed")
+            return
+
+        try:
+            ok = bool(self.voice_manager.set_tts_delivery_mode(s))
+        except Exception as e:
+            print(f"❌ Failed to set delivery mode: {e}")
+            print("Usage: /tts_delivery buffered|streamed")
+            return
+
+        if ok:
+            try:
+                cur = self.voice_manager.get_tts_delivery_mode()
+            except Exception:
+                cur = s
+            print(f"✅ TTS delivery: {cur}")
+        else:
+            print("❌ Failed to set delivery mode.")
+
     def do_tts_quality(self, arg):
         """Set TTS quality preset (low|standard|high).
 
@@ -2046,8 +2237,11 @@ class VoiceREPL(cmd.Cmd):
     def _debug_speak_and_save_wav(self, text: str, *, voice_id: str | None) -> None:
         """Synthesize to a WAV file, print its path, then play it.
 
-        This intentionally uses the non-streaming `speak_to_file` path so the
-        saved file exactly matches what is played.
+        In buffered delivery mode, we use the non-streaming `speak_to_file` path
+        so the saved file exactly matches what is played.
+
+        In streamed delivery mode, we synthesize and enqueue audio chunks while
+        also capturing them into a single WAV on disk (written at the end).
         """
         if not self.voice_manager:
             return
@@ -2101,7 +2295,89 @@ class VoiceREPL(cmd.Cmd):
                     alt = alt[: max(1, max_name - len(out_path.suffix))].rstrip("_-.") + out_path.suffix
                 out_path = out_dir / alt
 
-            # Synthesize to disk first so we can print a stable path.
+            # Decide whether to capture via streaming or buffered generation.
+            effective = "buffered"
+            try:
+                modes = self.voice_manager.get_tts_delivery_modes()
+                effective = str(modes.get("clone") if voice_id else modes.get("base") or "buffered")
+            except Exception:
+                effective = "buffered"
+
+            if effective == "streamed":
+                from abstractvoice.audio.resample import linear_resample_mono
+
+                # Stream synthesis -> playback, and also capture into a single WAV.
+                try:
+                    self.voice_manager.stop_speaking()
+                except Exception:
+                    pass
+
+                print(f"🔎 WAV: {out_path}")
+                print("📡 Delivery: streamed")
+                t0 = time.monotonic()
+
+                te = getattr(self.voice_manager, "tts_engine", None)
+                parts: list[np.ndarray] = []
+                sr0: int | None = None
+                started = False
+                first_audio_s: float | None = None
+                n_chunks = 0
+
+                for chunk, sr in self.voice_manager.speak_to_audio_chunks(str(text), voice=str(voice_id) if voice_id else None):
+                    mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
+                    if mono.size <= 0:
+                        continue
+                    if first_audio_s is None:
+                        first_audio_s = float(time.monotonic() - t0)
+                    n_chunks += 1
+                    try:
+                        sr_i = int(sr) if sr else 0
+                    except Exception:
+                        sr_i = 0
+                    if sr0 is None:
+                        sr0 = int(sr_i) if sr_i > 0 else None
+                        if sr0 is None:
+                            try:
+                                ap = getattr(te, "audio_player", None) if te is not None else None
+                                sr0 = int(getattr(ap, "sample_rate", 24000) or 24000)
+                            except Exception:
+                                sr0 = 24000
+                    if sr_i <= 0:
+                        sr_i = int(sr0 or 24000)
+                    if int(sr_i) != int(sr0 or sr_i):
+                        mono = linear_resample_mono(mono, int(sr_i), int(sr0 or sr_i))
+
+                    if not started and te is not None and hasattr(te, "begin_playback") and hasattr(te, "enqueue_audio"):
+                        started = True
+                        try:
+                            te.begin_playback(sample_rate=int(sr0 or 24000))
+                        except Exception:
+                            pass
+
+                    if te is not None and hasattr(te, "enqueue_audio"):
+                        try:
+                            te.enqueue_audio(mono, sample_rate=int(sr0 or 24000))
+                        except TypeError:
+                            te.enqueue_audio(mono)
+                    elif te is not None and getattr(te, "audio_player", None) is not None:
+                        te.audio_player.play_audio(mono, sample_rate=int(sr0 or 24000))
+
+                    parts.append(mono)
+
+                if sr0 is None:
+                    sr0 = 24000
+                full = np.concatenate(parts) if parts else np.zeros((0,), dtype=np.float32)
+                sf.write(str(out_path), full, int(sr0), subtype="PCM_16")
+
+                gen_s = float(time.monotonic() - t0)
+                self._last_debug_wav_path = str(out_path)
+                extra = ""
+                if first_audio_s is not None:
+                    extra = f" (first audio {first_audio_s:0.2f}s, ch{int(n_chunks)})"
+                print(f"⏱️  Finished in: {gen_s:0.2f}s{extra}")
+                return
+
+            # Buffered path: synthesize to disk first so we can print a stable path.
             try:
                 self.voice_manager.stop_speaking()
             except Exception:
@@ -2116,7 +2392,8 @@ class VoiceREPL(cmd.Cmd):
             gen_s = float(time.monotonic() - t0)
             self._last_debug_wav_path = str(wav_path)
             print(f"🔎 WAV: {wav_path}")
-            print(f"⏱️  Generated in: {gen_s:0.2f}s")
+            print("📦 Delivery: buffered")
+            print(f"⏱️  Generated in: {gen_s:0.2f}s (audio starts after generation completes)")
 
             # Play what we just generated (so what you hear matches the saved file).
             audio, sr = sf.read(str(wav_path), dtype="float32", always_2d=True)
@@ -4353,6 +4630,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /tts on|off            Toggle TTS playback")
         print("  /tts_engine <engine>   Switch TTS engine: auto|piper|audiodit|omnivoice")
         print("  /tts_quality <preset>  Base TTS quality preset: low|standard|high")
+        print("  /tts_delivery <mode>   Delivery mode: buffered|streamed")
         print("  /profile ...           Voice profiles for the active TTS engine: list|show|<id>")
         print("  /omnivoice ...         OmniVoice voice design + parameters (only when OmniVoice is active)")
         print("  /language <code>       Switch language (Piper: en/fr/de/es/ru/zh; OmniVoice: many ISO codes)")
@@ -4390,6 +4668,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /provider [name|url]   Show/switch provider (ollama, lmstudio, or URL)")
         print("  /models                List models on provider")
         print("  /model <name>          Switch model")
+        print("  /llm_stream on|off     Stream LLM output deltas (enables voice pipelining)")
         print("  /system <prompt>       Set system prompt")
         print("  /temperature <val>     Sampling temperature")
         print("  /max_tokens <n>        Max tokens")
@@ -4685,6 +4964,23 @@ class VoiceREPL(cmd.Cmd):
         old_model = self.model
         self.model = model_name
         print(f"Model changed: {old_model} → {model_name}")
+
+    def do_llm_stream(self, arg: str):
+        """Toggle OpenAI-compatible streaming responses (LLM)."""
+        s = str(arg or "").strip().lower()
+        if not s:
+            print(f"LLM streaming: {'on' if bool(getattr(self, 'llm_streaming', False)) else 'off'}")
+            print("Usage: /llm_stream on|off")
+            return
+        if s in ("on", "true", "1", "yes", "y"):
+            self.llm_streaming = True
+            print("✅ LLM streaming: on")
+            return
+        if s in ("off", "false", "0", "no", "n"):
+            self.llm_streaming = False
+            print("✅ LLM streaming: off")
+            return
+        print("Usage: /llm_stream on|off")
 
     def do_temperature(self, arg):
         """Set the temperature parameter for the LLM."""

@@ -38,6 +38,7 @@ VoiceManager(
     allow_downloads: bool = True,
     cloned_tts_streaming: bool = True,
     cloning_engine: str = "f5_tts",
+    tts_delivery_mode: str | None = None,  # buffered|streamed (override)
 )
 ```
 
@@ -51,6 +52,9 @@ Notes:
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
 - `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[stt]`; see `abstractvoice/vm/stt_mixin.py`).
 - `tts_model` is reserved/back-compat (Piper selection is language-driven today).
+- `tts_delivery_mode` is an optional override that applies consistently to both base TTS and cloned voices:
+  - `buffered`: synthesize full audio first (one payload)
+  - `streamed`: deliver audio in chunks when available (lower time-to-first-audio)
 
 Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
 For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through hint and the engine decides what it supports.
@@ -87,8 +91,22 @@ For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through 
 - `is_speaking() -> bool`, `is_paused() -> bool`
   - Playback state helpers.
 
+- `set_tts_delivery_mode(mode: str | None) -> bool`, `get_tts_delivery_mode() -> str`, `get_tts_delivery_modes() -> dict`
+  - Toggle buffered vs streamed delivery (applies to both base TTS and cloned voices).
+  - **Behavior note**: streamed delivery is implemented as a pipeline:
+    - **text** is chunked into short segments (sentence-first),
+    - then each segment is synthesized and enqueued as soon as possible.
+    - Engines that can stream audio natively may further reduce TTFB by yielding multiple audio chunks per segment.
+
 - `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, sanitize_syntax: bool = True) -> bytes`
   - Headless/server‑friendly: returns encoded audio bytes.
+
+- `speak_to_audio_chunks(text: str, *, voice: str | None = None, sanitize_syntax: bool = True) -> Iterator[tuple[np.ndarray, int]]`
+  - Headless/server‑friendly: yields `(audio_chunk, sample_rate)` tuples for incremental delivery.
+
+- `open_tts_text_stream(*, voice: str | None = None, callback=None, sanitize_syntax: bool = True, max_chars: int | None = None, min_chars: int | None = None) -> TextToSpeechStream`
+  - Push-based streaming bridge for **LLM streaming → TTS streaming** pipelining.
+  - Returned object supports: `.push(delta)`, `.close()`, `.cancel()`, `.join(timeout=...)`.
 
 - `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, sanitize_syntax: bool = True) -> str`
   - Writes an audio file and returns the path.

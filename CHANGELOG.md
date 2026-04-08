@@ -15,6 +15,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Voice profiles: cross-engine `VoiceProfile` abstraction with `VoiceManager.get_profiles/set_profile/get_active_profile`, REPL `/profile ...`, and an initial OmniVoice demo preset pack (`omnivoice_profiles.json`) to validate the interface.
 - OmniVoice: “fast persistent profiles” via cached prompt tokens — profiles can build and store a tokenized reference prompt (`voice_clone_prompt`) once, then reuse it for stable voice identity without re-encoding the prompt on each utterance.
 - Voice cloning: `clone_voice_from_wav_bytes(...)` API (upload/bytes-friendly) and improved REPL mic workflow via `/clone myvoice` (SPACE start/stop; `myvoice` keyword). (`/clone_my_voice` remains as a backward-compatible alias.)
+- TTS streaming delivery: unified buffered vs streamed delivery mode across base TTS and cloned voices (`tts_delivery_mode` override). Streamed delivery always chunks **text** (sentence-first) so any engine can produce audio incrementally; engines with native audio chunking can further reduce TTFB. Added `speak_to_audio_chunks(...)` and push-based `open_tts_text_stream(...)` (LLM streaming → TTS pipelining), REPL `/tts_delivery` + `/llm_stream`, and AbstractCore plugin config support (`voice_tts_delivery_mode` / `voice_tts_streaming`).
 
 ### Changed
 - Quality presets: `/tts_quality` and `/clone_quality` now use `low|standard|high` (aliases: `fast`→`low`, `balanced`→`standard`). For OmniVoice, the base/cloning `num_step` mapping is now `8/12/24`.
