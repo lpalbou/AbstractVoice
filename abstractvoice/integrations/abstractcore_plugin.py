@@ -56,6 +56,7 @@ class _BaseVoice:
         whisper_model = "base"
         cloning_engine = "f5_tts"
         cloned_tts_streaming = True
+        tts_delivery_mode = None
         debug_mode = False
         try:
             cfg = getattr(self._owner, "config", None)
@@ -74,6 +75,25 @@ class _BaseVoice:
                     cloning_engine = str(cfg["voice_cloning_engine"]).strip().lower()
                 if "voice_cloned_tts_streaming" in cfg:
                     cloned_tts_streaming = bool(cfg.get("voice_cloned_tts_streaming"))
+                # Unified override for delivery mode (applies to base + clone).
+                # Accept either a mode string (buffered|streamed) or a bool-ish flag.
+                if "voice_tts_delivery_mode" in cfg:
+                    raw = cfg.get("voice_tts_delivery_mode")
+                    if raw is not None and str(raw).strip():
+                        try:
+                            from ..tts.delivery_mode import normalize_audio_delivery_mode
+
+                            tts_delivery_mode = normalize_audio_delivery_mode(str(raw))
+                        except Exception:
+                            tts_delivery_mode = None
+                elif "voice_tts_streaming" in cfg:
+                    raw = cfg.get("voice_tts_streaming")
+                    try:
+                        from ..tts.delivery_mode import normalize_audio_delivery_mode
+
+                        tts_delivery_mode = normalize_audio_delivery_mode(bool(raw))
+                    except Exception:
+                        tts_delivery_mode = None
                 if "voice_debug_mode" in cfg:
                     debug_mode = bool(cfg.get("voice_debug_mode"))
         except Exception:
@@ -87,6 +107,7 @@ class _BaseVoice:
             str(whisper_model),
             str(cloning_engine),
             bool(cloned_tts_streaming),
+            str(tts_delivery_mode) if tts_delivery_mode else "",
             bool(debug_mode),
         )
 
@@ -102,6 +123,7 @@ class _BaseVoice:
                     whisper_model=str(whisper_model),
                     cloning_engine=str(cloning_engine),
                     cloned_tts_streaming=bool(cloned_tts_streaming),
+                    tts_delivery_mode=str(tts_delivery_mode) if tts_delivery_mode else None,
                 )
                 _VM_CACHE[key] = cached
                 _VM_LOCKS[cached] = threading.Lock()

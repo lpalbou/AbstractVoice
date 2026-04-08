@@ -224,6 +224,60 @@ class TtsMixin:
             return None
         return None
 
+    # ------------------------------------------------------------------
+    # Audio delivery mode (buffered vs streamed)
+    # ------------------------------------------------------------------
+
+    def set_tts_delivery_mode(self, mode: str | None) -> bool:
+        """Set audio delivery mode for both base TTS and cloned voices.
+
+        - buffered: synthesize full audio first (smooth playback)
+        - streamed: enqueue audio chunks progressively when available (lower TTFB)
+
+        This is an override. When set, it supersedes legacy `cloned_tts_streaming`.
+        """
+        if mode is None:
+            setattr(self, "tts_delivery_mode", None)
+            return True
+        from ..tts.delivery_mode import normalize_audio_delivery_mode
+
+        m = normalize_audio_delivery_mode(mode)
+        setattr(self, "tts_delivery_mode", str(m))
+        # Keep legacy clone toggle aligned for back-compat introspection.
+        try:
+            setattr(self, "cloned_tts_streaming", bool(m == "streamed"))
+        except Exception:
+            pass
+        return True
+
+    def get_tts_delivery_modes(self) -> dict:
+        """Return effective delivery modes (base vs clone) for debugging/UX."""
+        override = None
+        try:
+            override = getattr(self, "tts_delivery_mode", None)
+        except Exception:
+            override = None
+        override = str(override).strip().lower() if override else None
+
+        # Base TTS defaults to buffered when no override is set.
+        base_mode = "streamed" if override == "streamed" else "buffered"
+
+        clone_streaming = bool(getattr(self, "cloned_tts_streaming", True))
+        if override in ("buffered", "streamed"):
+            clone_streaming = bool(override == "streamed")
+        clone_mode = "streamed" if clone_streaming else "buffered"
+
+        return {"override": override, "base": base_mode, "clone": clone_mode}
+
+    def get_tts_delivery_mode(self) -> str:
+        """Return a single summary string (buffered|streamed|mixed)."""
+        modes = self.get_tts_delivery_modes()
+        b = str(modes.get("base") or "")
+        c = str(modes.get("clone") or "")
+        if b == c and b in ("buffered", "streamed"):
+            return b
+        return "mixed"
+
     def get_cloning_runtime_info(self):
         return self._get_voice_cloner().get_runtime_info()
 
@@ -289,6 +343,47 @@ class TtsMixin:
         if _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax):
             speak_text = sanitize_markdown_for_speech(speak_text)
 
+        # ------------------------------------------------------------------
+        # Delivery-mode override: streamed vs buffered (engine-agnostic)
+        # ------------------------------------------------------------------
+        # When `tts_delivery_mode` is set, we apply it consistently to:
+        # - base TTS playback (where supported)
+        # - cloned voice playback (overrides legacy `cloned_tts_streaming`)
+        delivery_mode = None
+        try:
+            delivery_mode = getattr(self, "tts_delivery_mode", None)
+        except Exception:
+            delivery_mode = None
+        delivery_mode = str(delivery_mode).strip().lower() if delivery_mode else None
+
+        # ------------------------------------------------------------------
+        # Base TTS: optional streamed delivery (chunked playback)
+        # ------------------------------------------------------------------
+        if not voice and delivery_mode == "streamed":
+            # Speed control for base TTS often uses post-processing time-stretch
+            # on the *full* waveform. Doing that per-chunk can introduce artifacts.
+            # If speed is requested, keep the robust buffered path for now.
+            try:
+                sp_f = float(sp or 1.0)
+            except Exception:
+                sp_f = 1.0
+
+            if sp_f == 1.0:
+                # Delegate to the shared streaming bridge so stop/pause/metrics and
+                # LLM→TTS pipelining share one implementation.
+                try:
+                    stream = self.open_tts_text_stream(
+                        voice=None,
+                        callback=callback,
+                        sanitize_syntax=False,  # `speak_text` already reflects sanitize_syntax.
+                    )
+                    stream.push(str(speak_text))
+                    stream.close()
+                    return True
+                except Exception:
+                    # Fall back to buffered speak() below.
+                    pass
+
         # Optional cloned voice playback:
         # - stream chunks to the player for better perceived latency
         # - support cancellation on stop_speaking() / new input (best-effort)
@@ -338,7 +433,11 @@ class TtsMixin:
                             pass
 
                     # Option: generate full audio first (smooth playback) vs streaming (faster TTFB).
-                    if not bool(getattr(self, "cloned_tts_streaming", True)):
+                    clone_streaming = bool(getattr(self, "cloned_tts_streaming", True))
+                    if delivery_mode in ("buffered", "streamed"):
+                        clone_streaming = bool(delivery_mode == "streamed")
+
+                    if not bool(clone_streaming):
                         import io
                         import soundfile as sf
 
@@ -403,7 +502,10 @@ class TtsMixin:
                         str(speak_text),
                         voice_id=voice,
                         speed=sp,
-                        max_chars=240,
+                        # Smaller batches reduce time-to-first-audio.
+                        # When streaming is enabled via `tts_delivery_mode`, prefer more
+                        # frequent phrase breaks even within a single long sentence.
+                        max_chars=(120 if str(delivery_mode or "") == "streamed" else 240),
                         language=str(getattr(self, "language", None) or "en"),
                     )
 
@@ -498,6 +600,313 @@ class TtsMixin:
         return ok
 
     # Network/headless-friendly methods
+    def speak_to_audio_chunks(
+        self,
+        text: str,
+        *,
+        voice: str | None = None,
+        sanitize_syntax: bool = True,
+        saninitze_syntax: bool | None = None,
+    ):
+        """Synthesize to an iterator of `(audio_chunk, sample_rate)` tuples.
+
+        This is the engine-agnostic streaming surface for integrations that want
+        incremental delivery (e.g. future HTTP chunked/streaming endpoints).
+
+        Notes:
+        - For base TTS, engines may yield a single chunk (buffered synthesis).
+        - For cloned voices, chunking is implemented by cloning engines and is
+          typically sentence/punctuation batch based.
+        """
+        # Clear prior metrics for this new utterance (best-effort; populated on completion).
+        self._set_last_tts_metrics(None)
+
+        speak_text = str(text)
+        if _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax):
+            speak_text = sanitize_markdown_for_speech(speak_text)
+
+        if voice:
+            cloner = self._get_voice_cloner()
+
+            clone_engine_name = None
+            try:
+                info = cloner.get_cloned_voice(str(voice)) or {}
+                clone_engine_name = str(info.get("engine") or "").strip().lower() or None
+            except Exception:
+                clone_engine_name = None
+
+            def _gen_clone():
+                import numpy as np
+
+                t0 = time.monotonic()
+                first_chunk_t = None
+                chunks = 0
+                total_audio_s = 0.0
+                try:
+                    for chunk, sr in cloner.speak_to_audio_chunks(
+                        str(speak_text),
+                        voice_id=str(voice),
+                        speed=float(getattr(self, "speed", 1.0) or 1.0),
+                        max_chars=120,
+                        language=str(getattr(self, "language", None) or "en"),
+                    ):
+                        mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
+                        if mono.size <= 0:
+                            continue
+                        sr_i = int(sr) if sr else 0
+                        if sr_i > 0:
+                            total_audio_s += float(len(mono)) / float(sr_i)
+                        chunks += 1
+                        if first_chunk_t is None:
+                            first_chunk_t = time.monotonic()
+                        yield mono, int(sr_i)
+                finally:
+                    t1 = time.monotonic()
+                    synth_s = float(t1 - t0)
+                    ttfb_s = float(first_chunk_t - t0) if first_chunk_t is not None else None
+                    metrics = {
+                        "engine": "clone",
+                        "clone_engine": clone_engine_name,
+                        "voice_id": str(voice),
+                        "streaming": True,
+                        "synth_s": synth_s,
+                        "ttfb_s": ttfb_s,
+                        "audio_s": float(total_audio_s),
+                        "rtf": (synth_s / float(total_audio_s)) if total_audio_s else None,
+                        "chunks": int(chunks),
+                        "language": str(getattr(self, "language", None) or "en"),
+                        "speed": float(getattr(self, "speed", 1.0) or 1.0),
+                        "ts": time.time(),
+                    }
+                    self._set_last_tts_metrics(metrics)
+
+            return _gen_clone()
+
+        # Base TTS chunks (best-effort).
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None or (hasattr(adapter, "is_available") and not bool(adapter.is_available())):
+            raise RuntimeError("No TTS adapter available")
+
+        engine_id = ""
+        try:
+            engine_id = str(getattr(adapter, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine_id = ""
+        engine_id = engine_id or "tts"
+
+        def _gen_base():
+            import numpy as np
+
+            t0 = time.monotonic()
+            first_chunk_t = None
+            chunks = 0
+            total_audio_s = 0.0
+            try:
+                from ..tts.text_chunking import TextStreamChunker, TextStreamChunkingConfig
+
+                try:
+                    max_chars = int(getattr(adapter, "get_max_chars", lambda: 240)() or 240)
+                except Exception:
+                    max_chars = 240
+                if not (int(max_chars) > 0):
+                    max_chars = 240
+
+                # Streaming-friendly segmentation (commas + sentence ends + hard cap).
+                chunker = TextStreamChunker(config=TextStreamChunkingConfig(max_chars=int(max_chars), min_chars=1))
+                segments = chunker.push(str(speak_text)) + chunker.flush()
+                if not segments:
+                    segments = [str(speak_text)]
+                for seg_text in segments:
+                    seg_text = str(seg_text or "").strip()
+                    if not seg_text:
+                        continue
+                    for chunk, sr in adapter.synthesize_to_audio_chunks(str(seg_text)):
+                        mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
+                        if mono.size <= 0:
+                            continue
+                        sr_i = int(sr) if sr else 0
+                        if sr_i > 0:
+                            total_audio_s += float(len(mono)) / float(sr_i)
+                        chunks += 1
+                        if first_chunk_t is None:
+                            first_chunk_t = time.monotonic()
+                        yield mono, int(sr_i)
+            finally:
+                t1 = time.monotonic()
+                synth_s = float(t1 - t0)
+                ttfb_s = float(first_chunk_t - t0) if first_chunk_t is not None else None
+                metrics = {
+                    "engine": engine_id,
+                    "streaming": True,
+                    "synth_s": synth_s,
+                    "ttfb_s": ttfb_s,
+                    "audio_s": float(total_audio_s),
+                    "rtf": (synth_s / float(total_audio_s)) if total_audio_s else None,
+                    "chunks": int(chunks),
+                    "language": str(getattr(self, "language", None) or "en"),
+                    "speed": float(getattr(self, "speed", 1.0) or 1.0),
+                    "ts": time.time(),
+                }
+                self._set_last_tts_metrics(metrics)
+
+        return _gen_base()
+
+    def open_tts_text_stream(
+        self,
+        *,
+        voice: str | None = None,
+        callback=None,
+        sanitize_syntax: bool = True,
+        max_chars: int | None = None,
+        min_chars: int | None = None,
+    ):
+        """Open a push-based streaming text -> TTS playback bridge.
+
+        This is the intended abstraction for linking:
+        - an LLM streaming response (text deltas)
+        - into streamed TTS output (audio chunks)
+        """
+        if not getattr(self, "tts_engine", None):
+            raise RuntimeError("No TTS engine available")
+
+        # Clear prior metrics for this new utterance/stream.
+        self._set_last_tts_metrics(None)
+
+        # Stop any current speech and reset cancel token.
+        try:
+            self.stop_speaking()
+        except Exception:
+            pass
+
+        try:
+            old = getattr(self, "_cloned_cancel_event", None)
+            if old is not None:
+                old.set()
+        except Exception:
+            pass
+        cancel = threading.Event()
+        setattr(self, "_cloned_cancel_event", cancel)
+
+        from ..tts.text_chunking import TextStreamChunkingConfig
+        from ..tts.text_to_speech_stream import TextToSpeechStream, TextToSpeechStreamConfig
+
+        # Chunking config.
+        mc = int(max_chars) if isinstance(max_chars, int) and int(max_chars) > 0 else None
+        mn = int(min_chars) if isinstance(min_chars, int) and int(min_chars) >= 0 else None
+
+        adapter = getattr(self, "tts_adapter", None)
+        engine_id = ""
+        try:
+            engine_id = str(getattr(adapter, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine_id = ""
+        engine_id = engine_id or "tts"
+
+        # If caller didn't specify max_chars, pick a sensible default.
+        #
+        # - base TTS: adapter controls segment size (quality/perf trade-off)
+        # - cloned voices: prefer smaller segments by default to reduce time-to-first-audio
+        if mc is None:
+            if voice:
+                mc = 120
+            else:
+                try:
+                    mc = int(getattr(adapter, "get_max_chars", lambda: 240)() or 240)
+                except Exception:
+                    mc = 240
+            if not (int(mc) > 0):
+                mc = 240
+        if mn is None:
+            mn = 1
+
+        chunk_cfg = TextStreamChunkingConfig(max_chars=int(mc), min_chars=int(mn))
+        cfg = TextToSpeechStreamConfig(chunking=chunk_cfg)
+
+        # Playback: begin only when we have the first audio chunk.
+        started = {"v": False}
+
+        def _on_audio_chunk(mono, sr: int) -> None:
+            if cancel.is_set():
+                return
+            if not started["v"]:
+                started["v"] = True
+                try:
+                    if hasattr(self.tts_engine, "begin_playback"):
+                        self.tts_engine.begin_playback(callback=callback, sample_rate=(int(sr) if int(sr) > 0 else None))
+                except Exception:
+                    pass
+            try:
+                if hasattr(self.tts_engine, "enqueue_audio"):
+                    self.tts_engine.enqueue_audio(mono, sample_rate=(int(sr) if int(sr) > 0 else None))
+                else:
+                    # Back-compat fallback: play_audio_array may exist.
+                    play = getattr(self.tts_engine, "play_audio_array", None)
+                    if callable(play):
+                        play(mono, callback=None)
+            except TypeError:
+                self.tts_engine.enqueue_audio(mono)  # type: ignore[attr-defined]
+
+        def _is_paused() -> bool:
+            try:
+                return bool(self.tts_engine.is_paused())
+            except Exception:
+                return False
+
+        # Segment -> audio chunks.
+        clone_engine_name = None
+        if voice:
+            cloner = self._get_voice_cloner()
+            try:
+                info = cloner.get_cloned_voice(str(voice)) or {}
+                clone_engine_name = str(info.get("engine") or "").strip().lower() or None
+            except Exception:
+                clone_engine_name = None
+
+            def _iter_chunks(seg_text: str):
+                txt = str(seg_text or "")
+                if sanitize_syntax:
+                    txt = sanitize_markdown_for_speech(txt)
+                return cloner.speak_to_audio_chunks(
+                    txt,
+                    voice_id=str(voice),
+                    speed=float(getattr(self, "speed", 1.0) or 1.0),
+                    max_chars=int(mc or 240),
+                    language=str(getattr(self, "language", None) or "en"),
+                )
+        else:
+            if adapter is None or (hasattr(adapter, "is_available") and not bool(adapter.is_available())):
+                raise RuntimeError("No TTS adapter available")
+
+            def _iter_chunks(seg_text: str):
+                txt = str(seg_text or "")
+                if sanitize_syntax:
+                    txt = sanitize_markdown_for_speech(txt)
+                return adapter.synthesize_to_audio_chunks(txt)
+
+        def _on_metrics(m: dict) -> None:
+            merged = dict(m or {})
+            if voice:
+                merged.setdefault("engine", "clone")
+                merged.setdefault("clone_engine", clone_engine_name)
+                merged.setdefault("voice_id", str(voice))
+            else:
+                merged.setdefault("engine", engine_id)
+            merged.setdefault("language", str(getattr(self, "language", None) or "en"))
+            merged.setdefault("speed", float(getattr(self, "speed", 1.0) or 1.0))
+            try:
+                self._set_last_tts_metrics(merged)
+            except Exception:
+                pass
+
+        stream = TextToSpeechStream(
+            iter_audio_chunks_for_segment=_iter_chunks,
+            on_audio_chunk=_on_audio_chunk,
+            cancel_event=cancel,
+            is_paused=_is_paused,
+            on_metrics=_on_metrics,
+        ).start()
+        return stream
+
     def speak_to_bytes(
         self,
         text: str,

@@ -1,61 +1,16 @@
 from __future__ import annotations
 
 import io
-import re
 from typing import Iterable, Optional
 
 import numpy as np
 import soundfile as sf
 
-
-_RE_SENT_END = re.compile(r"(?<=[\.\!\?\。\！\？])\s+")
-
-
 def _split_text_batches(text: str, *, max_chars: int = 240) -> list[str]:
-    """Split text into short batches, preferring sentence boundaries.
+    """Split text into short batches, preferring sentence boundaries."""
+    from ..tts.text_chunking import split_text_batches
 
-    This is intentionally simple and multilingual (punctuation-based).
-    """
-    s = " ".join(str(text or "").replace("\n", " ").split()).strip()
-    if not s:
-        return []
-    if len(s) <= max_chars:
-        return [s]
-
-    parts = re.split(_RE_SENT_END, s)
-    out: list[str] = []
-    cur = ""
-    for p in parts:
-        p = p.strip()
-        if not p:
-            continue
-        if len(p) > max_chars:
-            # Fallback: word-based chunking for very long sentences.
-            words = p.split(" ")
-            tmp = ""
-            for w in words:
-                cand = (tmp + " " + w).strip()
-                if len(cand) <= max_chars:
-                    tmp = cand
-                else:
-                    if tmp:
-                        out.append(tmp)
-                    tmp = w
-            if tmp:
-                out.append(tmp)
-            cur = ""
-            continue
-
-        cand = (cur + " " + p).strip()
-        if len(cand) <= max_chars:
-            cur = cand
-        else:
-            if cur:
-                out.append(cur)
-            cur = p
-    if cur:
-        out.append(cur)
-    return out
+    return split_text_batches(str(text or ""), max_chars=int(max_chars))
 
 
 class OmniVoiceVoiceCloningEngine:
@@ -113,7 +68,7 @@ class OmniVoiceVoiceCloningEngine:
             self._num_step = 12
             self._guidance_scale = 2.0
         else:
-            self._num_step = 28
+            self._num_step = 24
             self._guidance_scale = 2.0
 
     def _get_runtime(self):

@@ -479,46 +479,9 @@ class F5TTSVoiceCloningEngine:
                     ref_text = ref_text + " "
 
                 # Prefer sentence boundaries to reduce audible "cuts".
-                import re
+                from ..tts.text_chunking import split_text_batches
 
-                def _split_batches(s: str, limit: int) -> List[str]:
-                    s = " ".join(str(s).replace("\n", " ").split()).strip()
-                    if not s:
-                        return []
-                    sentences = re.split(r"(?<=[\.\!\?\。])\s+", s)
-                    out: List[str] = []
-                    cur_s = ""
-                    for sent in sentences:
-                        sent = sent.strip()
-                        if not sent:
-                            continue
-                        if len(sent) > limit:
-                            # Fallback: word-based chunking for very long sentences.
-                            words = sent.split(" ")
-                            tmp = ""
-                            for w in words:
-                                cand = (tmp + " " + w).strip()
-                                if len(cand) <= limit:
-                                    tmp = cand
-                                else:
-                                    if tmp:
-                                        out.append(tmp)
-                                    tmp = w
-                            if tmp:
-                                out.append(tmp)
-                            continue
-                        cand = (cur_s + " " + sent).strip()
-                        if len(cand) <= limit:
-                            cur_s = cand
-                        else:
-                            if cur_s:
-                                out.append(cur_s)
-                            cur_s = sent
-                    if cur_s:
-                        out.append(cur_s)
-                    return out
-
-                batches = _split_batches(text, int(max_chars)) or [" "]
+                batches = split_text_batches(text, max_chars=int(max_chars)) or [" "]
 
                 from f5_tts.infer.utils_infer import infer_batch_process
                 audio, sr = _load_as_torch_channels_first(Path(ref_wav))

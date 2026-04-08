@@ -364,6 +364,32 @@ class PiperTTSAdapter(TTSAdapter):
         except Exception as e:
             logger.error(f"❌ Piper synthesis failed: {e}")
             raise RuntimeError(f"Piper synthesis failed: {e}") from e
+
+    def synthesize_to_audio_chunks(self, text: str):
+        """Stream Piper audio chunks as they are synthesized (best-effort)."""
+        if not self.is_available():
+            raise RuntimeError("Piper TTS is not available. Install with: pip install piper-tts>=1.2.0")
+
+        if not self._voice:
+            raise RuntimeError("No voice loaded. Call set_language() first.")
+
+        try:
+            sr = int(getattr(self, "_sample_rate", 0) or 0) or int(self.get_sample_rate())
+        except Exception:
+            sr = 0
+
+        try:
+            # Piper synthesize returns an iterable of AudioChunk objects.
+            for chunk in self._voice.synthesize(str(text)):
+                try:
+                    arr = np.asarray(getattr(chunk, "audio_float_array", chunk), dtype=np.float32).reshape(-1)
+                except Exception:
+                    arr = np.asarray(chunk, dtype=np.float32).reshape(-1)
+                if arr.size:
+                    yield arr, int(sr or 0)
+        except Exception as e:
+            logger.error(f"❌ Piper streaming synthesis failed: {e}")
+            raise RuntimeError(f"Piper synthesis failed: {e}") from e
     
     def synthesize_to_bytes(self, text: str, format: str = 'wav') -> bytes:
         """Convert text to audio bytes for network transmission.

@@ -38,6 +38,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         allow_downloads: bool = True,
         cloned_tts_streaming: bool = True,
         cloning_engine: str = "f5_tts",
+        tts_delivery_mode: str | None = None,
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
@@ -47,6 +48,13 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Cloned TTS can either stream batches (lower time-to-first-audio, but may
         # introduce gaps if generation can't stay ahead) or generate full audio first.
         self.cloned_tts_streaming = bool(cloned_tts_streaming)
+        # Unified delivery-mode override (applies to base TTS and cloned voices).
+        # When unset, base TTS uses buffered delivery and cloned voices use `cloned_tts_streaming`.
+        self.tts_delivery_mode: str | None = None
+        if tts_delivery_mode is not None and str(tts_delivery_mode).strip():
+            from ..tts.delivery_mode import normalize_audio_delivery_mode
+
+            self.tts_delivery_mode = normalize_audio_delivery_mode(tts_delivery_mode)
         self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
 
         requested_engine = str(tts_engine or "auto").strip().lower() or "auto"

@@ -156,6 +156,14 @@ class AudioDiTTTSAdapter(TTSAdapter):
                 # Surface errors to caller; explicit engine selection must be actionable.
                 raise
 
+    def get_max_chars(self) -> int:
+        """AudioDiT performs better with larger chunks (fewer resets)."""
+        try:
+            mc = int(getattr(self, "_max_chars", 800) or 800)
+        except Exception:
+            mc = 800
+        return int(mc) if mc > 0 else 800
+
     def set_language(self, language: str) -> bool:
         new_lang = str(language or "").strip().lower()
         if new_lang and new_lang != self._language:
