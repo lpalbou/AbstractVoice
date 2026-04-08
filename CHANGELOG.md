@@ -15,7 +15,9 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Voice profiles: cross-engine `VoiceProfile` abstraction with `VoiceManager.get_profiles/set_profile/get_active_profile`, REPL `/profile ...`, and an initial OmniVoice demo preset pack (`omnivoice_profiles.json`) to validate the interface.
 - OmniVoice: “fast persistent profiles” via cached prompt tokens — profiles can build and store a tokenized reference prompt (`voice_clone_prompt`) once, then reuse it for stable voice identity without re-encoding the prompt on each utterance.
 - Voice cloning: `clone_voice_from_wav_bytes(...)` API (upload/bytes-friendly) and improved REPL mic workflow via `/clone myvoice` (SPACE start/stop; `myvoice` keyword). (`/clone_my_voice` remains as a backward-compatible alias.)
-- TTS streaming delivery: unified buffered vs streamed delivery mode across base TTS and cloned voices (`tts_delivery_mode` override). Streamed delivery always chunks **text** (sentence-first) so any engine can produce audio incrementally; engines with native audio chunking can further reduce TTFB. Added `speak_to_audio_chunks(...)` and push-based `open_tts_text_stream(...)` (LLM streaming → TTS pipelining), REPL `/tts_delivery` + `/llm_stream`, and AbstractCore plugin config support (`voice_tts_delivery_mode` / `voice_tts_streaming`).
+- TTS delivery modes: unified buffered vs streamed delivery mode across base TTS and cloned voices (`tts_delivery_mode` override + `set_tts_delivery_mode(...)`, `get_tts_delivery_mode(s)`), and REPL `/tts_delivery`.
+- Streaming TTS API: `speak_to_audio_chunks(...)` yields `(audio_chunk, sample_rate)` tuples, and push-based `open_tts_text_stream(...)` enables low-latency **LLM streaming → TTS** pipelining. REPL `/llm_stream` enables OpenAI-compatible LLM output streaming, with optional piped speech when `/tts_delivery streamed` is active.
+- Text streaming utilities: `abstractvoice/tts/text_chunking.py` (segmenting full text + incremental delta chunking) and `abstractvoice/tts/text_to_speech_stream.py` (generic delta→audio pipeline helper).
 
 ### Changed
 - Quality presets: `/tts_quality` and `/clone_quality` now use `low|standard|high` (aliases: `fast`→`low`, `balanced`→`standard`). For OmniVoice, the base/cloning `num_step` mapping is now `8/12/24`.
@@ -32,6 +34,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 - STT (headless): `VoiceManager.transcribe_*()` now uses the faster-whisper backend with **CUDA when available** (previously forced CPU), and CUDA detection no longer depends on PyTorch being installed.
 - Piper: enable **CUDA** automatically when ONNX Runtime advertises `CUDAExecutionProvider` (best-effort; CPU fallback), and expose ONNX provider info in adapter metadata for debugging.
 - OmniVoice (clone streaming): reduce click/scratch artifacts when stitching chunks by applying short edge fades and enforcing a small peak headroom.
+- REPL debug WAV saving: when `/tts_delivery streamed` is active, debug-mode WAV capture preserves streamed playback while still writing a single captured WAV file at the end.
 
 ## [0.7.0] - 2026-04-06
 
