@@ -296,7 +296,9 @@ Plugin configuration (owner `config` dict, best-effort):
 - `voice_stt_engine`: STT engine (currently `"auto"` for faster-whisper)
 - `voice_whisper_model`: faster-whisper model size (e.g. `"base"`, `"small"`)
 - `voice_cloning_engine`: default cloning backend (`"f5_tts"|"chroma"|"audiodit"|"omnivoice"`)
-- `voice_cloned_tts_streaming`: stream cloned-voice chunks for faster time-to-first-audio (bool)
+- `voice_cloned_tts_streaming`: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when `voice_tts_delivery_mode` is unset.
+- `voice_tts_delivery_mode`: unified audio delivery mode for base + cloned voices (`"buffered"|"streamed"`). Takes precedence over `voice_cloned_tts_streaming`.
+- `voice_tts_streaming`: bool alias for `voice_tts_delivery_mode` (`true` → `"streamed"`, `false` → `"buffered"`).
 - `voice_debug_mode`: enable debug prints (bool)
 
 Performance note:

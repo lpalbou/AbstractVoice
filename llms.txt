@@ -40,6 +40,11 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [VoiceManager wiring](abstractvoice/vm/manager.py): constructor + engine selection
 - [Voice-mode behavior](abstractvoice/vm/core.py): listening behavior during TTS playback
 - [TTS orchestration](abstractvoice/vm/tts_mixin.py): `speak*()` + cloning orchestration
+- [TTS delivery mode](abstractvoice/tts/delivery_mode.py): normalize `"buffered"` vs `"streamed"`
+- [Text chunking](abstractvoice/tts/text_chunking.py): `split_text_batches(...)` + `TextStreamChunker`
+- [Text→audio streaming bridge](abstractvoice/tts/text_to_speech_stream.py): `TextToSpeechStream` (LLM streaming → TTS)
+- [Voice profiles abstraction](abstractvoice/voice_profiles.py): cross-engine `VoiceProfile` ids + metadata
+- [Audio chunk smoothing](abstractvoice/audio/fade.py): edge fades + headroom scaling
 - [STT/listening orchestration](abstractvoice/vm/stt_mixin.py): `listen()` + `transcribe_*()`
 - [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): model caching + synthesis
 - [AudioDiT TTS adapter (optional)](abstractvoice/adapters/tts_audiodit.py): LongCat-AudioDiT engine (extra)

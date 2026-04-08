@@ -100,6 +100,11 @@ Optional dependency groups (see `pyproject.toml`):
 - [VoiceManager wiring](abstractvoice/vm/manager.py): constructor + engine selection
 - [Voice-mode callbacks](abstractvoice/vm/core.py): behavior while speaking
 - [TTS methods + cloning orchestration](abstractvoice/vm/tts_mixin.py)
+- [Voice profiles abstraction](abstractvoice/voice_profiles.py): cross-engine `VoiceProfile` ids + metadata
+- [TTS delivery mode](abstractvoice/tts/delivery_mode.py): normalize `"buffered"` vs `"streamed"`
+- [Text chunking](abstractvoice/tts/text_chunking.py): `split_text_batches(...)` + `TextStreamChunker`
+- [Text→audio streaming bridge](abstractvoice/tts/text_to_speech_stream.py): `TextToSpeechStream` (LLM streaming → TTS)
+- [Audio chunk smoothing](abstractvoice/audio/fade.py): edge fades + headroom scaling
 - [STT + listening methods](abstractvoice/vm/stt_mixin.py)
 - [Explicit prefetch tool](abstractvoice/prefetch.py): `abstractvoice-prefetch ...`
 
@@ -118,6 +123,13 @@ Optional dependency groups (see `pyproject.toml`):
 - [Stop phrase helper](abstractvoice/stop_phrase.py)
 - [VAD](abstractvoice/vad/voice_detector.py)
 - [AEC (optional)](abstractvoice/aec/webrtc_apm.py)
+
+## Voice profiles + streaming TTS (cross-engine)
+- [Preset profile catalogs](abstractvoice/assets/voice_profiles/): shipped presets (engine-specific)
+- [TTS delivery mode](abstractvoice/tts/delivery_mode.py): `"buffered"` vs `"streamed"`
+- [Text chunking](abstractvoice/tts/text_chunking.py): sentence + soft-boundary segmentation
+- [Text→audio streaming bridge](abstractvoice/tts/text_to_speech_stream.py): incremental LLM → TTS pipelining
+- [Audio chunk smoothing](abstractvoice/audio/fade.py): mitigate clicks/clipping at chunk boundaries
 
 ## Voice cloning (optional; heavy)
 - [REPL cloning workflow](docs/repl_guide.md): commands + explicit downloads
