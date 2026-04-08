@@ -170,7 +170,13 @@ class OmniVoiceVoiceCloningEngine:
         if not chunks:
             return iter(())
 
-        for chunk_text in chunks:
+        sr_out = int(runtime.get_sample_rate())
+        try:
+            from ..audio.fade import apply_edge_fades
+        except Exception:
+            apply_edge_fades = None  # type: ignore[assignment]
+
+        for i, chunk_text in enumerate(chunks):
             audios = model.generate(
                 text=str(chunk_text),
                 language=str(lang) if lang else None,
@@ -195,5 +201,16 @@ class OmniVoiceVoiceCloningEngine:
             except Exception:
                 x = np.asarray(a0)
             mono = np.asarray(x, dtype=np.float32).reshape(-1)
-            yield mono, int(runtime.get_sample_rate())
+            if apply_edge_fades is not None:
+                try:
+                    mono = apply_edge_fades(
+                        mono,
+                        sample_rate=int(sr_out),
+                        fade_ms=5.0,
+                        fade_in=True,
+                        fade_out=bool(i < (len(chunks) - 1)),
+                    )
+                except Exception:
+                    pass
+            yield mono, int(sr_out)
 
