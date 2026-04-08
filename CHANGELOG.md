@@ -11,6 +11,14 @@ Older changelog entries may reference historical CLI commands or model choices.
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.8.0] - 2026-04-08
+
+### Added
 - `third_party_licenses/` with vendored-code license texts (currently: LongCat-AudioDiT MIT license).
 - Voice profiles: cross-engine `VoiceProfile` abstraction with `VoiceManager.get_profiles/set_profile/get_active_profile`, REPL `/profile ...`, and an initial OmniVoice demo preset pack (`omnivoice_profiles.json`) to validate the interface.
 - OmniVoice: “fast persistent profiles” via cached prompt tokens — profiles can build and store a tokenized reference prompt (`voice_clone_prompt`) once, then reuse it for stable voice identity without re-encoding the prompt on each utterance.
