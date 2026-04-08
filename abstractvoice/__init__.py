@@ -30,5 +30,7 @@ warnings.filterwarnings(
 from .voice_manager import VoiceManager
 from .voice_profiles import VoiceProfile
 
-__version__ = "0.7.0"
+# NOTE: This version is the single source of truth for packaging.
+# `pyproject.toml` reads it via `[tool.setuptools.dynamic]`.
+__version__ = "0.8.0"
 __all__ = ["VoiceManager", "VoiceProfile"]
