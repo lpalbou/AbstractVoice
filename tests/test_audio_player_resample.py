@@ -1,13 +1,14 @@
 import numpy as np
 
 
-def test_audio_player_resamples_on_enqueue_when_sample_rate_differs():
+def test_audio_player_resamples_on_enqueue_when_sample_rate_differs(monkeypatch):
     # This test must be stable in headless/CI environments (no real audio devices).
     # We avoid opening a PortAudio stream by setting a dummy `stream` object.
     from abstractvoice.tts.tts_engine import NonBlockingAudioPlayer
 
     player = NonBlockingAudioPlayer(sample_rate=48000, debug_mode=False)
     player.stream = object()  # prevent start_stream() / device I/O
+    monkeypatch.setattr(player, "_maybe_restart_stream_for_default_device_change", lambda: None)
 
     audio_24k = np.zeros((24000,), dtype=np.float32)  # 1 second at 24kHz
     player.play_audio(audio_24k, sample_rate=24000)

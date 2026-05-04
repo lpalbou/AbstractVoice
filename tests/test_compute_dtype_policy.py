@@ -17,9 +17,10 @@ def test_best_torch_dtype_name_env_override(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_resolve_torch_dtype_accepts_known_names():
+    pytest.importorskip("torch")
+
     from abstractvoice.compute.dtype import resolve_torch_dtype
 
     dt = resolve_torch_dtype(device="cpu", dtype_name="float32")
     # Avoid importing torch at module import time.
     assert str(dt).endswith("float32")
-

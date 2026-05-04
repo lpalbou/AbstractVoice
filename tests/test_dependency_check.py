@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
+import re
 
 from abstractvoice.dependency_check import DependencyChecker
 
@@ -24,10 +24,16 @@ def test_dependency_checker_tracks_current_core_voice_stack() -> None:
 
 
 def test_stt_extras_use_current_stack_and_keep_legacy_alias() -> None:
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
-    extras = pyproject["project"]["optional-dependencies"]
+    pyproject = Path("pyproject.toml").read_text()
 
-    assert "faster-whisper>=0.10.0" in extras["stt"]
-    assert "openai-whisper>=20230314" not in extras["stt"]
-    assert "faster-whisper>=0.10.0" in extras["core-stt"]
-    assert "openai-whisper>=20230314" in extras["legacy-stt"]
+    stt_section = re.search(r"^stt = \[(.*?)^\]", pyproject, re.MULTILINE | re.DOTALL)
+    core_stt_section = re.search(r"^core-stt = \[(.*?)^\]", pyproject, re.MULTILINE | re.DOTALL)
+    legacy_stt_section = re.search(r"^legacy-stt = \[(.*?)^\]", pyproject, re.MULTILINE | re.DOTALL)
+
+    assert stt_section is not None
+    assert core_stt_section is not None
+    assert legacy_stt_section is not None
+    assert "faster-whisper>=0.10.0" in stt_section.group(1)
+    assert "openai-whisper>=20230314" not in stt_section.group(1)
+    assert "faster-whisper>=0.10.0" in core_stt_section.group(1)
+    assert "openai-whisper>=20230314" in legacy_stt_section.group(1)

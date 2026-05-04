@@ -33,6 +33,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 ### Fixed
 - Hardened microphone recognition startup/shutdown so input stream failures surface through `start()`, stop closes streams before joining, and integration callback exceptions do not replay completed utterances.
 - Piper `synthesize_to_file()` now treats extensionless output paths as WAV instead of rejecting them with an empty format.
+- Made core tests portable across Python 3.10 and headless CI environments without requiring optional torch or PortAudio runtime availability.
 
 ## [0.8.0] - 2026-04-08
 
