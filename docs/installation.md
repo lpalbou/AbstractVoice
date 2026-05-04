@@ -13,6 +13,17 @@ AbstractVoice aims to work out of the box with:
 pip install abstractvoice
 ```
 
+For OpenAI-compatible HTTP audio endpoints, install AbstractVoice beside
+AbstractCore Server:
+
+```bash
+pip install "abstractcore[server]" abstractvoice
+python -m abstractcore.server.app
+```
+
+AbstractCore provides `/v1/audio/speech` and `/v1/audio/transcriptions`;
+AbstractVoice is discovered as the voice/audio capability backend.
+
 ## Optional extras
 
 ```bash

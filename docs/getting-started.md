@@ -68,6 +68,27 @@ If you’re integrating into the AbstractFramework ecosystem (AbstractCore / Abs
 - `README.md` (ecosystem overview)
 - `docs/api.md` (Integrations section; code pointers)
 
+Minimal AbstractCore Server smoke test:
+
+```bash
+pip install "abstractcore[server]" abstractvoice
+python -m abstractcore.server.app
+
+# TTS through AbstractCore + AbstractVoice
+curl -X POST http://localhost:8000/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Hello from AbstractVoice through AbstractCore.","format":"wav"}' \
+  --output hello.wav
+
+# STT through AbstractCore + AbstractVoice
+curl -X POST http://localhost:8000/v1/audio/transcriptions \
+  -F "file=@hello.wav" \
+  -F "language=en"
+```
+
+If the server is configured with `ABSTRACTCORE_SERVER_API_KEY`, include
+`Authorization: Bearer <key>` in those requests.
+
 ## Enable microphone input (voice modes)
 
 By default, the REPL does **not** start microphone capture. Enable it explicitly:

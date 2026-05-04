@@ -10,7 +10,7 @@ In practice, this almost certainly means **voice cloning is an optional extra** 
 
 ## Current status (implementation)
 
-This document started as a feasibility note (Jan 2026). The **current status** below reflects the shipped implementation as of v0.7.x.
+This document started as a feasibility note (Jan 2026). The **current status** below reflects the shipped implementation as of v0.8.x.
 
 - `abstractvoice[cloning]` → `f5_tts` engine (OpenF5 artifacts)
 - `abstractvoice[chroma]` → `chroma` engine (Chroma-4B; GPU-heavy)
@@ -83,28 +83,29 @@ For “clone in seconds”, we want (A) and/or (B), not (C).
 
 ---
 
-## Recommendation (phased)
+## Recommendation (current stance)
 
-### Phase 1 (now): keep base package clean
+### Keep the base package clean
 
-- Provide a stable, well-documented **cloning API design** without shipping cloning by default.
-- Add an optional extra:
-  - `pip install abstractvoice[cloning]`
-- Choose a permissive model only after confirming:
-  - code + weights license are compatible
-  - installation story is acceptable (ideally wheels, or documented “GPU required”)
-  - we can define language scope honestly (start English-only if needed)
+- Keep voice cloning and torch-heavy engines behind optional extras.
+- Require explicit artifact downloads (`abstractvoice-prefetch ...` or `python -m abstractvoice download ...`) for offline-first deployments.
+- Treat each engine as a separate runtime with separate licensing, hardware, and language-quality expectations.
 
-### Phase 2 (implementation)
+### Use the common API, but test per engine
 
-- Implement one adapter behind a clean interface:
-  - `VoiceManager.clone_voice(reference_audio, name=...) -> voice_id`
-  - `VoiceManager.speak(text, voice=voice_id)`
-  - `export_voice()/import_voice()` for portability
+The shared user-facing shape is implemented:
+
+- `VoiceManager.clone_voice(reference_audio, name=..., engine=...) -> voice_id`
+- `VoiceManager.speak(text, voice=voice_id)`
+- `VoiceManager.speak_to_bytes(text, voice=voice_id)`
+- `export_voice()` / `import_voice()` for portability
+
+Quality, latency, and language coverage still vary by engine and hardware.
+Validate the exact model/version you plan to ship.
 
 ---
 
-## Open questions we must answer before committing
+## Ongoing evaluation questions
 
 - Which candidate covers our target languages (EN/FR/DE/ES/RU/ZH) without restrictive licensing?
 - Can we support CPU-only “near realtime”, or is GPU a hard requirement?

@@ -4,14 +4,18 @@ AbstractVoice is a Python library for **voice I/O** around AI applications:
 
 - **TTS (text → audio)**: default engine is **Piper** (cross‑platform, no system deps).
 - **STT (audio → text)**: default engine is **faster‑whisper** (fast, multilingual).
+- **Streaming TTS**: chunked speech output for LLM streaming pipelines.
 - **Voice cloning (optional)**: prompt-audio cloning engines (engine-bound clones).
 
 The main entry point for integrators is `abstractvoice.VoiceManager`.
 
-AbstractVoice does **not** implement an agent loop or an LLM server. It focuses on voice primitives that can be embedded into:
+AbstractVoice does **not** implement an agent loop or a standalone LLM server.
+That is a deliberate boundary: it focuses on voice primitives that can be
+embedded into:
 
 - your own app (desktop/headless)
-- **AbstractCore** (recommended in the AbstractFramework ecosystem): AbstractCore owns agents + OpenAI-compatible HTTP endpoints; AbstractVoice is discovered as a capability backend plugin and provides TTS/STT.
+- your own backend process via bytes/file APIs
+- **AbstractCore** (recommended in the AbstractFramework ecosystem): AbstractCore owns agents, provider routing, and OpenAI-compatible HTTP endpoints; AbstractVoice is discovered as a capability backend plugin and provides TTS/STT.
 
 See `docs/acronyms.md` for acronyms used in documentation.
 
@@ -35,12 +39,23 @@ Next reads:
 - `speak()` plays to speakers
 - `pause_speaking()/resume_speaking()` control playback
 
-### 2) Backend server (headless)
+### 2) Backend/server code (headless)
 
 - `speak_to_bytes()` / `speak_to_file()` to send audio to clients
 - `transcribe_from_bytes()` / `transcribe_file()` for uploaded audio
 
-### 3) Manual validation (REPL)
+### 3) AbstractCore server plugin
+
+Install AbstractVoice next to `abstractcore[server]` when you want a standard
+HTTP surface instead of writing one yourself. AbstractCore can expose:
+
+- `POST /v1/audio/speech` for TTS
+- `POST /v1/audio/transcriptions` for STT
+
+The endpoint implementation lives in AbstractCore; AbstractVoice supplies the
+capability backend discovered through `abstractcore.capabilities_plugins`.
+
+### 4) Manual validation (REPL)
 
 - `python -m abstractvoice cli` is the fastest end‑to‑end smoke test.
   - The REPL is offline-first: no implicit model downloads.

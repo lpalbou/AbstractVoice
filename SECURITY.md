@@ -22,4 +22,4 @@ What to include (helps us reproduce and fix quickly):
 
 ## Supported versions
 
-Security fixes are provided for the latest released minor line when feasible (currently `0.6.x`). If you’re unsure whether your version is supported, report anyway.
+Security fixes are provided for the latest released minor line when feasible (currently `0.8.x`). If you’re unsure whether your version is supported, report anyway.

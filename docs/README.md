@@ -9,7 +9,12 @@ If you're discovering AbstractVoice for the first time, start with:
 3) `docs/overview.md` (what the library is / common usage modes)  
 4) `docs/api.md` (supported integrator contract)
 
-If you’re using AbstractVoice as part of the AbstractFramework ecosystem (AbstractCore / AbstractRuntime), see the integration notes in `README.md` and the “Integrations” section in `docs/api.md`.
+If you’re using AbstractVoice as part of the AbstractFramework ecosystem
+(AbstractCore / AbstractRuntime), see the integration notes in `README.md` and
+the “Integrations” section in `docs/api.md`. In that mode, AbstractCore owns
+the server/API surface; AbstractVoice is the capability plugin that backs
+voice/audio operations such as `/v1/audio/speech` and
+`/v1/audio/transcriptions`.
 
 ## User-facing docs
 

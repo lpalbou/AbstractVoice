@@ -150,6 +150,11 @@ Yes. Prefer the headless-friendly APIs:
 
 These are part of the supported contract in `docs/api.md` and implemented in `abstractvoice/vm/tts_mixin.py` and `abstractvoice/vm/stt_mixin.py`.
 
+If you want an HTTP server rather than direct Python calls, use AbstractCore
+Server with AbstractVoice installed as a capability plugin. AbstractCore exposes
+the OpenAI-compatible audio surface (`/v1/audio/speech` and
+`/v1/audio/transcriptions`); AbstractVoice provides the TTS/STT backend.
+
 ### How does this integrate with AbstractCore / AbstractRuntime (AbstractFramework)?
 
 AbstractVoice can be used standalone, but it also ships optional integration hooks for the AbstractFramework ecosystem:
@@ -160,6 +165,23 @@ AbstractVoice can be used standalone, but it also ships optional integration hoo
 - ArtifactStore adapter (AbstractRuntime-compatible, duck-typed): `abstractvoice/artifacts.py`
 
 See `docs/api.md` (“Integrations”) for the supported surface and code pointers.
+
+When installed next to `abstractcore[server]`, the same plugin can power
+AbstractCore Server audio endpoints:
+
+```bash
+pip install "abstractcore[server]" abstractvoice
+python -m abstractcore.server.app
+
+curl -X POST http://localhost:8000/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Hello.","format":"wav"}' \
+  --output hello.wav
+
+curl -X POST http://localhost:8000/v1/audio/transcriptions \
+  -F "file=@hello.wav" \
+  -F "language=en"
+```
 
 ### How do I switch language?
 

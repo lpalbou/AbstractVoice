@@ -1,6 +1,6 @@
 # AbstractVoice architecture
 
-This document describes how AbstractVoice works internally (v`0.7.x`), and where to look in the code when you need to change behavior.
+This document describes how AbstractVoice works internally (v`0.8.x`), and where to look in the code when you need to change behavior.
 
 If you want the supported integrator contract, start with `docs/api.md`. For REPL behavior and commands, see `docs/repl_guide.md`.
 
@@ -140,5 +140,9 @@ When installed alongside `abstractcore`, AbstractVoice exposes a capability plug
 It provides:
 - a voice backend (TTS+STT) that can optionally store generated audio into an `artifact_store`
 - an audio backend (STT) for transcription-only use
+
+AbstractCore owns the HTTP server surface. When AbstractCore Server is installed
+and running, these capability backends can power OpenAI-compatible endpoints
+such as `POST /v1/audio/speech` and `POST /v1/audio/transcriptions`.
 
 This is not required for using AbstractVoice as a standalone library.

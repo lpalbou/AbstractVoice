@@ -276,6 +276,11 @@ vm = VoiceManager(language="en", tts_engine="omnivoice", stt_engine="auto", allo
 
 AbstractVoice is designed to work standalone, and also integrate cleanly into the AbstractFramework ecosystem (AbstractCore + AbstractRuntime). Overview and links: `README.md`.
 
+Boundary note:
+- AbstractVoice owns the in-process voice backend (`VoiceManager`, adapters, model/cache policy).
+- AbstractCore owns agent orchestration, provider routing, capability selection, and OpenAI-compatible HTTP endpoints.
+- When both are installed, AbstractCore can expose AbstractVoice-backed audio endpoints such as `POST /v1/audio/speech` and `POST /v1/audio/transcriptions`.
+
 ### AbstractCore capability plugin (auto-discovery)
 
 AbstractVoice exposes an AbstractCore capability plugin entry point:
@@ -306,6 +311,35 @@ Performance note:
 
 TTS metrics:
 - After synthesis, the plugin stores best-effort stats in artifact metadata under `abstractvoice_tts` (when `artifact_store` is used).
+
+### AbstractCore OpenAI-compatible audio endpoints
+
+The HTTP server lives in AbstractCore, not in this repository. With
+`abstractcore[server]` and `abstractvoice` installed in the same environment,
+AbstractCore delegates its audio endpoints to the discovered capability plugin:
+
+- `POST /v1/audio/speech` -> `core.voice.tts(...)` -> `VoiceManager.speak_to_bytes(...)`
+- `POST /v1/audio/transcriptions` -> `core.audio.transcribe(...)` -> `VoiceManager.transcribe_*()`
+
+Example:
+
+```bash
+python -m abstractcore.server.app
+
+curl -X POST http://localhost:8000/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Hello.","format":"wav"}' \
+  --output hello.wav
+
+curl -X POST http://localhost:8000/v1/audio/transcriptions \
+  -F "file=@hello.wav" \
+  -F "language=en"
+```
+
+If AbstractCore Server is configured with `ABSTRACTCORE_SERVER_API_KEY`, include
+the standard `Authorization: Bearer <key>` header. If the plugin is unavailable,
+AbstractCore returns `501` with install/config guidance instead of silently
+falling back.
 
 ### AbstractCore tool helpers (manual wiring)
 

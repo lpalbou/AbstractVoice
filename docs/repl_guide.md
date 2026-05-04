@@ -3,7 +3,7 @@
 The REPL is the quickest way to validate your installation end‑to‑end.
 
 It is also intentionally **minimal**: it’s a demonstrator/smoke-test harness for the `abstractvoice` library.
-For production agent/server use in the AbstractFramework ecosystem, the intended integration is via **AbstractCore** (AbstractVoice provides TTS/STT as a capability backend plugin; see `docs/api.md` → “Integrations”).
+For production agent/server use in the AbstractFramework ecosystem, the intended integration is via **AbstractCore**. AbstractCore owns agents and OpenAI-compatible endpoints such as `/v1/audio/speech` and `/v1/audio/transcriptions`; AbstractVoice provides TTS/STT as a capability backend plugin (see `docs/api.md` → “Integrations”).
 
 ## Start
 

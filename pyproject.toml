@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "abstractvoice"
 dynamic = ["version"]
-description = "A modular Python library for voice interactions with AI systems"
+description = "Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -104,12 +104,12 @@ stt = [
     "tiktoken>=0.6.0",
 ]
 
-# Web API functionality
+# Legacy/demo Flask web example. Production HTTP audio endpoints live in AbstractCore Server.
 web = [
     "flask>=2.0.0",
 ]
 
-# All features combined (Piper + VITS + Whisper + Web)
+# Convenience bundle for common optional features (not GPU-heavy engines).
 all = [
     "piper-tts>=1.2.0",
     "sounddevice>=0.4.6",
