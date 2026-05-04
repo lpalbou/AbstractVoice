@@ -232,6 +232,9 @@ class PiperTTSAdapter(TTSAdapter):
         # the adapter robust in "fresh install" scenarios.
         logger.info(f"⬇️  Downloading Piper model for {language} ({self.MODEL_SIZES.get(language, 'unknown size')})...")
         
+        existing_paths = {model_path: model_path.exists(), config_path: config_path.exists()}
+        downloaded_paths: set[Path] = set()
+
         try:
             repo_id = "rhasspy/piper-voices"
             base_url = f"https://huggingface.co/{repo_id}/resolve/main"
@@ -241,18 +244,28 @@ class PiperTTSAdapter(TTSAdapter):
                 import tempfile
 
                 dest.parent.mkdir(parents=True, exist_ok=True)
+                tmp_path: Path | None = None
 
-                with requests.get(url, stream=True, timeout=60) as r:
-                    r.raise_for_status()
+                try:
+                    with requests.get(url, stream=True, timeout=60) as r:
+                        r.raise_for_status()
 
-                    # Write atomically to avoid leaving corrupt partial files.
-                    with tempfile.NamedTemporaryFile(dir=str(dest.parent), delete=False) as tmp:
-                        for chunk in r.iter_content(chunk_size=1024 * 256):
-                            if chunk:
-                                tmp.write(chunk)
-                        tmp_path = Path(tmp.name)
+                        # Write atomically to avoid leaving corrupt partial files.
+                        with tempfile.NamedTemporaryFile(dir=str(dest.parent), delete=False) as tmp:
+                            tmp_path = Path(tmp.name)
+                            for chunk in r.iter_content(chunk_size=1024 * 256):
+                                if chunk:
+                                    tmp.write(chunk)
 
-                tmp_path.replace(dest)
+                    tmp_path.replace(dest)
+                    downloaded_paths.add(dest)
+                    tmp_path = None
+                finally:
+                    if tmp_path is not None:
+                        try:
+                            tmp_path.unlink(missing_ok=True)
+                        except Exception:
+                            pass
 
             # Download model file
             if not model_path.exists():
@@ -270,11 +283,14 @@ class PiperTTSAdapter(TTSAdapter):
         except Exception as e:
             logger.error(f"❌ Failed to download Piper model: {e}")
             logger.info(f"   If this persists, manually download from: https://huggingface.co/rhasspy/piper-voices")
-            # Clean up partial downloads
-            if model_path.exists():
-                model_path.unlink()
-            if config_path.exists():
-                config_path.unlink()
+            # Clean up only files created by this attempt; never delete an
+            # already-valid cached companion after a partial failure.
+            for path in downloaded_paths:
+                if not existing_paths.get(path, False) and path.exists():
+                    try:
+                        path.unlink()
+                    except Exception:
+                        pass
             return False
     
     def _load_voice(self, language: str) -> bool:

@@ -1282,7 +1282,10 @@ class TtsMixin:
         except Exception:
             active_engine = ""
 
-        validate_against_catalog = bool(pref in ("", "auto", "piper") or active_engine in ("", "piper"))
+        if active_engine:
+            validate_against_catalog = active_engine == "piper"
+        else:
+            validate_against_catalog = pref in ("", "auto", "piper")
         if validate_against_catalog and language not in self.LANGUAGES:
             if self.debug_mode:
                 available = ", ".join(self.LANGUAGES.keys())
@@ -1291,12 +1294,13 @@ class TtsMixin:
 
         if language == self.language:
             if self.debug_mode:
-                print(f"✓ Already using {self.LANGUAGES[language]['name']} voice")
+                print(f"✓ Already using {self.get_language_name(language)} voice")
             return True
 
         self.stop_speaking()
         if self.voice_recognizer:
             self.voice_recognizer.stop()
+            self.voice_recognizer = None
 
         # Switch language on the active TTS adapter (engine-agnostic).
         try:
