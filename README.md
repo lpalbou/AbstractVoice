@@ -1,5 +1,12 @@
 # AbstractVoice
 
+[![PyPI version](https://img.shields.io/pypi/v/abstractvoice.svg)](https://pypi.org/project/abstractvoice/)
+[![CI](https://github.com/lpalbou/AbstractVoice/actions/workflows/ci.yml/badge.svg)](https://github.com/lpalbou/AbstractVoice/actions/workflows/ci.yml)
+[![Tested Python](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Flpalbou%2FAbstractVoice%2Fmain%2F.github%2Fworkflows%2Fci.yml&query=%24.jobs.test.strategy.matrix%5B%22python-version%22%5D&label=tested%20python&color=blue)](https://github.com/lpalbou/AbstractVoice/actions/workflows/ci.yml)
+[![Python versions](https://img.shields.io/pypi/pyversions/abstractvoice.svg)](https://pypi.org/project/abstractvoice/)
+[![license](https://img.shields.io/github/license/lpalbou/AbstractVoice)](https://github.com/lpalbou/AbstractVoice/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/lpalbou/AbstractVoice?style=social)](https://github.com/lpalbou/AbstractVoice/stargazers)
+
 Local-first **voice I/O** for AI applications: TTS, STT, microphone control,
 streaming speech output, and optional voice cloning behind a small Python API.
 
