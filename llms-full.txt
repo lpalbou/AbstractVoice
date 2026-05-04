@@ -22,7 +22,7 @@ Positioning:
 Quick commands:
 ```bash
 # Tests
-python -m pytest -q
+python -m pytest -q -m "not integration and not model_download"
 
 # REPL smoke test (mic is OFF by default)
 abstractvoice --verbose
@@ -62,8 +62,9 @@ Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[omnivoice]`: OmniVoice omnilingual TTS + cloning backend (very heavy; artifacts still prefetched explicitly)
 - `abstractvoice[aec]`: optional acoustic echo cancellation (true barge-in)
 - `abstractvoice[audio-fx]`: speed change without pitch change (librosa)
-- `abstractvoice[stt]`: legacy openai-whisper + tiktoken fallback path
-- `abstractvoice[web]`: Flask demo/API layer (examples)
+- `abstractvoice[stt]`: current faster-whisper STT path (also included in core installs)
+- `abstractvoice[legacy-stt]`: legacy openai-whisper + tiktoken fallback path
+- `abstractvoice[web]`: deprecated empty compatibility alias; HTTP audio endpoints live in AbstractCore Server
 - `abstractvoice[dev]`: dev/test tooling
 
 ## Start here
@@ -83,6 +84,8 @@ Optional dependency groups (see `pyproject.toml`):
 - [AbstractCore tool helpers](abstractvoice/integrations/abstractcore.py): `make_voice_tools(...)` (manual wiring)
 - [Artifact store adapter](abstractvoice/artifacts.py): AbstractRuntime-like ArtifactStore adapter (duck-typed)
 - [Entry points + scripts](pyproject.toml): `abstractvoice`, `abstractvoice-prefetch`, plugin registration
+- [CI workflow](.github/workflows/ci.yml): Python 3.10-3.12 tests + build check
+- [Release workflow](.github/workflows/release.yml): tag/manual release to PyPI + GitHub Release
 
 ## Core architecture (internal)
 - [Architecture](docs/architecture.md): component diagram + code map
@@ -94,7 +97,8 @@ Optional dependency groups (see `pyproject.toml`):
 - [ADR 0005](docs/adr/0005_torch_device_and_dtype_policy.md): torch device + dtype selection policy (torch engines)
 
 ## Code map (start points)
-- [Public package entry](abstractvoice/__init__.py): version + main export
+- [Version source](abstractvoice/_version.py): single release version source
+- [Public package entry](abstractvoice/__init__.py): main public exports
 - [Module CLI entry](abstractvoice/__main__.py): `python -m abstractvoice ...` (incl. `download`)
 - [VoiceManager façade](abstractvoice/voice_manager.py): public import target
 - [VoiceManager wiring](abstractvoice/vm/manager.py): constructor + engine selection
@@ -142,7 +146,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [OmniVoice engine](abstractvoice/cloning/engine_omnivoice.py)
 
 ## Tests
-- [tests/](tests/): run `python -m pytest -q`
+- [tests/](tests/): CI-safe run is `python -m pytest -q -m "not integration and not model_download"`
 - [Contributing](CONTRIBUTING.md): dev setup + env vars for heavy tests (`ABSTRACTVOICE_RUN_CLONING_TESTS=1`, `ABSTRACTVOICE_RUN_CHROMA_TESTS=1`)
 - [test_voice_cloner_engine_dispatch.py](tests/test_voice_cloner_engine_dispatch.py)
 - [test_cloning_reference_text_autofallback.py](tests/test_cloning_reference_text_autofallback.py)

@@ -33,7 +33,8 @@ pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transfor
 pip install "abstractvoice[omnivoice]" # OmniVoice (very heavy; torch/transformers)
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
 pip install "abstractvoice[audio-fx]"  # Speed change without pitch change (librosa)
-pip install "abstractvoice[stt]"       # Legacy openai-whisper + tiktoken (token stats)
+pip install "abstractvoice[stt]"       # Current faster-whisper STT path (also in core)
+pip install "abstractvoice[legacy-stt]" # Legacy openai-whisper + tiktoken
 ```
 
 Note (OmniVoice): upstream `omnivoice` pins `torch==2.8.*` / `torchaudio==2.8.*`. If you already have `torchvision` installed for a different torch version (common if you installed `abstractvoice[chroma]` first), you may see import errors like:

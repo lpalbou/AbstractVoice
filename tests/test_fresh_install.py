@@ -4,6 +4,11 @@ Test script that simulates fresh install behavior
 Tests language switching and voice selection with download requirements
 """
 
+import pytest
+
+pytestmark = pytest.mark.model_download
+
+
 def test_language_switching():
     """Test language switching with download behavior."""
     from abstractvoice import VoiceManager

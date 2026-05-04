@@ -14,6 +14,8 @@ import tempfile
 import os
 from pathlib import Path
 
+pytestmark = pytest.mark.model_download
+
 
 def test_piper_adapter_import():
     """Test that Piper adapter can be imported."""

@@ -14,7 +14,6 @@ def print_examples():
     """Print available examples."""
     print("Available commands:")
     print("  cli            - Command-line REPL example")
-    print("  web            - Web API example")
     print("  simple         - Simple usage example")
     print("  check-deps     - Check dependency compatibility")
     print("\nUsage: abstractvoice <command> [--language <lang>] [args...]")
@@ -100,7 +99,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="AbstractVoice - Voice interactions with AI")
 
     # Examples and special commands
-    parser.add_argument("command", nargs="?", help="Command to run: cli, web, simple, check-deps (default: voice mode)")
+    parser.add_argument("command", nargs="?", help="Command to run: cli, simple, check-deps (default: voice mode)")
 
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
@@ -197,10 +196,6 @@ def main():
                 repl.system_prompt = args.system
                 repl.messages = [{"role": "system", "content": args.system}]
             repl.cmdloop()
-            return
-        elif args.command == "web":
-            from abstractvoice.examples.web_api import main as web_main
-            web_main()
             return
         elif args.command == "simple":
             simple_example()

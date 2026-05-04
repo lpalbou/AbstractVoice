@@ -27,10 +27,8 @@ warnings.filterwarnings(
 )
 
 # Import the main class for public API
+from ._version import __version__
 from .voice_manager import VoiceManager
 from .voice_profiles import VoiceProfile
 
-# NOTE: This version is the single source of truth for packaging.
-# `pyproject.toml` reads it via `[tool.setuptools.dynamic]`.
-__version__ = "0.8.0"
 __all__ = ["VoiceManager", "VoiceProfile"]

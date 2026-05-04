@@ -50,7 +50,7 @@ Notes:
   - `piper` (default core TTS)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH — other languages are not guaranteed)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
-- `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[stt]`; see `abstractvoice/vm/stt_mixin.py`).
+- `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[legacy-stt]`; see `abstractvoice/vm/stt_mixin.py`).
 - `tts_model` is reserved/back-compat (Piper selection is language-driven today).
 - `tts_delivery_mode` is an optional override that applies consistently to both base TTS and cloned voices:
   - `buffered`: synthesize full audio first (one payload)

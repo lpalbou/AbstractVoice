@@ -65,3 +65,31 @@ Core support:
 ```bash
 python -m pytest -q
 ```
+
+For CI/release runs, keep model-download and optional integration tests out of
+the default pass:
+
+```bash
+python -m pytest -q -m "not integration and not model_download"
+```
+
+## CI and releases
+
+AbstractVoice mirrors the AbstractCore release shape:
+
+- `.github/workflows/ci.yml` runs tests on Python 3.10-3.12 and verifies that
+  source/wheel distributions build and pass `twine check`.
+- `.github/workflows/release.yml` runs the same test gate, validates that the
+  requested tag matches `abstractvoice/_version.py`, extracts release notes from
+  `CHANGELOG.md`, publishes to PyPI via trusted publishing, and creates a GitHub
+  Release with the built distributions attached.
+
+Release checklist:
+
+1. Update `abstractvoice/_version.py` (`__version__`, the single version source).
+2. Move `CHANGELOG.md` notes from `[Unreleased]` into a dated version section.
+3. Push a tag like `v0.8.1`, or run the `Release` workflow manually with
+   `version=0.8.1`.
+
+The PyPI workflow expects a GitHub environment named `pypi` configured for
+trusted publishing on the `abstractvoice` project.

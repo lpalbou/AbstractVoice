@@ -16,6 +16,24 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ### Fixed
 
+## [0.8.1] - 2026-05-04
+
+### Added
+- GitHub Actions CI and trusted-publishing release workflows modeled on AbstractCore, adapted for Python 3.10-3.12 and AbstractVoice package metadata.
+- `abstractvoice/_version.py` as the single package version source used by both package exports and dynamic packaging metadata.
+- Pytest marker registration plus a `model_download` marker so CI/release runs can skip tests that may fetch model artifacts.
+- Recognition lifecycle tests covering callback failures, stream shutdown ordering, and startup failures.
+
+### Changed
+- Removed the stale local Flask web API example and CLI `web` command. AbstractVoice now keeps HTTP audio endpoints exclusively in AbstractCore Server; the `web` extra remains as an empty compatibility alias.
+- Refreshed optional dependency groups so `stt` / `core-stt` use the current faster-whisper path, with `legacy-stt` kept for the OpenAI Whisper fallback.
+- Updated dependency diagnostics to use installed package metadata first, report the current core voice stack, treat PyTorch as optional, and include best-effort audio device checks.
+- Updated release/development docs and both `llms*.txt` indexes for the server boundary, CI-safe test command, and release workflow.
+
+### Fixed
+- Hardened microphone recognition startup/shutdown so input stream failures surface through `start()`, stop closes streams before joining, and integration callback exceptions do not replay completed utterances.
+- Piper `synthesize_to_file()` now treats extensionless output paths as WAV instead of rejecting them with an empty format.
+
 ## [0.8.0] - 2026-04-08
 
 ### Added

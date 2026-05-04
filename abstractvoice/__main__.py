@@ -13,7 +13,6 @@ def print_examples():
     """Print available examples."""
     print("Available examples:")
     print("  cli       - Command-line REPL example")
-    print("  web       - Web API example")
     print("  simple    - Simple usage example")
     print("  check-deps - Check dependency compatibility")
     print("  download  - Explicitly prefetch model artifacts")
@@ -98,7 +97,7 @@ def simple_example():
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="AbstractVoice examples")
-    parser.add_argument("example", nargs="?", help="Example to run (cli, web, simple, check-deps)")
+    parser.add_argument("example", nargs="?", help="Example to run (cli, simple, check-deps, download)")
     parser.add_argument("--language", "--lang", default="en",
                       choices=["en", "fr", "de", "es", "ru", "zh"],
                       help="Voice language for examples")
@@ -244,9 +243,6 @@ def main():
 
     if args.example == "cli":
         from abstractvoice.examples.cli_repl import main
-        main()
-    elif args.example == "web":
-        from abstractvoice.examples.web_api import main
         main()
     elif args.example == "simple":
         simple_example()

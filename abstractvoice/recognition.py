@@ -165,6 +165,9 @@ class VoiceRecognizer:
         self.is_running = False
         self.thread = None
         self.stream = None
+        self._startup_event = threading.Event()
+        self._thread_error: Exception | None = None
+        self.last_error: Exception | None = None
         self.tts_interrupt_callback = None
         self.tts_interrupt_enabled = True  # Can be disabled during TTS playback
         self.listening_paused = False  # Can be paused to completely stop processing audio
@@ -192,6 +195,81 @@ class VoiceRecognizer:
 
         # Apply initial profile.
         self.set_profile("stop")
+
+    def _invoke_callback(self, name: str, callback, *args) -> bool:
+        """Run an integration callback without letting it poison recognizer state."""
+        if callback is None:
+            return False
+        try:
+            callback(*args)
+            return True
+        except Exception as e:
+            self.last_error = e
+            if self.debug_mode:
+                print(f"Voice recognition callback error ({name}): {e}")
+            return False
+
+    def _close_stream(self) -> None:
+        """Best-effort unblock and close the active input stream."""
+        stream = self.stream
+        self.stream = None
+        if stream is None:
+            return
+
+        for method_name in ("abort", "stop", "close"):
+            method = getattr(stream, method_name, None)
+            if not callable(method):
+                continue
+            try:
+                method()
+            except Exception:
+                pass
+
+    def _handle_completed_speech(self, audio_bytes: bytes, chunk_count: int) -> None:
+        """Transcribe one utterance and dispatch any user callback safely."""
+        audio_seconds = 0.0
+        try:
+            if self.sample_rate and self.sample_rate > 0:
+                audio_seconds = float(len(audio_bytes)) / float(int(self.sample_rate) * 2)
+        except Exception:
+            audio_seconds = 0.0
+
+        try:
+            t0 = time.monotonic()
+            text = self._transcribe_pcm16(audio_bytes)
+            t1 = time.monotonic()
+        except Exception as e:
+            self.last_error = e
+            if self.debug_mode:
+                print(f"Voice recognition transcription error: {e}")
+            return
+
+        text = (text or "").strip()
+        if not text:
+            return
+
+        stt_s = float(t1 - t0)
+        metrics = {
+            "stt_s": stt_s,
+            "audio_s": float(audio_seconds),
+            "rtf": (stt_s / float(audio_seconds)) if audio_seconds else None,
+            "sample_rate": int(self.sample_rate),
+            "chunks": int(chunk_count),
+            "chunk_ms": int(self.chunk_duration),
+            "ts": time.time(),
+        }
+
+        if self._is_stop_command(text):
+            if self.stop_callback:
+                self._invoke_callback("stop_callback", self.stop_callback)
+            else:
+                self._invoke_callback("transcription_callback", self.transcription_callback, text)
+            return
+
+        if not self.transcriptions_paused:
+            # Record metrics only when this transcription is actually emitted.
+            self.last_stt_metrics = metrics
+            self._invoke_callback("transcription_callback", self.transcription_callback, text)
 
     def _emit_audio_level(self, chunk) -> None:
         """Emit normalized mic level (0..1) from the current input chunk."""
@@ -370,37 +448,57 @@ class VoiceRecognizer:
             return False
         
         self.tts_interrupt_callback = tts_interrupt_callback
+        self._thread_error = None
+        self.last_error = None
+        self._startup_event = threading.Event()
         self.is_running = True
-        self.thread = threading.Thread(target=self._recognition_loop)
+        self.thread = threading.Thread(target=self._recognition_loop, daemon=True)
         self.thread.start()
+
+        if not self._startup_event.wait(timeout=3.0):
+            self.is_running = False
+            self._close_stream()
+            self._thread_error = TimeoutError("Voice recognition did not start within 3 seconds")
+            self.last_error = self._thread_error
+            if self.debug_mode:
+                print(f"Voice recognition startup error: {self._thread_error}")
+            return False
+
+        if self._thread_error is not None:
+            self.is_running = False
+            self._close_stream()
+            self.last_error = self._thread_error
+            if self.thread and self.thread is not threading.current_thread():
+                self.thread.join(timeout=0.2)
+            if self.debug_mode:
+                print(f"Voice recognition startup error: {self._thread_error}")
+            return False
         
         if self.debug_mode:
             print(" > Voice recognition started")
         return True
     
-    def stop(self):
+    def stop(self, timeout: float | None = None):
         """Stop voice recognition.
         
         Returns:
             True if stopped, False if not running
         """
-        if not self.is_running:
+        thread = self.thread
+        if not self.is_running and not (thread and thread.is_alive()):
             return False
         
         self.is_running = False
-        if self.thread:
-            self.thread.join()
-        
-        if self.stream:
-            try:
-                self.stream.stop()
-            except Exception:
-                pass
-            try:
-                self.stream.close()
-            except Exception:
-                pass
-            self.stream = None
+        self._close_stream()
+
+        join_timeout = 2.0 if timeout is None else max(0.0, float(timeout))
+        if thread and thread is not threading.current_thread():
+            thread.join(timeout=join_timeout)
+            if thread.is_alive():
+                if self.debug_mode:
+                    print(" > Voice recognition stop timed out")
+                return False
+            self.thread = None
         
         if self.debug_mode:
             print(" > Voice recognition stopped")
@@ -522,143 +620,130 @@ class VoiceRecognizer:
     
     def _recognition_loop(self):
         """Main recognition loop."""
-        sd = _import_audio_deps()
+        try:
+            sd = _import_audio_deps()
 
-        # NOTE: sounddevice uses PortAudio under the hood (same as our TTS playback).
-        # Keeping microphone capture in-process avoids PyAudio install issues.
-        self.stream = sd.InputStream(
-            samplerate=self.sample_rate,
-            channels=1,
-            dtype="int16",
-            blocksize=self.chunk_size,
-        )
-        self.stream.start()
+            # NOTE: sounddevice uses PortAudio under the hood (same as our TTS playback).
+            # Keeping microphone capture in-process avoids PyAudio install issues.
+            self.stream = sd.InputStream(
+                samplerate=self.sample_rate,
+                channels=1,
+                dtype="int16",
+                blocksize=self.chunk_size,
+            )
+            self.stream.start()
+        except Exception as e:
+            self._thread_error = e
+            self.last_error = e
+            self.is_running = False
+            self._startup_event.set()
+            self._close_stream()
+            return
+
+        self._startup_event.set()
         
         speech_buffer = []
         speech_count = 0
         silence_count = 0
         recording = False
         
-        while self.is_running:
-            try:
-                # If listening is paused, sleep briefly and skip processing
-                if self.listening_paused:
-                    self._emit_audio_level(0.0)
-                    time.sleep(0.1)
-                    continue
-                
-                # Read audio data
-                audio_chunk, overflowed = self.stream.read(self.chunk_size)
-                if overflowed and self.debug_mode:
-                    print(" > Mic input overflow")
-                audio_data = audio_chunk.tobytes()
-                self._emit_audio_level(audio_chunk)
+        try:
+            while self.is_running:
+                try:
+                    # If listening is paused, sleep briefly and skip processing
+                    if self.listening_paused:
+                        self._emit_audio_level(0.0)
+                        time.sleep(0.1)
+                        continue
 
-                # Optional AEC: remove speaker echo from mic input before VAD/STT.
-                if self.aec_enabled and self._aec:
-                    audio_data = self._apply_aec(audio_data)
+                    # Read audio data
+                    stream = self.stream
+                    if stream is None:
+                        break
+                    audio_chunk, overflowed = stream.read(self.chunk_size)
+                    if overflowed and self.debug_mode:
+                        print(" > Mic input overflow")
+                    audio_data = audio_chunk.tobytes()
+                    self._emit_audio_level(audio_chunk)
 
-                # While transcriptions are paused (typically during TTS in STOP mode),
-                # run a rolling stop-phrase detector so "stop" can still work even if
-                # VAD never sees a clean end-of-utterance due to speaker echo.
-                if self._maybe_detect_stop_phrase_continuous(audio_data):
-                    # Don't also feed this chunk into VAD/recording state.
-                    continue
-                
-                # Check for speech
-                is_speech = self.voice_detector.is_speech(audio_data)
-                
-                if is_speech:
-                    speech_buffer.append(audio_data)
-                    speech_count += 1
-                    silence_count = 0
-                    
-                    # Trigger TTS interrupt callback if enough speech detected
-                    # Only interrupt if TTS interruption is enabled (not during TTS playback)
-                    if (self.tts_interrupt_callback and 
-                        self.tts_interrupt_enabled and
-                        speech_count >= self.min_speech_chunks and 
-                        not recording):
-                        # In FULL mode without AEC, avoid false barge-in from echo by
-                        # gating on near/far correlation.
-                        if self._profile == "full" and self._echo_gate_enabled and not self.aec_enabled:
-                            if self._is_likely_echo(audio_data):
-                                if self.debug_mode:
-                                    print(" > Echo-gated barge-in (ignored)")
-                            else:
-                                self.tts_interrupt_callback()
-                        else:
-                            self.tts_interrupt_callback()
-                        if self.debug_mode:
-                            print(" > TTS interrupted by user speech")
-                    
-                    # Start recording after minimum speech detected
-                    if speech_count >= self.min_speech_chunks:
-                        recording = True
-                        
-                else:
-                    # Handle silence during recording
-                    if recording:
+                    # Optional AEC: remove speaker echo from mic input before VAD/STT.
+                    if self.aec_enabled and self._aec:
+                        audio_data = self._apply_aec(audio_data)
+
+                    # While transcriptions are paused (typically during TTS in STOP mode),
+                    # run a rolling stop-phrase detector so "stop" can still work even if
+                    # VAD never sees a clean end-of-utterance due to speaker echo.
+                    if self._maybe_detect_stop_phrase_continuous(audio_data):
+                        # Don't also feed this chunk into VAD/recording state.
+                        continue
+
+                    # Check for speech
+                    is_speech = self.voice_detector.is_speech(audio_data)
+
+                    if is_speech:
                         speech_buffer.append(audio_data)
-                        silence_count += 1
-                        
-                        # End of speech detected
-                        if silence_count >= self.silence_timeout_chunks:
-                            if self.debug_mode:
-                                print(f" > Speech detected ({len(speech_buffer)} chunks), transcribing...")
-                                
-                            audio_bytes = b''.join(speech_buffer)
-                            audio_seconds = 0.0
-                            try:
-                                if self.sample_rate and self.sample_rate > 0:
-                                    audio_seconds = float(len(audio_bytes)) / float(int(self.sample_rate) * 2)
-                            except Exception:
-                                audio_seconds = 0.0
+                        speech_count += 1
+                        silence_count = 0
 
-                            t0 = time.monotonic()
-                            text = self._transcribe_pcm16(audio_bytes)
-                            t1 = time.monotonic()
-                            stt_s = float(t1 - t0)
-                            metrics = {
-                                "stt_s": stt_s,
-                                "audio_s": float(audio_seconds),
-                                "rtf": (stt_s / float(audio_seconds)) if audio_seconds else None,
-                                "sample_rate": int(self.sample_rate),
-                                "chunks": int(len(speech_buffer)),
-                                "chunk_ms": int(self.chunk_duration),
-                                "ts": time.time(),
-                            }
-                            
-                            if text:
-                                # Check for stop command
-                                if self._is_stop_command(text):
-                                    if self.stop_callback:
-                                        self.stop_callback()
-                                    else:
-                                        # If no stop callback, invoke transcription callback anyway
-                                        self.transcription_callback(text)
+                        # Trigger TTS interrupt callback if enough speech detected
+                        # Only interrupt if TTS interruption is enabled (not during TTS playback)
+                        if (
+                            self.tts_interrupt_callback
+                            and self.tts_interrupt_enabled
+                            and speech_count >= self.min_speech_chunks
+                            and not recording
+                        ):
+                            # In FULL mode without AEC, avoid false barge-in from echo by
+                            # gating on near/far correlation.
+                            if self._profile == "full" and self._echo_gate_enabled and not self.aec_enabled:
+                                if self._is_likely_echo(audio_data):
+                                    if self.debug_mode:
+                                        print(" > Echo-gated barge-in (ignored)")
                                 else:
-                                    # Normal transcription (can be suppressed during TTS)
-                                    if not self.transcriptions_paused:
-                                        # Record metrics only when this transcription is actually emitted.
-                                        self.last_stt_metrics = metrics
-                                        self.transcription_callback(text)
-                            
-                            # Reset state
-                            speech_buffer = []
-                            speech_count = 0
-                            silence_count = 0
-                            recording = False
+                                    self._invoke_callback("tts_interrupt_callback", self.tts_interrupt_callback)
+                            else:
+                                self._invoke_callback("tts_interrupt_callback", self.tts_interrupt_callback)
+                            if self.debug_mode:
+                                print(" > TTS interrupted by user speech")
+
+                        # Start recording after minimum speech detected
+                        if speech_count >= self.min_speech_chunks:
+                            recording = True
+
                     else:
-                        # No speech detected and not recording
-                        speech_count = max(0, speech_count - 1)
-                        if speech_count == 0:
-                            speech_buffer = []
+                        # Handle silence during recording
+                        if recording:
+                            speech_buffer.append(audio_data)
+                            silence_count += 1
+
+                            # End of speech detected
+                            if silence_count >= self.silence_timeout_chunks:
+                                if self.debug_mode:
+                                    print(f" > Speech detected ({len(speech_buffer)} chunks), transcribing...")
+
+                                audio_bytes = b"".join(speech_buffer)
+                                chunk_count = len(speech_buffer)
+                                speech_buffer = []
+                                speech_count = 0
+                                silence_count = 0
+                                recording = False
+                                self._handle_completed_speech(audio_bytes, chunk_count)
+                        else:
+                            # No speech detected and not recording
+                            speech_count = max(0, speech_count - 1)
+                            if speech_count == 0:
+                                speech_buffer = []
                             
-            except Exception as e:
-                if self.debug_mode:
-                    print(f"Voice recognition error: {e}")
-                continue
+                except Exception as e:
+                    self.last_error = e
+                    if not self.is_running:
+                        break
+                    if self.debug_mode:
+                        print(f"Voice recognition error: {e}")
+                    continue
+        finally:
+            self.is_running = False
+            self._close_stream()
     
     def change_whisper_model(self, model_name):
         """Change the Whisper model.

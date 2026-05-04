@@ -439,7 +439,7 @@ class PiperTTSAdapter(TTSAdapter):
         """
         # Infer format from extension if not provided
         if format is None:
-            format = Path(output_path).suffix.lstrip('.')
+            format = Path(output_path).suffix.lstrip('.') or "wav"
         
         if format.lower() != 'wav':
             raise ValueError(f"Piper adapter currently only supports WAV format, not {format}")

@@ -9,6 +9,7 @@ Positioning:
 - The REPL is a **demonstrator/smoke-test harness** and includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`).
 
 Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downloads should be explicit (see `docs/installation.md` and `docs/model-management.md`).
+CI/release tests use `python -m pytest -q -m "not integration and not model_download"` to avoid optional integration and artifact-download paths.
 
 Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skippable when context is tight).
 
@@ -28,6 +29,9 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 
 ## Architecture & decisions
 - [Architecture](docs/architecture.md): implementation map + diagrams
+- [Development](docs/development.md): local tests, CI, release checklist
+- [CI workflow](.github/workflows/ci.yml): Python 3.10-3.12 tests + build check
+- [Release workflow](.github/workflows/release.yml): tag/manual release to PyPI + GitHub Release
 - [Acronyms](docs/acronyms.md)
 - [ADR 0001](docs/adr/0001-local_assistant_out_of_box.md): out-of-box local assistant
 - [ADR 0002](docs/adr/0002_barge_in_interruption.md): barge-in modes + stop phrase + optional AEC
@@ -37,6 +41,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 
 ## Core code map
 - [VoiceManager façade](abstractvoice/voice_manager.py): public import target
+- [Version source](abstractvoice/_version.py): single release version source
 - [VoiceManager wiring](abstractvoice/vm/manager.py): constructor + engine selection
 - [Voice-mode behavior](abstractvoice/vm/core.py): listening behavior during TTS playback
 - [TTS orchestration](abstractvoice/vm/tts_mixin.py): `speak*()` + cloning orchestration
@@ -71,7 +76,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 
 ## Optional
 - [Full index](llms-full.txt): expanded repo map + workflows
-- [Tests](tests/): run `python -m pytest -q`
+- [Tests](tests/): CI-safe run is `python -m pytest -q -m "not integration and not model_download"`
 - [Backlog](docs/backlog/): internal planning (not an API contract)
 - [Reports](docs/reports/): historical snapshots
 - [Voice cloning research notes](docs/voice_cloning_2026.md): non-contract research notes

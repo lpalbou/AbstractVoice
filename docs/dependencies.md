@@ -211,7 +211,15 @@ Model:
   - **Repo**: `https://github.com/shichaog/AEC-Audio-Processing`
   - **License**: `https://github.com/shichaog/AEC-Audio-Processing/blob/main/LICENSE`
 
-### `abstractvoice[stt]` — Legacy Whisper + token stats
+### `abstractvoice[stt]` — Faster-Whisper STT
+
+- **faster-whisper**
+  - **Why**: current STT adapter path (also installed by the base package).
+  - **Where**: `abstractvoice/adapters/stt_faster_whisper.py`
+  - **Repo**: `https://github.com/SYSTRAN/faster-whisper`
+  - **License**: `https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE`
+
+### `abstractvoice[legacy-stt]` — Legacy Whisper + token stats
 
 - **openai-whisper**
   - **Repo**: `https://github.com/openai/whisper`
@@ -220,12 +228,6 @@ Model:
 - **tiktoken**
   - **Repo**: `https://github.com/openai/tiktoken`
   - **License**: `https://github.com/openai/tiktoken/blob/main/LICENSE`
-
-### `abstractvoice[web]` — Web demo / API
-
-- **flask**
-  - **Repo**: `https://github.com/pallets/flask`
-  - **License**: `https://github.com/pallets/flask/blob/main/LICENSE.rst`
 
 ---
 
@@ -248,4 +250,3 @@ These are used for local development only (not required at runtime).
 - **pytest**: `https://github.com/pytest-dev/pytest` — `https://github.com/pytest-dev/pytest/blob/main/LICENSE`
 - **black**: `https://github.com/psf/black` — `https://github.com/psf/black/blob/main/LICENSE`
 - **flake8**: `https://github.com/PyCQA/flake8` — `https://github.com/PyCQA/flake8/blob/main/LICENSE`
-

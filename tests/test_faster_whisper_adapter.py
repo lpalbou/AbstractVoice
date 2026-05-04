@@ -17,6 +17,8 @@ import os
 from pathlib import Path
 import wave
 
+pytestmark = pytest.mark.model_download
+
 
 def create_test_audio_file(duration_seconds=2, sample_rate=16000, frequency=440):
     """Create a test WAV file with a sine wave tone.

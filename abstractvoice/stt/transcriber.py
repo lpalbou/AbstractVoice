@@ -14,8 +14,7 @@ def _import_whisper():
     except ImportError as e:
         raise ImportError(
             "Speech recognition functionality requires optional dependencies. Install with:\n"
-            "  pip install abstractvoice[stt]    # For speech recognition only\n"
-            "  pip install abstractvoice[all]    # For all features\n"
+            "  pip install abstractvoice[legacy-stt]    # Legacy OpenAI Whisper fallback\n"
             f"Original error: {e}"
         ) from e
 
@@ -150,4 +149,4 @@ class Transcriber:
         else:
             if self.debug_mode:
                 print(f" > Invalid model name: {model_name}")
-            return False 
+            return False

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=77.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -106,30 +106,38 @@ aec = [
     "aec-audio-processing>=1.0.1",
 ]
 
-# Speech-to-Text functionality
+# Speech-to-Text functionality (current core STT path; duplicated for metadata clarity).
 stt = [
+    "faster-whisper>=0.10.0",
+    "soundfile>=0.12.1",
+]
+
+# Legacy OpenAI Whisper fallback/token-stat tooling.
+legacy-stt = [
     "openai-whisper>=20230314",
     "tiktoken>=0.6.0",
 ]
 
-# Legacy/demo Flask web example. Production HTTP audio endpoints live in AbstractCore Server.
-web = [
-    "flask>=2.0.0",
-]
+# Deprecated compatibility alias. HTTP audio endpoints live in AbstractCore Server.
+web = []
 
 # Convenience bundle for common optional features (not GPU-heavy engines).
 all = [
     "piper-tts>=1.2.0",
+    "huggingface_hub>=0.20.0",
+    "faster-whisper>=0.10.0",
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
-    "openai-whisper>=20230314",
     "librosa>=0.10.0",
     "soundfile>=0.12.1",
-    "flask>=2.0.0",
-    "tiktoken>=0.6.0",
     # Optional advanced features
     "f5-tts>=1.1.0",
     "aec-audio-processing>=1.0.1",
+]
+
+# CI/test dependencies.
+test = [
+    "pytest>=7.0.0",
 ]
 
 # Development dependencies
@@ -141,18 +149,19 @@ dev = [
 
 # Complete voice functionality - TTS + STT + Audio I/O (most common use case)
 voice-full = [
+    "piper-tts>=1.2.0",
+    "huggingface_hub>=0.20.0",
+    "faster-whisper>=0.10.0",
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
-    "openai-whisper>=20230314",
     "librosa>=0.10.0",
     "soundfile>=0.12.1",
-    "tiktoken>=0.6.0",
 ]
 
 # Core STT-only (lightweight, no TTS)
 core-stt = [
-    "openai-whisper>=20230314",
-    "tiktoken>=0.6.0",
+    "faster-whisper>=0.10.0",
+    "soundfile>=0.12.1",
 ]
 
 # Audio processing only (for custom TTS/STT implementations)
@@ -174,7 +183,7 @@ abstractvoice-prefetch = "abstractvoice.prefetch:main"
 abstractvoice = "abstractvoice.integrations.abstractcore_plugin:register"
 
 [tool.setuptools.dynamic]
-version = {attr = "abstractvoice.__version__"} 
+version = {attr = "abstractvoice._version.__version__"}
 
 [tool.setuptools.packages.find]
 # Explicit discovery avoids setuptools accidentally treating `audio_samples/`
@@ -185,3 +194,16 @@ exclude = ["audio_samples*", "tests*", "docs*"]
 [tool.setuptools.package-data]
 # Ship built-in voice profile preset packs (JSON).
 abstractvoice = ["assets/**/*.json"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+python_classes = ["Test*"]
+markers = [
+    "integration: integration tests that may require sibling repos or optional engines",
+    "model_download: tests that may download or require cached model artifacts",
+    "slow: slow tests",
+    "basic: lightweight contract/unit tests",
+]
