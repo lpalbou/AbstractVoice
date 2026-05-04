@@ -20,46 +20,12 @@ import time
 import requests
 from abstractvoice import VoiceManager
 from abstractvoice.examples.llm_provider import (
-    LLMProvider, resolve_provider, PROVIDER_PRESETS, DEFAULT_PROVIDER, DEFAULT_MODEL,
+    resolve_provider,
+    PROVIDER_PRESETS,
+    DEFAULT_PROVIDER,
+    DEFAULT_MODEL,
+    strip_think_blocks,
 )
-
-
-_THINK_BLOCK_RE = re.compile(r"<think\b[^>]*>.*?</think\s*>\s*", flags=re.IGNORECASE | re.DOTALL)
-_THINK_OPEN_RE = re.compile(r"<think\b[^>]*>", flags=re.IGNORECASE | re.DOTALL)
-_THINK_TAG_RE = re.compile(r"</?think\b[^>]*>", flags=re.IGNORECASE | re.DOTALL)
-_RE_MANY_BLANK_LINES = re.compile(r"\n{3,}")
-
-
-def strip_think_blocks(text: str) -> str:
-    """Discard `<think>...</think>` blocks from LLM output.
-
-    Some OpenAI-compatible endpoints (and local models) emit chain-of-thought in
-    `<think>` tags. The REPL treats this as non-user-facing and removes it before:
-    - printing to the terminal
-    - adding to conversation history
-    - sending to TTS
-    """
-    s = str(text or "")
-    if not s:
-        return ""
-    # Fast path: avoid regex work on the common case.
-    if "<think" not in s.lower():
-        return s.strip()
-
-    # Remove well-formed blocks first (multiline, case-insensitive).
-    # Consume trailing whitespace so we don't leave extra blank lines.
-    out = _THINK_BLOCK_RE.sub("", s)
-
-    # If the model emitted an opening tag without a closing tag, drop everything
-    # after it (best-effort to avoid speaking hidden reasoning).
-    m = _THINK_OPEN_RE.search(out)
-    if m is not None and "</think" not in out[m.end() :].lower():
-        out = out[: m.start()]
-
-    # Remove any remaining tags (defensive; handles stray open/close tags).
-    out = _THINK_TAG_RE.sub("", out)
-    out = _RE_MANY_BLANK_LINES.sub("\n\n", out)
-    return out.strip()
 
 
 # ANSI color codes
@@ -157,7 +123,7 @@ class VoiceREPL(cmd.Cmd):
         self._seed_hal9000_voice()
         
         # Settings
-        self.use_tts = True
+        self.use_tts = not bool(disable_tts)
         # Voice input mode (mic). Default: OFF for fast startup + offline-first.
         # Use `--voice-mode stop` (or `/voice stop`) to enable hands-free.
         self.voice_mode = (voice_mode or "off").strip().lower()  # off, full, wait, stop, ptt
@@ -331,12 +297,12 @@ class VoiceREPL(cmd.Cmd):
         intro += "  • Type messages to chat with the LLM\n"
         intro += "  • Voice input (mic): off by default. Enable: /voice stop  (or start with --voice-mode stop)\n"
         intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
-        intro += "  • TTS engine: /tts_engine piper|audiodit|omnivoice  (offline-first: prefetch first)\n"
-        intro += "  • Base TTS quality: /tts_quality low|standard|high\n"
-        intro += "  • Voice profiles: /profile list  then /profile <id>  (depends on active TTS engine)\n"
+        intro += "  • TTS engine: /tts engine piper|audiodit|omnivoice  (offline-first: prefetch first)\n"
+        intro += "  • Base TTS quality: /tts quality low|standard|high\n"
+        intro += "  • Voices: /voices  (profiles, base/cloned voice selection, and compatibility commands)\n"
         intro += "  • OmniVoice design/params: /omnivoice  (advanced; only when OmniVoice is active)\n"
         intro += "  • Language: /language <code>  (Piper: en/fr/de/es/ru/zh; OmniVoice: many)\n"
-        intro += "  • Cloning: /clone <ref.wav> my_voice --engine omnivoice --text \"...\"  then /tts_voice clone my_voice\n"
+        intro += "  • Cloning: /clone <ref.wav> my_voice --engine omnivoice --text \"...\"  then /voices clone my_voice\n"
         intro += "  • Type /help for full command list\n"
         intro += "  • Type /exit or /q to quit\n"
         return intro
@@ -851,7 +817,7 @@ class VoiceREPL(cmd.Cmd):
                                 if self.current_tts_voice and not self._is_cloning_runtime_ready(voice_id=self.current_tts_voice):
                                     print(
                                         "ℹ️  Cloned voice selected but cloning runtime is not ready.\n"
-                                        "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
+                                        "   Run /cloning_status then /cloning_download, or switch back with /voices base."
                                     )
                                 else:
                                     # Only stream voice when delivery mode is streamed for the active voice type.
@@ -1014,7 +980,7 @@ class VoiceREPL(cmd.Cmd):
                         if self.current_tts_voice and not self._is_cloning_runtime_ready(voice_id=self.current_tts_voice):
                             print(
                                 "ℹ️  Cloned voice selected but cloning runtime is not ready.\n"
-                                "   Run /cloning_status then /cloning_download, or switch back with /tts_voice piper."
+                                "   Run /cloning_status then /cloning_download, or switch back with /voices base."
                             )
                         else:
                             self._speak_with_spinner_until_audio_starts(response_text)
@@ -1196,7 +1162,7 @@ class VoiceREPL(cmd.Cmd):
                 traceback.print_exc()
 
     def do_setvoice(self, args):
-        """Set a specific voice model.
+        """Legacy Piper voice-model command.
 
         Usage:
           /setvoice                    # Show all available voices
@@ -1301,6 +1267,94 @@ class VoiceREPL(cmd.Cmd):
             if self.debug_mode:
                 import traceback
                 traceback.print_exc()
+
+    def do_voices(self, arg):
+        """Unified voice selection overview and shortcuts.
+
+        Usage:
+          /voices
+          /voices profiles
+          /voices profile <profile_id>
+          /voices clones
+          /voices base
+          /voices clone <id-or-name>
+          /voices models
+
+        This is the preferred discovery/selection command. Older focused
+        commands remain for compatibility: /profile, /tts_voice, /clones,
+        /setvoice.
+        """
+        if not self.voice_manager:
+            print("🔇 Voice features are disabled. Use '/tts on' to enable.")
+            return
+
+        raw = str(arg or "").strip()
+        parts = raw.split()
+        cmd = parts[0].lower() if parts else ""
+
+        if cmd in ("profiles", "profile"):
+            if cmd == "profiles" and len(parts) == 1:
+                return self.do_profile("list")
+            if len(parts) >= 2:
+                return self.do_profile(" ".join(parts[1:]))
+            return self.do_profile("")
+
+        if cmd in ("clones", "cloned"):
+            return self.do_clones(" ".join(parts[1:]))
+
+        if cmd in ("base", "piper", "engine", "tts"):
+            return self.do_tts_voice("base")
+
+        if cmd == "clone":
+            if len(parts) < 2:
+                print("Usage: /voices clone <id-or-name>")
+                return
+            return self.do_tts_voice("clone " + " ".join(parts[1:]))
+
+        if cmd in ("piper-voices", "models"):
+            return self.do_setvoice(" ".join(parts[1:]))
+
+        if cmd in ("setvoice", "piper_voice", "piper-voice"):
+            return self.do_setvoice(" ".join(parts[1:]))
+
+        if cmd in ("help", "?"):
+            raw = ""
+
+        if raw:
+            print("Usage: /voices [profiles|profile <id>|clones|base|clone <id>|models|setvoice <language.voice_id>]")
+            return
+
+        print("Voices")
+        print()
+        self.do_tts_voice("")
+        print()
+        self.do_profile("show")
+        print()
+        try:
+            cloned = list(self.voice_manager.list_cloned_voices() or [])
+        except Exception:
+            cloned = []
+        print(f"Cloned voices: {len(cloned)}")
+        if cloned:
+            for v in cloned[:8]:
+                vid = str(v.get("voice_id") or "")
+                name = str(v.get("name") or "").strip()
+                eng = str(v.get("engine") or "").strip()
+                label = name or vid
+                suffix = f" (engine: {eng})" if eng else ""
+                marker = " *" if vid and vid == self.current_tts_voice else ""
+                print(f"  - {label}{suffix}{marker}")
+            if len(cloned) > 8:
+                print(f"  ... {len(cloned) - 8} more")
+        print()
+        print("Common actions:")
+        print("  /voices profiles              List profiles for the active TTS engine")
+        print("  /voices profile <id>          Apply an engine profile")
+        print("  /voices base                  Use the base TTS engine")
+        print("  /voices clones                List cloned voices")
+        print("  /voices clone <id-or-name>    Use a cloned voice")
+        print("  /voices models                List raw Piper model/catalog entries")
+        print("  /voices setvoice fr.siwis     Compatibility Piper selector")
 
     def do_lang_info(self, args):
         """Show current language information."""
@@ -1716,10 +1770,49 @@ class VoiceREPL(cmd.Cmd):
         print("Voice mode disabled.")
     
     def do_tts(self, arg):
-        """Toggle text-to-speech."""
-        arg = arg.lower().strip()
-        
-        if arg == "on":
+        """Control text-to-speech behavior.
+
+        Preferred grouped forms:
+          /tts
+          /tts on|off
+          /tts engine auto|piper|audiodit|omnivoice
+          /tts quality low|standard|high
+          /tts delivery buffered|streamed
+          /tts speed <number>
+          /tts voice ...
+        """
+        raw = str(arg or "").strip()
+        parts = raw.split()
+        cmd = parts[0].lower() if parts else ""
+        rest = " ".join(parts[1:])
+
+        if cmd in ("", "status"):
+            print(f"TTS playback: {'on' if bool(getattr(self, 'use_tts', False)) else 'off'}")
+            if self.voice_manager:
+                try:
+                    engine = str(getattr(self.voice_manager, "_tts_engine_name", "") or "").strip().lower()
+                    adapter = getattr(self.voice_manager, "tts_adapter", None)
+                    engine = engine or str(getattr(adapter, "engine_id", "") or "").strip().lower()
+                except Exception:
+                    engine = ""
+                try:
+                    delivery = self.voice_manager.get_tts_delivery_mode()
+                except Exception:
+                    delivery = ""
+                try:
+                    speed = self.voice_manager.get_speed()
+                except Exception:
+                    speed = ""
+                print(f"TTS engine: {engine or 'auto'}")
+                if delivery:
+                    print(f"TTS delivery: {delivery}")
+                if speed:
+                    print(f"TTS speed: {speed}x")
+                self.do_tts_voice("")
+            print("Usage: /tts on|off | /tts engine <engine> | /tts quality <preset> | /tts delivery <mode> | /tts speed <number> | /tts voice ...")
+            return
+
+        if cmd == "on":
             self.use_tts = True
             if self.voice_manager is None:
                 # Re-enable voice features (TTS/STT) by creating a VoiceManager.
@@ -1732,11 +1825,29 @@ class VoiceREPL(cmd.Cmd):
                     cloning_engine=self.cloning_engine,
                 )
             print("TTS enabled" if self.debug_mode else "")
-        elif arg == "off":
+            return
+
+        if cmd == "off":
             self.use_tts = False
             print("TTS disabled" if self.debug_mode else "")
-        else:
-            print("Usage: /tts on | off")
+            return
+
+        if cmd == "engine":
+            return self.do_tts_engine(rest)
+
+        if cmd in ("quality", "preset"):
+            return self.do_tts_quality(rest)
+
+        if cmd in ("delivery", "mode"):
+            return self.do_tts_delivery(rest)
+
+        if cmd == "speed":
+            return self.do_speed(rest)
+
+        if cmd in ("voice", "voices"):
+            return self.do_voices(rest)
+
+        print("Usage: /tts on|off | /tts engine <engine> | /tts quality <preset> | /tts delivery <mode> | /tts speed <number> | /tts voice ...")
     
     def do_speed(self, arg):
         """Set the TTS speed multiplier."""
@@ -1941,7 +2052,7 @@ class VoiceREPL(cmd.Cmd):
             engine_id = ""
         if engine_id != "audiodit" or adapter is None:
             print("❌ /random only works when AudioDiT TTS is active.")
-            print("   Run: /tts_engine audiodit")
+            print("   Run: /tts engine audiodit")
             return
 
         # Force non-cloned mode for auditioning.
@@ -2074,7 +2185,7 @@ class VoiceREPL(cmd.Cmd):
         AbstractVoice core is Piper-first; use `/setvoice` (Piper voices) or cloned voices.
         """
         print("❌ /tts_model is not supported (Piper-first core).")
-        print("   Use /setvoice for Piper voices, or /tts_voice clone <id> for cloned voices.")
+        print("   Use /voices setvoice <language.voice_id> for Piper voices, or /voices clone <id> for cloned voices.")
     
     def do_whisper(self, arg):
         """Change Whisper model."""
@@ -2957,7 +3068,7 @@ class VoiceREPL(cmd.Cmd):
 
             eng_txt = f" (engine: {eng})" if eng else ""
             print(f"✅ Cloned voice created: {voice_id}{eng_txt}")
-            print("   Use /tts_voice clone <id-or-name> to select it.")
+            print("   Use /voices clone <id-or-name> to select it.")
             if self.debug_mode:
                 try:
                     base_dir = ""
@@ -3200,7 +3311,7 @@ class VoiceREPL(cmd.Cmd):
         # Select if runtime is ready (no surprise downloads).
         if not self._is_cloning_runtime_ready(voice_id=voice_id):
             print("ℹ️  Cloning runtime is not ready (would trigger large downloads).")
-            print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
+            print("   Run /cloning_status and /cloning_download, or use /voices base.")
             return
 
         self.current_tts_voice = voice_id
@@ -3367,13 +3478,13 @@ class VoiceREPL(cmd.Cmd):
                 print("   Set it manually:")
                 print("     /clone_set_ref_text <id-or-name> \"...\"")
                 print("   Then re-run:")
-                print("     /tts_voice clone <id-or-name>")
+                print("     /voices clone <id-or-name>")
                 return
 
         # Do not allow selecting a cloned voice unless the runtime is ready.
         if not self._is_cloning_runtime_ready(voice_id=match):
             print("❌ Cloning runtime is not ready (would trigger large downloads).")
-            print("   Run /cloning_status and /cloning_download, or use /tts_voice piper.")
+            print("   Run /cloning_status and /cloning_download, or use /voices base.")
             return
 
         # Allow selecting voices without reference_text; we will auto-fallback at speak-time
@@ -3961,7 +4072,7 @@ class VoiceREPL(cmd.Cmd):
                     print(f"Seeded cloned voice 'hal9000': {existing_hal}")
 
             # Do NOT auto-select here; selecting a clone without explicit user action
-            # can cause surprise multi-GB downloads. Users can opt in via /tts_voice.
+            # can cause surprise multi-GB downloads. Users can opt in via /voices.
         except Exception:
             # Best-effort only; never block REPL start.
             return
@@ -4125,7 +4236,7 @@ class VoiceREPL(cmd.Cmd):
             engine_id = ""
         if engine_id != "omnivoice" or adapter is None:
             print("❌ OmniVoice is not the active TTS engine.")
-            print("   Run: /tts_engine omnivoice")
+            print("   Run: /tts engine omnivoice")
             return
 
         def _print_status():
@@ -4625,20 +4736,30 @@ class VoiceREPL(cmd.Cmd):
         print("  /reset                Reset (history + voice state)")
         print("  /debug [on|off]       Debug mode (also saves synthesized WAVs)")
         print("  /verbose [on|off]     Verbose per-turn stats (timings, etc.)")
+        print("  /save <name>          Save chat history to a .mem file")
+        print("  /load <name>          Load chat history from a .mem file")
         print()
         print("TTS (speaking)")
-        print("  /tts on|off            Toggle TTS playback")
-        print("  /tts_engine <engine>   Switch TTS engine: auto|piper|audiodit|omnivoice")
-        print("  /tts_quality <preset>  Base TTS quality preset: low|standard|high")
-        print("  /tts_delivery <mode>   Delivery mode: buffered|streamed")
-        print("  /profile ...           Voice profiles for the active TTS engine: list|show|<id>")
-        print("  /omnivoice ...         OmniVoice voice design + parameters (only when OmniVoice is active)")
-        print("  /language <code>       Switch language (Piper: en/fr/de/es/ru/zh; OmniVoice: many ISO codes)")
-        print("  /speed <number>        Set speed (native when supported; otherwise time-stretch)")
+        print("  /tts                  Show TTS status")
+        print("  /tts on|off           Toggle TTS playback")
+        print("  /tts engine <engine>  Switch TTS engine: auto|piper|audiodit|omnivoice")
+        print("  /tts quality <preset> Base TTS quality preset: low|standard|high")
+        print("  /tts delivery <mode>  Delivery mode: buffered|streamed")
+        print("  /tts speed <number>   Set speed (native when supported; otherwise time-stretch)")
         print("  /speak <text>          Speak text (no LLM call)")
         print("  /pause                 Pause TTS playback")
         print("  /resume                Resume TTS playback")
         print("  /stop                  Stop current playback / voice mode")
+        print()
+        print("Voice selection (preferred)")
+        print("  /voices                Voice selection hub (profiles + base/cloned voices)")
+        print("  /voices profiles       List profiles for the active TTS engine")
+        print("  /voices profile <id>   Apply a profile")
+        print("  /voices base           Use the base TTS engine")
+        print("  /voices clone <id>     Use a cloned voice")
+        print("  /voices models         List raw Piper model/catalog entries")
+        print("  /language <code>       Switch language (Piper: en/fr/de/es/ru/zh; OmniVoice: many ISO codes)")
+        print("  /omnivoice ...         OmniVoice voice design + parameters (only when OmniVoice is active)")
         print()
         print("Voice input (mic)")
         print("  /voice off|wait|stop|ptt|full")
@@ -4653,11 +4774,11 @@ class VoiceREPL(cmd.Cmd):
         print("  /clone myvoice ...     Interactive mic cloning (SPACE start/stop)")
         print("  /clone_use myvoice ... Interactive mic cloning + select")
         print("  /clones                List cloned voices")
-        print("  /tts_voice base        Use the current TTS engine (alias: /tts_voice piper)")
-        print("  /tts_voice clone <id>  Speak with a cloned voice")
         print("  /clone_ref <id>        Show stored reference transcript")
         print("  /clone_set_ref_text <id> <text...>   Set/override reference transcript")
         print("  /clone_quality low|standard|high    Cloned speech quality preset")
+        print("  /clone_export <id> <path>           Export cloned voice bundle")
+        print("  /clone_import <path>                Import cloned voice bundle")
         print()
         print("STT / transcription")
         print("  /stt_engine <engine>   auto|faster_whisper|whisper")
@@ -4677,10 +4798,22 @@ class VoiceREPL(cmd.Cmd):
         print("AudioDiT-only (optional)")
         print("  /random [seed]         Audition random AudioDiT voices; saves WAV to untracked/voices/")
         print()
+        print("Advanced / compatibility")
+        print("  /profile ...           Direct profile command (same surface as /voices profile/profiles)")
+        print("  /tts_voice ...         Direct base/cloned voice selector (same surface as /voices base/clone)")
+        print("  /tts_engine ...        Direct TTS engine command")
+        print("  /tts_quality ...       Direct quality command")
+        print("  /tts_delivery ...      Direct delivery command")
+        print("  /speed ...             Direct speed command")
+        print("  /setvoice ...          Compatibility Piper model selector (prefer /voices models)")
+        print("  /lang_info             Show current language/model information")
+        print("  /list_languages        List Piper language mapping")
+        print("  /tts_model             Deprecated legacy TTS model command")
+        print()
         print("Examples")
         print("  OmniVoice TTS (French):")
-        print("    /tts_engine omnivoice")
-        print("    /profile female_01    # optional (demo preset; use /profile list)")
+        print("    /tts engine omnivoice")
+        print("    /voices profile female_01    # optional (demo preset; use /voices profiles)")
         print("    # Or manual voice design:")
         print("    # /omnivoice instruct \"female, young adult, moderate pitch\"")
         print("    /language fr")
@@ -4689,7 +4822,7 @@ class VoiceREPL(cmd.Cmd):
         print("  OmniVoice cloning (create + use):")
         print("    /cloning_download omnivoice")
         print("    /clone /path/to/ref.wav my_voice --engine omnivoice --text \"Bonjour, je m'appelle ...\"")
-        print("    /tts_voice clone my_voice")
+        print("    /voices clone my_voice")
         print("    /speak Ceci est un test avec ma voix clonée.")
         print()
         print("Notes")

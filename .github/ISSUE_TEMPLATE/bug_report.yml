@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a reproducible AbstractVoice bug
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. For engine-quality caveats already known in the current release, check `docs/known-issues.md` first.
+  - type: input
+    id: version
+    attributes:
+      label: AbstractVoice version
+      description: Output of `python -c "import abstractvoice; print(abstractvoice.__version__)"`
+      placeholder: "0.8.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Engine or area
+      options:
+        - piper
+        - faster_whisper
+        - f5_tts
+        - chroma
+        - audiodit
+        - omnivoice
+        - repl
+        - abstractcore integration
+        - packaging/install
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened?
+      description: Describe the incorrect behavior, including exact errors or audible artifact notes.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include commands, Python snippets, REPL commands, and whether models were already prefetched.
+      placeholder: |
+        1. `python -m abstractvoice download --piper en`
+        2. `abstractvoice --verbose`
+        3. `/speak hello`
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, hardware/accelerator, installed extras, and relevant package versions.
+      placeholder: |
+        macOS 15, Python 3.12, Apple Silicon MPS
+        pip install "abstractvoice[omnivoice]"
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Logs or audio artifacts
+      description: Attach logs, screenshots, sample WAVs, or describe where artifacts can be found.
+    validations:
+      required: false
+  - type: input
+    id: known_issue
+    attributes:
+      label: Known issue ID
+      description: Optional. If this maps to `docs/known-issues.md`, include the ID.
+      placeholder: "AV-KNOWN-001"
+    validations:
+      required: false

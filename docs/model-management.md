@@ -36,7 +36,8 @@ In offline-first mode (`allow_downloads=False`) these engines will **not** fetch
 
 ## CLI
 
-- Use `python -m abstractvoice cli` and `/setvoice` to view available voices (and cache status).
+- Use `python -m abstractvoice cli` and `/voices models` to view available Piper
+  voices (and cache status). `/setvoice` still works as a compatibility command.
 - Prefetch explicitly (offline-first):
 
 ```bash

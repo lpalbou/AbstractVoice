@@ -213,17 +213,18 @@ class OmniVoiceRuntime:
                 f"Import error: {e}\n"
             )
 
-            # Common pitfall: installing OmniVoice can downgrade torch/torchaudio
-            # (OmniVoice pins torch==2.8.*). If an incompatible torchvision remains
-            # installed, Transformers imports can fail with errors like:\n"
+            # Common pitfall: installing or changing torch-backed optional
+            # engines can leave an incompatible torchvision build installed.
+            # Transformers imports can then fail with errors like:
             #   RuntimeError: operator torchvision::nms does not exist
-            # Fix: install a matching torchvision for torch 2.8.* (0.23.*).
+            # Fix: install a torchvision build matching the active torch build.
             lowered = str(e).lower()
             if "torchvision" in lowered or "nms does not exist" in lowered or "operator torchvision::" in lowered:
                 msg += (
                     "\n"
                     "Detected a torchvision/torch mismatch.\n"
-                    "Fix (recommended):\n"
+                    "Fix: install a torchvision build that matches your active torch version.\n"
+                    "For torch 2.8.*, that is usually:\n"
                     "  python -m pip install --upgrade --force-reinstall \"torchvision==0.23.*\"\n"
                     "\n"
                     "Alternative (if you don't need torchvision):\n"
@@ -413,4 +414,3 @@ def prefetch_omnivoice(
             revision=str(revision) if revision else None,
         )
     return str(path)
-

@@ -61,3 +61,10 @@ capability backend discovered through `abstractcore.capabilities_plugins`.
   - The REPL is offline-first: no implicit model downloads.
   - Optional engines are opt-in via extras (e.g. `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`) and require explicit prefetch.
   - The REPL is a **demonstrator**: it includes a minimal OpenAI-compatible LLM HTTP client for convenience (`abstractvoice/examples/llm_provider.py`), but production agent/server use should be done via AbstractCore.
+
+### 5) Local browser smoke test
+
+- `abstractvoice web` starts a small FastAPI example around `VoiceManager`.
+- It has local `/api/*` routes for status, voices, TTS, and transcription, plus
+  `/v1/audio/*` smoke-test aliases.
+- It is still an example; AbstractCore remains the production server/API path.

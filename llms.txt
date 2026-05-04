@@ -6,7 +6,10 @@ Start with `README.md` for the primary entry flow and treat `docs/api.md` as the
 Positioning:
 - AbstractVoice is a **voice I/O library** (TTS/STT + optional cloning). It does not run an agent loop or an LLM server.
 - In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** (via the capability plugin entry point).
-- The REPL is a **demonstrator/smoke-test harness** and includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`).
+- The REPL and local FastAPI web UI are **examples/smoke-test harnesses**. They share a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for local providers such as Ollama/LM Studio.
+- REPL voice selection is centered on `/voices`; `/profile`, `/tts_voice`, and `/setvoice` remain compatibility/direct commands.
+- The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, and local `/api/*` routes; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
+- Web install bundles are explicit: `abstractvoice[web]` is lightweight, while `abstractvoice[web-omnivoice]` and `abstractvoice[web-full]` include optional heavy local engines for the browser UI.
 
 Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downloads should be explicit (see `docs/installation.md` and `docs/model-management.md`).
 CI/release tests use `python -m pytest -q -m "not integration and not model_download"` to avoid optional integration and artifact-download paths.
@@ -18,7 +21,8 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Docs index](docs/README.md): map of user-facing vs internal docs
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests
 - [API (integrator contract)](docs/api.md): supported surface (incl. AbstractFramework integrations)
-- [FAQ](docs/faq.md): common install/runtime issues
+- [FAQ](docs/faq.md): cache/history reset + common install/runtime issues
+- [Known issues](docs/known-issues.md): active release caveats and workarounds
 - [Installation](docs/installation.md): platform notes + optional extras
 - [REPL guide](docs/repl_guide.md): end-to-end validation + commands
 
@@ -30,6 +34,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 ## Architecture & decisions
 - [Architecture](docs/architecture.md): implementation map + diagrams
 - [Development](docs/development.md): local tests, CI, release checklist
+- [Known issues](docs/known-issues.md): current bug tracker mirror for release-facing caveats
 - [CI workflow](.github/workflows/ci.yml): Python 3.10-3.12 tests + build check
 - [Release workflow](.github/workflows/release.yml): tag/manual release to PyPI + GitHub Release
 - [Acronyms](docs/acronyms.md)
@@ -60,6 +65,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Mic/VAD/STT loop](abstractvoice/recognition.py): listening thread + stop phrase handling
 - [Stop phrase matching](abstractvoice/stop_phrase.py): normalization/matching (dependency-light)
 - [Explicit prefetch CLI](abstractvoice/prefetch.py): `abstractvoice-prefetch ...`
+- [Local web example](abstractvoice/examples/web_ui.py): browser TTS/STT smoke test
 
 ## Integrations (AbstractFramework ecosystem)
 - [AbstractCore capability plugin](abstractvoice/integrations/abstractcore_plugin.py): registers voice/audio backends
@@ -68,6 +74,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 
 ## Project + safety
 - [Contributing](CONTRIBUTING.md)
+- [Bug report template](.github/ISSUE_TEMPLATE/bug_report.yml)
 - [Security policy](SECURITY.md)
 - [Acknowledgments](ACKNOWLEDGMENTS.md)
 - [Changelog](CHANGELOG.md)

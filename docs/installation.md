@@ -33,15 +33,28 @@ pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transfor
 pip install "abstractvoice[omnivoice]" # OmniVoice (very heavy; torch/transformers)
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
 pip install "abstractvoice[audio-fx]"  # Speed change without pitch change (librosa)
+pip install "abstractvoice[web]"       # Local FastAPI browser example (base TTS/STT UI)
+pip install "abstractvoice[web-omnivoice]" # Web UI + OmniVoice dependency
+pip install "abstractvoice[web-full]"  # Web UI + optional local engine dependencies
 pip install "abstractvoice[stt]"       # Current faster-whisper STT path (also in core)
 pip install "abstractvoice[legacy-stt]" # Legacy openai-whisper + tiktoken
 ```
 
-Note (OmniVoice): upstream `omnivoice` pins `torch==2.8.*` / `torchaudio==2.8.*`. If you already have `torchvision` installed for a different torch version (common if you installed `abstractvoice[chroma]` first), you may see import errors like:
+`abstractvoice[web]` intentionally stays lightweight: it installs the browser
+server, but not every GPU-heavy engine shown in the UI. Use
+`abstractvoice[web-omnivoice]`, `abstractvoice[web-cloning]`,
+`abstractvoice[web-audiodit]`, `abstractvoice[web-chroma]`, or
+`abstractvoice[web-full]` when you want the web UI and those optional engines in
+one install command.
+
+Note (OmniVoice): OmniVoice uses the torch/torchaudio/torchvision stack. If you
+already have an incompatible `torchvision` installed (common after changing
+torch-backed extras), you may see import errors like:
 
 - `RuntimeError: operator torchvision::nms does not exist`
 
-Fix:
+Fix by installing a torchvision build that matches your torch version. For the
+torch 2.8 family this is typically:
 
 ```bash
 python -m pip install --upgrade --force-reinstall "torchvision==0.23.*"

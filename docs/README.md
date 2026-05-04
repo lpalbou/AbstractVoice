@@ -1,13 +1,15 @@
-# Documentation index
+# Documentation
 
-This folder contains both **user-facing** documentation and **internal** engineering notes.
+The core documentation set is:
 
-If you're discovering AbstractVoice for the first time, start with:
+- `README.md`
+- `docs/getting-started.md`
+- `docs/api.md`
+- `docs/architecture.md`
+- `docs/faq.md`
 
-1) `README.md` (install + quick smoke tests)  
-2) `docs/getting-started.md` (recommended setup + first smoke tests)  
-3) `docs/overview.md` (what the library is / common usage modes)  
-4) `docs/api.md` (supported integrator contract)
+Use those five files for the package overview, first run, supported API,
+implementation map, cache/history reset, and common troubleshooting.
 
 If you’re using AbstractVoice as part of the AbstractFramework ecosystem
 (AbstractCore / AbstractRuntime), see the integration notes in `README.md` and
@@ -16,9 +18,18 @@ the server/API surface; AbstractVoice is the capability plugin that backs
 voice/audio operations such as `/v1/audio/speech` and
 `/v1/audio/transcriptions`.
 
+For a local browser smoke test, install `abstractvoice[web]` and run
+`abstractvoice web`. That web UI is a small `VoiceManager` example with
+assistant/user voice selection, browser voice cloning from uploaded or recorded
+reference audio, and an example-only local LLM dialogue bridge, not the
+production API server. Optional engine bundles such as
+`abstractvoice[web-omnivoice]` and `abstractvoice[web-full]` install the web UI
+plus the matching heavy local engines.
+
 ## User-facing docs
 
 - **FAQ**: `docs/faq.md`
+- **Known issues**: `docs/known-issues.md`
 - **Install & troubleshooting**: `docs/installation.md`
 - **REPL guide (voice assistant)**: `docs/repl_guide.md`
 - **Multilingual**: `docs/multilingual.md`
@@ -37,6 +48,7 @@ voice/audio operations such as `/v1/audio/speech` and
 
 - **Changelog**: `CHANGELOG.md`
 - **Contributing**: `CONTRIBUTING.md`
+- **Bug reports**: `.github/ISSUE_TEMPLATE/bug_report.yml`
 - **Security**: `SECURITY.md`
 - **Acknowledgments**: `ACKNOWLEDGMENTS.md`
 - **License**: `LICENSE`

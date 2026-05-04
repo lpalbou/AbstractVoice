@@ -6,6 +6,7 @@ This module provides a direct entry point to start AbstractVoice in voice mode.
 """
 
 import argparse
+import sys
 import time
 from abstractvoice.examples.cli_repl import VoiceREPL
 from abstractvoice.examples.llm_provider import PROVIDER_PRESETS, DEFAULT_PROVIDER, DEFAULT_MODEL
@@ -14,13 +15,15 @@ def print_examples():
     """Print available examples."""
     print("Available commands:")
     print("  cli            - Command-line REPL example")
+    print("  web            - Local FastAPI web example")
     print("  simple         - Simple usage example")
     print("  check-deps     - Check dependency compatibility")
     print("\nUsage: abstractvoice <command> [--language <lang>] [args...]")
     print("\nSupported languages (Piper default mapping): en, fr, es, de, ru, zh")
-    print("Note: OmniVoice supports many additional language codes once selected via /tts_engine omnivoice.")
+    print("Note: OmniVoice supports many additional language codes once selected via /tts engine omnivoice.")
     print("\nExamples:")
     print("  abstractvoice cli --language fr     # French CLI")
+    print("  abstractvoice web --port 5000       # Local web example")
     print("  abstractvoice simple --language ru  # Russian simple example")
     print("  abstractvoice check-deps            # Check dependencies")
     print("  abstractvoice                       # Direct voice mode (default)")
@@ -99,7 +102,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="AbstractVoice - Voice interactions with AI")
 
     # Examples and special commands
-    parser.add_argument("command", nargs="?", help="Command to run: cli, simple, check-deps (default: voice mode)")
+    parser.add_argument("command", nargs="?", help="Command to run: cli, web, simple, check-deps (default: voice mode)")
 
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
@@ -141,7 +144,7 @@ def parse_args():
         "--language",
         "--lang",
         default="en",
-        help="Voice language code (default Piper mapping: en/fr/es/de/ru/zh; OmniVoice supports many more after /tts_engine omnivoice).",
+        help="Voice language code (default Piper mapping: en/fr/es/de/ru/zh; OmniVoice supports many more after /tts engine omnivoice).",
     )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
@@ -150,6 +153,12 @@ def parse_args():
 def main():
     """Entry point for AbstractVoice CLI."""
     try:
+        if len(sys.argv) > 1 and sys.argv[1] == "web":
+            from abstractvoice.examples.web_ui import main as web_main
+
+            web_main(sys.argv[2:])
+            return
+
         # Parse command line arguments
         args = parse_args()
 
@@ -196,6 +205,18 @@ def main():
                 repl.system_prompt = args.system
                 repl.messages = [{"role": "system", "content": args.system}]
             repl.cmdloop()
+            return
+        elif args.command == "web":
+            try:
+                from abstractvoice.examples.web_ui import run_server
+
+                run_server(
+                    language=args.language,
+                    whisper_model=args.whisper,
+                    debug_mode=args.debug,
+                )
+            except RuntimeError as e:
+                print(f"❌ {e}")
             return
         elif args.command == "simple":
             simple_example()

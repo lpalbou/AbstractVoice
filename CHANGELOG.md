@@ -11,10 +11,20 @@ Older changelog entries may reference historical CLI commands or model choices.
 ## [Unreleased]
 
 ### Added
+- Local FastAPI web example routes for `/api/tts`, `/api/stt/transcriptions`, `/api/voices`, and local `/v1/audio/*` smoke-test aliases.
+- Browser discussion reader in `abstractvoice web`, including per-message play/pause and conversation play/pause controls.
+- Example-only local LLM dialogue bridge for the web UI and REPL, backed by a tiny shared OpenAI-compatible provider helper for Ollama, LM Studio, or a custom base URL.
+- Browser voice cloning workflow in `abstractvoice web`, with reference-audio upload, microphone recording, and `/api/voices/clone`.
+- Web install bundles for optional engine setups: `web-cloning`, `web-audiodit`, `web-omnivoice`, `web-chroma`, and `web-full`.
 
 ### Changed
+- REPL TTS commands now have grouped `/tts ...` forms while keeping `/tts_engine`, `/tts_quality`, `/tts_delivery`, `/speed`, `/profile`, `/tts_voice`, and `/setvoice` as compatibility commands.
+- The `abstractvoice[web]` extra now uses FastAPI/Uvicorn instead of Flask.
 
 ### Fixed
+- Web UI role voice selection now preloads cloned voices before committing a user/assistant selection, so missing optional engine artifacts leave the previous working voice active.
+- Local web OpenAPI now documents JSON request bodies and binary audio responses for the TTS routes.
+- Browser voice cloning now validates new clones with a short synthesis before reporting success, and removes unusable clones when validation fails.
 
 ## [0.8.1] - 2026-05-04
 
@@ -23,9 +33,10 @@ Older changelog entries may reference historical CLI commands or model choices.
 - `abstractvoice/_version.py` as the single package version source used by both package exports and dynamic packaging metadata.
 - Pytest marker registration plus a `model_download` marker so CI/release runs can skip tests that may fetch model artifacts.
 - Recognition lifecycle tests covering callback failures, stream shutdown ordering, and startup failures.
+- Local web example restored as `abstractvoice web` / `python -m abstractvoice web`, with lazy `VoiceManager` loading and browser TTS/audio-file transcription controls.
 
 ### Changed
-- Removed the stale local Flask web API example and CLI `web` command. AbstractVoice now keeps HTTP audio endpoints exclusively in AbstractCore Server; the `web` extra remains as an empty compatibility alias.
+- Kept production HTTP audio endpoints in AbstractCore Server while restoring the optional local web example for package-level usability testing.
 - Refreshed optional dependency groups so `stt` / `core-stt` use the current faster-whisper path, with `legacy-stt` kept for the OpenAI Whisper fallback.
 - Updated dependency diagnostics to use installed package metadata first, report the current core voice stack, treat PyTorch as optional, and include best-effort audio device checks.
 - Updated release/development docs and both `llms*.txt` indexes for the server boundary, CI-safe test command, and release workflow.
@@ -34,6 +45,11 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Hardened microphone recognition startup/shutdown so input stream failures surface through `start()`, stop closes streams before joining, and integration callback exceptions do not replay completed utterances.
 - Piper `synthesize_to_file()` now treats extensionless output paths as WAV instead of rejecting them with an empty format.
 - Made core tests portable across Python 3.10 and headless CI environments without requiring optional torch or PortAudio runtime availability.
+
+### Known Issues
+- AudioDiT direct/base TTS can sound distorted in this release; AudioDiT cloning is the better-validated AudioDiT path for `0.8.1`.
+- OmniVoice preset voice profiles are still being curated for stable reusable identity; use prompt-cached profiles or exported cloned voices when stronger persistence is needed.
+- See `docs/known-issues.md` for the active release-facing tracker and workarounds.
 
 ## [0.8.0] - 2026-04-08
 

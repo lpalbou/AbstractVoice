@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import tomllib
 
 from abstractvoice.dependency_check import DependencyChecker
 
@@ -37,3 +38,22 @@ def test_stt_extras_use_current_stack_and_keep_legacy_alias() -> None:
     assert "openai-whisper>=20230314" not in stt_section.group(1)
     assert "faster-whisper>=0.10.0" in core_stt_section.group(1)
     assert "openai-whisper>=20230314" in legacy_stt_section.group(1)
+
+
+def test_web_engine_extras_are_explicit_install_bundles() -> None:
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    extras = pyproject["project"]["optional-dependencies"]
+
+    for name in ("web", "web-cloning", "web-audiodit", "web-omnivoice", "web-chroma", "web-full"):
+        assert name in extras
+        assert "fastapi>=0.100.0" in extras[name]
+        assert "uvicorn>=0.23.0" in extras[name]
+        assert "python-multipart>=0.0.9" in extras[name]
+
+    assert "omnivoice>=0.1.2" not in extras["web"]
+    assert "omnivoice>=0.1.2" in extras["omnivoice"]
+    assert "omnivoice>=0.1.2" in extras["web-omnivoice"]
+    assert "omnivoice>=0.1.2" in extras["web-full"]
+    assert "f5-tts>=1.1.0" in extras["web-cloning"]
+    assert not any(dep.startswith("torchvision") for dep in extras["omnivoice"])
+    assert not any(dep.startswith("torchvision") for dep in extras["web-omnivoice"])

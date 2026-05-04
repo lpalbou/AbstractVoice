@@ -1,8 +1,11 @@
-# AbstractVoice architecture
+# Architecture
 
-This document describes how AbstractVoice works internally (v`0.8.x`), and where to look in the code when you need to change behavior.
+AbstractVoice `0.8.x` is built around a small public facade and engine adapters
+that keep optional heavy runtimes out of the default path.
 
-If you want the supported integrator contract, start with `docs/api.md`. For REPL behavior and commands, see `docs/repl_guide.md`.
+Use `docs/api.md` for the supported integrator contract, `docs/repl_guide.md`
+for REPL behavior and commands, and `docs/known-issues.md` for current release
+caveats.
 
 For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 
@@ -141,8 +144,15 @@ It provides:
 - a voice backend (TTS+STT) that can optionally store generated audio into an `artifact_store`
 - an audio backend (STT) for transcription-only use
 
-AbstractCore owns the HTTP server surface. When AbstractCore Server is installed
-and running, these capability backends can power OpenAI-compatible endpoints
-such as `POST /v1/audio/speech` and `POST /v1/audio/transcriptions`.
+The local FastAPI web UI (`abstractvoice web`) is a small example wrapper around
+`VoiceManager` for quick browser testing. Its local `/api/*` routes map directly
+to `VoiceManager` functions and include browser-only conveniences such as
+assistant/user voice defaults. It also includes an example-only LLM bridge that
+forwards one OpenAI-compatible chat request to a local provider such as Ollama;
+the `/v1/audio/*` routes are smoke-test aliases.
+
+AbstractCore owns the production HTTP server surface. When AbstractCore Server
+is installed and running, these capability backends can power OpenAI-compatible
+endpoints such as `POST /v1/audio/speech` and `POST /v1/audio/transcriptions`.
 
 This is not required for using AbstractVoice as a standalone library.

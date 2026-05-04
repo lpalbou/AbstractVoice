@@ -202,14 +202,14 @@ Add an “advanced” module that can open a Realtime session and expose it as a
 **Chosen approach**: implement OpenAI support as **optional backends** (adapters + cloning engine + streaming primitives), and keep “OpenAI-compatible HTTP endpoints” in **AbstractCore/AbstractFramework**.
 
 **Why**:
-- Avoid duplicating two HTTP stacks (Flask inside AbstractVoice vs FastAPI in AbstractCore).
+- Avoid treating the local AbstractVoice FastAPI example as a production peer to AbstractCore Server.
 - Keeps AbstractVoice focused on reusable building blocks (adapters + types).
 - Aligns with 2026 best practice: **streaming cascade** STT → LLM → TTS, plus optional Realtime sessions.
 
 Current repo hygiene note:
-- The legacy local Flask web API example was removed. AbstractVoice keeps the
-  local REPL for smoke testing and direct integration, while AbstractCore owns
-  OpenAI-compatible HTTP audio endpoints.
+- The legacy production API server was removed. AbstractVoice keeps the local REPL
+  and a small FastAPI `VoiceManager` web example for smoke testing; AbstractCore
+  owns OpenAI-compatible HTTP audio endpoints.
 
 ---
 

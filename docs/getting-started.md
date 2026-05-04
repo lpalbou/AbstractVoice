@@ -1,9 +1,11 @@
 # Getting started
 
-This is the recommended next step after `README.md`.
+Start here after `README.md` when you want to run the package locally and
+confirm the default path works.
 
-If you want the supported integrator contract, see `docs/api.md`.
-If you get stuck, check `docs/faq.md` (common issues and troubleshooting).
+Use `docs/api.md` for the supported integrator contract, `docs/architecture.md`
+for the implementation map, and `docs/faq.md` for cache/history reset and common
+troubleshooting.
 
 ## Requirements
 
@@ -16,7 +18,8 @@ If you get stuck, check `docs/faq.md` (common issues and troubleshooting).
 pip install abstractvoice
 ```
 
-Optional extras are documented in `docs/installation.md` (cloning / Chroma / AEC / audio-fx / legacy STT).
+Optional extras are documented in `docs/installation.md` (cloning, Chroma, AEC,
+audio-fx, and legacy STT).
 
 ## 60-second smoke test (no mic required)
 
@@ -40,6 +43,41 @@ If Piper can’t speak in offline-first mode, prefetch a voice model:
 ```bash
 abstractvoice-prefetch --piper en
 ```
+
+## Optional Browser Example
+
+The local web UI is a small FastAPI example around `VoiceManager`: discussion
+read-through with separate assistant/user voices, text to WAV, audio-file
+transcription, and a tiny optional LLM dialogue panel for OpenAI-compatible
+local providers such as Ollama. It is not the production server surface; use
+AbstractCore Server for production OpenAI-compatible HTTP endpoints.
+
+```bash
+pip install "abstractvoice[web]"
+abstractvoice web --port 5000
+```
+
+If you want the browser UI and optional engines in one install command, use
+`abstractvoice[web-omnivoice]` for OmniVoice or `abstractvoice[web-full]` for
+the broader local voice/cloning lab setup.
+
+Then open `http://127.0.0.1:5000`.
+
+The web example is offline-first by default. Prefetch models first, or start it with
+`--allow-downloads` when you explicitly want web requests to download missing
+models. Selecting a cloned voice can take a while on first use because the
+cloning backend loads weights and builds prompt/runtime caches; the browser UI
+shows a busy overlay while that work is happening.
+
+The browser voice-cloning action validates a new clone by synthesizing a short
+sample before reporting success. If an optional engine cannot load, the stored
+clone is removed and the backend error is shown instead of leaving a broken
+voice in the selector.
+
+For the dialogue panel, start a compatible local LLM server separately (for
+example Ollama on `http://localhost:11434`), choose a model in the page, then
+use **Ask Assistant**. The browser owns the short chat history; the example
+server only forwards one `/v1/chat/completions` request.
 
 ## Minimal library usage
 
@@ -120,6 +158,18 @@ abstractvoice-prefetch --piper en
 ```
 
 For cloning engines (optional / large), see `docs/installation.md` and `docs/voices-and-licenses.md`.
+
+Current engine caveats, including AudioDiT direct TTS quality and OmniVoice
+profile stability, are tracked in `docs/known-issues.md`.
+
+## Clear local history or caches
+
+Inside the REPL, `/clear` resets the LLM message history sent to the provider.
+`/reset` also resets active voice state. Saved memories only exist when you run
+`/save <name>`.
+
+Terminal command history, cloned voices, and model caches live in separate local
+directories. The exact reset commands are in `docs/faq.md`.
 
 ## Contributing / local development
 

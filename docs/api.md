@@ -1,12 +1,12 @@
-# API (Integrator contract)
+# API
 
-This document defines the intended, supported API surface for third‑party integration.
+This is the supported integrator contract for AbstractVoice.
 
-If you're new, start with `README.md`, then `docs/getting-started.md`, then `docs/overview.md`.
-If you're troubleshooting behavior, check `docs/faq.md` and `docs/repl_guide.md`.
-If you’re changing internals, `docs/architecture.md` maps the implementation to files.
+Start with `README.md` and `docs/getting-started.md` for setup. Use
+`docs/faq.md` for cache/history reset and troubleshooting, `docs/repl_guide.md`
+for the interactive REPL, and `docs/architecture.md` for implementation details.
 
-Code evidence (where these methods live):
+Implementation map:
 - `abstractvoice/voice_manager.py` → `abstractvoice/vm/manager.py` (constructor + wiring)
 - `abstractvoice/vm/tts_mixin.py` (TTS + cloning methods)
 - `abstractvoice/vm/stt_mixin.py` (STT + listening methods)
@@ -48,7 +48,7 @@ Notes:
 - `tts_engine` supports:
   - `auto` (deterministic default: resolves to `piper`)
   - `piper` (default core TTS)
-  - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH — other languages are not guaranteed)
+  - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
 - `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[legacy-stt]`; see `abstractvoice/vm/stt_mixin.py`).
 - `tts_model` is reserved/back-compat (Piper selection is language-driven today).
@@ -82,7 +82,7 @@ For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through 
   - Engines without profiles return an empty list / False / None.
   - **Concurrency note**: profile selection mutates engine state. For servers, prefer one `VoiceManager` per session (or guard profile changes with a lock).
   - **OmniVoice notes**:
-    - Some profiles may enable **persistent prompt caching** (a tokenized `voice_clone_prompt`). The first `set_profile(...)` can pay a one-time build cost; later synthesis reuses cached tokens for stable voice identity. Prompt‑conditioned synthesis can be heavier than pure voice design; use `/tts_quality low|standard|high` (or `VoiceManager.set_tts_quality_preset(...)`) to tune the trade-off.
+    - Some profiles may enable **persistent prompt caching** (a tokenized `voice_clone_prompt`). The first `set_profile(...)` can pay a one-time build cost; later synthesis reuses cached tokens for stable voice identity. Prompt-conditioned synthesis can be heavier than pure voice design; use `/tts quality low|standard|high` (or `VoiceManager.set_tts_quality_preset(...)`) to tune the trade-off.
     - On macOS / Apple Silicon, OmniVoice uses **MPS (Metal)** by default when `device="auto"`.
 
 - `pause_speaking() -> bool`, `resume_speaking() -> bool`, `stop_speaking() -> bool`
@@ -114,8 +114,10 @@ For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through 
 ### Language & voice selection (Piper path)
 
 - `set_language(language: str) -> bool`
-  - Switches the active language and loads the matching Piper voice (best-effort).
-  - Validation is based on `abstractvoice/config/voice_catalog.py`.
+  - Switches the active language.
+  - For Piper (and `auto` before another engine is active), validation uses the curated Piper mapping in `abstractvoice/config/voice_catalog.py`.
+  - For non-Piper engines such as OmniVoice, the language code is passed through to the adapter and the engine decides what it supports.
+  - If microphone listening is active, the recognizer is recreated on the next `listen(...)` call so STT receives the updated language.
 
 - `get_language() -> str`, `get_language_name(language_code: str | None = None) -> str`
 
@@ -216,6 +218,8 @@ Clone management helpers:
 
 For the user-facing workflow and commands, see `docs/repl_guide.md`.
 
+Engine caveats that affect release choice are tracked in `docs/known-issues.md`.
+
 ## Metrics (optional)
 
 - `pop_last_tts_metrics() -> dict | None`
@@ -314,9 +318,13 @@ TTS metrics:
 
 ### AbstractCore OpenAI-compatible audio endpoints
 
-The HTTP server lives in AbstractCore, not in this repository. With
-`abstractcore[server]` and `abstractvoice` installed in the same environment,
-AbstractCore delegates its audio endpoints to the discovered capability plugin:
+The production OpenAI-compatible HTTP server lives in AbstractCore. AbstractVoice
+also ships a local FastAPI web example (`abstractvoice web`) for package-level
+smoke testing, but the supported API server path is AbstractCore Server.
+
+With `abstractcore[server]` and `abstractvoice` installed in the same
+environment, AbstractCore delegates its audio endpoints to the discovered
+capability plugin:
 
 - `POST /v1/audio/speech` -> `core.voice.tts(...)` -> `VoiceManager.speak_to_bytes(...)`
 - `POST /v1/audio/transcriptions` -> `core.audio.transcribe(...)` -> `VoiceManager.transcribe_*()`
@@ -340,6 +348,52 @@ If AbstractCore Server is configured with `ABSTRACTCORE_SERVER_API_KEY`, include
 the standard `Authorization: Bearer <key>` header. If the plugin is unavailable,
 AbstractCore returns `501` with install/config guidance instead of silently
 falling back.
+
+The local `abstractvoice web` example exposes these smoke-test routes. They are
+example routes, not a replacement for AbstractCore Server:
+
+- `GET /api/status` -> lightweight server/config status
+- `GET /api/voices` -> `VoiceManager.get_profiles()`, `list_available_models()`, `list_cloned_voices()`
+- `POST /api/voices/select` -> select base TTS, a cloned voice, or a TTS profile; optional local `role="assistant"|"user"` stores browser-example defaults; optional `preload=true` warms a cloned voice by calling a tiny `VoiceManager.speak_to_bytes(...)`
+- `POST /api/voices/clone` -> example-only multipart upload for browser voice cloning; stores the uploaded/recorded reference with `VoiceManager.clone_voice(...)` and validates by synthesizing a short sample by default (`validate=false` skips validation)
+- `POST /api/tts` -> `VoiceManager.speak_to_bytes(...)`; accepts `input`/`text`, `voice`, `role`, `language`, `speed`, `format`/`response_format`, and `sanitize_syntax`
+- `POST /api/stt/transcriptions` -> `VoiceManager.transcribe_file(...)`
+- `POST /api/stt/transcribe` -> compatibility alias for `/api/stt/transcriptions`
+- `GET /api/llm/models` -> example-only model listing for an OpenAI-compatible local provider such as Ollama
+- `POST /api/chat` -> example-only non-streaming chat completion proxy; the browser owns history and sends the full short message list
+- `POST /v1/audio/speech` and `POST /v1/audio/transcriptions` -> local aliases for quick AbstractCore-compatible smoke tests
+
+Local web example payload sketches:
+
+```bash
+# Browser-example role default; still resolves to a cloned voice_id.
+curl -X POST http://127.0.0.1:5000/api/voices/select \
+  -H "Content-Type: application/json" \
+  -d '{"role":"assistant","kind":"clone","voice":"my_voice","preload":true}'
+
+# Browser-example cloned voice creation.
+curl -X POST http://127.0.0.1:5000/api/voices/clone \
+  -F "name=my_voice" \
+  -F "engine=f5_tts" \
+  -F "reference_text=Exact transcript of the reference audio." \
+  -F "file=@reference.wav"
+
+# TTS still maps to VoiceManager.speak_to_bytes(...).
+curl -X POST http://127.0.0.1:5000/api/tts \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Hello.","role":"assistant","response_format":"wav"}' \
+  --output hello.wav
+
+# Example dialogue call via a local OpenAI-compatible provider.
+curl -X POST http://127.0.0.1:5000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"provider":"ollama","model":"gemma3:1b","messages":[{"role":"user","content":"Say hi in one sentence."}]}'
+```
+
+The local `role` field is only a convenience for the example UI. AbstractCore
+compatibility remains the capability/plugin contract: clients may pass a
+`voice` cloned-voice id to TTS, and AbstractCore routes that to
+`VoiceManager.speak_to_bytes(..., voice=...)`.
 
 ### AbstractCore tool helpers (manual wiring)
 

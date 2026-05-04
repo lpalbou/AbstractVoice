@@ -88,14 +88,11 @@ audiodit = [
 
 # OmniVoice (optional; omnilingual TTS + voice cloning / design)
 omnivoice = [
-    # Upstream `omnivoice` currently pins torch/torchaudio; treat this as an
-    # opt-in extra to avoid affecting default installs.
+    # Torch-backed and heavy; treat this as an opt-in extra to avoid affecting
+    # default installs.
     "omnivoice>=0.1.2",
-    # OmniVoice pins torch==2.8.*; keep torchvision in sync to avoid Transformers
-    # import failures when an incompatible torchvision remains installed.
     "torch>=2.0.0",
     "torchaudio>=2.0.0",
-    "torchvision>=0.23,<0.24",
     "transformers>=5.3.0",
     "accelerate>=1.0.0",
 ]
@@ -118,8 +115,75 @@ legacy-stt = [
     "tiktoken>=0.6.0",
 ]
 
-# Deprecated compatibility alias. HTTP audio endpoints live in AbstractCore Server.
-web = []
+# Local FastAPI web example. Production HTTP audio endpoints live in AbstractCore Server.
+web = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.9",
+]
+
+# Local web example plus optional cloning engines. These are convenience bundles
+# for the browser UI; `abstractvoice[web]` stays lightweight and engine-agnostic.
+web-cloning = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.9",
+    "f5-tts>=1.1.0",
+]
+web-audiodit = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.9",
+    "torch>=2.0.0",
+    "transformers>=5.3.0",
+    "safetensors>=0.4.0",
+    "einops>=0.8.0",
+    "sentencepiece>=0.1.99",
+]
+web-omnivoice = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.9",
+    "omnivoice>=0.1.2",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "transformers>=5.3.0",
+    "accelerate>=1.0.0",
+]
+web-chroma = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.9",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "torchvision>=0.15.0",
+    "transformers>=5.0.0rc0",
+    "accelerate>=1.0.0",
+    "av>=14.0.0",
+    "librosa>=0.11.0",
+    "audioread>=3.0.0",
+    "pillow>=11.0.0",
+    "safetensors>=0.5.0",
+]
+web-full = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.9",
+    "f5-tts>=1.1.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "torchvision>=0.15.0",
+    "transformers>=5.3.0",
+    "accelerate>=1.0.0",
+    "av>=14.0.0",
+    "librosa>=0.11.0",
+    "audioread>=3.0.0",
+    "pillow>=11.0.0",
+    "safetensors>=0.5.0",
+    "einops>=0.8.0",
+    "sentencepiece>=0.1.99",
+    "omnivoice>=0.1.2",
+]
 
 # Convenience bundle for common optional features (not GPU-heavy engines).
 all = [

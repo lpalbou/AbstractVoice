@@ -14,12 +14,14 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`
 - **Voice cloning / heavier TTS (optional)**: OpenF5, Chroma, AudioDiT, OmniVoice
+- **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
 
 Status: **alpha** (`0.8.x`). The default Piper/faster-whisper path is usable
 today; optional cloning and torch-based engines are heavier and should be
 validated on your target hardware. The supported integrator surface is
-documented in `docs/api.md`.
+documented in `docs/api.md`, and current engine caveats are tracked in
+`docs/known-issues.md`.
 
 Next: `docs/getting-started.md` (recommended setup + first smoke tests).
 
@@ -29,17 +31,19 @@ AbstractVoice has three intended usage modes:
 
 1. **Standalone Python library**: call `VoiceManager` directly from a desktop app,
    local assistant, batch job, or your own backend.
-2. **AbstractCore capability plugin**: install it next to AbstractCore and let
+2. **Local examples**: use the REPL (`abstractvoice`) or the optional FastAPI web
+   example (`abstractvoice web`) to validate `VoiceManager` from a browser.
+3. **AbstractCore capability plugin**: install it next to AbstractCore and let
    AbstractCore expose voice/audio capabilities to agents and OpenAI-compatible
    clients.
-3. **AbstractFramework component**: use it as the voice layer inside the wider
+4. **AbstractFramework component**: use it as the voice layer inside the wider
    AbstractFramework stack (`https://github.com/lpalbou/abstractframework`).
 
 Key links:
 - AbstractCore (agents/capabilities): `https://abstractcore.ai` and `https://github.com/lpalbou/abstractcore`
 - AbstractFramework (umbrella): `https://github.com/lpalbou/abstractframework`
 
-Integration points (code evidence):
+Integration points:
 
 - AbstractCore capability plugin entry point: `pyproject.toml` → `[project.entry-points."abstractcore.capabilities_plugins"]`  
   Implementation: `abstractvoice/integrations/abstractcore_plugin.py`
@@ -119,6 +123,7 @@ Optional extras (feature flags):
 
 ```bash
 pip install "abstractvoice[all]"
+pip install "abstractvoice[web]"   # local FastAPI web example
 ```
 
 Notes:
@@ -187,9 +192,35 @@ python -m abstractvoice cli --verbose
 Notes:
 - Mic voice input is **off by default** for fast startup. Enable with `--voice-mode stop` (or in-session: `/voice stop`).
 - The REPL is **offline-first**: no implicit model downloads. Use the explicit download commands above.
+- REPL voice selection is centered on `/voices`; older commands such as
+  `/profile`, `/tts_voice`, and `/setvoice` remain as compatibility/direct
+  forms.
 - The REPL is primarily a **demonstrator**. For production agent/server use in the AbstractFramework ecosystem, run AbstractCore and use AbstractVoice via its capability plugin (see `docs/api.md` → “Integrations”).
 
 See `docs/repl_guide.md`.
+
+### Local web example
+
+```bash
+pip install "abstractvoice[web]"
+abstractvoice web --port 5000
+```
+
+Use `pip install "abstractvoice[web-omnivoice]"` for the browser UI plus
+OmniVoice, or `pip install "abstractvoice[web-full]"` for the browser UI plus
+the optional local voice/cloning engine dependencies.
+
+Open `http://127.0.0.1:5000`. The browser example has message/conversation
+playback, chat clearing, assistant/user voice selectors, browser voice cloning
+from uploaded or recorded reference audio, text-to-WAV, file transcription, and
+a tiny optional LLM dialogue panel for OpenAI-compatible local providers such as
+Ollama or LM Studio. It exposes small local `/api/*` routes plus `/v1/audio/*`
+smoke-test aliases, but the supported production HTTP path remains AbstractCore
+Server.
+
+The browser clone action validates the new voice by synthesizing a short sample
+before it reports success. If the selected optional engine cannot load, the
+unusable clone is removed and the UI shows the backend error.
 
 ### Minimal Python
 
@@ -213,18 +244,19 @@ At a glance:
 
 ---
 
-## Documentation (minimal set)
+## Documentation
 
-- **Docs index**: `docs/README.md`
 - **Getting started**: `docs/getting-started.md`
-- **FAQ**: `docs/faq.md`
-- **Orientation**: `docs/overview.md`
-- **Acronyms**: `docs/acronyms.md`
 - **Public API**: `docs/api.md`
+- **Architecture**: `docs/architecture.md`
+- **FAQ**: `docs/faq.md`
 - **REPL guide**: `docs/repl_guide.md`
+- **Known issues**: `docs/known-issues.md`
+- **Docs index**: `docs/README.md`
 - **Install troubleshooting**: `docs/installation.md`
 - **Multilingual support**: `docs/multilingual.md`
-- **Architecture (internal)**: `docs/architecture.md` + `docs/adr/`
+- **Design decisions**: `docs/adr/`
+- **Acronyms**: `docs/acronyms.md`
 - **Model management (Piper-first)**: `docs/model-management.md`
 - **Licensing notes**: `docs/voices-and-licenses.md`
 
@@ -234,6 +266,8 @@ At a glance:
 
 - **Changelog**: `CHANGELOG.md`
 - **Contributing**: `CONTRIBUTING.md`
+- **Known issues**: `docs/known-issues.md`
+- **Bug reports**: `.github/ISSUE_TEMPLATE/bug_report.yml`
 - **Security**: `SECURITY.md`
 - **Acknowledgments**: `ACKNOWLEDGMENTS.md`
 

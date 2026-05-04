@@ -211,6 +211,32 @@ Model:
   - **Repo**: `https://github.com/shichaog/AEC-Audio-Processing`
   - **License**: `https://github.com/shichaog/AEC-Audio-Processing/blob/main/LICENSE`
 
+### `abstractvoice[web]` — Local web example
+
+The base web extra installs only the browser server stack. Use
+`abstractvoice[web-cloning]`, `abstractvoice[web-audiodit]`,
+`abstractvoice[web-omnivoice]`, `abstractvoice[web-chroma]`, or
+`abstractvoice[web-full]` when you want a one-command install for the web UI
+plus optional local voice engines.
+
+- **FastAPI**
+  - **Why**: local browser example routes for TTS, transcription, assistant/user voice selection, voice cloning upload forms, and discussion playback (`abstractvoice web`).
+  - **Where**: `abstractvoice/examples/web_ui.py`
+  - **Repo**: `https://github.com/fastapi/fastapi`
+  - **License**: `https://github.com/fastapi/fastapi/blob/master/LICENSE`
+
+- **Uvicorn**
+  - **Why**: local ASGI server for `abstractvoice web`.
+  - **Where**: `abstractvoice/examples/web_ui.py`
+  - **Repo**: `https://github.com/encode/uvicorn`
+  - **License**: `https://github.com/encode/uvicorn/blob/master/LICENSE.md`
+
+- **python-multipart**
+  - **Why**: parse browser/OpenAI-compatible audio upload forms for transcription and voice cloning.
+  - **Where**: `abstractvoice/examples/web_ui.py`
+  - **Repo**: `https://github.com/Kludex/python-multipart`
+  - **License**: `https://github.com/Kludex/python-multipart/blob/master/LICENSE.txt`
+
 ### `abstractvoice[stt]` — Faster-Whisper STT
 
 - **faster-whisper**

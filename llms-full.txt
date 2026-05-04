@@ -17,7 +17,10 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 Positioning:
 - AbstractVoice is a **voice I/O library** (TTS/STT + optional cloning). It does not implement an agent loop or an LLM server.
 - In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** via the capability plugin entry point (`abstractvoice/integrations/abstractcore_plugin.py`).
-- The REPL (`abstractvoice/examples/cli_repl.py`) is a **demonstrator/smoke-test harness**. It includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for convenience.
+- The REPL (`abstractvoice/examples/cli_repl.py`) and local FastAPI web UI (`abstractvoice/examples/web_ui.py`) are **examples/smoke-test harnesses**. They share a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for local providers such as Ollama/LM Studio.
+- REPL voice selection is centered on `/voices`; `/profile`, `/tts_voice`, and `/setvoice` remain compatibility/direct commands.
+- The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, and local `/api/*` routes; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
+- Web install bundles are explicit: `abstractvoice[web]` is lightweight, while `abstractvoice[web-omnivoice]` and `abstractvoice[web-full]` include optional heavy local engines for the browser UI.
 
 Quick commands:
 ```bash
@@ -27,6 +30,9 @@ python -m pytest -q -m "not integration and not model_download"
 # REPL smoke test (mic is OFF by default)
 abstractvoice --verbose
 python -m abstractvoice cli --verbose
+
+# Local browser smoke test (requires abstractvoice[web])
+abstractvoice web --port 5000
 
 # Explicit prefetch (offline-first friendly)
 abstractvoice-prefetch --piper en
@@ -64,7 +70,7 @@ Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[audio-fx]`: speed change without pitch change (librosa)
 - `abstractvoice[stt]`: current faster-whisper STT path (also included in core installs)
 - `abstractvoice[legacy-stt]`: legacy openai-whisper + tiktoken fallback path
-- `abstractvoice[web]`: deprecated empty compatibility alias; HTTP audio endpoints live in AbstractCore Server
+- `abstractvoice[web]`: local FastAPI web example; production HTTP audio endpoints live in AbstractCore Server
 - `abstractvoice[dev]`: dev/test tooling
 
 ## Start here
@@ -72,7 +78,8 @@ Optional dependency groups (see `pyproject.toml`):
 - [Docs index](docs/README.md): map of user-facing vs internal docs
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests
 - [API (integrator contract)](docs/api.md): supported surface area (incl. integrations)
-- [FAQ](docs/faq.md): common install/runtime issues
+- [FAQ](docs/faq.md): cache/history reset + common install/runtime issues
+- [Known issues](docs/known-issues.md): active release caveats and workarounds
 - [Installation](docs/installation.md): platform notes + extras
 - [REPL guide](docs/repl_guide.md): end-to-end validation + commands
 
@@ -86,6 +93,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Entry points + scripts](pyproject.toml): `abstractvoice`, `abstractvoice-prefetch`, plugin registration
 - [CI workflow](.github/workflows/ci.yml): Python 3.10-3.12 tests + build check
 - [Release workflow](.github/workflows/release.yml): tag/manual release to PyPI + GitHub Release
+- [Known issues](docs/known-issues.md): current bug tracker mirror for release-facing caveats
 
 ## Core architecture (internal)
 - [Architecture](docs/architecture.md): component diagram + code map
@@ -111,6 +119,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Audio chunk smoothing](abstractvoice/audio/fade.py): edge fades + headroom scaling
 - [STT + listening methods](abstractvoice/vm/stt_mixin.py)
 - [Explicit prefetch tool](abstractvoice/prefetch.py): `abstractvoice-prefetch ...`
+- [Local web example](abstractvoice/examples/web_ui.py): browser TTS/STT smoke test
 
 ## Engines & adapters
 - [Adapters base types](abstractvoice/adapters/base.py)
@@ -148,6 +157,7 @@ Optional dependency groups (see `pyproject.toml`):
 ## Tests
 - [tests/](tests/): CI-safe run is `python -m pytest -q -m "not integration and not model_download"`
 - [Contributing](CONTRIBUTING.md): dev setup + env vars for heavy tests (`ABSTRACTVOICE_RUN_CLONING_TESTS=1`, `ABSTRACTVOICE_RUN_CHROMA_TESTS=1`)
+- [Bug report template](.github/ISSUE_TEMPLATE/bug_report.yml): structured issue intake
 - [test_voice_cloner_engine_dispatch.py](tests/test_voice_cloner_engine_dispatch.py)
 - [test_cloning_reference_text_autofallback.py](tests/test_cloning_reference_text_autofallback.py)
 - [test_cloned_tts_cancellation.py](tests/test_cloned_tts_cancellation.py)
