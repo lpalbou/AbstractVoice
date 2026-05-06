@@ -1263,6 +1263,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#implementation-notes-2026-04-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation notes (2026-04-07)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1287,8 +1298,8 @@
 
 <h2 id="task-013-openai-audio-backends-tts-stt-custom-voices-realtime">Task 013: OpenAI audio backends (TTS + STT + custom voices + realtime)<a class="headerlink" href="#task-013-openai-audio-backends-tts-stt-custom-voices-realtime" title="Permanent link">&para;</a></h2>
 <p><strong>Date</strong>: 2026-01-23<br />
-<strong>Last updated</strong>: 2026-04-06<br />
-<strong>Status</strong>: Planned<br />
+<strong>Last updated</strong>: 2026-05-06
+<strong>Status</strong>: Remote TTS/STT/profile-compatible clone phase implemented; realtime/advanced audio still planned
 <strong>Priority</strong>: P1  </p>
 <hr />
 <h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
@@ -1317,6 +1328,11 @@
 <p><strong>Revised scope</strong>:
 - <strong>AbstractCore / AbstractFramework</strong>: owns OpenAI-compatible <em>server</em> endpoints (<code>/v1/audio/*</code>).
 - <strong>AbstractVoice (this repo)</strong>: owns <em>backends/adapters</em> that can call OpenAI APIs (and later other commercial providers) and can be wired into those server endpoints via the capability plugin system.</p>
+<p>Current implementation note (2026-05-06):
+- <code>VoiceManager(tts_engine="openai"|"openai-compatible")</code> calls <code>/audio/speech</code>.
+- <code>VoiceManager(stt_engine="openai"|"openai-compatible")</code> calls <code>/audio/transcriptions</code>.
+- <code>VoiceManager.get_profiles()</code> exposes OpenAI built-in voices and compatible endpoint voice lists (<code>GET /audio/voices</code>).
+- <code>cloning_engine="openai"|"openai-compatible"</code> can call a compatible clone endpoint and store the returned remote voice id locally.</p>
 <hr />
 <h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1358,13 +1374,11 @@
 <hr />
 <h2 id="proposed-design">Proposed design<a class="headerlink" href="#proposed-design" title="Permanent link">&para;</a></h2>
 <h3 id="packaging-configuration">Packaging + configuration<a class="headerlink" href="#packaging-configuration" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Add optional extra: <code>abstractvoice[openai]</code> (depends on the OpenAI SDK).</li>
-<li>Configuration:</li>
-<li><code>OPENAI_API_KEY</code> (required to use these adapters)</li>
-<li>optional base URL / org settings if needed (keep consistent with other integrations).</li>
-<li>Add an explicit “network allowed” gate (do not overload <code>allow_downloads</code>, which is local-model semantics).</li>
-</ul>
+<p>Current implementation:
+- <code>abstractvoice[openai]</code>, <code>abstractvoice[openai-compatible]</code>, and <code>abstractvoice[remote]</code> are no-op intent extras; the adapters use the core <code>requests</code> dependency instead of the OpenAI SDK.
+- <code>tts_engine="openai"</code> / <code>stt_engine="openai"</code> default to <code>https://api.openai.com/v1</code> and read <code>OPENAI_API_KEY</code> (or <code>ABSTRACTVOICE_OPENAI_API_KEY</code>).
+- <code>tts_engine="openai-compatible"</code> / <code>stt_engine="openai-compatible"</code> require <code>remote_base_url=...</code> or <code>ABSTRACTVOICE_REMOTE_BASE_URL</code> / <code>ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL</code>.
+- Remote engines are explicit opt-in, so <code>allow_downloads</code> remains local-model download policy rather than a network-access flag.</p>
 <h3 id="voice-profiles-cross-provider-abstraction">Voice profiles (cross-provider abstraction)<a class="headerlink" href="#voice-profiles-cross-provider-abstraction" title="Permanent link">&para;</a></h3>
 <p>OpenAI (and other commercial providers) have a first-class notion of “voice” (built-in voices and gated custom voices).
 AbstractVoice also has “voices”, but today that primarily means <strong>local cloned voices</strong> stored in the local voice store.</p>
@@ -1402,7 +1416,7 @@ AbstractVoice also has “voices”, but today that primarily means <strong>loca
 - With <code>VoiceProfile</code> (Task 036), OpenAI profiles become simple aliases that set the OpenAI <code>voice</code> field (plus optional <code>instructions</code> defaults).</p>
 <h3 id="adapters-phase-1-synchronous">Adapters (Phase 1: synchronous)<a class="headerlink" href="#adapters-phase-1-synchronous" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>TTS</strong>: <code>OpenAITTSAdapter</code> (new file under <code>abstractvoice/adapters/tts_openai.py</code>)</li>
+<li><strong>TTS</strong>: <code>OpenAICompatibleTTSAdapter</code> (<code>abstractvoice/adapters/tts_openai_compatible.py</code>)</li>
 <li>Implements <code>TTSAdapter</code>.</li>
 <li>Uses <code>POST /v1/audio/speech</code>.</li>
 <li>Parameters to expose (adapter params):<ul>
@@ -1413,7 +1427,7 @@ AbstractVoice also has “voices”, but today that primarily means <strong>loca
 <li><code>response_format</code> (<code>wav</code> default in AbstractVoice to align with our pipeline)</li>
 </ul>
 </li>
-<li><strong>STT</strong>: <code>OpenAISTTAdapter</code> (new file under <code>abstractvoice/adapters/stt_openai.py</code>)</li>
+<li><strong>STT</strong>: <code>OpenAICompatibleSTTAdapter</code> (<code>abstractvoice/adapters/stt_openai_compatible.py</code>)</li>
 <li>Implements <code>STTAdapter</code>.</li>
 <li>Uses <code>POST /v1/audio/transcriptions</code> for transcription; optionally <code>POST /v1/audio/translations</code> where needed.</li>
 <li>Support model selection:<ul>
@@ -1471,14 +1485,14 @@ AbstractVoice also has “voices”, but today that primarily means <strong>loca
 <h3 id="phase-1-synchronous-tts-stt-adapters-mvp">Phase 1 — Synchronous TTS + STT adapters (MVP)<a class="headerlink" href="#phase-1-synchronous-tts-stt-adapters-mvp" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Packaging</strong></li>
-<li>Add <code>abstractvoice[openai]</code> optional extra.</li>
-<li>Add a minimal configuration story (<code>OPENAI_API_KEY</code>, timeouts).</li>
+<li>Add optional intent extras: <code>abstractvoice[openai]</code>, <code>abstractvoice[openai-compatible]</code>, and <code>abstractvoice[remote]</code>.</li>
+<li>Add a minimal configuration story (<code>OPENAI_API_KEY</code>, compatible base URLs, timeouts).</li>
 <li><strong>TTS adapter</strong></li>
-<li>Implement <code>OpenAITTSAdapter</code> mapping to <code>/v1/audio/speech</code>.</li>
+<li>Implement <code>OpenAICompatibleTTSAdapter</code> mapping to <code>/v1/audio/speech</code>.</li>
 <li>Support <code>instructions</code>, <code>speed</code>, <code>response_format</code> (default <code>wav</code>).</li>
 <li>Map <code>set_language(...)</code> best-effort (OpenAI TTS is not strictly locale-gated; language can be expressed in <code>instructions</code>).</li>
 <li><strong>STT adapter</strong></li>
-<li>Implement <code>OpenAISTTAdapter</code> mapping to <code>/v1/audio/transcriptions</code>.</li>
+<li>Implement <code>OpenAICompatibleSTTAdapter</code> mapping to <code>/v1/audio/transcriptions</code>.</li>
 <li>Support <code>language</code>, <code>prompt</code>, <code>response_format</code>, and model selection.</li>
 <li><strong>Wiring</strong></li>
 <li>Register <code>openai</code> as <code>tts_engine</code> and <code>stt_engine</code> (adapter registries + <code>VoiceManager</code>).</li>
@@ -1524,7 +1538,7 @@ AbstractVoice also has “voices”, but today that primarily means <strong>loca
 <hr />
 <h2 id="testing-strategy">Testing strategy<a class="headerlink" href="#testing-strategy" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Unit tests</strong>: mock the OpenAI SDK client methods and validate parameter mapping + error handling.</li>
+<li><strong>Unit tests</strong>: stub HTTP sessions and validate parameter mapping + error handling without live network calls.</li>
 <li><strong>Optional integration tests</strong> (skipped by default):</li>
 <li>run only when <code>OPENAI_API_KEY</code> is present</li>
 <li>record that custom voices require org enablement and may not work everywhere</li>
@@ -1548,6 +1562,18 @@ AbstractVoice also has “voices”, but today that primarily means <strong>loca
 <h2 id="separate-backlog-aws-backends-not-in-this-task">Separate backlog: AWS backends (not in this task)<a class="headerlink" href="#separate-backlog-aws-backends-not-in-this-task" title="Permanent link">&para;</a></h2>
 <p>AWS audio services (Polly, Transcribe, and Bedrock voice-agent capabilities) should be tracked separately so this task can stay focused on OpenAI first.</p>
 <p>Planned follow-up (to be created): <code>docs/backlog/planned/032_aws_audio_backends.md</code></p>
+<hr />
+<h2 id="implementation-notes-2026-04-07">Implementation notes (2026-04-07)<a class="headerlink" href="#implementation-notes-2026-04-07" title="Permanent link">&para;</a></h2>
+<p>Phase 1 landed in this repo:
+- Remote TTS adapter: <code>abstractvoice/adapters/tts_openai_compatible.py</code>
+- Remote STT adapter: <code>abstractvoice/adapters/stt_openai_compatible.py</code>
+- Shared HTTP helpers: <code>abstractvoice/adapters/openai_compatible_http.py</code>
+- TTS engine registry support: <code>tts_engine="openai"</code> and <code>tts_engine="openai-compatible"</code>
+- STT mixin support: <code>stt_engine="openai"</code> and <code>stt_engine="openai-compatible"</code>
+- Remote clone-handle support: <code>cloning_engine="openai-compatible"</code> (default custom clone route <code>POST /voice/clone</code>)</p>
+<p>OpenAI-compatible serving remains in AbstractCore. These adapters let standalone
+AbstractVoice call remote audio providers directly without importing
+AbstractCore provider/router code.</p>
 
 
 

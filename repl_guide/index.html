@@ -1435,6 +1435,10 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 <div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--voice-mode<span class="w"> </span>stop
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--voice-mode<span class="w"> </span>stop
 </code></pre></div>
+<p>Remote audio startup examples:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>openai<span class="w"> </span>--stt-engine<span class="w"> </span>openai
+abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
+</code></pre></div>
 <p>Useful startup flags:</p>
 <ul>
 <li><code>--verbose</code>: print compact timing and token/audio stats after each turn.</li>
@@ -1442,6 +1446,10 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 <li><code>--voice-mode stop|wait|full|ptt|off</code>: choose the initial microphone mode.</li>
 <li><code>--provider &lt;preset-or-url&gt;</code>: choose an OpenAI-compatible LLM provider.</li>
 <li><code>--model &lt;name&gt;</code>: choose the LLM model.</li>
+<li><code>--tts-engine auto|piper|openai|openai-compatible|audiodit|omnivoice</code>: choose the initial TTS engine.</li>
+<li><code>--stt-engine auto|faster_whisper|openai|openai-compatible</code>: choose the initial STT engine.</li>
+<li><code>--tts-model &lt;id&gt;</code> / <code>--stt-model &lt;id&gt;</code>: model ids for remote audio engines.</li>
+<li><code>--remote-base-url &lt;url&gt;</code> / <code>--remote-api-key &lt;key&gt;</code>: OpenAI-compatible remote voice endpoint config. <code>--tts-engine openai</code> and <code>--stt-engine openai</code> default to OpenAI's hosted API and read <code>OPENAI_API_KEY</code>.</li>
 </ul>
 <p>The default provider preset is Ollama at <code>http://localhost:11434</code>.</p>
 <h2 id="first-smoke-tests">First Smoke Tests<a class="headerlink" href="#first-smoke-tests" title="Permanent link">&para;</a></h2>
@@ -1544,14 +1552,21 @@ language:</p>
 /voices models
 /tts engine auto
 /tts engine piper
+/tts engine openai-compatible
 /tts engine audiodit
 /tts engine omnivoice
 /stt_engine faster_whisper
+/stt_engine openai-compatible
 /whisper small
 </code></pre></div>
 <p>Engine notes:</p>
 <ul>
 <li><code>piper</code>: default TTS path; best first choice for reliable local speech.</li>
+<li><code>openai</code> / <code>openai-compatible</code>: remote TTS/STT endpoints. Configure
+  <code>OPENAI_API_KEY</code> for OpenAI or <code>ABSTRACTVOICE_REMOTE_BASE_URL</code> for compatible
+  servers. Compatible servers may expose <code>GET /v1/audio/voices</code>; <code>/voices
+  profiles</code> lists those remote profile/voice ids and <code>/voices profile &lt;id&gt;</code>
+  uses the selected id as the remote speech <code>voice</code>.</li>
 <li><code>audiodit</code>: optional heavy engine; direct/base TTS can sound distorted in
   <code>0.8.1</code>, while AudioDiT cloning remains the better-validated AudioDiT path.</li>
 <li><code>omnivoice</code>: optional heavy engine for omnilingual TTS, voice design, and
@@ -1574,6 +1589,9 @@ apply profiles:</p>
 <p>For OmniVoice, profiles may use either designed voice settings or a persistent
 prompt cache. Prompt-cached profiles are the stronger route for keeping a voice
 identity stable across turns.</p>
+<p>For remote engines, profiles are provider voice ids. <code>openai</code> exposes the known
+built-in voices such as <code>alloy</code> and <code>nova</code>; <code>openai-compatible</code> can discover
+profiles from <code>GET /v1/audio/voices</code> (or from <code>ABSTRACTVOICE_REMOTE_TTS_VOICES</code>).</p>
 <p>Manual OmniVoice voice design:</p>
 <div class="highlight"><pre><span></span><code>/tts engine omnivoice
 /omnivoice
@@ -1687,7 +1705,7 @@ inspect exactly what the TTS engine produced.</p>
 <ul>
 <li><code>/tts</code></li>
 <li><code>/tts on|off</code></li>
-<li><code>/tts engine auto|piper|audiodit|omnivoice</code></li>
+<li><code>/tts engine auto|piper|openai|openai-compatible|audiodit|omnivoice</code></li>
 <li><code>/tts quality low|standard|high</code></li>
 <li><code>/tts delivery buffered|streamed</code></li>
 <li><code>/tts speed &lt;number&gt;</code></li>
@@ -1704,7 +1722,7 @@ inspect exactly what the TTS engine produced.</p>
 </ul>
 <p>Compatibility shortcuts that still work:</p>
 <ul>
-<li><code>/tts_engine auto|piper|audiodit|omnivoice</code></li>
+<li><code>/tts_engine auto|piper|openai|openai-compatible|audiodit|omnivoice</code></li>
 <li><code>/tts_quality low|standard|high</code></li>
 <li><code>/tts_delivery buffered|streamed</code></li>
 <li><code>/speed &lt;number&gt;</code></li>
@@ -1720,7 +1738,7 @@ inspect exactly what the TTS engine produced.</p>
 <p>Cloning:</p>
 <ul>
 <li><code>/cloning_status</code></li>
-<li><code>/cloning_download f5_tts|chroma|audiodit|omnivoice</code></li>
+<li><code>/cloning_download f5_tts|chroma|audiodit|omnivoice|openai-compatible</code></li>
 <li><code>/clone ...</code></li>
 <li><code>/clone_use ...</code></li>
 <li><code>/clones</code></li>
@@ -1729,9 +1747,14 @@ inspect exactly what the TTS engine produced.</p>
 <li><code>/clone_export</code>, <code>/clone_import</code></li>
 <li><code>/clone_quality low|standard|high</code></li>
 </ul>
+<p>Remote clone-compatible services can be used with
+<code>/clone &lt;path&gt; --engine openai-compatible</code> after setting
+<code>ABSTRACTVOICE_REMOTE_BASE_URL</code>; no local artifact download is needed.
+OpenAI custom voice creation can be selected with <code>--engine openai</code>, but it is
+org-gated and requires explicit consent configuration.</p>
 <p>STT:</p>
 <ul>
-<li><code>/stt_engine auto|faster_whisper|whisper</code></li>
+<li><code>/stt_engine auto|faster_whisper|openai|openai-compatible|whisper</code></li>
 <li><code>/whisper &lt;model&gt;</code></li>
 <li><code>/transcribe &lt;path&gt;</code></li>
 </ul>

@@ -1296,9 +1296,9 @@ caveats.</p>
 <h2 id="tldr">TL;DR<a class="headerlink" href="#tldr" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>abstractvoice.VoiceManager</code> is the orchestration façade (<code>abstractvoice/vm/*</code>).</li>
-<li><strong>TTS (default)</strong>: TTS adapter registry → <code>AdapterTTSEngine</code> → <code>NonBlockingAudioPlayer</code> (pause/resume/stop).</li>
-<li><strong>STT (default)</strong>: <code>VoiceRecognizer</code> loop (mic capture) → <code>VoiceDetector</code> (webrtcvad) → <code>FasterWhisperAdapter</code>.</li>
-<li><strong>Voice cloning (optional)</strong>: <code>VoiceCloner</code> + clone store + engine backends (<code>f5_tts|chroma|audiodit|omnivoice</code>).</li>
+<li><strong>TTS (default)</strong>: TTS adapter registry → <code>AdapterTTSEngine</code> → <code>NonBlockingAudioPlayer</code> (pause/resume/stop). Remote adapters can call OpenAI/OpenAI-compatible <code>/audio/speech</code> and expose provider voices through the same <code>VoiceProfile</code> API as local engines.</li>
+<li><strong>STT (default)</strong>: <code>VoiceRecognizer</code> loop (mic capture) → <code>VoiceDetector</code> (webrtcvad) → <code>FasterWhisperAdapter</code>. Headless <code>transcribe_*()</code> can also route to remote OpenAI/OpenAI-compatible <code>/audio/transcriptions</code>.</li>
+<li><strong>Voice cloning (optional)</strong>: <code>VoiceCloner</code> + clone store + engine backends (<code>f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible</code>).</li>
 <li>Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (<code>abstractvoice/vm/core.py</code>).</li>
 </ul>
 <h2 id="component-diagram">Component diagram<a class="headerlink" href="#component-diagram" title="Permanent link">&para;</a></h2>
@@ -1308,6 +1308,7 @@ caveats.</p>
   VM --&gt;|speak()*| TTSEngine[AdapterTTSEngine]
   TTSEngine --&gt;|synthesize| TTSAdapter[TTSAdapter]
   TTSAdapter --&gt; Piper[PiperTTSAdapter]
+  TTSAdapter --&gt; RemoteTTS[OpenAICompatibleTTSAdapter]
   TTSAdapter --&gt; AudioDiT[AudioDiTTTSAdapter]
   TTSAdapter --&gt; OmniVoice[OmniVoiceTTSAdapter]
   TTSEngine --&gt; Player[NonBlockingAudioPlayer]
@@ -1332,6 +1333,7 @@ caveats.</p>
 <ul>
 <li>TTS adapter interface: <code>abstractvoice/adapters/base.py</code></li>
 <li>Piper adapter: <code>abstractvoice/adapters/tts_piper.py</code></li>
+<li>Remote OpenAI-compatible TTS adapter: <code>abstractvoice/adapters/tts_openai_compatible.py</code> + <code>abstractvoice/adapters/openai_compatible_http.py</code></li>
 <li>TTS engine selection (registry): <code>abstractvoice/adapters/tts_registry.py</code></li>
 <li>AudioDiT adapter/runtime: <code>abstractvoice/adapters/tts_audiodit.py</code>, <code>abstractvoice/audiodit/runtime.py</code></li>
 <li>OmniVoice adapter/runtime: <code>abstractvoice/adapters/tts_omnivoice.py</code>, <code>abstractvoice/omnivoice/runtime.py</code></li>
@@ -1343,12 +1345,14 @@ caveats.</p>
 <li>Mic/VAD/STT loop: <code>abstractvoice/recognition.py</code></li>
 <li>VAD wrapper: <code>abstractvoice/vad/voice_detector.py</code></li>
 <li>faster-whisper adapter: <code>abstractvoice/adapters/stt_faster_whisper.py</code></li>
+<li>Remote OpenAI-compatible STT adapter: <code>abstractvoice/adapters/stt_openai_compatible.py</code></li>
 <li>Stop phrase normalization: <code>abstractvoice/stop_phrase.py</code></li>
 </ul>
 <p>Optional features:</p>
 <ul>
 <li>AEC (extra): <code>abstractvoice/aec/webrtc_apm.py</code> (used by <code>abstractvoice/recognition.py</code>)</li>
 <li>Voice cloning (extra): <code>abstractvoice/cloning/*</code> (manager/engines/store; used by <code>abstractvoice/vm/tts_mixin.py</code>)</li>
+<li>Remote cloning bridge: <code>abstractvoice/cloning/engine_remote.py</code></li>
 <li>AbstractCore plugin: <code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
 </ul>
 <h2 id="data-flows">Data flows<a class="headerlink" href="#data-flows" title="Permanent link">&para;</a></h2>
