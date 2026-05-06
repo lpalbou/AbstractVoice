@@ -1,0 +1,1484 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://lpalbou.github.io/abstractvoice/architecture/">
+      
+      
+        <link rel="prev" href="../api/">
+      
+      
+        <link rel="next" href="../repl_guide/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Architecture - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TL;DR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Component diagram
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-map-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code map (evidence)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data flows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data flows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tts-local-playback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TTS (local playback)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stt-microphone-listening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT (microphone listening)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coordination-voice-modes-while-speaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordination: voice modes while speaking
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threading-model-practical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threading model (practical)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offline-first-model-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offline-first model policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-abstractcore-plugin-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional: AbstractCore plugin integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TL;DR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Component diagram
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-map-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code map (evidence)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data flows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data flows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tts-local-playback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TTS (local playback)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stt-microphone-listening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT (microphone listening)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coordination-voice-modes-while-speaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordination: voice modes while speaking
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threading-model-practical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threading model (practical)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offline-first-model-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offline-first model policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-abstractcore-plugin-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional: AbstractCore plugin integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
+<p>AbstractVoice <code>0.8.x</code> is built around a small public facade and engine adapters
+that keep optional heavy runtimes out of the default path.</p>
+<p>Use <code>docs/api.md</code> for the supported integrator contract, <code>docs/repl_guide.md</code>
+for REPL behavior and commands, and <code>docs/known-issues.md</code> for current release
+caveats.</p>
+<p>For acronyms used here (TTS/STT/VAD/VM/MM), see <code>docs/acronyms.md</code>.</p>
+<h2 id="tldr">TL;DR<a class="headerlink" href="#tldr" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>abstractvoice.VoiceManager</code> is the orchestration façade (<code>abstractvoice/vm/*</code>).</li>
+<li><strong>TTS (default)</strong>: TTS adapter registry → <code>AdapterTTSEngine</code> → <code>NonBlockingAudioPlayer</code> (pause/resume/stop).</li>
+<li><strong>STT (default)</strong>: <code>VoiceRecognizer</code> loop (mic capture) → <code>VoiceDetector</code> (webrtcvad) → <code>FasterWhisperAdapter</code>.</li>
+<li><strong>Voice cloning (optional)</strong>: <code>VoiceCloner</code> + clone store + engine backends (<code>f5_tts|chroma|audiodit|omnivoice</code>).</li>
+<li>Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (<code>abstractvoice/vm/core.py</code>).</li>
+</ul>
+<h2 id="component-diagram">Component diagram<a class="headerlink" href="#component-diagram" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>flowchart LR
+  App[Your app / REPL] &lt;--&gt; VM[VoiceManager]
+
+  VM --&gt;|speak()*| TTSEngine[AdapterTTSEngine]
+  TTSEngine --&gt;|synthesize| TTSAdapter[TTSAdapter]
+  TTSAdapter --&gt; Piper[PiperTTSAdapter]
+  TTSAdapter --&gt; AudioDiT[AudioDiTTTSAdapter]
+  TTSAdapter --&gt; OmniVoice[OmniVoiceTTSAdapter]
+  TTSEngine --&gt; Player[NonBlockingAudioPlayer]
+  Player --&gt; Out[(sounddevice OutputStream)]
+
+  VM --&gt;|listen()*| Rec[VoiceRecognizer]
+  Rec --&gt; In[(sounddevice InputStream)]
+  Rec --&gt; VAD[VoiceDetector (webrtcvad)]
+  Rec --&gt; STT[FasterWhisperAdapter]
+
+  Player -. on_audio_chunk (optional AEC) .-&gt; Rec
+</code></pre></div>
+<h2 id="code-map-evidence">Code map (evidence)<a class="headerlink" href="#code-map-evidence" title="Permanent link">&para;</a></h2>
+<p>Start points (in call order):</p>
+<ul>
+<li>Public façade: <code>abstractvoice/voice_manager.py</code> → <code>abstractvoice/vm/manager.py</code></li>
+<li>TTS orchestration: <code>abstractvoice/vm/tts_mixin.py</code></li>
+<li>STT/listening orchestration: <code>abstractvoice/vm/stt_mixin.py</code></li>
+<li>Playback/lifecycle wiring + voice modes: <code>abstractvoice/vm/core.py</code></li>
+</ul>
+<p>TTS implementation:</p>
+<ul>
+<li>TTS adapter interface: <code>abstractvoice/adapters/base.py</code></li>
+<li>Piper adapter: <code>abstractvoice/adapters/tts_piper.py</code></li>
+<li>TTS engine selection (registry): <code>abstractvoice/adapters/tts_registry.py</code></li>
+<li>AudioDiT adapter/runtime: <code>abstractvoice/adapters/tts_audiodit.py</code>, <code>abstractvoice/audiodit/runtime.py</code></li>
+<li>OmniVoice adapter/runtime: <code>abstractvoice/adapters/tts_omnivoice.py</code>, <code>abstractvoice/omnivoice/runtime.py</code></li>
+<li>TTS engine wrapper (back-compat contract): <code>abstractvoice/tts/adapter_tts_engine.py</code></li>
+<li>Low-latency audio player: <code>abstractvoice/tts/tts_engine.py</code></li>
+</ul>
+<p>STT implementation:</p>
+<ul>
+<li>Mic/VAD/STT loop: <code>abstractvoice/recognition.py</code></li>
+<li>VAD wrapper: <code>abstractvoice/vad/voice_detector.py</code></li>
+<li>faster-whisper adapter: <code>abstractvoice/adapters/stt_faster_whisper.py</code></li>
+<li>Stop phrase normalization: <code>abstractvoice/stop_phrase.py</code></li>
+</ul>
+<p>Optional features:</p>
+<ul>
+<li>AEC (extra): <code>abstractvoice/aec/webrtc_apm.py</code> (used by <code>abstractvoice/recognition.py</code>)</li>
+<li>Voice cloning (extra): <code>abstractvoice/cloning/*</code> (manager/engines/store; used by <code>abstractvoice/vm/tts_mixin.py</code>)</li>
+<li>AbstractCore plugin: <code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
+</ul>
+<h2 id="data-flows">Data flows<a class="headerlink" href="#data-flows" title="Permanent link">&para;</a></h2>
+<h3 id="tts-local-playback">TTS (local playback)<a class="headerlink" href="#tts-local-playback" title="Permanent link">&para;</a></h3>
+<p>1) Your app calls <code>VoiceManager.speak()</code> (<code>abstractvoice/vm/tts_mixin.py</code>).
+2) Default path (Piper): <code>AdapterTTSEngine.speak()</code> (<code>abstractvoice/tts/adapter_tts_engine.py</code>)
+   - synthesizes audio via the selected adapter (default <code>PiperTTSAdapter.synthesize()</code>, <code>abstractvoice/adapters/tts_piper.py</code>)
+   - enqueues audio into <code>NonBlockingAudioPlayer.play_audio()</code> (<code>abstractvoice/tts/tts_engine.py</code>)
+3) Playback runs in the PortAudio callback thread (<code>sounddevice.OutputStream</code>).</p>
+<p>Pause/resume is implemented by toggling a lock-protected paused flag inside the audio callback (see <code>NonBlockingAudioPlayer.pause()/resume()</code>).</p>
+<h3 id="stt-microphone-listening">STT (microphone listening)<a class="headerlink" href="#stt-microphone-listening" title="Permanent link">&para;</a></h3>
+<p>1) Your app calls <code>VoiceManager.listen()</code> (<code>abstractvoice/vm/stt_mixin.py</code>).
+2) A <code>VoiceRecognizer</code> instance is created (<code>abstractvoice/recognition.py</code>) with:
+   - a VAD (<code>VoiceDetector</code>, <code>abstractvoice/vad/voice_detector.py</code>)
+   - an STT adapter (<code>FasterWhisperAdapter</code>, <code>abstractvoice/adapters/stt_faster_whisper.py</code>)
+3) The recognizer thread opens a <code>sounddevice.InputStream</code> and loops:
+   - optional AEC preprocessing
+   - VAD detection and buffering
+   - transcription and callback emission</p>
+<p>Stop phrase behavior:
+- The recognizer checks stop phrases on completed transcriptions, and can also run a low-rate rolling detector while normal transcriptions are suppressed (see <code>_maybe_detect_stop_phrase_continuous()</code> in <code>abstractvoice/recognition.py</code>).</p>
+<h2 id="coordination-voice-modes-while-speaking">Coordination: voice modes while speaking<a class="headerlink" href="#coordination-voice-modes-while-speaking" title="Permanent link">&para;</a></h2>
+<p>AbstractVoice wires TTS lifecycle to listening behavior in <code>abstractvoice/vm/core.py</code>:</p>
+<ul>
+<li><code>tts_engine.on_playback_start</code> → <code>VoiceManagerCore._on_tts_start()</code></li>
+<li><code>tts_engine.on_playback_end</code> → <code>VoiceManagerCore._on_tts_end()</code></li>
+</ul>
+<p><code>set_voice_mode(mode)</code> is public (<code>abstractvoice/vm/stt_mixin.py</code>). Modes:</p>
+<ul>
+<li><strong>full</strong>: keep listening; allow barge‑in (interrupt TTS on detected speech). Intended for AEC/headset; speakers may self-interrupt (mitigated by echo gating heuristics in <code>abstractvoice/recognition.py</code>).</li>
+<li><strong>wait</strong>: pause mic processing while speaking (<code>VoiceRecognizer.pause_listening()</code> / <code>resume_listening()</code>).</li>
+<li><strong>stop</strong>: keep mic processing, but suppress normal transcriptions while speaking and disable speech-triggered interruption; a stop-phrase detector remains active (<code>pause_transcriptions()</code> + rolling stop detector).</li>
+<li><strong>ptt</strong>: push‑to‑talk profile (thresholds tuned for short utterances). While speaking it behaves like <strong>stop</strong> mode; capture is controlled by the integrator/REPL.</li>
+</ul>
+<p>Design decisions behind these modes:
+- ADR 0001: <code>docs/adr/0001-local_assistant_out_of_box.md</code>
+- ADR 0002: <code>docs/adr/0002_barge_in_interruption.md</code></p>
+<h2 id="threading-model-practical">Threading model (practical)<a class="headerlink" href="#threading-model-practical" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Main thread</strong>: your app / REPL.</li>
+<li><strong>Recognizer thread</strong>: mic capture + VAD + STT (<code>VoiceRecognizer._recognition_loop()</code>).</li>
+<li><strong>Audio callback thread</strong>: speaker output callback (<code>NonBlockingAudioPlayer._audio_callback()</code>).</li>
+<li><strong>Cloned TTS synthesis thread (optional)</strong>: streaming/cancellation worker in <code>abstractvoice/vm/tts_mixin.py</code>.</li>
+</ul>
+<h2 id="offline-first-model-policy">Offline-first model policy<a class="headerlink" href="#offline-first-model-policy" title="Permanent link">&para;</a></h2>
+<p>The library defaults to <code>allow_downloads=True</code>, but the REPL creates <code>VoiceManager(..., allow_downloads=False)</code> (see <code>abstractvoice/examples/cli_repl.py</code>).</p>
+<p>Explicit prefetch entry points:
+- <code>python -m abstractvoice download ...</code> (<code>abstractvoice/__main__.py</code>)
+- <code>abstractvoice-prefetch ...</code> (<code>abstractvoice/prefetch.py</code>)</p>
+<p>See <code>docs/installation.md</code> and <code>docs/model-management.md</code>.</p>
+<h2 id="optional-abstractcore-plugin-integration">Optional: AbstractCore plugin integration<a class="headerlink" href="#optional-abstractcore-plugin-integration" title="Permanent link">&para;</a></h2>
+<p>When installed alongside <code>abstractcore</code>, AbstractVoice exposes a capability plugin via the entry point:</p>
+<ul>
+<li><code>pyproject.toml</code> → <code>[project.entry-points."abstractcore.capabilities_plugins"]</code></li>
+<li>Implementation: <code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
+<li>Artifact store adapter (AbstractRuntime-compatible, duck-typed): <code>abstractvoice/artifacts.py</code></li>
+</ul>
+<p>It provides:
+- a voice backend (TTS+STT) that can optionally store generated audio into an <code>artifact_store</code>
+- an audio backend (STT) for transcription-only use</p>
+<p>The local FastAPI web UI (<code>abstractvoice web</code>) is a small example wrapper around
+<code>VoiceManager</code> for quick browser testing. Its local <code>/api/*</code> routes map directly
+to <code>VoiceManager</code> functions and include browser-only conveniences such as
+assistant/user voice defaults. It also includes an example-only LLM bridge that
+forwards one OpenAI-compatible chat request to a local provider such as Ollama;
+the <code>/v1/audio/*</code> routes are smoke-test aliases.</p>
+<p>AbstractCore owns the production HTTP server surface. When AbstractCore Server
+is installed and running, these capability backends can power OpenAI-compatible
+endpoints such as <code>POST /v1/audio/speech</code> and <code>POST /v1/audio/transcriptions</code>.</p>
+<p>This is not required for using AbstractVoice as a standalone library.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

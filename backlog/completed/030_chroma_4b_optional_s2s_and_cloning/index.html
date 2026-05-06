@@ -1,0 +1,1672 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://lpalbou.github.io/abstractvoice/backlog/completed/030_chroma_4b_optional_s2s_and_cloning/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>030 chroma 4b optional s2s and cloning - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#task-030-evaluate-flashlabs-chroma-4b-for-optional-speech-to-speech-voice-cloning" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              030 chroma 4b optional s2s and cloning
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#task-030-evaluate-flashlabs-chroma-4b-for-optional-speech-to-speech-voice-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 030: Evaluate FlashLabs Chroma-4B for optional speech-to-speech + voice cloning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secondary-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secondary goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context / problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-options-and-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research, options, and references
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Research, options, and references">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-model-cardrepo-actually-says-signals-we-can-trust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the model card/repo actually says (signals we can trust)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benchmarks-reported-in-the-paper-quality-latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmarks reported in the paper (quality + latency)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#is-it-better-than-what-we-have" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        “Is it better than what we have?”
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options-integration-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options (integration shapes)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-0-local-validation-spike-example-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 0: local validation spike (example-only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-packaging-prefetch-explicit-downloads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: packaging + prefetch (explicit downloads)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-integrate-as-a-cloning-engine-behind-existing-abstraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: integrate as a cloning engine (behind existing abstraction)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-hardening-security-posture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: hardening + security posture
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#report-fill-only-when-completed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report (fill only when completed)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Report (fill only when completed)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>030 chroma 4b optional s2s and cloning</h1>
+
+<h2 id="task-030-evaluate-flashlabs-chroma-4b-for-optional-speech-to-speech-voice-cloning">Task 030: Evaluate FlashLabs Chroma-4B for optional speech-to-speech + voice cloning<a class="headerlink" href="#task-030-evaluate-flashlabs-chroma-4b-for-optional-speech-to-speech-voice-cloning" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-01-26<br />
+<strong>Status</strong>: Completed<br />
+<strong>Priority</strong>: P2 (experimental / GPU-only)  </p>
+<hr />
+<h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Decide if <strong>FlashLabs/Chroma-4B</strong> is a meaningfully better <strong>zero-shot voice cloning</strong> option than our current <code>abstractvoice[cloning]</code> path (OpenF5/F5-TTS), with acceptable latency and acceptable license terms.</li>
+<li>If promising, integrate it as an <strong>optional engine</strong> without changing the AbstractVoice integrator contract:</li>
+<li><code>VoiceManager.speak(..., voice=&lt;voice_id&gt;)</code> stays the primary “cloned voice” entry point</li>
+<li>engine selection is stored inside the cloned-voice record (not exposed in the public API)</li>
+</ul>
+<h2 id="secondary-goals">Secondary goals<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Provide an <strong>example</strong> that uses Chroma as an end-to-end <strong>speech-to-speech voice agent</strong> (audio-in → audio-out) while still using AbstractVoice for audio I/O and playback control.</li>
+<li>Preserve the project rule: <strong>no surprise downloads in the REPL</strong> (explicit prefetch only).</li>
+</ul>
+<hr />
+<h2 id="context-problem">Context / problem<a class="headerlink" href="#context-problem" title="Permanent link">&para;</a></h2>
+<p>AbstractVoice is intentionally modular:
+- <strong>STT</strong>: faster-whisper (strong, multilingual, well-understood trade-offs).
+- <strong>TTS</strong>: Piper (lightweight, cross-platform, no system deps).
+- <strong>Optional voice cloning</strong>: OpenF5/F5-TTS via <code>abstractvoice[cloning]</code>.</p>
+<p>The remaining gap is “<strong>high-fidelity, low-latency voice cloning</strong>” that is permissively licensed and practical to run.</p>
+<p>Chroma 1.0 claims:
+- End-to-end spoken dialogue (speech-to-speech) with <strong>streaming generation</strong>
+- <strong>High-fidelity zero-shot voice cloning</strong> from a few seconds of reference audio
+- <strong>Sub-second responsiveness</strong> and <strong>faster-than-real-time</strong> generation
+- Apache-2.0 license signals (code + model repo metadata)</p>
+<p>If those claims hold in our environment, Chroma could be valuable as:
+- A <strong>higher-quality voice cloning engine</strong> (TTS side) behind the existing AbstractVoice “cloned voice” abstraction
+- An <strong>optional local speech-to-speech agent backend</strong> for demos/integrations, without changing core abstractions</p>
+<hr />
+<h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Permissive licensing</strong> for both code and weights (MIT/Apache/BSD compatible).</li>
+<li><strong>Optional extra only</strong>: base <code>pip install abstractvoice</code> must not pull Torch/Transformers/CUDA stacks.</li>
+<li><strong>No surprise downloads</strong>:</li>
+<li>Chroma weights/code must not download during <code>VoiceManager.speak()</code> in the REPL by default.</li>
+<li>Provide explicit prefetch entry points (<code>abstractvoice-prefetch</code> / <code>python -m abstractvoice download</code>).</li>
+<li><strong>Security</strong>:</li>
+<li>Chroma requires <code>trust_remote_code=True</code> with Transformers.</li>
+<li>If we use remote code, pin a specific revision and document the risk.</li>
+<li>Prefer vendoring audited model code as a later hardening step if feasible.</li>
+<li><strong>Practicality</strong>:</li>
+<li>GPU is effectively required (paper and upstream docs assume CUDA).</li>
+<li>Upstream currently depends on a pre-release Transformers (<code>transformers==5.0.0rc0</code>).</li>
+<li><strong>VoiceManager contract stability</strong>: do not expand core <code>tts_engine</code> beyond Piper unless explicitly scoped.</li>
+</ul>
+<hr />
+<h2 id="research-options-and-references">Research, options, and references<a class="headerlink" href="#research-options-and-references" title="Permanent link">&para;</a></h2>
+<h3 id="what-the-model-cardrepo-actually-says-signals-we-can-trust">What the model card/repo actually says (signals we can trust)<a class="headerlink" href="#what-the-model-cardrepo-actually-says-signals-we-can-trust" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Hugging Face model metadata (public API):</li>
+<li>Repo: <code>https://huggingface.co/FlashLabs/Chroma-4B</code></li>
+<li>License field: <code>apache-2.0</code></li>
+<li>Gating: <code>auto</code> (requires auth to download files)</li>
+<li>Pipeline tag: <code>any-to-any</code></li>
+<li>Custom architecture via remote code:<ul>
+<li><code>architectures: ["ChromaForConditionalGeneration"]</code></li>
+<li><code>auto_map</code> points to <code>configuration_chroma.py</code>, <code>modeling_chroma.py</code>, <code>processing_chroma.py</code> inside the HF repo</li>
+</ul>
+</li>
+<li>
+<p>HF revision SHA (as of 2026-01-26): <code>864b4aea0c1359f91af62f1367df64657dc5e90f</code></p>
+</li>
+<li>
+<p>HF repo contents (important for ops):</p>
+</li>
+<li>Weights are split across 3 <code>.safetensors</code> shards (~4.3–5.0GB each); total download is large (~14GB+).</li>
+<li>
+<p>Audio appears to be 24kHz (consistent with paper + README).</p>
+</li>
+<li>
+<p>Upstream README (GitHub):</p>
+</li>
+<li>Repo: <code>https://github.com/FlashLabs-AI-Corp/FlashLabs-Chroma</code></li>
+<li>Requirements explicitly call out <strong>Python 3.11+</strong> and <strong>CUDA 12.6</strong> for GPU support.</li>
+<li>Suggested pins include <code>torch==2.7.1</code> and <code>transformers==5.0.0rc0</code>.</li>
+<li>Usage pattern is <code>AutoModelForCausalLM.from_pretrained(..., trust_remote_code=True)</code> + <code>AutoProcessor</code>.</li>
+<li>Voice cloning is done by providing <code>prompt_audio</code> and <code>prompt_text</code> (reference transcript).</li>
+</ul>
+<h3 id="benchmarks-reported-in-the-paper-quality-latency">Benchmarks reported in the paper (quality + latency)<a class="headerlink" href="#benchmarks-reported-in-the-paper-quality-latency" title="Permanent link">&para;</a></h3>
+<p>Paper: <code>https://arxiv.org/abs/2601.11141</code></p>
+<p>Key reported results (from extracted tables):</p>
+<ul>
+<li><strong>Table 1 (objective speaker similarity / SIM)</strong>:</li>
+<li>Metric: cosine similarity of speaker embeddings from <strong>WavLM-Large</strong> (SEED-TTS-EVAL protocol, CommonVoice EN).</li>
+<li>Human baseline: <strong>0.73</strong></li>
+<li>F5-TTS: <strong>0.64</strong></li>
+<li>Seed-TTS: <strong>0.76</strong></li>
+<li>FireRedTTS-2: <strong>0.66</strong></li>
+<li>Step-Audio-TTS: <strong>0.66</strong></li>
+<li>CosyVoice 3: <strong>0.72</strong></li>
+<li>Chroma 1.0: <strong>0.817</strong></li>
+<li>Claim: <strong>+10.96% relative</strong> improvement over the human baseline on SIM.</li>
+<li>
+<p>Important caveat noted by the authors: Chroma runs at <strong>24kHz</strong> vs <strong>16kHz</strong> for others, which may help preserve speaker cues.</p>
+</li>
+<li>
+<p><strong>Table 2 (subjective pairwise CMOS vs ElevenLabs)</strong>:</p>
+</li>
+<li>NCMOS (naturalness preference):<ul>
+<li>Chroma: <strong>24.4%</strong></li>
+<li>ElevenLabs: <strong>57.2%</strong></li>
+<li>Deuce: <strong>18.3%</strong></li>
+</ul>
+</li>
+<li>SCMOS (speaker similarity preference):<ul>
+<li>Chroma: <strong>40.6%</strong></li>
+<li>ElevenLabs: <strong>42.4%</strong></li>
+<li>Deuce: <strong>17.0%</strong></li>
+</ul>
+</li>
+<li>
+<p>Interpretation: ElevenLabs is preferred for naturalness; speaker-similarity preference is near-tied.</p>
+</li>
+<li>
+<p><strong>Table 3 (listener preference: ElevenLabs vs reference audio)</strong>:</p>
+</li>
+<li>Reference: <strong>8.0%</strong></li>
+<li>ElevenLabs: <strong>92.0%</strong></li>
+<li>
+<p>Author’s point: “naturalness preference” can be dominated by recording quality/cleanliness and not reflect true speaker similarity.</p>
+</li>
+<li>
+<p><strong>Table 4 (latency)</strong>:</p>
+</li>
+<li>TTFT (time-to-first-audio-token): <strong>146.87ms</strong></li>
+<li>Example generation: 16.58s generation time for 38.80s audio ⇒ <strong>RTF 0.43</strong> (2.3× faster than realtime).</li>
+<li>
+<p>Hardware/environment details matter a lot here (paper uses high-end GPUs).</p>
+</li>
+<li>
+<p><strong>Table 5 (URO-Bench basic track: speech understanding / reasoning / oral conversation)</strong>:</p>
+</li>
+<li>Chroma (ours), 4B:<ul>
+<li>Rep: <strong>69.05</strong></li>
+<li>Sum: <strong>74.12</strong></li>
+<li>Gaokao: <strong>38.61</strong></li>
+<li>Storal: <strong>71.14</strong></li>
+<li>TruthfulQA: <strong>51.69</strong></li>
+<li>GSM8K: <strong>22.74</strong></li>
+<li>MLC: <strong>60.26</strong></li>
+<li>Alpaca: <strong>60.47</strong></li>
+<li>CommonVoice: <strong>62.07</strong></li>
+<li>WildChat: <strong>64.24</strong></li>
+<li>Overall: <strong>57.44</strong></li>
+</ul>
+</li>
+<li>Authors claim Chroma is the only compared model with “personalized voice cloning” and remains competitive despite smaller scale.</li>
+</ul>
+<h3 id="is-it-better-than-what-we-have">“Is it better than what we have?”<a class="headerlink" href="#is-it-better-than-what-we-have" title="Permanent link">&para;</a></h3>
+<p>It depends on what “quality” means for AbstractVoice:</p>
+<ul>
+<li><strong>Voice cloning fidelity (speaker similarity)</strong>: <em>likely better</em> than our current default cloning engine.</li>
+<li>The paper explicitly compares against F5-TTS (SIM 0.64) and reports Chroma at 0.817 under the same SIM metric.</li>
+<li>
+<p>Caveat: their evaluation uses a specific protocol and may benefit from 24kHz.</p>
+</li>
+<li>
+<p><strong>Speech naturalness</strong>: uncertain vs Piper/OpenF5; paper shows <strong>ElevenLabs is preferred</strong> for naturalness.</p>
+</li>
+<li>
+<p>We should treat Chroma as “high speaker similarity” first, not “best naturalness”.</p>
+</li>
+<li>
+<p><strong>STT accuracy</strong>: not a clear win.</p>
+</li>
+<li>Chroma is not primarily an ASR model; paper does not report standard WER.</li>
+<li>
+<p>AbstractVoice already has a strong STT baseline (faster-whisper).</p>
+</li>
+<li>
+<p><strong>End-to-end responsiveness / streaming</strong>: potentially a win for local “voice agent” demos.</p>
+</li>
+<li>Chroma’s TTFT/RTF are strong on the paper’s setup, but replication on consumer GPUs is not guaranteed.</li>
+</ul>
+<hr />
+<h2 id="options-integration-shapes">Options (integration shapes)<a class="headerlink" href="#options-integration-shapes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Option A — Add Chroma as a <code>VoiceCloner</code> engine (recommended first)</strong></li>
+<li>Keep Piper as the default TTS.</li>
+<li>Extend <code>abstractvoice/cloning/</code> to support multiple engines:<ul>
+<li>existing: <code>engine="f5_tts"</code></li>
+<li>new: <code>engine="chroma"</code></li>
+</ul>
+</li>
+<li><code>voice_id</code> remains the only thing exposed to <code>VoiceManager.speak(..., voice=...)</code>.</li>
+<li>Pros:<ul>
+<li>Preserves the public contract and existing “cloned voice” UX.</li>
+<li>The biggest quality upside is specifically cloning.</li>
+</ul>
+</li>
+<li>
+<p>Cons:</p>
+<ul>
+<li>Heavy optional deps; requires HF auth; <code>trust_remote_code=True</code>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Option B — Add Chroma as a full <code>TTSAdapter</code> / <code>tts_engine="chroma"</code></strong></p>
+</li>
+<li>Make Chroma a first-class TTS engine choice in <code>VoiceManager</code>.</li>
+<li>Pros: clean configuration; could support text-only “TTS” usage.</li>
+<li>
+<p>Cons:</p>
+<ul>
+<li>Requires relaxing core design that currently enforces Piper-only TTS.</li>
+<li>Higher risk of dependency conflicts and contract expansion.</li>
+</ul>
+</li>
+<li>
+<p><strong>Option C — Example-only “speech-to-speech agent” integration</strong></p>
+</li>
+<li>Add an <code>examples/chroma_s2s_agent.py</code> script:<ul>
+<li>record mic audio with AbstractVoice</li>
+<li>feed to Chroma</li>
+<li>play generated audio through AbstractVoice playback pipeline</li>
+</ul>
+</li>
+<li>Pros: minimal commitment; quickest to validate quality and latency.</li>
+<li>
+<p>Cons: does not immediately improve the shipped cloning API.</p>
+</li>
+<li>
+<p><strong>Option D — Do nothing</strong></p>
+</li>
+<li>Only document Chroma in <code>docs/voice_cloning_2026.md</code> as a candidate.</li>
+</ul>
+<hr />
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p><strong>Chosen approach</strong>: Phase the work as <strong>Option C → Option A</strong>.</p>
+<p><strong>Why</strong>:
+- We should validate quality/latency in our environment before adding a new engine.
+- If Chroma is valuable, integrating it behind <code>VoiceCloner</code> provides the benefits while keeping the AbstractVoice “voice abstraction” stable and small.</p>
+<hr />
+<h2 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Backlog tasks (completed)</strong>:</li>
+<li><code>docs/backlog/completed/009_voice_cloning_adapter_impl.md</code></li>
+<li><code>docs/backlog/completed/019_cloning_ux_no_surprise_downloads.md</code></li>
+<li>
+<p><code>docs/backlog/completed/021_streaming_and_cancellation_for_cloned_tts.md</code></p>
+</li>
+<li>
+<p><strong>Backlog tasks (planned)</strong>: none</p>
+</li>
+<li><strong>ADRs</strong>: none</li>
+</ul>
+<hr />
+<h2 id="implementation-plan">Implementation plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h2>
+<h3 id="phase-0-local-validation-spike-example-only">Phase 0: local validation spike (example-only)<a class="headerlink" href="#phase-0-local-validation-spike-example-only" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add <code>examples/chroma_s2s_agent.py</code>:</li>
+<li>Minimal audio-in → audio-out loop.</li>
+<li>Keep it explicitly “experimental”.</li>
+<li>Require an opt-in install extra (see Phase 1).</li>
+<li>Document required env:</li>
+<li>Python 3.11+</li>
+<li>HF auth (token) for gated download</li>
+<li>GPU expectation (CUDA)</li>
+</ul>
+<h3 id="phase-1-packaging-prefetch-explicit-downloads">Phase 1: packaging + prefetch (explicit downloads)<a class="headerlink" href="#phase-1-packaging-prefetch-explicit-downloads" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add a new optional dependency group:</li>
+<li><code>abstractvoice[chroma]</code> (or <code>abstractvoice[s2s]</code>) that pulls Torch/Transformers stack.</li>
+<li>Keep pins close to upstream to avoid breakage (<code>transformers==5.0.0rc0</code> is likely required initially).</li>
+<li>Extend explicit download tools:</li>
+<li><code>abstractvoice-prefetch --chroma</code></li>
+<li><code>python -m abstractvoice download --chroma</code></li>
+<li>Respect <code>VoiceManager.allow_downloads</code> by defaulting to “no download in REPL”.</li>
+<li>Provide clear error messages when:<ul>
+<li>HF token is missing</li>
+<li>repo is gated and download fails</li>
+</ul>
+</li>
+</ul>
+<h3 id="phase-2-integrate-as-a-cloning-engine-behind-existing-abstraction">Phase 2: integrate as a cloning engine (behind existing abstraction)<a class="headerlink" href="#phase-2-integrate-as-a-cloning-engine-behind-existing-abstraction" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add <code>abstractvoice/cloning/engine_chroma.py</code> implementing a similar interface to <code>F5TTSVoiceCloningEngine</code>:</li>
+<li><code>infer_to_wav_bytes(text, reference_paths, reference_text, ...) -&gt; bytes</code></li>
+<li><code>infer_to_audio_chunks(...) -&gt; Iterable[(chunk: np.ndarray, sr: int)]</code> (optional; can start with full-audio then chunk)</li>
+<li><code>runtime_info()</code> for debugging (device, dtype, revision, etc.)</li>
+<li>Update <code>abstractvoice/cloning/manager.py</code> (<code>VoiceCloner</code>) to:</li>
+<li>Dispatch per voice record (<code>voice.engine</code>) to either the F5 engine or the Chroma engine.</li>
+<li>Continue using stored <code>reference_text</code> (and existing STT auto-fallback) because Chroma needs <code>prompt_text</code>.</li>
+<li>Add an engine selection mechanism when creating a voice:</li>
+<li>Prefer adding an optional <code>engine=</code> argument to <code>VoiceCloner.clone_voice(...)</code> (non-public API).</li>
+<li>Keep defaults unchanged (<code>engine="f5_tts"</code>).</li>
+</ul>
+<h3 id="phase-3-hardening-security-posture">Phase 3: hardening + security posture<a class="headerlink" href="#phase-3-hardening-security-posture" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Pin HF revision by default (to reduce “remote code changed” risk).</li>
+<li>Add docs:</li>
+<li>Explain <code>trust_remote_code=True</code> trade-offs.</li>
+<li>Recommend using a fixed <code>revision</code> and verifying upstream code.</li>
+<li>Optional follow-up: vendor audited model code into AbstractVoice to remove <code>trust_remote_code</code> (only if licensing is confirmed and maintenance cost is acceptable).</li>
+</ul>
+<hr />
+<h2 id="success-criteria">Success criteria<a class="headerlink" href="#success-criteria" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Validation spike</strong>: we can run an end-to-end audio conversation example locally and confirm:</li>
+<li>model loads reliably</li>
+<li>audio output is correct 24kHz WAV</li>
+<li>subjective cloning fidelity is promising on a few internal samples</li>
+<li><strong>Optional integration</strong>:</li>
+<li>Base install remains lightweight; no Torch/Transformers dependency.</li>
+<li>With <code>abstractvoice[chroma]</code> installed and Chroma weights cached, <code>VoiceManager.speak(..., voice=&lt;voice_id&gt;)</code> works when that <code>voice_id</code> was created with the Chroma engine.</li>
+<li>REPL does not silently download weights; errors instruct explicit prefetch.</li>
+</ul>
+<hr />
+<h2 id="test-plan">Test plan<a class="headerlink" href="#test-plan" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>pytest -q</code></li>
+<li>Unit tests (CPU-only):</li>
+<li>Engine dispatch logic in <code>VoiceCloner</code> (mock engines; no real model load).</li>
+<li>Error messaging when <code>abstractvoice[chroma]</code> is not installed.</li>
+<li>Prefetch CLI argument parsing.</li>
+<li>Manual (GPU env):</li>
+<li><code>abstractvoice-prefetch --chroma</code></li>
+<li>Create a cloned voice with Chroma and call:<ul>
+<li><code>vm.speak_to_bytes("...", voice=&lt;voice_id&gt;)</code> and validate WAV header + sample rate.</li>
+<li><code>vm.speak("...", voice=&lt;voice_id&gt;)</code> and validate playback.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h2 id="report-fill-only-when-completed">Report (fill only when completed)<a class="headerlink" href="#report-fill-only-when-completed" title="Permanent link">&para;</a></h2>
+<h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Integrated Chroma-4B as an <strong>optional</strong> voice cloning backend (<code>engine="chroma"</code>) behind the existing cloned-voice abstraction, without expanding the core Piper-only TTS contract.</li>
+<li>Added explicit artifact prefetch entry points (<code>abstractvoice-prefetch --chroma</code> / <code>python -m abstractvoice download --chroma</code>) to preserve the offline-first REPL rule (no surprise downloads).</li>
+<li>Added a minimal local smoke script (<code>examples/chroma_clone_repl.py</code>) and an opt-in integration test (<code>tests/test_chroma_cloning_integration.py</code> gated by <code>ABSTRACTVOICE_RUN_CHROMA_TESTS=1</code>).</li>
+</ul>
+<p>Code evidence:
+- Engine implementation: <code>abstractvoice/cloning/engine_chroma.py</code>
+- Optional deps: <code>pyproject.toml</code> (<code>abstractvoice[chroma]</code>)
+- Prefetch entry points: <code>abstractvoice/prefetch.py</code> and <code>abstractvoice/__main__.py</code></p>
+<h3 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Automated: <code>tests/test_chroma_cloning_integration.py</code> (heavy; opt-in via <code>ABSTRACTVOICE_RUN_CHROMA_TESTS=1</code>)</li>
+<li>Manual: <code>python -i examples/chroma_clone_repl.py</code> (requires <code>pip install -e '.[chroma]'</code> + <code>abstractvoice-prefetch --chroma</code>)</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

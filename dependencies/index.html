@@ -1,0 +1,1769 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://lpalbou.github.io/abstractvoice/dependencies/">
+      
+      
+        <link rel="prev" href="../multilingual/">
+      
+      
+        <link rel="next" href="../voices-and-licenses/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Dependencies - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#dependencies-direct-modelsweights" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Dependencies
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-dependencies-installed-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core dependencies (installed by default)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-extras-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional extras (opt-in)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Optional extras (opt-in)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceaudiodit-longcat-audiodit-tts-prompt-audio-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[audiodit] — LongCat-AudioDiT (TTS + prompt-audio cloning)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceomnivoice-omnivoice-omnilingual-tts-cloning-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[omnivoice] — OmniVoice (omnilingual TTS + cloning / design)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicechroma-chroma-4b-cloning-gpu-heavy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[chroma] — Chroma-4B cloning (GPU-heavy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicecloning-openf5-f5-tts-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[cloning] — OpenF5 / F5-TTS cloning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceaudio-fx-audio-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[audio-fx] — Audio effects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceaec-acoustic-echo-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[aec] — Acoustic echo cancellation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceweb-local-web-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[web] — Local web example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicestt-faster-whisper-stt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[stt] — Faster-Whisper STT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicelegacy-stt-legacy-whisper-token-stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[legacy-stt] — Legacy Whisper + token stats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notable-transitive-runtimes-debugging-oriented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notable transitive runtimes (debugging-oriented)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-dependencies-installed-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core dependencies (installed by default)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-extras-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional extras (opt-in)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Optional extras (opt-in)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceaudiodit-longcat-audiodit-tts-prompt-audio-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[audiodit] — LongCat-AudioDiT (TTS + prompt-audio cloning)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceomnivoice-omnivoice-omnilingual-tts-cloning-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[omnivoice] — OmniVoice (omnilingual TTS + cloning / design)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicechroma-chroma-4b-cloning-gpu-heavy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[chroma] — Chroma-4B cloning (GPU-heavy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicecloning-openf5-f5-tts-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[cloning] — OpenF5 / F5-TTS cloning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceaudio-fx-audio-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[audio-fx] — Audio effects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceaec-acoustic-echo-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[aec] — Acoustic echo cancellation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceweb-local-web-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[web] — Local web example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicestt-faster-whisper-stt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[stt] — Faster-Whisper STT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicelegacy-stt-legacy-whisper-token-stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[legacy-stt] — Legacy Whisper + token stats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notable-transitive-runtimes-debugging-oriented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notable transitive runtimes (debugging-oriented)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="dependencies-direct-modelsweights">Dependencies (direct) + models/weights<a class="headerlink" href="#dependencies-direct-modelsweights" title="Permanent link">&para;</a></h1>
+<p>This document lists <strong>direct</strong> dependencies declared in <code>pyproject.toml</code>, plus the <strong>models/weights</strong> AbstractVoice may download.</p>
+<p>Why direct-only?</p>
+<ul>
+<li><strong>Direct dependencies</strong> (what we declare) are stable and reviewable.</li>
+<li><strong>Transitive dependencies</strong> (what pip resolves) vary by platform and change over time; we call out only a few <em>notable runtimes</em> where it helps debugging.</li>
+</ul>
+<p>If you need licensing guidance for model weights and voices, also read <code>docs/voices-and-licenses.md</code>.</p>
+<hr />
+<h2 id="core-dependencies-installed-by-default">Core dependencies (installed by default)<a class="headerlink" href="#core-dependencies-installed-by-default" title="Permanent link">&para;</a></h2>
+<p>These are always installed with <code>pip install abstractvoice</code>.</p>
+<ul>
+<li><strong>numpy</strong></li>
+<li><strong>Why</strong>: array operations and audio sample handling.</li>
+<li><strong>Where</strong>: widely used across <code>abstractvoice/*</code> (audio + cloning glue).</li>
+<li><strong>Repo</strong>: <code>https://github.com/numpy/numpy</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/numpy/numpy/blob/main/LICENSE.txt</code></p>
+</li>
+<li>
+<p><strong>requests</strong></p>
+</li>
+<li><strong>Why</strong>: HTTP calls (mainly integration / utility flows).</li>
+<li><strong>Where</strong>: various network helpers; also used by some upstream libs.</li>
+<li><strong>Repo</strong>: <code>https://github.com/psf/requests</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/psf/requests/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>appdirs</strong></p>
+</li>
+<li><strong>Why</strong>: OS-appropriate cache/data directory locations.</li>
+<li><strong>Where</strong>: used in cache/storage helpers.</li>
+<li><strong>Repo</strong>: <code>https://github.com/ActiveState/appdirs</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/ActiveState/appdirs/blob/master/LICENSE.txt</code></p>
+</li>
+<li>
+<p><strong>piper-tts</strong></p>
+</li>
+<li><strong>Why</strong>: default local neural TTS backend (Piper-first).</li>
+<li><strong>Where</strong>: <code>abstractvoice/adapters/tts_piper.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/rhasspy/piper</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/rhasspy/piper/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>huggingface_hub</strong></p>
+</li>
+<li><strong>Why</strong>: download and cache model weights (STT models, optional engines).</li>
+<li><strong>Where</strong>: <code>abstractvoice/adapters/stt_faster_whisper.py</code>, <code>abstractvoice/prefetch.py</code>, <code>abstractvoice/audiodit/runtime.py</code>, <code>abstractvoice/omnivoice/runtime.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/huggingface_hub</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/huggingface/huggingface_hub/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>faster-whisper</strong></p>
+</li>
+<li><strong>Why</strong>: default STT backend (fast Whisper inference).</li>
+<li><strong>Where</strong>: <code>abstractvoice/adapters/stt_faster_whisper.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/SYSTRAN/faster-whisper</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>sounddevice</strong></p>
+</li>
+<li><strong>Why</strong>: microphone/speaker I/O (PortAudio bindings).</li>
+<li><strong>Where</strong>: <code>abstractvoice/recognition.py</code>, <code>abstractvoice/tts/tts_engine.py</code>, <code>abstractvoice/audio/*</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/spatialaudio/python-sounddevice</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/spatialaudio/python-sounddevice/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>soundfile</strong></p>
+</li>
+<li><strong>Why</strong>: WAV/FLAC/OGG read/write (libsndfile bindings).</li>
+<li><strong>Where</strong>: cloning store normalization, tests, file utilities.</li>
+<li><strong>Repo</strong>: <code>https://github.com/bastibe/python-soundfile</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/bastibe/python-soundfile/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>webrtcvad</strong></p>
+</li>
+<li><strong>Why</strong>: VAD (voice activity detection) for <code>listen()</code> and voice modes.</li>
+<li><strong>Where</strong>: <code>abstractvoice/vad/voice_detector.py</code>, <code>abstractvoice/recognition.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/wiseman/py-webrtcvad</code></li>
+<li><strong>License</strong>: <code>https://github.com/wiseman/py-webrtcvad/blob/master/LICENSE.txt</code></li>
+</ul>
+<hr />
+<h2 id="optional-extras-opt-in">Optional extras (opt-in)<a class="headerlink" href="#optional-extras-opt-in" title="Permanent link">&para;</a></h2>
+<h3 id="abstractvoiceaudiodit-longcat-audiodit-tts-prompt-audio-cloning"><code>abstractvoice[audiodit]</code> — LongCat-AudioDiT (TTS + prompt-audio cloning)<a class="headerlink" href="#abstractvoiceaudiodit-longcat-audiodit-tts-prompt-audio-cloning" title="Permanent link">&para;</a></h3>
+<p>Supported on Python 3.9+. Python 3.9 uses the latest compatible Transformers
+4.x line; Python 3.10+ uses the Transformers 5.x line.</p>
+<p>Python packages:</p>
+<ul>
+<li><strong>torch</strong></li>
+<li><strong>Why</strong>: tensor runtime for AudioDiT inference.</li>
+<li><strong>Where</strong>: <code>abstractvoice/audiodit/*</code>, <code>abstractvoice/cloning/engine_audiodit.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/pytorch/pytorch</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/pytorch/pytorch/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>transformers</strong></p>
+</li>
+<li><strong>Why</strong>: HF <code>PreTrainedModel</code>/tokenizer APIs used by AudioDiT + text encoder.</li>
+<li><strong>Where</strong>: <code>abstractvoice/audiodit/*</code>, <code>abstractvoice/audiodit/runtime.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/transformers</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/huggingface/transformers/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>einops</strong></p>
+</li>
+<li><strong>Why</strong>: model block reshaping utilities (used by AudioDiT modules).</li>
+<li><strong>Where</strong>: <code>abstractvoice/audiodit/modeling_audiodit.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/arogozhnikov/einops</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/arogozhnikov/einops/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>sentencepiece</strong></p>
+</li>
+<li><strong>Why</strong>: tokenizer runtime (used by UMT5 tokenizer).</li>
+<li><strong>Where</strong>: pulled by Transformers tokenizers depending on model.</li>
+<li><strong>Repo</strong>: <code>https://github.com/google/sentencepiece</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/google/sentencepiece/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>safetensors</strong></p>
+</li>
+<li><strong>Why</strong>: weight format used by HF models.</li>
+<li><strong>Where</strong>: model load via Transformers.</li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/safetensors</code></li>
+<li><strong>License</strong>: <code>https://github.com/huggingface/safetensors/blob/main/LICENSE</code></li>
+</ul>
+<p>Models/weights (Hugging Face):</p>
+<ul>
+<li><strong>LongCat-AudioDiT-1B</strong> (weights + model license statement)</li>
+<li><strong>Model</strong>: <code>https://huggingface.co/meituan-longcat/LongCat-AudioDiT-1B</code></li>
+<li><strong>License file</strong>: <code>https://huggingface.co/meituan-longcat/LongCat-AudioDiT-1B/blob/main/LICENSE</code></li>
+<li><strong>Cache</strong>: <code>~/.cache/huggingface</code> (default)</li>
+<li>
+<p><strong>Prefetch</strong>: <code>python -m abstractvoice download --audiodit</code> or <code>abstractvoice-prefetch --audiodit</code></p>
+</li>
+<li>
+<p><strong>UMT5 text encoder</strong> (default: <code>google/umt5-base</code>)</p>
+</li>
+<li><strong>Model</strong>: <code>https://huggingface.co/google/umt5-base</code></li>
+<li><strong>License</strong>: <code>https://huggingface.co/google/umt5-base</code> (model card metadata; license is <code>apache-2.0</code>)</li>
+<li><strong>Cache</strong>: <code>~/.cache/huggingface</code> (default)</li>
+</ul>
+<p>Vendored code:</p>
+<ul>
+<li><strong>LongCat-AudioDiT upstream repository (MIT)</strong></li>
+<li><strong>Repo</strong>: <code>https://github.com/meituan-longcat/LongCat-AudioDiT</code></li>
+<li><strong>License</strong>: <code>https://github.com/meituan-longcat/LongCat-AudioDiT/blob/main/LICENSE</code></li>
+<li><strong>What we ship</strong>: a HuggingFace-compatible derived implementation under <code>abstractvoice/audiodit/*</code> to avoid <code>trust_remote_code</code>.</li>
+</ul>
+<h3 id="abstractvoiceomnivoice-omnivoice-omnilingual-tts-cloning-design"><code>abstractvoice[omnivoice]</code> — OmniVoice (omnilingual TTS + cloning / design)<a class="headerlink" href="#abstractvoiceomnivoice-omnivoice-omnilingual-tts-cloning-design" title="Permanent link">&para;</a></h3>
+<p>Requires Python 3.10+ because the upstream <code>omnivoice</code> package declares that
+Python floor.</p>
+<p>Python packages:</p>
+<ul>
+<li><strong>omnivoice</strong></li>
+<li><strong>Why</strong>: OmniVoice engine runtime + model wrapper.</li>
+<li><strong>Where</strong>: <code>abstractvoice/omnivoice/*</code>, <code>abstractvoice/adapters/tts_omnivoice.py</code>, <code>abstractvoice/cloning/engine_omnivoice.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/k2-fsa/OmniVoice</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/k2-fsa/OmniVoice/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>torch / torchaudio / torchvision</strong></p>
+</li>
+<li><strong>Why</strong>: tensor runtime for OmniVoice inference.</li>
+<li><strong>Repo</strong>: <code>https://github.com/pytorch/pytorch</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/pytorch/pytorch/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>transformers</strong></p>
+</li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/transformers</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/huggingface/transformers/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>accelerate</strong></p>
+</li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/accelerate</code></li>
+<li><strong>License</strong>: <code>https://github.com/huggingface/accelerate/blob/main/LICENSE</code></li>
+</ul>
+<p>Models/weights (Hugging Face):</p>
+<ul>
+<li><strong>OmniVoice</strong> (weights + model license statement)</li>
+<li><strong>Model</strong>: <code>https://huggingface.co/k2-fsa/OmniVoice</code></li>
+<li><strong>Cache</strong>: <code>~/.cache/huggingface</code> (default)</li>
+<li><strong>Prefetch</strong>: <code>python -m abstractvoice download --omnivoice</code> or <code>abstractvoice-prefetch --omnivoice</code></li>
+</ul>
+<h3 id="abstractvoicechroma-chroma-4b-cloning-gpu-heavy"><code>abstractvoice[chroma]</code> — Chroma-4B cloning (GPU-heavy)<a class="headerlink" href="#abstractvoicechroma-chroma-4b-cloning-gpu-heavy" title="Permanent link">&para;</a></h3>
+<p>Requires Python 3.10+ in AbstractVoice packaging because Chroma depends on
+Transformers 5.x.</p>
+<ul>
+<li><strong>torch / torchaudio / torchvision</strong></li>
+<li><strong>Repo</strong>: <code>https://github.com/pytorch/pytorch</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/pytorch/pytorch/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>transformers</strong></p>
+</li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/transformers</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/huggingface/transformers/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>accelerate</strong></p>
+</li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/accelerate</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/huggingface/accelerate/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>av (PyAV)</strong></p>
+</li>
+<li><strong>Repo</strong>: <code>https://github.com/PyAV-Org/PyAV</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/PyAV-Org/PyAV/blob/main/LICENSE.txt</code></p>
+</li>
+<li>
+<p><strong>librosa / audioread / pillow / safetensors</strong></p>
+</li>
+<li><strong>librosa repo/license</strong>: <code>https://github.com/librosa/librosa</code> / <code>https://github.com/librosa/librosa/blob/main/LICENSE.md</code></li>
+<li><strong>audioread repo/license</strong>: <code>https://github.com/beetbox/audioread</code> / <code>https://github.com/beetbox/audioread/blob/master/LICENSE</code></li>
+<li><strong>pillow repo/license</strong>: <code>https://github.com/python-pillow/Pillow</code> / <code>https://github.com/python-pillow/Pillow/blob/main/LICENSE</code></li>
+<li><strong>safetensors repo/license</strong>: <code>https://github.com/huggingface/safetensors</code> / <code>https://github.com/huggingface/safetensors/blob/main/LICENSE</code></li>
+</ul>
+<p>Model:</p>
+<ul>
+<li><strong>Chroma-4B</strong></li>
+<li><strong>Model</strong>: <code>https://huggingface.co/FlashLabs/Chroma-4B</code></li>
+<li><strong>License</strong>: see model card + repo files.</li>
+</ul>
+<h3 id="abstractvoicecloning-openf5-f5-tts-cloning"><code>abstractvoice[cloning]</code> — OpenF5 / F5-TTS cloning<a class="headerlink" href="#abstractvoicecloning-openf5-f5-tts-cloning" title="Permanent link">&para;</a></h3>
+<p>Requires Python 3.10+ because current upstream <code>f5-tts</code> packages import
+Python 3.10-only annotations during inference. On Python 3.9, use
+<code>abstractvoice[audiodit]</code> with the <code>audiodit</code> cloning engine for tested
+prompt-audio cloning.</p>
+<ul>
+<li><strong>f5-tts</strong></li>
+<li><strong>Why</strong>: cloning engine (<code>f5_tts</code>) backend.</li>
+<li><strong>Where</strong>: <code>abstractvoice/cloning/engine_f5.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/SWivid/F5-TTS</code></li>
+<li><strong>License</strong>: <code>https://github.com/SWivid/F5-TTS/blob/main/LICENSE</code></li>
+</ul>
+<h3 id="abstractvoiceaudio-fx-audio-effects"><code>abstractvoice[audio-fx]</code> — Audio effects<a class="headerlink" href="#abstractvoiceaudio-fx-audio-effects" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>librosa</strong></li>
+<li><strong>Why</strong>: optional “speed change without pitch change”.</li>
+<li><strong>Where</strong>: used by the audio FX path; surfaced via <code>docs/installation.md</code>.</li>
+<li><strong>Repo</strong>: <code>https://github.com/librosa/librosa</code></li>
+<li><strong>License</strong>: <code>https://github.com/librosa/librosa/blob/main/LICENSE.md</code></li>
+</ul>
+<h3 id="abstractvoiceaec-acoustic-echo-cancellation"><code>abstractvoice[aec]</code> — Acoustic echo cancellation<a class="headerlink" href="#abstractvoiceaec-acoustic-echo-cancellation" title="Permanent link">&para;</a></h3>
+<p>Requires Python 3.11+ because <code>aec-audio-processing</code> declares that Python
+floor.</p>
+<ul>
+<li><strong>aec-audio-processing</strong></li>
+<li><strong>Why</strong>: optional AEC for “full voice” barge-in on speakers.</li>
+<li><strong>Where</strong>: <code>abstractvoice/aec/*</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/shichaog/AEC-Audio-Processing</code></li>
+<li><strong>License</strong>: <code>https://github.com/shichaog/AEC-Audio-Processing/blob/main/LICENSE</code></li>
+</ul>
+<h3 id="abstractvoiceweb-local-web-example"><code>abstractvoice[web]</code> — Local web example<a class="headerlink" href="#abstractvoiceweb-local-web-example" title="Permanent link">&para;</a></h3>
+<p>The base web extra installs only the browser server stack. Use
+<code>abstractvoice[web-cloning]</code>, <code>abstractvoice[web-audiodit]</code>,
+<code>abstractvoice[web-omnivoice]</code>, <code>abstractvoice[web-chroma]</code>, or
+<code>abstractvoice[web-full]</code> when you want a one-command install for the web UI
+plus optional local voice engines.</p>
+<ul>
+<li><strong>FastAPI</strong></li>
+<li><strong>Why</strong>: local browser example routes for TTS, transcription, assistant/user voice selection, voice cloning upload forms, and discussion playback (<code>abstractvoice web</code>).</li>
+<li><strong>Where</strong>: <code>abstractvoice/examples/web_ui.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/fastapi/fastapi</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/fastapi/fastapi/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>Uvicorn</strong></p>
+</li>
+<li><strong>Why</strong>: local ASGI server for <code>abstractvoice web</code>.</li>
+<li><strong>Where</strong>: <code>abstractvoice/examples/web_ui.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/encode/uvicorn</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/encode/uvicorn/blob/master/LICENSE.md</code></p>
+</li>
+<li>
+<p><strong>python-multipart</strong></p>
+</li>
+<li><strong>Why</strong>: parse browser/OpenAI-compatible audio upload forms for transcription and voice cloning.</li>
+<li><strong>Where</strong>: <code>abstractvoice/examples/web_ui.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/Kludex/python-multipart</code></li>
+<li><strong>License</strong>: <code>https://github.com/Kludex/python-multipart/blob/master/LICENSE.txt</code></li>
+</ul>
+<h3 id="abstractvoicestt-faster-whisper-stt"><code>abstractvoice[stt]</code> — Faster-Whisper STT<a class="headerlink" href="#abstractvoicestt-faster-whisper-stt" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>faster-whisper</strong></li>
+<li><strong>Why</strong>: current STT adapter path (also installed by the base package).</li>
+<li><strong>Where</strong>: <code>abstractvoice/adapters/stt_faster_whisper.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/SYSTRAN/faster-whisper</code></li>
+<li><strong>License</strong>: <code>https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE</code></li>
+</ul>
+<h3 id="abstractvoicelegacy-stt-legacy-whisper-token-stats"><code>abstractvoice[legacy-stt]</code> — Legacy Whisper + token stats<a class="headerlink" href="#abstractvoicelegacy-stt-legacy-whisper-token-stats" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>openai-whisper</strong></li>
+<li><strong>Repo</strong>: <code>https://github.com/openai/whisper</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/openai/whisper/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>tiktoken</strong></p>
+</li>
+<li><strong>Repo</strong>: <code>https://github.com/openai/tiktoken</code></li>
+<li><strong>License</strong>: <code>https://github.com/openai/tiktoken/blob/main/LICENSE</code></li>
+</ul>
+<hr />
+<h2 id="notable-transitive-runtimes-debugging-oriented">Notable transitive runtimes (debugging-oriented)<a class="headerlink" href="#notable-transitive-runtimes-debugging-oriented" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>CTranslate2</strong> (used by <code>faster-whisper</code>)</li>
+<li>Repo: <code>https://github.com/OpenNMT/CTranslate2</code></li>
+<li>
+<p>License: <code>https://github.com/OpenNMT/CTranslate2/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>ONNX Runtime</strong> (used by Piper)</p>
+</li>
+<li>Repo: <code>https://github.com/microsoft/onnxruntime</code></li>
+<li>License: <code>https://github.com/microsoft/onnxruntime/blob/main/LICENSE</code></li>
+</ul>
+<hr />
+<h2 id="development-dependencies">Development dependencies<a class="headerlink" href="#development-dependencies" title="Permanent link">&para;</a></h2>
+<p>These are used for local development only (not required at runtime).</p>
+<ul>
+<li><strong>pytest</strong>: <code>https://github.com/pytest-dev/pytest</code> — <code>https://github.com/pytest-dev/pytest/blob/main/LICENSE</code></li>
+<li><strong>black</strong>: <code>https://github.com/psf/black</code> — <code>https://github.com/psf/black/blob/main/LICENSE</code></li>
+<li><strong>flake8</strong>: <code>https://github.com/PyCQA/flake8</code> — <code>https://github.com/PyCQA/flake8/blob/main/LICENSE</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

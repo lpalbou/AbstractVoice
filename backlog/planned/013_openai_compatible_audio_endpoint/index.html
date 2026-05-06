@@ -1,0 +1,1613 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://lpalbou.github.io/abstractvoice/backlog/planned/013_openai_compatible_audio_endpoint/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>013 openai compatible audio endpoint - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#task-013-openai-audio-backends-tts-stt-custom-voices-realtime" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              013 openai compatible audio endpoint
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#task-013-openai-audio-backends-tts-stt-custom-voices-realtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 013: OpenAI audio backends (TTS + STT + custom voices + realtime)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secondary-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secondary goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context / problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-updates-what-changed-since-jan-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research updates (what changed since Jan 2026)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Research updates (what changed since Jan 2026)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#from-our-deep-research-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From our deep research docs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-openai-docs-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From OpenAI docs (2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposed-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposed design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Proposed design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#packaging-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packaging + configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voice-profiles-cross-provider-abstraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice profiles (cross-provider abstraction)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adapters-phase-1-synchronous" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adapters (Phase 1: synchronous)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voice-cloning-custom-voices-phase-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice cloning / custom voices (Phase 2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streaming-primitives-phase-3-driven-by-research-openai-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming primitives (Phase 3+; driven by research + OpenAI capabilities)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#realtime-sessions-phase-4-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Realtime sessions (Phase 4; optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-plan-phased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation plan (phased)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation plan (phased)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-synchronous-tts-stt-adapters-mvp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1 — Synchronous TTS + STT adapters (MVP)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-custom-voices-voice-cloning-brand-voice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2 — Custom voices (voice cloning / “brand voice”)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-streaming-stt-streaming-tts-voice-agent-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3 — Streaming STT + streaming TTS (voice-agent primitives)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-realtime-api-session-helper-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4 — Realtime API session helper (optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#separate-backlog-aws-backends-not-in-this-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Separate backlog: AWS backends (not in this task)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>013 openai compatible audio endpoint</h1>
+
+<h2 id="task-013-openai-audio-backends-tts-stt-custom-voices-realtime">Task 013: OpenAI audio backends (TTS + STT + custom voices + realtime)<a class="headerlink" href="#task-013-openai-audio-backends-tts-stt-custom-voices-realtime" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-01-23<br />
+<strong>Last updated</strong>: 2026-04-06<br />
+<strong>Status</strong>: Planned<br />
+<strong>Priority</strong>: P1  </p>
+<hr />
+<h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Add <strong>OpenAI-backed</strong> implementations for:</li>
+<li><strong>TTS</strong> (Text-to-Speech) via OpenAI <strong>Speech API</strong> (<code>/v1/audio/speech</code>)</li>
+<li><strong>STT</strong> (Speech-to-Text) via OpenAI <strong>Transcription API</strong> (<code>/v1/audio/transcriptions</code>)</li>
+<li><strong>Voice cloning / custom voice</strong> via OpenAI <strong>Custom Voices</strong> (<code>/v1/audio/voice_consents</code> + <code>/v1/audio/voices</code>) when enabled for the org</li>
+<li>Provide a clean path for <strong>voice-agent-grade</strong> integrations:</li>
+<li>streaming transcription deltas</li>
+<li>streaming audio output</li>
+<li>optional OpenAI <strong>Realtime API</strong> sessions (server VAD, noise reduction, interruptions)</li>
+</ul>
+<h2 id="secondary-goals">Secondary goals<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Keep AbstractVoice <strong>offline-first by default</strong> for local engines; remote/commercial backends must be <strong>explicit opt-in</strong>.</li>
+<li>Keep integration surfaces small, modular, and testable (adapters + typed results).</li>
+<li>Provide <strong>actionable errors</strong> for missing API key, disabled org features (custom voices), quotas, and timeouts.</li>
+</ul>
+<hr />
+<h2 id="context-problem">Context / problem<a class="headerlink" href="#context-problem" title="Permanent link">&para;</a></h2>
+<p>This task was originally framed as “ship OpenAI-compatible HTTP endpoints inside AbstractVoice”.</p>
+<p>Since then, AbstractVoice has evolved primarily as:
+- a <strong>library</strong> (<code>VoiceManager</code>, adapters, local-first engines), and
+- an <strong>AbstractCore capability plugin</strong> (server endpoints should be owned by AbstractCore/AbstractFramework).</p>
+<p><strong>Revised scope</strong>:
+- <strong>AbstractCore / AbstractFramework</strong>: owns OpenAI-compatible <em>server</em> endpoints (<code>/v1/audio/*</code>).
+- <strong>AbstractVoice (this repo)</strong>: owns <em>backends/adapters</em> that can call OpenAI APIs (and later other commercial providers) and can be wired into those server endpoints via the capability plugin system.</p>
+<hr />
+<h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Avoid forcing network dependencies on the default install.</li>
+<li>Do not imply we provide OpenAI’s <strong>compliance/consent</strong> policy.</li>
+<li>If OpenAI custom voices are used, we must require explicit consent inputs and store provenance.</li>
+<li>Keep interfaces robust for other commercial providers (Deepgram, ElevenLabs, etc.) so this doesn’t become OpenAI-specific glue.</li>
+</ul>
+<hr />
+<h2 id="research-updates-what-changed-since-jan-2026">Research updates (what changed since Jan 2026)<a class="headerlink" href="#research-updates-what-changed-since-jan-2026" title="Permanent link">&para;</a></h2>
+<h3 id="from-our-deep-research-docs">From our deep research docs<a class="headerlink" href="#from-our-deep-research-docs" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Cascaded streaming pipeline remains dominant</strong>: STT → LLM/agent → TTS is still the most reliable architecture for tool-using voice agents, with streaming/pipelining driving “feels instant” UX.</li>
+<li>See: <code>docs/research/Agentic Voice Assistant Stack Deep Research.md</code></li>
+<li>See: <code>docs/research/Voice Assistant Architecture Investigation.md</code></li>
+<li><strong>Commercial differentiators</strong> that we should be able to abstract:</li>
+<li>streaming STT partials + endpointing/turn detection</li>
+<li>diarization (speakers + timestamps)</li>
+<li>streaming TTS (time-to-first-audio)</li>
+<li>barge-in / interruption support</li>
+<li>governance/compliance gating around custom voices</li>
+</ul>
+<h3 id="from-openai-docs-2026-04">From OpenAI docs (2026-04)<a class="headerlink" href="#from-openai-docs-2026-04" title="Permanent link">&para;</a></h3>
+<p>OpenAI now offers multiple ways to build audio apps and voice agents:
+- <strong>Speech API</strong>: <code>POST /v1/audio/speech</code> (TTS, supports <code>instructions</code>, <code>speed</code>, <code>response_format</code> like <code>wav|pcm|mp3</code>)
+- <strong>Transcription API</strong>: <code>POST /v1/audio/transcriptions</code> (STT, supports streaming text deltas)
+- <strong>Translation API</strong>: <code>POST /v1/audio/translations</code> (speech → English, <code>whisper-1</code>)
+- <strong>Custom voices</strong>:
+  - <code>POST /v1/audio/voice_consents</code> (upload consent recording) → returns <code>cons_...</code>
+  - <code>POST /v1/audio/voices</code> (create voice from consent + sample) → returns <code>voice_...</code>
+- <strong>Realtime API</strong>: low-latency audio-in/audio-out sessions with server-side VAD and interruption controls.
+- <strong>Chat Completions with audio</strong>: native audio input/output via audio-capable chat models (useful when you want tool calling + speech output in one API).</p>
+<p>References:
+- Audio overview: <code>https://developers.openai.com/api/docs/guides/audio/</code>
+- Speech API: <code>https://developers.openai.com/api/docs/api-reference/audio/</code>
+- Transcription API: <code>https://developers.openai.com/api/docs/api-reference/audio/createTranscription</code>
+- Voice consent: <code>https://developers.openai.com/api/reference/resources/audio/subresources/voice_consents/methods/create/</code>
+- Create custom voice: <code>https://developers.openai.com/api/reference/resources/audio/subresources/voices/methods/create/</code></p>
+<hr />
+<h2 id="proposed-design">Proposed design<a class="headerlink" href="#proposed-design" title="Permanent link">&para;</a></h2>
+<h3 id="packaging-configuration">Packaging + configuration<a class="headerlink" href="#packaging-configuration" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add optional extra: <code>abstractvoice[openai]</code> (depends on the OpenAI SDK).</li>
+<li>Configuration:</li>
+<li><code>OPENAI_API_KEY</code> (required to use these adapters)</li>
+<li>optional base URL / org settings if needed (keep consistent with other integrations).</li>
+<li>Add an explicit “network allowed” gate (do not overload <code>allow_downloads</code>, which is local-model semantics).</li>
+</ul>
+<h3 id="voice-profiles-cross-provider-abstraction">Voice profiles (cross-provider abstraction)<a class="headerlink" href="#voice-profiles-cross-provider-abstraction" title="Permanent link">&para;</a></h3>
+<p>OpenAI (and other commercial providers) have a first-class notion of “voice” (built-in voices and gated custom voices).
+AbstractVoice also has “voices”, but today that primarily means <strong>local cloned voices</strong> stored in the local voice store.</p>
+<p>To support commercial TTS/STT/cloning cleanly (and keep local presets consistent), we should introduce a <strong>provider-agnostic voice profile</strong> concept with a <strong>common engine interface</strong>.</p>
+<p>This should be tracked as a dedicated foundational task:
+- <code>docs/backlog/planned/036_voice_profile_abstraction.md</code></p>
+<ul>
+<li><strong>VoiceProfile</strong> (concept)</li>
+<li><code>engine_id</code>: which backend applies this profile (<code>piper|audiodit|omnivoice|openai|...</code>)</li>
+<li><code>profile_id</code>: stable id within the engine (e.g. <code>female_01</code>, <code>en_female_01</code>, <code>alloy</code>, <code>voice_...</code>)</li>
+<li><code>label</code>: human-friendly name</li>
+<li><code>params</code>: engine-specific parameters (typed best-effort; validated per engine)</li>
+<li><code>provenance</code>: optional metadata (where created, consent requirements, timestamps)</li>
+</ul>
+<p>Common engine interface (planned):
+- <code>selected_engine.get_profiles() -&gt; list[VoiceProfile]</code>
+- <code>selected_engine.set_profile(profile_id: str) -&gt; bool</code>
+- <code>selected_engine.get_active_profile() -&gt; VoiceProfile | None</code></p>
+<p>Why this matters:
+- Gives us a single concept that can represent:
+  - <strong>OpenAI built-in voices</strong> (<code>voice="alloy"</code>, etc.)
+  - <strong>OpenAI custom voices</strong> (<code>voice="voice_..."</code>, gated by org enablement + consent workflow)
+  - <strong>OmniVoice designed voices</strong> (<code>instruct</code> + <code>seed</code> + temps)
+  - <strong>AudioDiT pseudo-profiles</strong> (seed + anchor phrase + session prompt strategy)
+  - <strong>Piper voices</strong> (language + voice_id, once true selection is implemented)</p>
+<p>Related planned work:
+- OmniVoice presets: <code>docs/backlog/planned/033_omnivoice_preset_voice_profiles.md</code>
+- AudioDiT presets: <code>docs/backlog/planned/034_audiodit_preset_voice_profiles.md</code>
+- Piper true voice selection + presets: <code>docs/backlog/planned/035_piper_voice_profiles_and_voice_selection.md</code>
+ - Cross-engine profile abstraction: <code>docs/backlog/planned/036_voice_profile_abstraction.md</code></p>
+<p>OpenAI-specific mapping:
+- The OpenAI TTS adapter should accept <code>voice</code> as either:
+  - a built-in voice name (string), or
+  - a custom voice id (<code>voice_...</code>)
+- With <code>VoiceProfile</code> (Task 036), OpenAI profiles become simple aliases that set the OpenAI <code>voice</code> field (plus optional <code>instructions</code> defaults).</p>
+<h3 id="adapters-phase-1-synchronous">Adapters (Phase 1: synchronous)<a class="headerlink" href="#adapters-phase-1-synchronous" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>TTS</strong>: <code>OpenAITTSAdapter</code> (new file under <code>abstractvoice/adapters/tts_openai.py</code>)</li>
+<li>Implements <code>TTSAdapter</code>.</li>
+<li>Uses <code>POST /v1/audio/speech</code>.</li>
+<li>Parameters to expose (adapter params):<ul>
+<li><code>model</code> (default: <code>gpt-4o-mini-tts</code>)</li>
+<li><code>voice</code> (built-in voice name OR custom voice id)</li>
+<li><code>instructions</code> (tone/acting/style)</li>
+<li><code>speed</code></li>
+<li><code>response_format</code> (<code>wav</code> default in AbstractVoice to align with our pipeline)</li>
+</ul>
+</li>
+<li><strong>STT</strong>: <code>OpenAISTTAdapter</code> (new file under <code>abstractvoice/adapters/stt_openai.py</code>)</li>
+<li>Implements <code>STTAdapter</code>.</li>
+<li>Uses <code>POST /v1/audio/transcriptions</code> for transcription; optionally <code>POST /v1/audio/translations</code> where needed.</li>
+<li>Support model selection:<ul>
+<li>low-latency: <code>gpt-4o-mini-transcribe</code></li>
+<li>higher quality: <code>gpt-4o-transcribe</code></li>
+<li>diarization (non-latency-sensitive): <code>gpt-4o-transcribe-diarize</code></li>
+</ul>
+</li>
+</ul>
+<h3 id="voice-cloning-custom-voices-phase-2">Voice cloning / custom voices (Phase 2)<a class="headerlink" href="#voice-cloning-custom-voices-phase-2" title="Permanent link">&para;</a></h3>
+<p>Add a new cloning engine (e.g. <code>OpenAICustomVoiceCloningEngine</code>) that maps AbstractVoice “create a voice” to OpenAI’s two-step flow:</p>
+<ol>
+<li>Upload consent recording: <code>POST /v1/audio/voice_consents</code> → <code>cons_...</code></li>
+<li>Create voice: <code>POST /v1/audio/voices</code> with:</li>
+<li><code>name</code></li>
+<li><code>audio_sample</code> (voice reference)</li>
+<li><code>consent</code> (the <code>cons_...</code> id)</li>
+</ol>
+<p>Then store the resulting <code>voice_...</code> id in the AbstractVoice voice store so it can be reused across sessions/machines (subject to the OpenAI org/account).</p>
+<p>Key constraints:
+- Custom voices are gated by OpenAI org enablement; handle <code>404/403</code> with explicit guidance.
+- Do not pretend to provide consent policy: require explicit consent recording inputs, store provenance, and surface “customer responsibility” clearly.</p>
+<h3 id="streaming-primitives-phase-3-driven-by-research-openai-capabilities">Streaming primitives (Phase 3+; driven by research + OpenAI capabilities)<a class="headerlink" href="#streaming-primitives-phase-3-driven-by-research-openai-capabilities" title="Permanent link">&para;</a></h3>
+<p>AbstractVoice’s current <code>STTAdapter</code> returns a single <code>str</code>, which is insufficient for:
+- streaming deltas (<code>transcript.text.delta</code>)
+- diarization results (speaker labels + timestamps)
+- confidence/logprobs</p>
+<p>Proposed approach:
+- Keep the existing simple API for compatibility.
+- Add typed “rich transcription” results:
+  - <code>TranscriptionResult</code> (text + optional segments + speaker labels + timestamps + logprobs)
+- Add an optional streaming method for adapters that support it:
+  - <code>transcribe_stream(...) -&gt; Iterator[TranscriptEvent]</code>
+- Add an optional streaming method for TTS where supported:
+  - <code>synthesize_stream(...) -&gt; Iterator[AudioChunk]</code> (prefer PCM16 chunks for low-latency playback)</p>
+<h3 id="realtime-sessions-phase-4-optional">Realtime sessions (Phase 4; optional)<a class="headerlink" href="#realtime-sessions-phase-4-optional" title="Permanent link">&para;</a></h3>
+<p>Add an “advanced” module that can open a Realtime session and expose it as an event stream:
+- audio in (PCM frames)
+- transcript deltas out
+- audio deltas out
+- server-side VAD and interruption controls</p>
+<hr />
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p><strong>Chosen approach</strong>: implement OpenAI support as <strong>optional backends</strong> (adapters + cloning engine + streaming primitives), and keep “OpenAI-compatible HTTP endpoints” in <strong>AbstractCore/AbstractFramework</strong>.</p>
+<p><strong>Why</strong>:
+- Avoid treating the local AbstractVoice FastAPI example as a production peer to AbstractCore Server.
+- Keeps AbstractVoice focused on reusable building blocks (adapters + types).
+- Aligns with 2026 best practice: <strong>streaming cascade</strong> STT → LLM → TTS, plus optional Realtime sessions.</p>
+<p>Current repo hygiene note:
+- The legacy production API server was removed. AbstractVoice keeps the local REPL
+  and a small FastAPI <code>VoiceManager</code> web example for smoke testing; AbstractCore
+  owns OpenAI-compatible HTTP audio endpoints.</p>
+<hr />
+<h2 id="implementation-plan-phased">Implementation plan (phased)<a class="headerlink" href="#implementation-plan-phased" title="Permanent link">&para;</a></h2>
+<h3 id="phase-1-synchronous-tts-stt-adapters-mvp">Phase 1 — Synchronous TTS + STT adapters (MVP)<a class="headerlink" href="#phase-1-synchronous-tts-stt-adapters-mvp" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Packaging</strong></li>
+<li>Add <code>abstractvoice[openai]</code> optional extra.</li>
+<li>Add a minimal configuration story (<code>OPENAI_API_KEY</code>, timeouts).</li>
+<li><strong>TTS adapter</strong></li>
+<li>Implement <code>OpenAITTSAdapter</code> mapping to <code>/v1/audio/speech</code>.</li>
+<li>Support <code>instructions</code>, <code>speed</code>, <code>response_format</code> (default <code>wav</code>).</li>
+<li>Map <code>set_language(...)</code> best-effort (OpenAI TTS is not strictly locale-gated; language can be expressed in <code>instructions</code>).</li>
+<li><strong>STT adapter</strong></li>
+<li>Implement <code>OpenAISTTAdapter</code> mapping to <code>/v1/audio/transcriptions</code>.</li>
+<li>Support <code>language</code>, <code>prompt</code>, <code>response_format</code>, and model selection.</li>
+<li><strong>Wiring</strong></li>
+<li>Register <code>openai</code> as <code>tts_engine</code> and <code>stt_engine</code> (adapter registries + <code>VoiceManager</code>).</li>
+<li><strong>Docs</strong></li>
+<li>Update <code>docs/installation.md</code> (new extra + required env var).</li>
+<li>Update <code>docs/api.md</code> (new engines + supported params).</li>
+<li><strong>Tests</strong></li>
+<li>Unit tests should stub HTTP/SDK calls; no live API calls in CI.</li>
+</ul>
+<h3 id="phase-2-custom-voices-voice-cloning-brand-voice">Phase 2 — Custom voices (voice cloning / “brand voice”)<a class="headerlink" href="#phase-2-custom-voices-voice-cloning-brand-voice" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Implement <code>OpenAICustomVoiceCloningEngine</code>:</li>
+<li><code>create_consent(...)</code> → <code>/v1/audio/voice_consents</code></li>
+<li><code>create_voice(...)</code> → <code>/v1/audio/voices</code></li>
+<li>Integrate with AbstractVoice voice store:</li>
+<li>persist <code>voice_id</code> + metadata + provenance</li>
+<li>allow selection via <code>tts_voice clone &lt;id&gt;</code> path when <code>tts_engine=openai</code></li>
+<li>Add UX affordances (optional, but high impact):</li>
+<li>REPL helpers to create consent/voice, list voices, and select a voice id</li>
+<li>clear error messages when the org is not eligible/enabled (often <code>404</code>)</li>
+</ul>
+<h3 id="phase-3-streaming-stt-streaming-tts-voice-agent-primitives">Phase 3 — Streaming STT + streaming TTS (voice-agent primitives)<a class="headerlink" href="#phase-3-streaming-stt-streaming-tts-voice-agent-primitives" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add typed outputs:</li>
+<li><code>TranscriptionResult</code> (segments, speakers, timestamps, logprobs — optional)</li>
+<li><code>TranscriptEvent</code> (delta/segment/done)</li>
+<li><code>AudioChunk</code> (PCM bytes + sample rate)</li>
+<li>Add optional streaming methods (do not break existing adapters):</li>
+<li><code>transcribe_stream(...)</code> for adapters that can stream</li>
+<li><code>synthesize_stream(...)</code> for adapters that can stream audio output</li>
+<li>Update the faster-whisper adapter to optionally emit segments to validate the abstraction.</li>
+</ul>
+<h3 id="phase-4-realtime-api-session-helper-optional">Phase 4 — Realtime API session helper (optional)<a class="headerlink" href="#phase-4-realtime-api-session-helper-optional" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Create <code>OpenAIRealtimeSession</code> (standalone module):</li>
+<li>session creation + configuration</li>
+<li>push PCM frames in</li>
+<li>receive transcript deltas + audio deltas out</li>
+<li>server VAD / interruption controls surfaced as events</li>
+<li>Keep transport concerns out of AbstractVoice:</li>
+<li>AbstractVoice exposes an event stream API; WebRTC/WebSocket wiring lives in higher layers (e.g. AbstractAssistant / gateway).</li>
+</ul>
+<hr />
+<h2 id="testing-strategy">Testing strategy<a class="headerlink" href="#testing-strategy" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Unit tests</strong>: mock the OpenAI SDK client methods and validate parameter mapping + error handling.</li>
+<li><strong>Optional integration tests</strong> (skipped by default):</li>
+<li>run only when <code>OPENAI_API_KEY</code> is present</li>
+<li>record that custom voices require org enablement and may not work everywhere</li>
+</ul>
+<hr />
+<h2 id="success-criteria">Success criteria<a class="headerlink" href="#success-criteria" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>TTS</strong></li>
+<li><code>VoiceManager(tts_engine="openai").speak_to_bytes(..., format="wav")</code> returns a valid WAV (or a clear error when misconfigured).</li>
+<li><strong>STT</strong></li>
+<li><code>VoiceManager(stt_engine="openai").transcribe(path)</code> returns text.</li>
+<li>When model is diarization-capable, we can optionally return a rich structure without breaking the <code>str</code> API.</li>
+<li><strong>Custom voices</strong></li>
+<li>With org enablement: consent + voice creation yields a reusable <code>voice_id</code> persisted in the local store.</li>
+<li>Without enablement: a clear, actionable error message explains the constraint.</li>
+<li><strong>Architecture</strong></li>
+<li>No “server stack” is added to AbstractVoice as a hard dependency.</li>
+<li>AbstractCore/AbstractFramework can use these backends via the plugin path.</li>
+</ul>
+<hr />
+<h2 id="separate-backlog-aws-backends-not-in-this-task">Separate backlog: AWS backends (not in this task)<a class="headerlink" href="#separate-backlog-aws-backends-not-in-this-task" title="Permanent link">&para;</a></h2>
+<p>AWS audio services (Polly, Transcribe, and Bedrock voice-agent capabilities) should be tracked separately so this task can stay focused on OpenAI first.</p>
+<p>Planned follow-up (to be created): <code>docs/backlog/planned/032_aws_audio_backends.md</code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

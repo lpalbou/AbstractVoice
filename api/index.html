@@ -1,0 +1,2047 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://lpalbou.github.io/abstractvoice/api/">
+      
+      
+        <link rel="prev" href="../installation/">
+      
+      
+        <link rel="next" href="../architecture/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Public API - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#api" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Public API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#primary-entry-point" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Primary entry point
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constructor-most-used-knobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructor (most-used knobs)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tts-text-audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TTS (text → audio)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TTS (text → audio)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#language-voice-selection-piper-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language &amp; voice selection (Piper path)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stt-audio-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT (audio → text)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="STT (audio → text)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stt-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#microphone-capture-local-assistant-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Microphone capture (local assistant mode)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Microphone capture (local assistant mode)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#advanced-tuning-best-effort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced tuning (best-effort)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voice-modes-behavior-while-speaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice modes (behavior while speaking)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acoustic-echo-cancellation-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acoustic echo cancellation (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voice-cloning-optional-heavy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice cloning (optional; heavy)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#callbacks-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Callbacks &amp; hooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#explicit-downloads-offline-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explicit downloads (offline-first)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-note-prefetch-vs-preload-important-for-servers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance note: prefetch vs preload (important for servers)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integrations-abstractframework-ecosystem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrations (AbstractFramework ecosystem)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integrations (AbstractFramework ecosystem)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstractcore-capability-plugin-auto-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AbstractCore capability plugin (auto-discovery)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractcore-openai-compatible-audio-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AbstractCore OpenAI-compatible audio endpoints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractcore-tool-helpers-manual-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AbstractCore tool helpers (manual wiring)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-contract-surface-may-change-without-notice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-contract surface (may change without notice)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#primary-entry-point" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Primary entry point
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constructor-most-used-knobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructor (most-used knobs)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tts-text-audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TTS (text → audio)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TTS (text → audio)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#language-voice-selection-piper-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language &amp; voice selection (Piper path)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stt-audio-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT (audio → text)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="STT (audio → text)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stt-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#microphone-capture-local-assistant-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Microphone capture (local assistant mode)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Microphone capture (local assistant mode)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#advanced-tuning-best-effort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced tuning (best-effort)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voice-modes-behavior-while-speaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice modes (behavior while speaking)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acoustic-echo-cancellation-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acoustic echo cancellation (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voice-cloning-optional-heavy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice cloning (optional; heavy)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#callbacks-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Callbacks &amp; hooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#explicit-downloads-offline-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explicit downloads (offline-first)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-note-prefetch-vs-preload-important-for-servers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance note: prefetch vs preload (important for servers)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integrations-abstractframework-ecosystem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrations (AbstractFramework ecosystem)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integrations (AbstractFramework ecosystem)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstractcore-capability-plugin-auto-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AbstractCore capability plugin (auto-discovery)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractcore-openai-compatible-audio-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AbstractCore OpenAI-compatible audio endpoints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractcore-tool-helpers-manual-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AbstractCore tool helpers (manual wiring)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-contract-surface-may-change-without-notice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-contract surface (may change without notice)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="api">API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h1>
+<p>This is the supported integrator contract for AbstractVoice.</p>
+<p>Start with <code>README.md</code> and <code>docs/getting-started.md</code> for setup. Use
+<code>docs/faq.md</code> for cache/history reset and troubleshooting, <code>docs/repl_guide.md</code>
+for the interactive REPL, and <code>docs/architecture.md</code> for implementation details.</p>
+<p>Implementation map:
+- <code>abstractvoice/voice_manager.py</code> → <code>abstractvoice/vm/manager.py</code> (constructor + wiring)
+- <code>abstractvoice/vm/tts_mixin.py</code> (TTS + cloning methods)
+- <code>abstractvoice/vm/stt_mixin.py</code> (STT + listening methods)
+- <code>abstractvoice/vm/core.py</code> (voice-mode behavior during playback)</p>
+<h2 id="primary-entry-point">Primary entry point<a class="headerlink" href="#primary-entry-point" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>abstractvoice.VoiceManager</code></li>
+<li><code>abstractvoice.VoiceProfile</code> (data type; used by the voice-profile APIs)</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="constructor-most-used-knobs">Constructor (most-used knobs)<a class="headerlink" href="#constructor-most-used-knobs" title="Permanent link">&para;</a></h2>
+<p>The source of truth is <code>abstractvoice/vm/manager.py</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">VoiceManager</span><span class="p">(</span>
+    <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;en&quot;</span><span class="p">,</span>
+    <span class="n">tts_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">whisper_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;base&quot;</span><span class="p">,</span>
+    <span class="n">debug_mode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">tts_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">stt_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">allow_downloads</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">cloned_tts_streaming</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">cloning_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;f5_tts&quot;</span><span class="p">,</span>
+    <span class="n">tts_delivery_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># buffered|streamed (override)</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Notes:
+- <code>allow_downloads</code> gates <em>implicit</em> model downloads in adapters. The REPL sets <code>False</code> (offline-first).
+- <code>whisper_model</code> controls the faster‑whisper model size used by <code>listen()</code> and <code>transcribe_*()</code>.
+- <code>tts_engine</code> supports:
+  - <code>auto</code> (deterministic default: resolves to <code>piper</code>)
+  - <code>piper</code> (default core TTS)
+  - <code>audiodit</code> (LongCat-AudioDiT; requires <code>abstractvoice[audiodit]</code>; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in <code>0.8.1</code>)
+  - <code>omnivoice</code> (OmniVoice; requires <code>abstractvoice[omnivoice]</code>; upstream supports 600+ languages)
+- <code>stt_engine</code> is currently <code>auto|faster_whisper</code> for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), <code>transcribe_*()</code> falls back to the legacy <code>abstractvoice.stt.Transcriber</code> (requires <code>abstractvoice[legacy-stt]</code>; see <code>abstractvoice/vm/stt_mixin.py</code>).
+- <code>tts_model</code> is reserved/back-compat (Piper selection is language-driven today).
+- <code>tts_delivery_mode</code> is an optional override that applies consistently to both base TTS and cloned voices:
+  - <code>buffered</code>: synthesize full audio first (one payload)
+  - <code>streamed</code>: deliver audio in chunks when available (lower time-to-first-audio)</p>
+<p>Supported language codes for the default Piper mapping: <code>en, fr, de, es, ru, zh</code> (see <code>abstractvoice/config/voice_catalog.py</code> and <code>abstractvoice/adapters/tts_piper.py</code>).
+For non-Piper engines (e.g. OmniVoice), <code>language</code> is treated as a pass-through hint and the engine decides what it supports.</p>
+<h2 id="tts-text-audio">TTS (text → audio)<a class="headerlink" href="#tts-text-audio" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>speak(text: str, speed: float = 1.0, callback=None, voice: str | None = None, *, sanitize_syntax: bool = True) -&gt; bool</code></li>
+<li>Plays audio locally (non-blocking playback; synthesis time depends on backend).</li>
+<li>If <code>voice</code> is provided, it is treated as a cloned <code>voice_id</code> (requires <code>abstractvoice[cloning]</code>).</li>
+<li>
+<p>By default, common Markdown syntax is stripped from spoken output (headers + emphasis). Set <code>sanitize_syntax=False</code> to speak raw text.</p>
+</li>
+<li>
+<p><code>set_speed(speed: float) -&gt; bool</code>, <code>get_speed() -&gt; float</code></p>
+</li>
+<li>
+<p>Adjusts the default speaking speed used by <code>speak_to_*()</code> and the REPL.</p>
+</li>
+<li>
+<p><code>set_tts_quality_preset(preset: str) -&gt; bool</code>, <code>get_tts_quality_preset() -&gt; str | None</code></p>
+</li>
+<li>Engine-agnostic speed/quality knob (<code>low|standard|high</code>). Back-compat aliases: <code>fast</code>→<code>low</code>, <code>balanced</code>→<code>standard</code>.</li>
+<li>Engines that don’t support quality tuning may return <code>False</code> / <code>None</code> (Piper is typically a no-op).</li>
+<li>
+<p>For AudioDiT this primarily maps to diffusion <code>steps</code> (and a small guidance-strength tweak).</p>
+</li>
+<li>
+<p><code>get_profiles(*, kind: str = "tts") -&gt; list[VoiceProfile]</code></p>
+</li>
+<li><code>set_profile(profile_id: str, *, kind: str = "tts") -&gt; bool</code></li>
+<li><code>get_active_profile(*, kind: str = "tts") -&gt; VoiceProfile | None</code></li>
+<li>Cross-engine <strong>voice profile</strong> abstraction (preset packs).</li>
+<li>Profiles are <strong>engine-local</strong>: you select <code>tts_engine</code> first, then apply a profile id for that engine.</li>
+<li>Engines without profiles return an empty list / False / None.</li>
+<li><strong>Concurrency note</strong>: profile selection mutates engine state. For servers, prefer one <code>VoiceManager</code> per session (or guard profile changes with a lock).</li>
+<li>
+<p><strong>OmniVoice notes</strong>:</p>
+<ul>
+<li>Some profiles may enable <strong>persistent prompt caching</strong> (a tokenized <code>voice_clone_prompt</code>). The first <code>set_profile(...)</code> can pay a one-time build cost; later synthesis reuses cached tokens for stable voice identity. Prompt-conditioned synthesis can be heavier than pure voice design; use <code>/tts quality low|standard|high</code> (or <code>VoiceManager.set_tts_quality_preset(...)</code>) to tune the trade-off.</li>
+<li>On macOS / Apple Silicon, OmniVoice uses <strong>MPS (Metal)</strong> by default when <code>device="auto"</code>.</li>
+</ul>
+</li>
+<li>
+<p><code>pause_speaking() -&gt; bool</code>, <code>resume_speaking() -&gt; bool</code>, <code>stop_speaking() -&gt; bool</code></p>
+</li>
+<li>
+<p>Playback control.</p>
+</li>
+<li>
+<p><code>is_speaking() -&gt; bool</code>, <code>is_paused() -&gt; bool</code></p>
+</li>
+<li>
+<p>Playback state helpers.</p>
+</li>
+<li>
+<p><code>set_tts_delivery_mode(mode: str | None) -&gt; bool</code>, <code>get_tts_delivery_mode() -&gt; str</code>, <code>get_tts_delivery_modes() -&gt; dict</code></p>
+</li>
+<li>Toggle buffered vs streamed delivery (applies to both base TTS and cloned voices).</li>
+<li>
+<p><strong>Behavior note</strong>: streamed delivery is implemented as a pipeline:</p>
+<ul>
+<li><strong>text</strong> is chunked into short segments (sentence-first),</li>
+<li>then each segment is synthesized and enqueued as soon as possible.</li>
+<li>Engines that can stream audio natively may further reduce TTFB by yielding multiple audio chunks per segment.</li>
+</ul>
+</li>
+<li>
+<p><code>speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, sanitize_syntax: bool = True) -&gt; bytes</code></p>
+</li>
+<li>
+<p>Headless/server‑friendly: returns encoded audio bytes.</p>
+</li>
+<li>
+<p><code>speak_to_audio_chunks(text: str, *, voice: str | None = None, sanitize_syntax: bool = True) -&gt; Iterator[tuple[np.ndarray, int]]</code></p>
+</li>
+<li>
+<p>Headless/server‑friendly: yields <code>(audio_chunk, sample_rate)</code> tuples for incremental delivery.</p>
+</li>
+<li>
+<p><code>open_tts_text_stream(*, voice: str | None = None, callback=None, sanitize_syntax: bool = True, max_chars: int | None = None, min_chars: int | None = None) -&gt; TextToSpeechStream</code></p>
+</li>
+<li>Push-based streaming bridge for <strong>LLM streaming → TTS streaming</strong> pipelining.</li>
+<li>
+<p>Returned object supports: <code>.push(delta)</code>, <code>.close()</code>, <code>.cancel()</code>, <code>.join(timeout=...)</code>.</p>
+</li>
+<li>
+<p><code>speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, sanitize_syntax: bool = True) -&gt; str</code></p>
+</li>
+<li>Writes an audio file and returns the path.</li>
+</ul>
+<h3 id="language-voice-selection-piper-path">Language &amp; voice selection (Piper path)<a class="headerlink" href="#language-voice-selection-piper-path" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>set_language(language: str) -&gt; bool</code></li>
+<li>Switches the active language.</li>
+<li>For Piper (and <code>auto</code> before another engine is active), validation uses the curated Piper mapping in <code>abstractvoice/config/voice_catalog.py</code>.</li>
+<li>For non-Piper engines such as OmniVoice, the language code is passed through to the adapter and the engine decides what it supports.</li>
+<li>
+<p>If microphone listening is active, the recognizer is recreated on the next <code>listen(...)</code> call so STT receives the updated language.</p>
+</li>
+<li>
+<p><code>get_language() -&gt; str</code>, <code>get_language_name(language_code: str | None = None) -&gt; str</code></p>
+</li>
+<li>
+<p><code>get_supported_languages() -&gt; list[str]</code></p>
+</li>
+<li>
+<p><code>list_available_models(language: str | None = None) -&gt; dict</code></p>
+</li>
+<li>Lists Piper voices/models for CLI display (see <code>abstractvoice/vm/tts_mixin.py</code>).</li>
+<li>
+<p>Back-compat alias: <code>list_voices()</code>.</p>
+</li>
+<li>
+<p><code>set_voice(language: str, voice_id: str) -&gt; bool</code></p>
+</li>
+<li>Backward-compatible method; Piper voice selection is currently best-effort.</li>
+</ul>
+<h2 id="stt-audio-text">STT (audio → text)<a class="headerlink" href="#stt-audio-text" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>transcribe_file(audio_path: str, language: str | None = None) -&gt; str</code></li>
+<li>
+<p>Transcribes audio from a file.</p>
+</li>
+<li>
+<p><code>transcribe_from_bytes(audio_bytes: bytes, language: str | None = None) -&gt; str</code></p>
+</li>
+<li>Transcribes audio sent over the network.</li>
+</ul>
+<h3 id="stt-configuration">STT configuration<a class="headerlink" href="#stt-configuration" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>set_whisper(model_name: str) -&gt; None | bool</code></li>
+<li>
+<p>Updates the faster‑whisper model size used for subsequent operations.</p>
+</li>
+<li>
+<p><code>get_whisper() -&gt; str</code></p>
+</li>
+</ul>
+<h2 id="microphone-capture-local-assistant-mode">Microphone capture (local assistant mode)<a class="headerlink" href="#microphone-capture-local-assistant-mode" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>listen(on_transcription, on_stop=None) -&gt; bool</code></li>
+<li>Starts microphone capture + VAD + STT in-process (<code>abstractvoice/recognition.py</code>).</li>
+<li>
+<p>Stop phrase(s): <code>"ok stop"</code>, <code>"okay stop"</code>, and (conservatively) <code>"stop"</code>; see <code>abstractvoice/recognition.py</code> and <code>abstractvoice/stop_phrase.py</code>.</p>
+</li>
+<li>
+<p><code>stop_listening() -&gt; bool</code></p>
+</li>
+<li>
+<p>Stops microphone capture.</p>
+</li>
+<li>
+<p><code>pause_listening() -&gt; bool</code>, <code>resume_listening() -&gt; bool</code></p>
+</li>
+<li>
+<p>Pauses/resumes audio processing while keeping the listening thread alive.</p>
+</li>
+<li>
+<p><code>is_listening() -&gt; bool</code></p>
+</li>
+<li>
+<p>Whether the background recognizer thread is running.</p>
+</li>
+<li>
+<p><code>cleanup() -&gt; bool</code></p>
+</li>
+<li>Best-effort cleanup for long-lived apps (stop listening, stop speaking, release audio resources).</li>
+</ul>
+<h3 id="advanced-tuning-best-effort">Advanced tuning (best-effort)<a class="headerlink" href="#advanced-tuning-best-effort" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>change_vad_aggressiveness(aggressiveness: int) -&gt; bool</code></li>
+<li>For advanced mic/VAD tuning; see <code>abstractvoice/recognition.py</code>.</li>
+</ul>
+<h2 id="voice-modes-behavior-while-speaking">Voice modes (behavior while speaking)<a class="headerlink" href="#voice-modes-behavior-while-speaking" title="Permanent link">&para;</a></h2>
+<p>Voice modes control what the microphone loop does <em>while TTS is playing</em>. Set via:</p>
+<ul>
+<li><code>set_voice_mode(mode: str) -&gt; bool</code> where <code>mode ∈ {"full","wait","stop","ptt"}</code></li>
+</ul>
+<p>Mode semantics (implemented in <code>abstractvoice/vm/core.py</code>):</p>
+<ul>
+<li><strong>full</strong>: keep listening and allow barge‑in (interrupt TTS on detected speech). Best with AEC or headset; speakers can cause self-interruption (mitigations exist; see echo gating in <code>abstractvoice/recognition.py</code>).</li>
+<li><strong>wait</strong>: pause microphone processing while speaking. No barge‑in and no stop‑phrase detection during TTS. Good for strict turn‑taking.</li>
+<li><strong>stop</strong>: keep listening, but suppress normal transcriptions during TTS and disable “interrupt on any speech”; a rolling stop‑phrase detector stays active so users can say “ok stop” to cut playback.</li>
+<li><strong>ptt</strong>: push‑to‑talk profile (thresholds tuned for short utterances). During TTS it behaves like <strong>stop</strong> mode; the integrator controls when to start/stop capture.</li>
+</ul>
+<p>The REPL defaults to <strong>mic input off</strong>, and recommends <code>--voice-mode stop</code> for hands‑free usage; see <code>docs/repl_guide.md</code>.</p>
+<h2 id="acoustic-echo-cancellation-optional">Acoustic echo cancellation (optional)<a class="headerlink" href="#acoustic-echo-cancellation-optional" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>enable_aec(enabled: bool = True, stream_delay_ms: int = 0) -&gt; bool</code></li>
+<li>Opt‑in AEC support for true barge‑in (requires <code>abstractvoice[aec]</code>).</li>
+<li>Playback audio chunks are fed to the recognizer via <code>abstractvoice/vm/core.py</code> → <code>VoiceRecognizer.feed_far_end_audio()</code> in <code>abstractvoice/recognition.py</code>.</li>
+</ul>
+<h2 id="voice-cloning-optional-heavy">Voice cloning (optional; heavy)<a class="headerlink" href="#voice-cloning-optional-heavy" title="Permanent link">&para;</a></h2>
+<p>Requires installing at least one cloning backend extra (and explicit artifact downloads; see <code>docs/installation.md</code>):</p>
+<ul>
+<li><code>abstractvoice[cloning]</code> → <code>f5_tts</code></li>
+<li><code>abstractvoice[chroma]</code> → <code>chroma</code></li>
+<li><code>abstractvoice[audiodit]</code> → <code>audiodit</code></li>
+<li><code>abstractvoice[omnivoice]</code> → <code>omnivoice</code></li>
+</ul>
+<p>Core cloning calls:</p>
+<ul>
+<li><code>clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -&gt; str</code></li>
+<li><code>clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -&gt; str</code></li>
+<li><code>speak(..., voice="&lt;voice_id&gt;")</code> / <code>speak_to_bytes(..., voice="&lt;voice_id&gt;")</code> / <code>speak_to_file(..., voice="&lt;voice_id&gt;")</code></li>
+<li><code>list_cloned_voices()</code>, <code>get_cloned_voice(voice_id: str) -&gt; dict</code></li>
+</ul>
+<p>Clone management helpers:</p>
+<ul>
+<li><code>set_cloned_voice_reference_text(voice_id: str, reference_text: str) -&gt; bool</code></li>
+<li><code>rename_cloned_voice(voice_id: str, new_name: str) -&gt; bool</code></li>
+<li><code>delete_cloned_voice(voice_id: str) -&gt; bool</code></li>
+<li><code>export_voice(voice_id: str, path: str) -&gt; str</code>, <code>import_voice(path: str) -&gt; str</code></li>
+<li><code>set_cloned_tts_quality(preset: str) -&gt; bool</code> (<code>low|standard|high</code>; aliases: <code>fast</code>, <code>balanced</code>)</li>
+<li><code>get_cloning_runtime_info() -&gt; dict</code></li>
+<li><code>unload_cloning_engines(*, keep_engine: str | None = None) -&gt; int</code> (best-effort memory relief)</li>
+<li><code>unload_piper_voice() -&gt; bool</code> (best-effort memory relief)</li>
+</ul>
+<p>For the user-facing workflow and commands, see <code>docs/repl_guide.md</code>.</p>
+<p>Engine caveats that affect release choice are tracked in <code>docs/known-issues.md</code>.</p>
+<h2 id="metrics-optional">Metrics (optional)<a class="headerlink" href="#metrics-optional" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>pop_last_tts_metrics() -&gt; dict | None</code></li>
+<li>Best-effort last-utterance stats used by the REPL verbose mode.</li>
+</ul>
+<h2 id="callbacks-hooks">Callbacks &amp; hooks<a class="headerlink" href="#callbacks-hooks" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Per-utterance callback: <code>speak(..., callback=...)</code> (invoked after playback drains).</li>
+<li>TTS lifecycle callbacks: <code>vm.tts_engine.on_playback_start</code> / <code>vm.tts_engine.on_playback_end</code> (synthesis/queue lifecycle).</li>
+<li>Audio lifecycle callbacks (actual output): <code>vm.on_audio_start</code> / <code>vm.on_audio_end</code> / <code>vm.on_audio_pause</code> / <code>vm.on_audio_resume</code> (wired in <code>abstractvoice/vm/core.py</code>).</li>
+</ul>
+<h2 id="explicit-downloads-offline-first">Explicit downloads (offline-first)<a class="headerlink" href="#explicit-downloads-offline-first" title="Permanent link">&para;</a></h2>
+<p>For offline deployments, prefetch explicitly (cross-platform):</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--stt<span class="w"> </span>small
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--openf5<span class="w">   </span><span class="c1"># optional; requires abstractvoice[cloning]</span>
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--chroma<span class="w">   </span><span class="c1"># optional; requires abstractvoice[chroma] (GPU-heavy)</span>
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--audiodit<span class="w"> </span><span class="c1"># optional; requires abstractvoice[audiodit]</span>
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--omnivoice<span class="w"> </span><span class="c1"># optional; requires abstractvoice[omnivoice]</span>
+</code></pre></div>
+<p>Or use the convenience entrypoint:</p>
+<div class="highlight"><pre><span></span><code>abstractvoice-prefetch<span class="w"> </span>--stt<span class="w"> </span>small
+abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
+abstractvoice-prefetch<span class="w"> </span>--openf5<span class="w">            </span><span class="c1"># optional; requires abstractvoice[cloning]</span>
+abstractvoice-prefetch<span class="w"> </span>--chroma<span class="w">            </span><span class="c1"># optional; requires abstractvoice[chroma] (GPU-heavy)</span>
+abstractvoice-prefetch<span class="w"> </span>--audiodit<span class="w">          </span><span class="c1"># optional; requires abstractvoice[audiodit]</span>
+abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">         </span><span class="c1"># optional; requires abstractvoice[omnivoice]</span>
+</code></pre></div>
+<p>Notes:
+- <code>--chroma</code> artifacts may require Hugging Face access to download.</p>
+<p>See also: <code>docs/installation.md</code>, <code>docs/model-management.md</code>, and <code>docs/voices-and-licenses.md</code>.</p>
+<h2 id="performance-note-prefetch-vs-preload-important-for-servers">Performance note: prefetch vs preload (important for servers)<a class="headerlink" href="#performance-note-prefetch-vs-preload-important-for-servers" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Prefetch</strong> (download to disk): <code>python -m abstractvoice download ...</code> / <code>abstractvoice-prefetch ...</code></li>
+<li><strong>Preload</strong> (load into memory): create a <strong>long-lived</strong> <code>VoiceManager</code> (or adapter) and reuse it.</li>
+</ul>
+<p>If you construct a new <code>VoiceManager</code> for every request, heavy engines (AudioDiT/OmniVoice) will pay a large one-time cost repeatedly (imports + weight load + accelerator kernel compilation).</p>
+<p>Recommended pattern (server/process startup):</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="c1"># Load once, reuse for all requests.</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;omnivoice&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="integrations-abstractframework-ecosystem">Integrations (AbstractFramework ecosystem)<a class="headerlink" href="#integrations-abstractframework-ecosystem" title="Permanent link">&para;</a></h2>
+<p>AbstractVoice is designed to work standalone, and also integrate cleanly into the AbstractFramework ecosystem (AbstractCore + AbstractRuntime). Overview and links: <code>README.md</code>.</p>
+<p>Boundary note:
+- AbstractVoice owns the in-process voice backend (<code>VoiceManager</code>, adapters, model/cache policy).
+- AbstractCore owns agent orchestration, provider routing, capability selection, and OpenAI-compatible HTTP endpoints.
+- When both are installed, AbstractCore can expose AbstractVoice-backed audio endpoints such as <code>POST /v1/audio/speech</code> and <code>POST /v1/audio/transcriptions</code>.</p>
+<h3 id="abstractcore-capability-plugin-auto-discovery">AbstractCore capability plugin (auto-discovery)<a class="headerlink" href="#abstractcore-capability-plugin-auto-discovery" title="Permanent link">&para;</a></h3>
+<p>AbstractVoice exposes an AbstractCore capability plugin entry point:</p>
+<ul>
+<li>Entry point declaration: <code>pyproject.toml</code> → <code>[project.entry-points."abstractcore.capabilities_plugins"]</code></li>
+<li>Implementation: <code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
+</ul>
+<p>The plugin registers:
+- a voice backend (<code>backend_id="abstractvoice:default"</code>) for TTS+STT
+- an audio backend (<code>backend_id="abstractvoice:stt"</code>) for STT-only</p>
+<p>Audio outputs can optionally be stored into an AbstractRuntime-like <code>artifact_store</code> via the duck-typed adapter in <code>abstractvoice/artifacts.py</code>.</p>
+<p>Plugin configuration (owner <code>config</code> dict, best-effort):
+- <code>voice_language</code>: default language (e.g. <code>"en"</code>)
+- <code>voice_allow_downloads</code>: allow on-demand downloads (bool)
+- <code>voice_tts_engine</code>: base TTS engine (<code>"auto"|"piper"|"audiodit"|"omnivoice"</code>)
+- <code>voice_stt_engine</code>: STT engine (currently <code>"auto"</code> for faster-whisper)
+- <code>voice_whisper_model</code>: faster-whisper model size (e.g. <code>"base"</code>, <code>"small"</code>)
+- <code>voice_cloning_engine</code>: default cloning backend (<code>"f5_tts"|"chroma"|"audiodit"|"omnivoice"</code>)
+- <code>voice_cloned_tts_streaming</code>: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when <code>voice_tts_delivery_mode</code> is unset.
+- <code>voice_tts_delivery_mode</code>: unified audio delivery mode for base + cloned voices (<code>"buffered"|"streamed"</code>). Takes precedence over <code>voice_cloned_tts_streaming</code>.
+- <code>voice_tts_streaming</code>: bool alias for <code>voice_tts_delivery_mode</code> (<code>true</code> → <code>"streamed"</code>, <code>false</code> → <code>"buffered"</code>).
+- <code>voice_debug_mode</code>: enable debug prints (bool)</p>
+<p>Performance note:
+- The capability plugin caches <code>VoiceManager</code> instances <strong>in-process</strong> (keyed by the config above) so engines are <strong>not reloaded per request</strong>.</p>
+<p>TTS metrics:
+- After synthesis, the plugin stores best-effort stats in artifact metadata under <code>abstractvoice_tts</code> (when <code>artifact_store</code> is used).</p>
+<h3 id="abstractcore-openai-compatible-audio-endpoints">AbstractCore OpenAI-compatible audio endpoints<a class="headerlink" href="#abstractcore-openai-compatible-audio-endpoints" title="Permanent link">&para;</a></h3>
+<p>The production OpenAI-compatible HTTP server lives in AbstractCore. AbstractVoice
+also ships a local FastAPI web example (<code>abstractvoice web</code>) for package-level
+smoke testing, but the supported API server path is AbstractCore Server.</p>
+<p>With <code>abstractcore[server]</code> and <code>abstractvoice</code> installed in the same
+environment, AbstractCore delegates its audio endpoints to the discovered
+capability plugin:</p>
+<ul>
+<li><code>POST /v1/audio/speech</code> -&gt; <code>core.voice.tts(...)</code> -&gt; <code>VoiceManager.speak_to_bytes(...)</code></li>
+<li><code>POST /v1/audio/transcriptions</code> -&gt; <code>core.audio.transcribe(...)</code> -&gt; <code>VoiceManager.transcribe_*()</code></li>
+</ul>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
+
+curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/v1/audio/speech<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;input&quot;:&quot;Hello.&quot;,&quot;format&quot;:&quot;wav&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>hello.wav
+
+curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/v1/audio/transcriptions<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;file=@hello.wav&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;language=en&quot;</span>
+</code></pre></div>
+<p>If AbstractCore Server is configured with <code>ABSTRACTCORE_SERVER_API_KEY</code>, include
+the standard <code>Authorization: Bearer &lt;key&gt;</code> header. If the plugin is unavailable,
+AbstractCore returns <code>501</code> with install/config guidance instead of silently
+falling back.</p>
+<p>The local <code>abstractvoice web</code> example exposes these smoke-test routes. They are
+example routes, not a replacement for AbstractCore Server:</p>
+<ul>
+<li><code>GET /api/status</code> -&gt; lightweight server/config status</li>
+<li><code>GET /api/voices</code> -&gt; <code>VoiceManager.get_profiles()</code>, <code>list_available_models()</code>, <code>list_cloned_voices()</code></li>
+<li><code>POST /api/voices/select</code> -&gt; select base TTS, a cloned voice, or a TTS profile; optional local <code>role="assistant"|"user"</code> stores browser-example defaults; optional <code>preload=true</code> warms a cloned voice by calling a tiny <code>VoiceManager.speak_to_bytes(...)</code></li>
+<li><code>POST /api/voices/clone</code> -&gt; example-only multipart upload for browser voice cloning; stores the uploaded/recorded reference with <code>VoiceManager.clone_voice(...)</code> and validates by synthesizing a short sample by default (<code>validate=false</code> skips validation)</li>
+<li><code>POST /api/tts</code> -&gt; <code>VoiceManager.speak_to_bytes(...)</code>; accepts <code>input</code>/<code>text</code>, <code>voice</code>, <code>role</code>, <code>language</code>, <code>speed</code>, <code>format</code>/<code>response_format</code>, and <code>sanitize_syntax</code></li>
+<li><code>POST /api/stt/transcriptions</code> -&gt; <code>VoiceManager.transcribe_file(...)</code></li>
+<li><code>POST /api/stt/transcribe</code> -&gt; compatibility alias for <code>/api/stt/transcriptions</code></li>
+<li><code>GET /api/llm/models</code> -&gt; example-only model listing for an OpenAI-compatible local provider such as Ollama</li>
+<li><code>POST /api/chat</code> -&gt; example-only non-streaming chat completion proxy; the browser owns history and sends the full short message list</li>
+<li><code>POST /v1/audio/speech</code> and <code>POST /v1/audio/transcriptions</code> -&gt; local aliases for quick AbstractCore-compatible smoke tests</li>
+</ul>
+<p>Local web example payload sketches:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Browser-example role default; still resolves to a cloned voice_id.</span>
+curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/voices/select<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;role&quot;:&quot;assistant&quot;,&quot;kind&quot;:&quot;clone&quot;,&quot;voice&quot;:&quot;my_voice&quot;,&quot;preload&quot;:true}&#39;</span>
+
+<span class="c1"># Browser-example cloned voice creation.</span>
+curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/voices/clone<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;name=my_voice&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;engine=f5_tts&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;reference_text=Exact transcript of the reference audio.&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;file=@reference.wav&quot;</span>
+
+<span class="c1"># TTS still maps to VoiceManager.speak_to_bytes(...).</span>
+curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/tts<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;input&quot;:&quot;Hello.&quot;,&quot;role&quot;:&quot;assistant&quot;,&quot;response_format&quot;:&quot;wav&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>hello.wav
+
+<span class="c1"># Example dialogue call via a local OpenAI-compatible provider.</span>
+curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/chat<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;provider&quot;:&quot;ollama&quot;,&quot;model&quot;:&quot;gemma3:1b&quot;,&quot;messages&quot;:[{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:&quot;Say hi in one sentence.&quot;}]}&#39;</span>
+</code></pre></div>
+<p>The local <code>role</code> field is only a convenience for the example UI. AbstractCore
+compatibility remains the capability/plugin contract: clients may pass a
+<code>voice</code> cloned-voice id to TTS, and AbstractCore routes that to
+<code>VoiceManager.speak_to_bytes(..., voice=...)</code>.</p>
+<h3 id="abstractcore-tool-helpers-manual-wiring">AbstractCore tool helpers (manual wiring)<a class="headerlink" href="#abstractcore-tool-helpers-manual-wiring" title="Permanent link">&para;</a></h3>
+<p>If you prefer to wire tools explicitly, <code>abstractvoice/integrations/abstractcore.py</code> provides:</p>
+<ul>
+<li><code>make_voice_tools(voice_manager, store) -&gt; list[callable]</code></li>
+<li>Requires <code>abstractcore</code> at runtime (it imports <code>abstractcore.tool</code>).</li>
+<li><code>store</code> can be a MediaStore-like object, or an AbstractRuntime-like ArtifactStore (adapted via <code>RuntimeArtifactStoreAdapter</code> in <code>abstractvoice/artifacts.py</code>).</li>
+</ul>
+<p>Tools exposed by <code>make_voice_tools(...)</code> (current):
+- <code>voice_tts(text, voice=None, format="wav", run_id=None) -&gt; artifact_ref</code>
+- <code>voice_profile_list(kind="tts") -&gt; {profiles, active_profile}</code>
+- <code>voice_profile_set(profile_id, kind="tts") -&gt; {ok, active_profile}</code>
+- <code>audio_transcribe(audio_artifact|audio_b64, ...) -&gt; {text, transcript_artifact}</code></p>
+<p>Minimal sketch:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.integrations.abstractcore</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_voice_tools</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
+<span class="n">tools</span> <span class="o">=</span> <span class="n">make_voice_tools</span><span class="p">(</span><span class="n">voice_manager</span><span class="o">=</span><span class="n">vm</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="n">artifact_store</span><span class="p">)</span>
+</code></pre></div>
+<p>Example (engine-agnostic profile selection):</p>
+<div class="highlight"><pre><span></span><code><span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;omnivoice&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_profile</span><span class="p">(</span><span class="s2">&quot;female_01&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;tts&quot;</span><span class="p">)</span>
+<span class="n">wav_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello.&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;wav&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>TTS metrics (library-level):
+- <code>VoiceManager.speak_to_bytes(...)</code> / <code>VoiceManager.speak_to_file(...)</code> record best-effort stats for the <em>last</em> synthesis.
+- Call <code>vm.pop_last_tts_metrics()</code> to retrieve and clear them (dict with fields like <code>engine</code>, <code>synth_s</code>, <code>audio_s</code>, <code>rtf</code>, <code>sample_rate</code>).</p>
+<h2 id="non-contract-surface-may-change-without-notice">Non-contract surface (may change without notice)<a class="headerlink" href="#non-contract-surface-may-change-without-notice" title="Permanent link">&para;</a></h2>
+<ul>
+<li>CLI behavior (<code>abstractvoice/examples/*</code>)</li>
+<li>Internal adapter details and model catalogs beyond the documented defaults</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

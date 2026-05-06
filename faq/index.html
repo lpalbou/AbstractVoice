@@ -1,0 +1,2281 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://lpalbou.github.io/abstractvoice/faq/">
+      
+      
+        <link rel="prev" href="../voices-and-licenses/">
+      
+      
+        <link rel="next" href="../known-issues/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>FAQ - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#faq" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              FAQ
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-python-versions-are-supported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Python versions are supported?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#do-i-need-system-speech-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Do I need system speech dependencies?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-installed-the-package-but-abstractvoice-is-not-found-what-should-i-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I installed the package but abstractvoice is not found. What should I check?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-state-history-and-caches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local State, History, And Caches
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Local State, History, And Caches">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-clear-the-current-repl-conversation-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I clear the current REPL conversation history?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-the-repl-automatically-persist-llm-conversation-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does the REPL automatically persist LLM conversation history?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-do-my-previous-typed-commands-still-appear-with-the-up-arrow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why do my previous typed commands still appear with the up arrow?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-are-models-cloned-voices-and-prompt-caches-stored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where are models, cloned voices, and prompt caches stored?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-reset-local-state-completely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I reset local state completely?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offline-first-downloads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offline-First Downloads
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Offline-First Downloads">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-does-the-repl-not-download-models-automatically" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why does the REPL not download models automatically?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-should-i-prefetch-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What should I prefetch first?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repl-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        REPL Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="REPL Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#can-i-use-the-repl-without-an-llm-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I use the REPL without an LLM server?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-enable-microphone-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I enable microphone input?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-are-the-voice-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What are the voice modes?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-hide-or-inspect-model-reasoning-from-local-llms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I hide or inspect model reasoning from local LLMs?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#library-and-server-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Library And Server Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Library And Server Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#can-i-use-abstractvoice-without-the-repl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I use AbstractVoice without the REPL?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-abstractvoice-ship-an-http-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does AbstractVoice ship an HTTP server?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#languages-and-engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Languages And Engines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Languages And Engines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-switch-language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I switch language?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#which-tts-engine-should-i-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which TTS engine should I use?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omnivoice-fails-to-import-with-operator-torchvisionnms-does-not-exist-what-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OmniVoice fails to import with operator torchvision::nms does not exist. What now?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voice-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice Cloning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Voice Cloning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#is-voice-cloning-included-in-the-base-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Is voice cloning included in the base install?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-should-i-prepare-reference-audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How should I prepare reference audio?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-i-move-cloned-voices-between-machines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I move cloned voices between machines?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-omnivoice-make-a-stable-portable-voice-preset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can OmniVoice make a stable portable voice preset?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-issues-and-bug-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Issues And Bug Tracking
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Known Issues And Bug Tracking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-are-known-bugs-tracked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where are known bugs tracked?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#are-there-known-engine-caveats-in-this-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Are there known engine caveats in this release?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#licensing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Licensing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Licensing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#is-abstractvoice-mit-licensed-what-about-voices-and-model-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Is AbstractVoice MIT licensed? What about voices and model weights?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-python-versions-are-supported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Python versions are supported?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#do-i-need-system-speech-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Do I need system speech dependencies?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-installed-the-package-but-abstractvoice-is-not-found-what-should-i-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I installed the package but abstractvoice is not found. What should I check?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-state-history-and-caches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local State, History, And Caches
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Local State, History, And Caches">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-clear-the-current-repl-conversation-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I clear the current REPL conversation history?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-the-repl-automatically-persist-llm-conversation-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does the REPL automatically persist LLM conversation history?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-do-my-previous-typed-commands-still-appear-with-the-up-arrow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why do my previous typed commands still appear with the up arrow?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-are-models-cloned-voices-and-prompt-caches-stored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where are models, cloned voices, and prompt caches stored?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-reset-local-state-completely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I reset local state completely?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offline-first-downloads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offline-First Downloads
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Offline-First Downloads">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-does-the-repl-not-download-models-automatically" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why does the REPL not download models automatically?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-should-i-prefetch-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What should I prefetch first?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repl-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        REPL Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="REPL Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#can-i-use-the-repl-without-an-llm-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I use the REPL without an LLM server?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-enable-microphone-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I enable microphone input?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-are-the-voice-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What are the voice modes?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-hide-or-inspect-model-reasoning-from-local-llms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I hide or inspect model reasoning from local LLMs?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#library-and-server-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Library And Server Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Library And Server Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#can-i-use-abstractvoice-without-the-repl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I use AbstractVoice without the REPL?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-abstractvoice-ship-an-http-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does AbstractVoice ship an HTTP server?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#languages-and-engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Languages And Engines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Languages And Engines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-switch-language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I switch language?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#which-tts-engine-should-i-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which TTS engine should I use?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omnivoice-fails-to-import-with-operator-torchvisionnms-does-not-exist-what-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OmniVoice fails to import with operator torchvision::nms does not exist. What now?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voice-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice Cloning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Voice Cloning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#is-voice-cloning-included-in-the-base-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Is voice cloning included in the base install?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-should-i-prepare-reference-audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How should I prepare reference audio?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-i-move-cloned-voices-between-machines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I move cloned voices between machines?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-omnivoice-make-a-stable-portable-voice-preset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can OmniVoice make a stable portable voice preset?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-issues-and-bug-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Issues And Bug Tracking
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Known Issues And Bug Tracking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-are-known-bugs-tracked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where are known bugs tracked?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#are-there-known-engine-caveats-in-this-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Are there known engine caveats in this release?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#licensing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Licensing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Licensing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#is-abstractvoice-mit-licensed-what-about-voices-and-model-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Is AbstractVoice MIT licensed? What about voices and model weights?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="faq">FAQ<a class="headerlink" href="#faq" title="Permanent link">&para;</a></h1>
+<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
+<h3 id="what-python-versions-are-supported">What Python versions are supported?<a class="headerlink" href="#what-python-versions-are-supported" title="Permanent link">&para;</a></h3>
+<p>AbstractVoice supports Python <code>&gt;=3.9</code>. The core Piper/faster-whisper path, web
+example, and AudioDiT TTS/prompt-audio cloning are supported on Python 3.9.
+OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
+upstream runtimes do; AEC requires Python 3.11+.</p>
+<h3 id="do-i-need-system-speech-dependencies">Do I need system speech dependencies?<a class="headerlink" href="#do-i-need-system-speech-dependencies" title="Permanent link">&para;</a></h3>
+<p>The default TTS engine is Piper through ONNX Runtime, so it does not require
+system packages such as <code>espeak-ng</code>.</p>
+<p>Microphone and speaker I/O use <code>sounddevice</code> / PortAudio. On some Linux
+systems you may need PortAudio packages from the OS package manager. See
+<code>docs/installation.md</code> for platform notes.</p>
+<h3 id="i-installed-the-package-but-abstractvoice-is-not-found-what-should-i-check">I installed the package but <code>abstractvoice</code> is not found. What should I check?<a class="headerlink" href="#i-installed-the-package-but-abstractvoice-is-not-found-what-should-i-check" title="Permanent link">&para;</a></h3>
+<p>Install into the Python environment that runs your shell:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--verbose
+</code></pre></div>
+<p>From a source checkout, <code>python -m abstractvoice cli --verbose</code> is the most
+reliable way to start without depending on console-script path setup.</p>
+<h2 id="local-state-history-and-caches">Local State, History, And Caches<a class="headerlink" href="#local-state-history-and-caches" title="Permanent link">&para;</a></h2>
+<h3 id="how-do-i-clear-the-current-repl-conversation-history">How do I clear the current REPL conversation history?<a class="headerlink" href="#how-do-i-clear-the-current-repl-conversation-history" title="Permanent link">&para;</a></h3>
+<p>Inside the REPL:</p>
+<div class="highlight"><pre><span></span><code>/clear
+</code></pre></div>
+<p><code>/clear</code> resets the in-memory LLM message list back to the system prompt. That
+is the history sent to the configured OpenAI-compatible chat endpoint.</p>
+<p>Related commands:</p>
+<div class="highlight"><pre><span></span><code>/history
+/history 50 --all
+/history 10 --full
+/reset
+</code></pre></div>
+<p><code>/reset</code> clears the chat history and also resets the active voice selection back
+to the default TTS path.</p>
+<h3 id="does-the-repl-automatically-persist-llm-conversation-history">Does the REPL automatically persist LLM conversation history?<a class="headerlink" href="#does-the-repl-automatically-persist-llm-conversation-history" title="Permanent link">&para;</a></h3>
+<p>No. The LLM message history is in memory unless you explicitly save it:</p>
+<div class="highlight"><pre><span></span><code>/save my-session
+/load my-session
+</code></pre></div>
+<p><code>/save my-session</code> writes <code>my-session.mem</code> in the current working directory.
+Delete that <code>.mem</code> file if you no longer want the saved conversation.</p>
+<h3 id="why-do-my-previous-typed-commands-still-appear-with-the-up-arrow">Why do my previous typed commands still appear with the up arrow?<a class="headerlink" href="#why-do-my-previous-typed-commands-still-appear-with-the-up-arrow" title="Permanent link">&para;</a></h3>
+<p>That is terminal command history, not LLM chat history. The REPL stores it as a
+small readline history file so the up/down arrows work across sessions.</p>
+<p>Find the app-data directory with:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
+<span class="s">import appdirs</span>
+<span class="s">print(appdirs.user_data_dir(&quot;abstractvoice&quot;))</span>
+<span class="s">PY</span>
+</code></pre></div>
+<p>Then delete <code>repl_history</code> inside that directory.</p>
+<p>Common locations:</p>
+<ul>
+<li>macOS: <code>~/Library/Application Support/abstractvoice/repl_history</code></li>
+<li>Linux: <code>~/.local/share/abstractvoice/repl_history</code></li>
+<li>Windows: <code>%LOCALAPPDATA%\\abstractvoice\\abstractvoice\\repl_history</code> or the path printed by <code>appdirs</code></li>
+</ul>
+<h3 id="where-are-models-cloned-voices-and-prompt-caches-stored">Where are models, cloned voices, and prompt caches stored?<a class="headerlink" href="#where-are-models-cloned-voices-and-prompt-caches-stored" title="Permanent link">&para;</a></h3>
+<p>Default local state:</p>
+<ul>
+<li>Piper voices: <code>~/.piper/models</code></li>
+<li>faster-whisper models: Hugging Face cache, usually <code>~/.cache/huggingface</code></li>
+<li>OpenF5 artifacts: <code>~/.cache/abstractvoice/openf5</code></li>
+<li>Chroma artifacts and prompt cache: <code>~/.cache/abstractvoice/chroma</code></li>
+<li>Cloned voices: <code>appdirs.user_data_dir("abstractvoice")/cloned_voices</code></li>
+<li>OmniVoice persistent prompt profiles: <code>appdirs.user_data_dir("abstractvoice")/omnivoice_prompt_cache</code></li>
+<li>REPL terminal command history: <code>appdirs.user_data_dir("abstractvoice")/repl_history</code></li>
+<li>Saved REPL memories: wherever you ran <code>/save</code>, with a <code>.mem</code> extension</li>
+</ul>
+<h3 id="how-do-i-reset-local-state-completely">How do I reset local state completely?<a class="headerlink" href="#how-do-i-reset-local-state-completely" title="Permanent link">&para;</a></h3>
+<p>Stop any running AbstractVoice process, then remove only the state you want to
+purge.</p>
+<p>For a full local reset on macOS/Linux:</p>
+<div class="highlight"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span>~/.piper/models
+rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/abstractvoice/openf5
+rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/abstractvoice/chroma
+python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
+<span class="s">import shutil</span>
+<span class="s">from pathlib import Path</span>
+<span class="s">import appdirs</span>
+
+<span class="s">root = Path(appdirs.user_data_dir(&quot;abstractvoice&quot;))</span>
+<span class="s">for name in (&quot;cloned_voices&quot;, &quot;omnivoice_prompt_cache&quot;, &quot;repl_history&quot;):</span>
+<span class="s">    path = root / name</span>
+<span class="s">    if path.is_dir():</span>
+<span class="s">        shutil.rmtree(path)</span>
+<span class="s">    elif path.exists():</span>
+<span class="s">        path.unlink()</span>
+<span class="s">PY</span>
+</code></pre></div>
+<p>Be careful with the Hugging Face cache. It is shared by many AI tools. Prefer
+deleting specific model folders under <code>~/.cache/huggingface/hub</code> instead of
+removing the whole cache unless you really want to reset everything.</p>
+<h2 id="offline-first-downloads">Offline-First Downloads<a class="headerlink" href="#offline-first-downloads" title="Permanent link">&para;</a></h2>
+<h3 id="why-does-the-repl-not-download-models-automatically">Why does the REPL not download models automatically?<a class="headerlink" href="#why-does-the-repl-not-download-models-automatically" title="Permanent link">&para;</a></h3>
+<p>The REPL starts <code>VoiceManager(..., allow_downloads=False)</code>. Interactive sessions
+should not surprise you with multi-GB downloads. Prefetch what you need:</p>
+<div class="highlight"><pre><span></span><code>abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
+abstractvoice-prefetch<span class="w"> </span>--stt<span class="w"> </span>small
+</code></pre></div>
+<p>The library default is different: <code>VoiceManager()</code> uses <code>allow_downloads=True</code>,
+so an application can choose on-demand downloads when that is appropriate.</p>
+<h3 id="what-should-i-prefetch-first">What should I prefetch first?<a class="headerlink" href="#what-should-i-prefetch-first" title="Permanent link">&para;</a></h3>
+<p>Most users should start with:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--stt<span class="w"> </span>small
+</code></pre></div>
+<p>Optional heavy engines:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--openf5
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--chroma
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--audiodit
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--omnivoice
+</code></pre></div>
+<p>Install the matching extra before prefetching optional engines, for example
+<code>pip install "abstractvoice[omnivoice]"</code>.</p>
+<h2 id="repl-usage">REPL Usage<a class="headerlink" href="#repl-usage" title="Permanent link">&para;</a></h2>
+<h3 id="can-i-use-the-repl-without-an-llm-server">Can I use the REPL without an LLM server?<a class="headerlink" href="#can-i-use-the-repl-without-an-llm-server" title="Permanent link">&para;</a></h3>
+<p>Yes. Use <code>/speak &lt;text&gt;</code> to test local TTS directly:</p>
+<div class="highlight"><pre><span></span><code>/speak hello from AbstractVoice
+</code></pre></div>
+<p>Normal chat messages call the configured OpenAI-compatible LLM endpoint. The
+default provider preset is Ollama at <code>http://localhost:11434</code>.</p>
+<h3 id="how-do-i-enable-microphone-input">How do I enable microphone input?<a class="headerlink" href="#how-do-i-enable-microphone-input" title="Permanent link">&para;</a></h3>
+<p>Microphone input is off by default. Start with:</p>
+<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--voice-mode<span class="w"> </span>stop
+</code></pre></div>
+<p>Or enable it inside the REPL:</p>
+<div class="highlight"><pre><span></span><code>/voice stop
+</code></pre></div>
+<p><code>stop</code> mode is the recommended hands-free mode on speakers. During TTS it keeps
+a stop-phrase detector active, so you can say "ok stop" to cut playback.</p>
+<h3 id="what-are-the-voice-modes">What are the voice modes?<a class="headerlink" href="#what-are-the-voice-modes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>off</code>: no microphone input.</li>
+<li><code>stop</code>: recommended on speakers; normal transcriptions pause during TTS, but
+  "ok stop" can interrupt playback.</li>
+<li><code>wait</code>: strict turn-taking; microphone processing pauses during TTS.</li>
+<li><code>full</code>: barge-in on speech; best with a headset or acoustic echo cancellation.</li>
+<li><code>ptt</code>: push-to-talk profile for short intentional captures.</li>
+</ul>
+<h3 id="how-do-i-hide-or-inspect-model-reasoning-from-local-llms">How do I hide or inspect model reasoning from local LLMs?<a class="headerlink" href="#how-do-i-hide-or-inspect-model-reasoning-from-local-llms" title="Permanent link">&para;</a></h3>
+<p>The REPL removes <code>&lt;think&gt;...&lt;/think&gt;</code> blocks before printing, storing, or
+speaking an assistant response. This keeps spoken output clean.</p>
+<p>Use <code>/history --full</code> to inspect the exact message list that remains in memory.</p>
+<h2 id="library-and-server-integration">Library And Server Integration<a class="headerlink" href="#library-and-server-integration" title="Permanent link">&para;</a></h2>
+<h3 id="can-i-use-abstractvoice-without-the-repl">Can I use AbstractVoice without the REPL?<a class="headerlink" href="#can-i-use-abstractvoice-without-the-repl" title="Permanent link">&para;</a></h3>
+<p>Yes. The main API is <code>VoiceManager</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
+<span class="n">wav</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello.&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;wav&quot;</span><span class="p">)</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">&quot;hello.wav&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>For long-lived apps and servers, create one <code>VoiceManager</code> per configuration and
+reuse it. Heavy engines are expensive to load repeatedly.</p>
+<h3 id="does-abstractvoice-ship-an-http-server">Does AbstractVoice ship an HTTP server?<a class="headerlink" href="#does-abstractvoice-ship-an-http-server" title="Permanent link">&para;</a></h3>
+<p>AbstractVoice ships a small local FastAPI web example:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span>
+abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span>
+</code></pre></div>
+<p>Open <code>http://127.0.0.1:5000</code> and use it to test discussion playback,
+assistant/user voice selection, TTS, audio-file transcription, and a tiny
+example dialogue panel backed by an OpenAI-compatible local provider such as
+Ollama. It lazy-loads <code>VoiceManager</code> on the first audio request.</p>
+<p>If selecting a cloned voice appears slow, that is usually the cloning runtime
+loading weights and preparing prompt/runtime caches. The web example shows a
+busy overlay during selection/preload and synthesis so the browser does not look
+stuck.</p>
+<p>For production HTTP APIs, use AbstractCore Server. AbstractVoice is still the
+voice I/O library; AbstractCore owns the OpenAI-compatible server surface in the
+AbstractFramework ecosystem.</p>
+<p>Install both packages in the same environment:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractcore[server]&quot;</span><span class="w"> </span>abstractvoice
+python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
+</code></pre></div>
+<p>AbstractCore discovers the AbstractVoice capability plugin and can expose
+OpenAI-compatible audio endpoints such as:</p>
+<ul>
+<li><code>POST /v1/audio/speech</code></li>
+<li><code>POST /v1/audio/transcriptions</code></li>
+</ul>
+<p>Direct Python integration remains fully supported through <code>VoiceManager</code>.</p>
+<h2 id="languages-and-engines">Languages And Engines<a class="headerlink" href="#languages-and-engines" title="Permanent link">&para;</a></h2>
+<h3 id="how-do-i-switch-language">How do I switch language?<a class="headerlink" href="#how-do-i-switch-language" title="Permanent link">&para;</a></h3>
+<p>Use <code>VoiceManager(language="fr")</code> or:</p>
+<div class="highlight"><pre><span></span><code><span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s2">&quot;fr&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>In the REPL:</p>
+<div class="highlight"><pre><span></span><code>/language fr
+</code></pre></div>
+<p>For Piper, each language needs a cached voice:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>fr
+</code></pre></div>
+<h3 id="which-tts-engine-should-i-use">Which TTS engine should I use?<a class="headerlink" href="#which-tts-engine-should-i-use" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Piper is the default and the recommended reliable path for local TTS.</li>
+<li>faster-whisper is the default STT path.</li>
+<li>OpenF5, Chroma, AudioDiT, and OmniVoice are optional heavier engines for
+  cloning, research, or richer voice experiments.</li>
+<li>AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine
+  in this integration.</li>
+<li>OmniVoice is the main optional path for omnilingual speech and voice design,
+  but stable reusable voice profiles still need more validation.</li>
+</ul>
+<p>For current caveats, see <code>docs/known-issues.md</code>.</p>
+<h3 id="omnivoice-fails-to-import-with-operator-torchvisionnms-does-not-exist-what-now">OmniVoice fails to import with <code>operator torchvision::nms does not exist</code>. What now?<a class="headerlink" href="#omnivoice-fails-to-import-with-operator-torchvisionnms-does-not-exist-what-now" title="Permanent link">&para;</a></h3>
+<p>OmniVoice uses the torch/torchaudio/torchvision stack. If another package
+installed an incompatible <code>torchvision</code>, reinstall the matching build. For the
+torch 2.8 family this is typically:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>--force-reinstall<span class="w"> </span><span class="s2">&quot;torchvision==0.23.*&quot;</span>
+</code></pre></div>
+<p>If you do not need <code>torchvision</code>, uninstalling it can also avoid the import path:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>uninstall<span class="w"> </span>torchvision
+</code></pre></div>
+<h2 id="voice-cloning">Voice Cloning<a class="headerlink" href="#voice-cloning" title="Permanent link">&para;</a></h2>
+<h3 id="is-voice-cloning-included-in-the-base-install">Is voice cloning included in the base install?<a class="headerlink" href="#is-voice-cloning-included-in-the-base-install" title="Permanent link">&para;</a></h3>
+<p>No. Voice cloning is optional:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="w">   </span><span class="c1"># OpenF5</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[chroma]&quot;</span><span class="w">    </span><span class="c1"># Chroma, GPU-heavy</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audiodit]&quot;</span><span class="w">  </span><span class="c1"># AudioDiT</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span><span class="w"> </span><span class="c1"># OmniVoice</span>
+</code></pre></div>
+<p>Artifacts are still downloaded explicitly with <code>python -m abstractvoice download ...</code>
+or <code>abstractvoice-prefetch ...</code>.</p>
+<h3 id="how-should-i-prepare-reference-audio">How should I prepare reference audio?<a class="headerlink" href="#how-should-i-prepare-reference-audio" title="Permanent link">&para;</a></h3>
+<p>Good reference audio matters more than most generation knobs:</p>
+<ul>
+<li>Use one speaker.</li>
+<li>Avoid music, effects, and background noise.</li>
+<li>Start with 4-10 seconds of clean speech.</li>
+<li>Trim leading and trailing silence.</li>
+<li>Provide an exact transcript when the engine accepts <code>reference_text</code>.</li>
+</ul>
+<p>Engine notes:</p>
+<ul>
+<li>OpenF5 normalizes to 24 kHz mono and clips references to 15 seconds.</li>
+<li>AudioDiT normalizes to 24 kHz and clips prompt audio to 15 seconds.</li>
+<li>OmniVoice currently supports one reference audio file for a clone prompt.</li>
+<li>Chroma normalizes prompt audio to 24 kHz mono and clips to 30 seconds.</li>
+</ul>
+<h3 id="can-i-move-cloned-voices-between-machines">Can I move cloned voices between machines?<a class="headerlink" href="#can-i-move-cloned-voices-between-machines" title="Permanent link">&para;</a></h3>
+<p>Yes. Use the REPL export/import commands:</p>
+<div class="highlight"><pre><span></span><code>/clone_export &lt;id-or-name&gt; &lt;path&gt;
+/clone_import &lt;path&gt;
+</code></pre></div>
+<p>The target machine still needs the same cloning engine installed and its weights
+prefetched.</p>
+<h3 id="can-omnivoice-make-a-stable-portable-voice-preset">Can OmniVoice make a stable portable voice preset?<a class="headerlink" href="#can-omnivoice-make-a-stable-portable-voice-preset" title="Permanent link">&para;</a></h3>
+<p>There are two levels of stability:</p>
+<ul>
+<li>Designed voices use <code>instruct</code>, seed, temperatures, and generation settings.
+  This is useful, but exact identity can vary across hardware and model builds.</li>
+<li>Prompt-conditioned voices use reference audio or cached prompt tokens. This is
+  the stronger route for reusable voices.</li>
+</ul>
+<p>For practical persistence, prefer a profile that builds a persistent prompt
+cache, or create/export an OmniVoice clone from reference audio.</p>
+<h2 id="known-issues-and-bug-tracking">Known Issues And Bug Tracking<a class="headerlink" href="#known-issues-and-bug-tracking" title="Permanent link">&para;</a></h2>
+<h3 id="where-are-known-bugs-tracked">Where are known bugs tracked?<a class="headerlink" href="#where-are-known-bugs-tracked" title="Permanent link">&para;</a></h3>
+<p>GitHub Issues should be the canonical tracker for active bugs. Use labels such
+as <code>bug</code>, <code>known-issue</code>, <code>engine:audiodit</code>, <code>engine:omnivoice</code>, and
+<code>release:0.8.1</code>.</p>
+<p><code>docs/known-issues.md</code> is the curated release-facing mirror: it lists the known
+issues users should see before choosing an engine, plus the current workaround.
+When a bug is fixed, close the GitHub issue, move the note to <code>CHANGELOG.md</code>,
+and remove it from the active known-issues list.</p>
+<h3 id="are-there-known-engine-caveats-in-this-release">Are there known engine caveats in this release?<a class="headerlink" href="#are-there-known-engine-caveats-in-this-release" title="Permanent link">&para;</a></h3>
+<p>Yes:</p>
+<ul>
+<li>AudioDiT direct/base TTS can sound distorted in this release. AudioDiT cloning
+  is still the better-validated AudioDiT path.</li>
+<li>OmniVoice stable reusable profiles are still being curated. For stronger
+  persistence, use cached prompt profiles or exported cloned voices.</li>
+</ul>
+<p>See <code>docs/known-issues.md</code> for the current list.</p>
+<h2 id="licensing">Licensing<a class="headerlink" href="#licensing" title="Permanent link">&para;</a></h2>
+<h3 id="is-abstractvoice-mit-licensed-what-about-voices-and-model-weights">Is AbstractVoice MIT licensed? What about voices and model weights?<a class="headerlink" href="#is-abstractvoice-mit-licensed-what-about-voices-and-model-weights" title="Permanent link">&para;</a></h3>
+<p>The library code is MIT licensed. Model weights and voice files are separate
+assets with their own licenses and distribution terms.</p>
+<p>Read <code>docs/voices-and-licenses.md</code> before redistributing models, voices, or
+generated voice assets.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

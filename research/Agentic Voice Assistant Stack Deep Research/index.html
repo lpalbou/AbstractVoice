@@ -1,0 +1,1941 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://lpalbou.github.io/abstractvoice/research/Agentic%20Voice%20Assistant%20Stack%20Deep%20Research/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Agentic Voice Assistant Stack Deep Research - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#agentic-voice-assistant-stack-deep-research" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Agentic Voice Assistant Stack Deep Research
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Executive summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#speech-to-text-options-and-trade-offs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speech-to-text options and trade-offs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Speech-to-text options and trade-offs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-to-interpret-stt-quality-in-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to interpret “STT quality” in 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparative-table-open-source-self-host-stt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparative table: open-source / self-host STT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparative-table-commercial-stt-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparative table: commercial STT APIs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-to-speech-options-and-trade-offs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text-to-speech options and trade-offs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Text-to-speech options and trade-offs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-tts-quality-means-for-agentic-assistants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What “TTS quality” means for agentic assistants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparative-table-open-source-self-host-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparative table: open-source / self-host TTS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparative-table-commercial-tts-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparative table: commercial TTS APIs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws-specific-notes-for-tts-pricing-and-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS-specific notes for TTS pricing and tiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agentic-orchestration-best-practices-for-realtime-voice-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agentic orchestration best practices for realtime voice agents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agentic orchestration best practices for realtime voice agents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-principle-pipelining-beats-monolithic-giant-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core principle: pipelining beats monolithic “giant models”
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tool-use-and-planning-patterns-that-work-in-production" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool use and planning patterns that work in production
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-separate-short-term-context-from-long-term-personalisation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory: separate short-term context from long-term personalisation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety-and-governance-treat-stt-transcripts-as-untrusted-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety and governance: treat STT transcripts as untrusted input
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aws-reference-architecture-with-agentcore-and-related-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS reference architecture with AgentCore and related services
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AWS reference architecture with AgentCore and related services">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architectural-building-blocks-in-aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural building blocks in AWS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mermaid-diagram-cloud-native-realtime-voice-agent-on-aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mermaid diagram: cloud-native realtime voice agent on AWS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mermaid-diagram-agentcore-webrtc-voice-agent-with-bedrock-speech-to-speech" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mermaid diagram: AgentCore WebRTC voice agent with Bedrock speech-to-speech
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-stacks-by-scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended stacks by scenario
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Recommended stacks by scenario">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#realtime-consumer-device-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Realtime consumer device assistant
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enterprise-cloud-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise cloud assistant
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#privacy-focused-on-device-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Privacy-focused on-device assistant
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmarks-evaluation-methodology-latency-and-cost-engineering-safety-and-privacy-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmarks, evaluation methodology, latency and cost engineering, safety and privacy controls
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Benchmarks, evaluation methodology, latency and cost engineering, safety and privacy controls">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#benchmarks-and-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmarks and datasets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evaluation-metrics-that-matter-for-agentic-voice-assistants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation metrics that matter for agentic voice assistants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#latency-engineering-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latency engineering considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cost considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety-and-privacy-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety and privacy controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="agentic-voice-assistant-stack-deep-research">Agentic Voice Assistant Stack Deep Research<a class="headerlink" href="#agentic-voice-assistant-stack-deep-research" title="Permanent link">&para;</a></h1>
+<h2 id="executive-summary">Executive summary<a class="headerlink" href="#executive-summary" title="Permanent link">&para;</a></h2>
+<p>High-quality agentic voice assistants in 2026 are still best built as a <em>streaming cascade</em>—<strong>STT → LLM/agent orchestration → TTS</strong>—with real-time pipelining and careful turn-taking, rather than relying solely on “native” speech-to-speech foundation models. A 2026 technical tutorial on enterprise realtime voice agents reports that (a) native speech-to-speech models can be too slow for realtime (example: ~13 s time-to-first-audio for one such model), and (b) the industry-standard approach is the cascaded streaming pipeline, achieving measured sub‑second P50 time-to-first-audio in a well-engineered setup. citeturn14academia38</p>
+<p>On <strong>STT</strong>, the quality frontier is characterised by (i) large-scale weakly supervised models such as Whisper (trained at internet scale, strong robustness and multilingual generalisation), citeturn19search0turn19search7 and (ii) massively multilingual families like Meta’s MMS (claims &gt;1,100 languages for ASR and “more than halves WER vs Whisper” on 54 FLEURS languages in the paper’s comparison). citeturn15search1turn17search6turn18search4 In production, however, cloud STT vendors differentiate on <em>streaming UX</em> (partial stability, endpointing), <em>enterprise features</em> (language ID constraints, custom vocabularies, diarisation, SLAs), and <em>integration simplicity</em>.</p>
+<p>On <strong>TTS</strong>, “naturalness” is now dominated less by classic concatenative/neural vocoders and more by <strong>expressive generative TTS</strong>, plus strong <strong>voice customisation/branding</strong>. For research/open stacks, StyleTTS2 claims human-level or human-matching subjective results on LJSpeech and VCTK and strong zero-shot speaker adaptation when trained on LibriTTS. citeturn17search4turn17search31turn20search6turn20search1turn20search3 For commercial systems, differentiation often comes from <em>voice catalogue breadth</em>, <em>streaming audio synthesis</em>, and <em>safe custom voice programmes</em> (especially due to deepfake risk, hence access controls). citeturn5search2turn5search16turn6search4turn10search3</p>
+<p>Within the entity["company","Amazon Web Services","cloud provider"] ecosystem, a modern “agentic voice” architecture can be composed from:
+- <strong>Amazon Transcribe (Streaming)</strong> for bidirectional HTTP/2/WebSocket realtime STT and language identification, citeturn19search6turn15search4
+- <strong>Amazon Bedrock</strong> for foundation models (plus Agents/knowledge bases/guardrails), citeturn6search3turn1search10turn1search11turn1search12
+- <strong>Amazon Polly</strong> (Neural/Generative voices + recent bidirectional streaming API for generative voices) for lower-latency conversational TTS and branded voices (Brand Voice), citeturn10search10turn10search3turn6search1turn10search1
+- <strong>AgentCore</strong> (Runtime, Gateway, Memory, Policy) to operationalise tool use, memory, security enforcement, and observability at scale, citeturn12view0turn13view3turn13view1turn13view0turn13view2
+- <strong>AWS Lambda</strong>, <strong>Kinesis Video Streams (WebRTC)</strong>, <strong>Chime SDK</strong>, and <strong>IoT Core</strong> for event-driven tools, realtime audio transport, and device connectivity. citeturn7search0turn7search1turn7search2turn7search23</p>
+<h2 id="speech-to-text-options-and-trade-offs">Speech-to-text options and trade-offs<a class="headerlink" href="#speech-to-text-options-and-trade-offs" title="Permanent link">&para;</a></h2>
+<h3 id="how-to-interpret-stt-quality-in-2026">How to interpret “STT quality” in 2026<a class="headerlink" href="#how-to-interpret-stt-quality-in-2026" title="Permanent link">&para;</a></h3>
+<p>Accuracy for STT is still most commonly reported as <strong>word error rate (WER)</strong>, but production voice assistants care equally about: (a) <strong>streaming behaviour</strong> (time-to-first-partial, stability of partials, endpointing/turn detection), (b) <strong>robustness</strong> (far-field, overlapped speech, accents, code-switching), and (c) <strong>language coverage and adaptation</strong> (language ID, domain terms). Distant multi-speaker conditions remain challenging enough that dedicated benchmarks like CHiME-6 exist for diarisation + recognition in everyday home environments (multi-mic, conversation, overlap). citeturn21search0turn21search9turn21search1</p>
+<p>Multilingual evaluation increasingly uses datasets like <strong>FLEURS</strong> (102 languages, parallel speech, designed to benchmark ASR, speech language ID, translation, retrieval). citeturn15search0turn15search10 For real-world multilingual political speech and accents, datasets like <strong>VoxPopuli</strong> provide large-scale multilingual speech resources and are commonly used for representation learning and downstream ASR benchmarking. citeturn21search3turn21search7turn21search15</p>
+<h3 id="comparative-table-open-source-self-host-stt">Comparative table: open-source / self-host STT<a class="headerlink" href="#comparative-table-open-source-self-host-stt" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Deployment</th>
+<th>Streaming support</th>
+<th>Multilingual / accents</th>
+<th>Customisation (domain, diarisation)</th>
+<th>Published accuracy signals</th>
+<th>Licensing</th>
+<th>Integration complexity</th>
+<th>Notes / best fit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Whisper (incl. large‑v3 and large‑v3‑turbo)</td>
+<td>Self-host (GPU/CPU), on-device variants exist via ports</td>
+<td>Not “native streaming” in the paper; commonly implemented via chunking; turbo variants target speed</td>
+<td>Trained with large-scale weak supervision; strong multilingual generalisation reported; commonly used baseline in multilingual ASR research citeturn19search0turn19search7turn19search4</td>
+<td>No built-in enterprise diarisation; domain adaptation typically via prompting, custom decoding constraints, or external rescoring</td>
+<td>Paper reports strong zero-shot robustness and competitiveness with supervised baselines at scale citeturn19search0turn19search7</td>
+<td>MIT (code + weights) citeturn19search5turn19search2</td>
+<td>Medium–High</td>
+<td>Best “generalist” open model; streaming UX requires engineering (VAD, buffering, incremental decoding).</td>
+</tr>
+<tr>
+<td>whisper.cpp</td>
+<td>On-device / edge CPU (and some GPU via backends)</td>
+<td>Includes realtime microphone “stream” example (sampling and continuous transcription) citeturn11search0</td>
+<td>Follows Whisper multilingual capability (depends on chosen Whisper weights) citeturn19search5</td>
+<td>Same as Whisper</td>
+<td>Depends on Whisper model used; focus is efficient inference</td>
+<td>MIT (via Whisper + project conventions; commonly distributed as MIT) citeturn19search5turn19search2</td>
+<td>Medium</td>
+<td>Strong choice for privacy/on-device prototypes; best with quantisation and careful threading.</td>
+</tr>
+<tr>
+<td>faster-whisper (CTranslate2)</td>
+<td>Self-host GPU/CPU</td>
+<td>Typically used in chunked/streaming loops; optimised for speed</td>
+<td>Same language coverage as Whisper model selected</td>
+<td>Same as Whisper</td>
+<td>Claims “up to 4× faster than openai/whisper for same accuracy” and memory savings; supports 8-bit quantisation citeturn11search1turn11search21</td>
+<td>MIT citeturn11search21turn11search13</td>
+<td>Medium</td>
+<td>Practical when you want Whisper-level quality with better latency/throughput on modest hardware.</td>
+</tr>
+<tr>
+<td>MMS (Meta) multilingual ASR (e.g., mms‑1b‑all)</td>
+<td>Self-host (GPU), research/community deployments</td>
+<td>Not primarily positioned as a streaming UX product; can be engineered into streaming</td>
+<td>Paper claims pretrain across 1,406 languages; ASR model for 1,107 languages; language ID for 4,017 languages citeturn15search1turn18search8</td>
+<td>Domain customisation not productised like enterprise cloud; diarisation external</td>
+<td>Paper reports multilingual ASR that “more than halves” Whisper WER on 54 languages of FLEURS in their experiment citeturn15search1turn15search0</td>
+<td>Weights under CC‑BY‑NC 4.0 (non‑commercial) on HF model cards citeturn18search4turn18search30turn18search0</td>
+<td>High</td>
+<td>Outstanding language coverage, but non‑commercial licensing is a blocker for many production uses.</td>
+</tr>
+<tr>
+<td>Vosk</td>
+<td>On-device / edge CPU (mobile, Raspberry Pi), server</td>
+<td>Provides streaming API for “best UX” (per project docs) citeturn11search22</td>
+<td>20+ languages/dialects listed; multilingual but narrower than Whisper/MMS citeturn11search22turn11search2</td>
+<td>Supports vocabulary reconfiguration; diarisation/speaker ID varies by model/tooling citeturn11search22</td>
+<td>Publishes per-model WER on various test sets on model page (varies widely) citeturn11search6</td>
+<td>Apache‑2.0 for many models/toolkit (some models differ) citeturn11search6turn11search36</td>
+<td>Low–Medium</td>
+<td>Good for lightweight offline STT; accuracy/robustness often behind modern large models, but latency can be excellent.</td>
+</tr>
+<tr>
+<td>NVIDIA Riva ASR</td>
+<td>On-prem / private cloud (GPU)</td>
+<td>Designed for real-time speech AI; deployed as services/skills</td>
+<td>Multilingual depends on Riva model pack; enterprise focus</td>
+<td>Emphasises customisation and real-time performance</td>
+<td>Vendor performance/latency characteristics are documented per release; targeted at production</td>
+<td>Proprietary/commercial (platform); clients repo MIT but service is not citeturn17search26turn17search30</td>
+<td>Medium–High</td>
+<td>Strong choice when you standardise on NVIDIA GPUs and want enterprise control over hosting and performance.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparative-table-commercial-stt-apis">Comparative table: commercial STT APIs<a class="headerlink" href="#comparative-table-commercial-stt-apis" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Deployment</th>
+<th>Streaming support</th>
+<th>Multilingual / accents</th>
+<th>Customisation (domain, diarisation)</th>
+<th>Latency signals</th>
+<th>Licensing / access</th>
+<th>Integration complexity</th>
+<th>Notes / best fit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Amazon Transcribe (Streaming)</td>
+<td>Cloud</td>
+<td>Bidirectional HTTP/2 or WebSocket streaming STT citeturn19search6turn19search10</td>
+<td>Supports dominant language ID and multi-language ID in streaming; multi-language ID transcribes supported languages as speakers switch citeturn15search4turn15search7</td>
+<td>Custom vocabularies; custom language models; speaker diarisation; note: streaming language ID has feature-combination constraints citeturn1search15turn10search23turn1search18turn15search4</td>
+<td>Real-time design, but exact “ms” latency not standardised publicly; chunking and partial results are supported via streaming interfaces citeturn19search6turn19search10</td>
+<td>Proprietary cloud service</td>
+<td>Low</td>
+<td>Best if you want deep AWS integration, compliance controls, and straightforward scale.</td>
+</tr>
+<tr>
+<td>Google Cloud Speech-to-Text</td>
+<td>Cloud</td>
+<td>Supports streaming in APIs/SDKs; phrase “hints”/adaptation is supported in interfaces citeturn4search16turn4search17</td>
+<td>Broad language coverage (varies by model/version)</td>
+<td>Adaptation/phrase sets; diarisation supported in some modes (feature varies by version)</td>
+<td>Vendor promotes realtime transcription; measure yourself per domain</td>
+<td>Proprietary cloud service</td>
+<td>Low</td>
+<td>Strong general-purpose STT; model/version selection is crucial for latency+accuracy.</td>
+</tr>
+<tr>
+<td>Azure Speech to Text</td>
+<td>Cloud</td>
+<td>Real-time transcription supported in SDKs citeturn4search21turn5search12</td>
+<td>100+ languages claimed in platform overview; verify per locale/model citeturn5search12turn4search21</td>
+<td>Speaker diarisation is available; custom speech features exist (training/adaptation) citeturn4search21</td>
+<td>Designed for realtime; measure TT-first-partial and endpointing in your conditions</td>
+<td>Proprietary cloud service</td>
+<td>Low</td>
+<td>Good enterprise fit, especially if you already use Microsoft identity/compliance tooling.</td>
+</tr>
+<tr>
+<td>Deepgram</td>
+<td>Cloud (and some on-prem offerings)</td>
+<td>WebSocket streaming with interim results; official docs define streaming finalisation behaviour and latency measurement guidance citeturn4search15turn4search18turn4search21</td>
+<td>Broad language support (varies by model); marketed for conversational AI</td>
+<td>Custom dictionaries/vocab features exist; diarisation depends on plan/model</td>
+<td>Claims “&lt;300 ms transcription latency” in a product sheet; interpret as vendor claim, validate in situ citeturn4search2</td>
+<td>Proprietary</td>
+<td>Low–Medium</td>
+<td>Popular choice for low-latency streaming STT; best evaluated with your audio transport + VAD/endpointing.</td>
+</tr>
+<tr>
+<td>Speechmatics</td>
+<td>Cloud and on-prem</td>
+<td>Real-time APIs; also shipping broader “Flow” voice-interaction concept (ASR+LLM+TTS)</td>
+<td>Markets inclusive speech recognition across demographics/accents; verify with your evaluation set</td>
+<td>Enterprise features vary; on-prem possible</td>
+<td>Vendor messaging focuses on low latency; quantify yourself</td>
+<td>Proprietary</td>
+<td>Medium</td>
+<td>Strong for organisations wanting on-prem or “speech-first” vendor focus; validate language/locale fit in trials. citeturn1search4turn4search8</td>
+</tr>
+<tr>
+<td>AssemblyAI</td>
+<td>Cloud</td>
+<td>Realtime streaming products; vendor docs/blogs describe ~300 ms class latency for streaming (vendor claim) citeturn4search35turn10search19</td>
+<td>Multilingual support varies by model</td>
+<td>Diarisation, custom vocabulary features exist</td>
+<td>Vendor describes low-latency realtime; measure end-to-end with your stack</td>
+<td>Proprietary</td>
+<td>Low</td>
+<td>Good developer UX and modern agent integrations; treat published latency numbers as directional until benchmarked.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="text-to-speech-options-and-trade-offs">Text-to-speech options and trade-offs<a class="headerlink" href="#text-to-speech-options-and-trade-offs" title="Permanent link">&para;</a></h2>
+<h3 id="what-tts-quality-means-for-agentic-assistants">What “TTS quality” means for agentic assistants<a class="headerlink" href="#what-tts-quality-means-for-agentic-assistants" title="Permanent link">&para;</a></h3>
+<p>For conversational assistants, TTS quality is less about long-form audiobook fidelity and more about:
+- <strong>time-to-first-audio</strong> and stable streaming synthesis,
+- <strong>prosody control</strong> (pauses, emphasis, pronunciation),
+- <strong>interruptibility</strong> (barge‑in: stopping audio mid-utterance),
+- and <strong>voice identity and safety</strong> (custom voices/voice cloning with consent controls).</p>
+<p>Because TTS can be abused for impersonation, some enterprise custom voice programmes explicitly gate access. For example, Azure’s Custom Voice documentation states that access is limited and must be requested based on eligibility and usage criteria. citeturn5search2</p>
+<h3 id="comparative-table-open-source-self-host-tts">Comparative table: open-source / self-host TTS<a class="headerlink" href="#comparative-table-open-source-self-host-tts" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Deployment</th>
+<th>Streaming support</th>
+<th>Voice cloning / custom voices</th>
+<th>Multilingual</th>
+<th>Published quality signals</th>
+<th>Licensing</th>
+<th>Integration complexity</th>
+<th>Notes / best fit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Piper</td>
+<td>On-device / edge CPU, server</td>
+<td>Typically used as low-latency local synthesis; ONNX-based; real-time factor examples are community-reported (hardware-dependent) citeturn5search0turn5search10</td>
+<td>Voice training/fine-tuning exists via community tooling; quality depends on voice</td>
+<td>Many voices/languages via community ecosystem</td>
+<td>Known for speed; example voice discussion reports ~0.04× real-time factor on RTX 4080 for a voice model citeturn5search10</td>
+<td>MIT in original repo; note project direction changes (repository notes “development has moved”) citeturn5search0</td>
+<td>Medium</td>
+<td>Best for privacy-focused local TTS with modest compute; voice quality varies by voice dataset/model.</td>
+</tr>
+<tr>
+<td>Coqui XTTS‑v2</td>
+<td>Self-host GPU</td>
+<td>Coqui docs explicitly claim “streaming inference with &lt;200 ms latency” (validate in your environment) citeturn16view1</td>
+<td>Strong capability: cross-language voice cloning from short reference clip (model card describes ~6 s) citeturn16view0</td>
+<td>Model card lists 17 languages; docs list 16 in that revision (expect drift by version) citeturn16view0turn16view1</td>
+<td>Positioned as voice generation/clone model; quality varies by language and reference audio</td>
+<td>Coqui Public Model License (CPML) citeturn16view0turn16view1</td>
+<td>High</td>
+<td>Excellent for prototype voice cloning; licensing and responsible-use constraints must be reviewed carefully for production.</td>
+</tr>
+<tr>
+<td>StyleTTS2</td>
+<td>Self-host GPU</td>
+<td>Not primarily marketed as “streaming-first”; can be engineered</td>
+<td>Supports style control; research shows strong zero-shot speaker adaptation when trained on LibriTTS citeturn17search4turn20search3</td>
+<td>Typically English-focused benchmarks</td>
+<td>Repo claims MIT; paper/repo claims human-level or human-matching subjective results on LJSpeech and VCTK; and strong LibriTTS zero-shot adaptation citeturn17search4turn17search31</td>
+<td>MIT code (but pay attention to any checkpoint/voice use terms) citeturn17search4turn17search0</td>
+<td>High</td>
+<td>Strong research-grade naturalness; productionisation requires careful latency work and a clear voice IP/consent story.</td>
+</tr>
+<tr>
+<td>MMS TTS (Meta)</td>
+<td>Self-host</td>
+<td>Not positioned as a streaming UX system</td>
+<td>Provides speech synthesis models at scale; voice cloning not the focus</td>
+<td>“Text-to-speech models for over 1,100 languages” in MMS materials citeturn15search1turn17search6turn17search17</td>
+<td>Breadth is the key claim; quality varies by language/data</td>
+<td>Often CC‑BY‑NC 4.0 for models on HF (non‑commercial) citeturn18search4turn17search17</td>
+<td>High</td>
+<td>Best when language coverage is the overriding constraint and licensing allows your use.</td>
+</tr>
+<tr>
+<td>NVIDIA Riva TTS</td>
+<td>On-prem / private cloud (GPU)</td>
+<td>Supports streaming and batch; streaming returns audio chunks early to reduce time-to-first-audio citeturn17search14turn17search7</td>
+<td>Vendor claims ability to create a “natural custom voice” with ~30 min of actor data (vendor statement) citeturn17search26</td>
+<td>Language coverage depends on Riva packs</td>
+<td>Enterprise-oriented; performance evaluation guidance exists by release</td>
+<td>Proprietary/commercial</td>
+<td>Medium–High</td>
+<td>Strong option for enterprise/on-prem with NVIDIA GPUs and operational control.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparative-table-commercial-tts-apis">Comparative table: commercial TTS APIs<a class="headerlink" href="#comparative-table-commercial-tts-apis" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Deployment</th>
+<th>Streaming support</th>
+<th>Voice cloning / custom voice</th>
+<th>Multilingual / voice catalogue</th>
+<th>Latency / quality signals</th>
+<th>Licensing / access</th>
+<th>Integration complexity</th>
+<th>Notes / best fit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Amazon Polly (Standard/Neural/Generative + Brand Voice)</td>
+<td>Cloud</td>
+<td>API returns an audio stream for immediate playback; recent “What’s New” announces bidirectional streaming API for Generative voices citeturn10search12turn10search10</td>
+<td>Brand Voice is a custom engagement to build exclusive NTTS voice for an organisation citeturn10search3turn10search1</td>
+<td>“Available voices” table enumerates voices/locales; supports many languages/variants (see docs) citeturn6search4turn6search8</td>
+<td>Generative voices positioned as highly expressive; SSML support varies by voice tier (see SSML tags table) citeturn10search20turn6search0</td>
+<td>Proprietary</td>
+<td>Low</td>
+<td>Best for AWS-native deployments; serious custom voice requires enterprise engagement (Brand Voice).</td>
+</tr>
+<tr>
+<td>Google Cloud Text-to-Speech</td>
+<td>Cloud</td>
+<td>Marketing page promotes “streaming audio synthesis” for agents citeturn5search16</td>
+<td>“Neural2” voices are based on the same tech as Custom Voice; implies custom voice tech availability without training your own (per docs) citeturn5search3</td>
+<td>Claims 380+ voices across 75+ languages/variants (marketing; verify per region/model) citeturn5search16</td>
+<td>Strong catalogue breadth; evaluate per language and prosody needs</td>
+<td>Proprietary</td>
+<td>Low</td>
+<td>Strong multilingual TTS; ideal when voice variety and language breadth matter.</td>
+</tr>
+<tr>
+<td>Azure Text to Speech + Custom Voice</td>
+<td>Cloud</td>
+<td>Part of Azure Speech platform; supports TTS APIs and custom voice tooling citeturn5search12turn5search30</td>
+<td>Custom Voice allows creating a customised synthetic voice from speech samples; access is limited/controlled citeturn5search2turn5search30</td>
+<td>Broad language coverage (verify per locale/voice)</td>
+<td>Enterprise governance and consent controls are a major differentiator</td>
+<td>Proprietary</td>
+<td>Medium</td>
+<td>Best for enterprises needing controlled custom voices and governance/auditability.</td>
+</tr>
+<tr>
+<td>ElevenLabs</td>
+<td>Cloud</td>
+<td>API-first voice infra; positioned for realtime high-quality output; model release notes highlight “Multilingual v2” citeturn5search8turn5search5turn5search1</td>
+<td>Provides voice cloning and conversational infrastructure (vendor capability statement) citeturn5search8</td>
+<td>Blog states Multilingual v2 supports 29 languages citeturn5search1</td>
+<td>“Expressive” naturalness is key vendor positioning; benchmark in your UX pipeline</td>
+<td>Proprietary</td>
+<td>Low</td>
+<td>Best when you want top-tier expressiveness + fast iteration and accept external dependency.</td>
+</tr>
+<tr>
+<td>Speechmatics TTS (preview)</td>
+<td>Cloud</td>
+<td>Docs describe “low latency TTS API” in preview citeturn4search30</td>
+<td>Custom voice details vary; verify programme</td>
+<td>Language coverage evolving</td>
+<td>Preview/free-to-use status suggests change risk citeturn4search30</td>
+<td>Proprietary</td>
+<td>Medium</td>
+<td>Consider for experimentation; avoid hard dependencies until stable GA + pricing + SLA.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aws-specific-notes-for-tts-pricing-and-tiers">AWS-specific notes for TTS pricing and tiers<a class="headerlink" href="#aws-specific-notes-for-tts-pricing-and-tiers" title="Permanent link">&para;</a></h3>
+<p>As of the published pricing page, Amazon Polly bills per characters processed. Public list prices include Standard ($4 / 1M chars), Neural ($16 / 1M chars), Long‑Form ($100 / 1M chars), and Generative ($30 / 1M chars), outside free tier conditions. citeturn6search1</p>
+<h2 id="agentic-orchestration-best-practices-for-realtime-voice-agents">Agentic orchestration best practices for realtime voice agents<a class="headerlink" href="#agentic-orchestration-best-practices-for-realtime-voice-agents" title="Permanent link">&para;</a></h2>
+<h3 id="core-principle-pipelining-beats-monolithic-giant-models">Core principle: pipelining beats monolithic “giant models”<a class="headerlink" href="#core-principle-pipelining-beats-monolithic-giant-models" title="Permanent link">&para;</a></h3>
+<p>The 2026 enterprise realtime voice-agent tutorial concludes that realtime performance is primarily achieved by <strong>streaming and pipelining across STT, LLM, and TTS</strong>, not merely by picking a single model. It reports measurable sub‑second time-to-first-audio in a cascaded pipeline and highlights that some native speech-to-speech models (in their investigation) can be too slow for realtime interaction. citeturn14academia38</p>
+<p>In practice, achieving “feels instant” UX typically requires:
+- streaming STT partials into the agent loop,
+- beginning LLM generation before the user fully finishes (carefully gated by turn detection),
+- and streaming TTS audio frames as soon as the first text chunk is available.</p>
+<p>Frameworks such as <strong>LiveKit Agents</strong> and <strong>Pipecat</strong> explicitly productise these concerns (turn detection, interruptions, orchestrating a streaming STT→LLM→TTS pipeline). citeturn14search0turn14search1turn14search11</p>
+<h3 id="tool-use-and-planning-patterns-that-work-in-production">Tool use and planning patterns that work in production<a class="headerlink" href="#tool-use-and-planning-patterns-that-work-in-production" title="Permanent link">&para;</a></h3>
+<p>Agentic “tool use” is most reliable when the model’s free-form generation is constrained by structured actions, bounded policies, and observable retries.</p>
+<p>Research patterns that influenced modern agent design include:
+- <strong>ReAct</strong>: interleaving reasoning traces and actions, improving reliability by grounding the agent in external tools/knowledge sources. citeturn8search0turn8search4
+- <strong>Toolformer</strong>: self-supervised training to decide <em>when</em> and <em>how</em> to call tools (APIs) and integrate results. citeturn8search1turn8search5</p>
+<p>For evaluation of tool-using agents, benchmarks such as <strong>AgentBench</strong>, <strong>WebArena</strong>, <strong>ToolBench / StableToolBench</strong>, and <strong>GAIA</strong> are widely cited as ways to measure multi-turn decision making, tool selection, and real-world task completion under controlled environments. citeturn8search3turn9search1turn9search12turn9search0turn9search3</p>
+<h3 id="memory-separate-short-term-context-from-long-term-personalisation">Memory: separate short-term context from long-term personalisation<a class="headerlink" href="#memory-separate-short-term-context-from-long-term-personalisation" title="Permanent link">&para;</a></h3>
+<p>A reliable voice assistant usually needs both:
+- <strong>short-term memory</strong>: turn-by-turn context within a session (pronoun resolution, ellipsis, “tomorrow” follow‑ups);
+- <strong>long-term memory</strong>: durable preferences and summaries extracted across sessions.</p>
+<p>This distinction is explicit in AgentCore Memory, which defines short-term session memory and long-term memory that extracts and stores key insights (preferences, facts, summaries) for future interactions. citeturn13view0 A similar separation is common in agent research (episodic memory streams, reflection, planning) such as Generative Agents. citeturn8search2turn8search6</p>
+<h3 id="safety-and-governance-treat-stt-transcripts-as-untrusted-input">Safety and governance: treat STT transcripts as untrusted input<a class="headerlink" href="#safety-and-governance-treat-stt-transcripts-as-untrusted-input" title="Permanent link">&para;</a></h3>
+<p>For voice assistants, <em>audio is an input channel for adversarial prompting</em>. Spoken prompt injection (“ignore previous instructions”, “call this tool with my account”) becomes text after STT, and must be governed like any other untrusted user input.</p>
+<p>Production controls that consistently improve safety outcomes:
+- <strong>Boundary enforcement outside the model</strong> (policy checks before tool execution),
+- <strong>Least-privilege tool design</strong> (narrow tool schemas, scoped credentials),
+- <strong>Audit logs</strong> of tool calls and policy decisions,
+- <strong>PII/secret handling</strong> (redaction policies; avoid storing raw audio by default).</p>
+<p>AgentCore Policy is designed specifically to intercept agent-to-tool traffic through gateways and evaluate requests against deterministic policies written in Cedar (with optional natural-language authoring that generates and validates candidate policies). citeturn13view2turn12view0 Amazon Bedrock Guardrails and agent monitoring/evaluation features provide additional safety scaffolding at the model layer (content/PII/prompt-attack controls vary by configuration). citeturn1search12turn12view0</p>
+<h2 id="aws-reference-architecture-with-agentcore-and-related-services">AWS reference architecture with AgentCore and related services<a class="headerlink" href="#aws-reference-architecture-with-agentcore-and-related-services" title="Permanent link">&para;</a></h2>
+<h3 id="architectural-building-blocks-in-aws">Architectural building blocks in AWS<a class="headerlink" href="#architectural-building-blocks-in-aws" title="Permanent link">&para;</a></h3>
+<p>AgentCore is positioned by AWS as an “agentic platform” with intelligent memory and a gateway for controlled tool/data access, plus operational monitoring and evaluation (token usage, latency, goal success rate, safety). citeturn12view0 Key components relevant to voice assistants include:
+- <strong>AgentCore Runtime</strong> for hosting agents with session isolation (microVM per user session, sanitised on termination) and up to 8‑hour workloads, citeturn13view3
+- <strong>AgentCore Gateway</strong> to convert APIs/Lambda/OpenAPI/Smithy into MCP-compatible tools with semantic tool selection and authentication handling, citeturn13view1
+- <strong>AgentCore Policy</strong> for tool-call interception and enforcement, citeturn13view2
+- <strong>AgentCore Memory</strong> for short-term and long-term memory. citeturn13view0</p>
+<p>For realtime audio transport and device connectivity:
+- <strong>Kinesis Video Streams with WebRTC</strong> supports realtime audio/video streaming to the cloud via WebRTC, citeturn7search0turn7search4
+- <strong>Chime SDK</strong> provides WebRTC media for sending/receiving audio with device/browser sample rates up to 48 kHz, citeturn7search1turn7search5
+- <strong>AWS IoT Core</strong> supports MQTT / MQTT over WSS device protocols, useful for device commands/state and low-bandwidth signalling. citeturn7search2turn7search6</p>
+<p>For speech services:
+- <strong>Amazon Transcribe Streaming</strong> provides bidirectional HTTP/2 or WebSocket sessions where audio is streamed in and transcripts streamed out, citeturn19search6 including streaming language identification/multi-language ID with documented constraints. citeturn15search4
+- <strong>Amazon Polly</strong> provides text-to-speech returning audio streams; recent updates announce a bidirectional streaming API for generative voices. citeturn10search12turn10search10
+- <strong>Amazon Lex</strong> is a managed service that combines ASR + NLU for voice/text bots and integrates natively with Lambda for business logic—useful for tightly scoped dialog flows, especially when you <strong>don’t</strong> want an open-domain LLM loop for everything. citeturn1search0turn7search23</p>
+<h3 id="mermaid-diagram-cloud-native-realtime-voice-agent-on-aws">Mermaid diagram: cloud-native realtime voice agent on AWS<a class="headerlink" href="#mermaid-diagram-cloud-native-realtime-voice-agent-on-aws" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>flowchart LR
+  U[User device\n(mic + speaker)] --&gt;|WebRTC audio| RTC[WebRTC Transport\n(Chime SDK or Kinesis Video Streams WebRTC)]
+  RTC --&gt;|PCM/Opus frames| VAD[VAD + Turn detection\n(edge or server)]
+
+  VAD --&gt;|streaming audio| STT[Amazon Transcribe Streaming\n(WebSocket/HTTP2)]
+  STT --&gt;|partial + final transcripts| ORCH[Agent Orchestrator\n(AgentCore Runtime)]
+
+  ORCH --&gt; MEM[AgentCore Memory\n(short-term + long-term)]
+  ORCH --&gt;|tool calls| GW[AgentCore Gateway]
+  GW --&gt;|policy-enforced| POL[AgentCore Policy]
+  POL --&gt;|invoke| TOOLS[AWS Lambda tools\n+ enterprise APIs]
+
+  ORCH --&gt;|response text chunks| TTS[Amazon Polly\n(Neural/Generative TTS)]
+  TTS --&gt;|streaming audio| RTC
+  RTC --&gt;|audio| U
+
+  U &lt;--&gt; IOT[AWS IoT Core\n(MQTT/WSS control plane)]
+  ORCH --&gt; OBS[CloudWatch + OpenTelemetry\n(AgentCore Observability)]
+</code></pre></div>
+<p>This diagram captures the operational separation that tends to make voice agents robust: streaming audio transport → specialised STT/TTS services → an agent runtime that owns session state/tools/memory. AgentCore explicitly supports this separation: Runtime for isolated sessions and long workloads, Gateway for tool conversion/discovery, Policy for boundary enforcement, and Memory for context across turns/sessions. citeturn13view3turn13view1turn13view2turn13view0</p>
+<h3 id="mermaid-diagram-agentcore-webrtc-voice-agent-with-bedrock-speech-to-speech">Mermaid diagram: AgentCore WebRTC voice agent with Bedrock speech-to-speech<a class="headerlink" href="#mermaid-diagram-agentcore-webrtc-voice-agent-with-bedrock-speech-to-speech" title="Permanent link">&para;</a></h3>
+<p>AWS also documents a pattern where a browser establishes a WebRTC voice connection directly to an agent running on AgentCore Runtime, using Kinesis Video Streams managed TURN for relaying, and the agent streams audio to/from an Amazon Bedrock foundation model for speech-to-speech conversation. citeturn12view1</p>
+<div class="highlight"><pre><span></span><code>flowchart LR
+  B[Browser client] --&gt;|WebRTC offer/ICE| AG[AgentCore Runtime\n(agent endpoint)]
+  AG --&gt;|GetIceServerConfig| KVS[Kinesis Video Streams TURN]
+  B &lt;--&gt; KVS
+  KVS &lt;--&gt; AG
+
+  B --&gt;|mic audio| AG
+  AG --&gt;|audio stream| FM[Amazon Bedrock\nspeech-to-speech FM]
+  FM --&gt;|spoken response stream| AG
+  AG --&gt;|agent audio| B
+</code></pre></div>
+<p>This pattern can reduce pipeline complexity (no explicit STT/TTS), but <em>latency and controllability</em> still must be benchmarked against cascaded STT→LLM→TTS approaches, which remain standard for sub‑second conversational UX. citeturn12view1turn14academia38</p>
+<h2 id="recommended-stacks-by-scenario">Recommended stacks by scenario<a class="headerlink" href="#recommended-stacks-by-scenario" title="Permanent link">&para;</a></h2>
+<h3 id="realtime-consumer-device-assistant">Realtime consumer device assistant<a class="headerlink" href="#realtime-consumer-device-assistant" title="Permanent link">&para;</a></h3>
+<p>A consumer assistant (smartphone app, smart speaker, wearable) typically prioritises <strong>barge‑in</strong>, <strong>low round-trip latency</strong>, and <strong>multilingual support</strong>. A pragmatic high-quality stack in AWS is:</p>
+<p>STT:
+- Start with <strong>Amazon Transcribe Streaming</strong> for operational simplicity and scale, using multi-language identification if you need code-switching (with awareness of documented feature constraints). citeturn19search6turn15search4<br />
+- If you need best-in-class multilingual accuracy for niche languages and licensing permits, evaluate MMS-family models; the MMS paper claims very large language coverage and strong FLEURS results. citeturn15search1turn18search4</p>
+<p>TTS:
+- Use <strong>Amazon Polly Generative voices</strong> (and bidirectional streaming where available) for low-latency conversational synthesis; consider <strong>Brand Voice</strong> if a unique voice identity is central to product differentiation. citeturn10search10turn10search3turn10search1</p>
+<p>Orchestration:
+- Run the agent on <strong>AgentCore Runtime</strong> to get session isolation and the ability to scale down to zero while supporting realtime plus longer workflows. citeturn13view3<br />
+- Use <strong>AgentCore Gateway + Policy</strong> to expose a small set of safe device/app tools (e.g., account lookup, order status, smart-home controls) with deterministic pre-execution enforcement. citeturn13view1turn13view2<br />
+- Use <strong>AgentCore Memory</strong> for preferences (language, tone, frequently used devices) to reduce friction across sessions. citeturn13view0</p>
+<p>Transport:
+- Use <strong>Chime SDK</strong> or <strong>Kinesis Video Streams WebRTC</strong> for realtime bidirectional audio; use <strong>IoT Core</strong> for device control-plane events and state sync. citeturn7search1turn7search4turn7search2</p>
+<h3 id="enterprise-cloud-assistant">Enterprise cloud assistant<a class="headerlink" href="#enterprise-cloud-assistant" title="Permanent link">&para;</a></h3>
+<p>Enterprise assistants usually prioritise <strong>governance</strong>, <strong>auditability</strong>, <strong>VPC-enclosed connectivity</strong>, and safe integration with internal systems.</p>
+<p>STT:
+- <strong>Amazon Transcribe</strong> for scalable ingestion plus language identification, custom vocabularies, custom language models, and diarisation where needed. citeturn1search15turn10search23turn1search18turn15search7<br />
+- If you need on‑prem STT, evaluate enterprise offerings such as <strong>NVIDIA Riva</strong> or speech vendors offering on‑prem deployments; benchmark against your accented/noisy corpora. citeturn17search26turn5search12</p>
+<p>TTS:
+- <strong>Amazon Polly</strong> for AWS-native scale; use voice tiering (Standard vs Neural vs Generative) based on use case. citeturn6search1turn10search12turn10search20<br />
+- If strict “brand voice” identity is required, use Polly <strong>Brand Voice</strong> or an equivalent governed custom voice programme. citeturn10search3turn5search2</p>
+<p>Orchestration and safety:
+- Use <strong>Amazon Bedrock Agents</strong> when you want managed agent orchestration and integration with company systems and knowledge bases (action groups / KB patterns). citeturn1search10turn1search11<br />
+- Use <strong>AgentCore</strong> when you need <em>stronger operational primitives</em>—session isolation microVMs, boundary policy enforcement, memory services, and production evaluation/observability as first-class features. citeturn12view0turn13view3turn13view2<br />
+- Use <strong>Bedrock Guardrails</strong> plus tool-boundary policies (defence in depth). citeturn1search12turn13view2</p>
+<p>Transport:
+- Chime SDK for web/mobile embedded assistants; Kinesis WebRTC for media ingestion and relaying patterns; integrate with enterprise auth. citeturn7search1turn7search0turn12view1</p>
+<h3 id="privacy-focused-on-device-assistant">Privacy-focused on-device assistant<a class="headerlink" href="#privacy-focused-on-device-assistant" title="Permanent link">&para;</a></h3>
+<p>Privacy-first assistants aim to keep audio and transcripts <strong>entirely local by default</strong>, optionally syncing <em>only minimal intents</em>.</p>
+<p>STT (local):
+- whisper.cpp / faster‑whisper for high-quality local recognition, with quantisation and streaming loops. citeturn11search0turn11search1turn11search21<br />
+- Vosk for ultra-lightweight offline STT when compute is limited and supported languages fit. citeturn11search22turn11search2</p>
+<p>TTS (local):
+- Piper for fast local TTS with a broad community voice ecosystem. citeturn5search0turn5search10<br />
+- For high-fidelity research-grade synthesis, evaluate StyleTTS2-class systems (likely GPU-leaning). citeturn17search4turn17search31</p>
+<p>Orchestration (local-first):
+- Use a local pipeline framework (e.g., LiveKit Agents or Pipecat) to handle turn detection, interruptions, and realtime streaming between local STT/LLM/TTS components. citeturn14search0turn14search1<br />
+- If you still need cloud connectivity for tools, send <em>structured intents</em> and <em>minimal context</em> rather than raw audio or full transcripts.</p>
+<p>AWS fit (privacy-preserving):
+- Use <strong>IoT Core</strong> for device fleet management, state sync, and command routing (MQTT/WSS), without shipping raw audio. citeturn7search2<br />
+- If selective cloud “skills” are needed, route only explicit tool calls to <strong>Lambda</strong> (or an AgentCore Gateway endpoint) with strict policies and redaction. citeturn13view1turn13view2turn7search23</p>
+<h2 id="benchmarks-evaluation-methodology-latency-and-cost-engineering-safety-and-privacy-controls">Benchmarks, evaluation methodology, latency and cost engineering, safety and privacy controls<a class="headerlink" href="#benchmarks-evaluation-methodology-latency-and-cost-engineering-safety-and-privacy-controls" title="Permanent link">&para;</a></h2>
+<h3 id="benchmarks-and-datasets">Benchmarks and datasets<a class="headerlink" href="#benchmarks-and-datasets" title="Permanent link">&para;</a></h3>
+<p>A rigorous evaluation plan should include (at minimum) <strong>in-domain</strong> data plus respected public benchmarks for regression testing:</p>
+<p>STT benchmarks:
+- <strong>LibriSpeech</strong> (∼1000 hours read English speech, 16 kHz) as a classic WER reference point. citeturn20search0turn20search4<br />
+- <strong>FLEURS</strong> (102 languages) for multilingual ASR and language ID comparisons. citeturn15search0turn15search10<br />
+- <strong>Common Voice</strong> (CC0 speech datasets, community-led multilingual data releases) for accent/dialect diversity and long-tail language coverage in evaluation and fine-tuning. citeturn11search31turn11search15turn11search19<br />
+- <strong>CHiME‑6</strong> for far-field, multi-speaker conversational recognition and diarisation stress testing. citeturn21search0turn21search1turn21search9<br />
+- <strong>AMI Meeting Corpus</strong> (100 hours meeting recordings) for speech in interactive meeting conditions. citeturn21search2turn21search14<br />
+- <strong>Switchboard</strong> (telephone conversations) for conversational telephone speech. citeturn21search8turn21search16<br />
+- <strong>VoxPopuli</strong> for multilingual political speech and semi-supervised settings. citeturn21search3turn21search7turn21search15</p>
+<p>TTS benchmarks:
+- <strong>LJ Speech</strong> (single-speaker, ~24 hours, public domain) for single-speaker naturalness testing. citeturn20search1<br />
+- <strong>VCTK</strong> (multi-speaker English with diverse accents) for multi-speaker quality and speaker similarity. citeturn20search6turn20search34<br />
+- <strong>LibriTTS</strong> (585 hours, 2,456 speakers; designed for TTS) for multi-speaker and adaptation evaluation. citeturn20search3turn20search11</p>
+<h3 id="evaluation-metrics-that-matter-for-agentic-voice-assistants">Evaluation metrics that matter for agentic voice assistants<a class="headerlink" href="#evaluation-metrics-that-matter-for-agentic-voice-assistants" title="Permanent link">&para;</a></h3>
+<p>STT metrics:
+- <strong>WER/CER</strong> overall and per‑condition slice (noise type, SNR, accent group, far-field vs close mic).
+- <strong>Streaming latency</strong>: time to first partial, time to stable partial, time to final transcript after end-of-speech.
+- <strong>Endpointing errors</strong>: cut‑offs (finalising too early) vs lag (waiting too long).
+- <strong>Semantic accuracy</strong> (task success impact): sometimes a small WER change causes a large tool-call argument error; measure downstream.</p>
+<p>TTS metrics:
+- <strong>Time-to-first-audio</strong> and <strong>real-time factor</strong> under streaming synthesis.
+- <strong>MOS</strong> (human ratings) for naturalness and speaker similarity; StyleTTS2’s claims are anchored in MOS-style evaluations on LJSpeech/VCTK and adaptation experiments. citeturn17search4turn20search1turn20search6<br />
+- <strong>Barge-in behaviour</strong>: ability to interrupt synthesis cleanly without audio artefacts.</p>
+<p>Agentic metrics:
+- <strong>Goal success rate</strong> (task completion), <strong>tool success rate</strong> (valid tool calls), and <strong>safety violation rate</strong> (policy/guardrail hits).
+- <strong>Cost per successful task</strong> and <strong>latency percentiles</strong> (P50/P95 overall; plus TTFA).
+- AgentCore explicitly frames production monitoring as token usage, latency, session duration, error rates, and continuous quality scoring (correctness/helpfulness/safety/goal success). citeturn12view0</p>
+<h3 id="latency-engineering-considerations">Latency engineering considerations<a class="headerlink" href="#latency-engineering-considerations" title="Permanent link">&para;</a></h3>
+<p>A practical end-to-end latency budget for “conversational” feel often targets “sub‑second to first audio” in common cases, but you should engineer to <strong>P95</strong> and treat network variability as a first-class problem. The 2026 enterprise tutorial provides a concrete example: with streaming STT + streaming LLM generation + streaming TTS, they report P50 time-to-first-audio under 1 second (best-case ~729 ms), reinforcing that careful pipelining is decisive. citeturn14academia38</p>
+<p>Key engineering tactics:
+- Run <strong>VAD/turn detection</strong> as close to the microphone as possible to reduce upstream buffering.
+- Use <strong>partial transcript gating</strong>: allow the LLM to start thinking, but delay tool execution until stable user intent is confirmed.
+- Prefer <strong>short, incremental responses</strong> (and progressively refine) for conversational UX.
+- Make TTS <strong>interruptible</strong> by design: treat audio playback as a cancellable stream and stop synthesis immediately on user barge‑in.
+- Cache frequent phrases and “boilerplate acknowledgements” at the TTS layer (some frameworks support caching patterns; implement carefully to avoid stale or unsafe responses). citeturn14search13</p>
+<h3 id="cost-considerations">Cost considerations<a class="headerlink" href="#cost-considerations" title="Permanent link">&para;</a></h3>
+<p>Even with “no budget constraints”, cost still matters because it interacts with latency (bigger models → higher latency) and determines what you can afford at scale.</p>
+<p>In AWS-centric architectures, the main recurring cost drivers are:
+- <strong>STT minutes</strong> (Amazon Transcribe pricing varies by usage tiers and features; consult the pricing page for the latest rates and add-ons). citeturn6search2turn10search2<br />
+- <strong>TTS characters</strong> (Polly per‑million character pricing differs by voice tier, with Generative voices priced separately). citeturn6search1<br />
+- <strong>LLM tokens</strong> (Bedrock per‑token pricing varies widely by model family and throughput mode). citeturn6search3turn6search19<br />
+- <strong>Realtime transport</strong> (WebRTC relays/TURN, media egress), especially at high concurrency.</p>
+<p>A useful financial control is <em>model routing</em>:
+- cheaper/faster models for boilerplate turns,
+- larger models for high-stakes tool decisions,
+- and deferred batch reasoning for long-running tasks (AgentCore Runtime supports long workloads up to 8 hours when needed). citeturn13view3turn12view0</p>
+<h3 id="safety-and-privacy-controls">Safety and privacy controls<a class="headerlink" href="#safety-and-privacy-controls" title="Permanent link">&para;</a></h3>
+<p>Voice assistants should be designed with explicit controls for:
+- <strong>Data minimisation</strong>: store transcripts only when needed; store summaries/preferences rather than raw audio; give users control over memory.
+- <strong>Isolation</strong>: AgentCore Runtime’s per-session microVM isolation and memory sanitisation after termination provides a strong primitive against cross-session leakage. citeturn13view3
+- <strong>Network containment</strong>: AgentCore advertises VPC connectivity and PrivateLink support for controlled network access paths. citeturn12view0
+- <strong>Tool boundary enforcement</strong>: enforce tool access with deterministic policies outside the model (AgentCore Policy intercepts tool calls via Gateway). citeturn13view2turn13view1
+- <strong>Consent and anti-impersonation for voice cloning</strong>: gated custom voice programmes (e.g., Azure Custom Voice access limitations) reflect the risk profile; adopt comparable consent verification, disclosure, and watermarking/detection strategies where legally appropriate. citeturn5search2
+- <strong>Device/security hygiene</strong>: for device fleets, IoT Core security best practices (TLS, per-device identity, secure auth patterns) reduce risk of device impersonation in voice control scenarios. citeturn7search14turn7search2</p>
+<p>For governance and evaluation loops, invest in:
+- red-team datasets (“prompt injection spoken aloud”, overlapping speakers, accented speech, code-switching),
+- policy simulation tests (tool calls under adversarial prompts),
+- and continuous monitoring (AgentCore evaluation/observability concepts map naturally to this). citeturn12view0turn13view2</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
