@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gc
 import os
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -70,6 +71,13 @@ class F5TTSVoiceCloningEngine:
         target_rms: float = 0.1,
         cross_fade_duration: float = 0.15,
     ):
+        if sys.version_info < (3, 10):
+            raise RuntimeError(
+                "OpenF5/F5-TTS cloning requires Python >=3.10 because upstream "
+                "`f5-tts` packages import Python 3.10-only annotations. On Python "
+                "3.9, use `abstractvoice[audiodit]` with the `audiodit` cloning "
+                "engine instead."
+            )
         self.debug = debug
         self._whisper_model = whisper_model
         self._stt = None

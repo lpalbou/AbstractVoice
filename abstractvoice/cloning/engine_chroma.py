@@ -5,6 +5,7 @@ import gc
 import hashlib
 import io
 import os
+import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +50,11 @@ class ChromaVoiceCloningEngine:
         do_sample: bool = True,
         max_new_tokens_per_chunk: int = 512,
     ):
+        if sys.version_info < (3, 10):
+            raise RuntimeError(
+                "Chroma requires Python >=3.10 because its Transformers runtime "
+                "depends on Transformers 5.x."
+            )
         self.debug = bool(debug)
         self._device_pref = str(device or "auto")
         self._model_id = str(model_id or self.DEFAULT_MODEL_ID)

@@ -119,7 +119,7 @@ If you’re using the full AbstractFramework stack, install and run via the umbr
 
 ## Install
 
-Requires Python `>=3.10` (see `pyproject.toml`).
+Requires Python `>=3.9` (see `pyproject.toml`).
 
 ```bash
 pip install abstractvoice
@@ -134,6 +134,7 @@ pip install "abstractvoice[web]"   # local FastAPI web example
 
 Notes:
 - `abstractvoice[all]` enables most optional features (incl. cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime, AudioDiT, or OmniVoice.
+- Python 3.9 supports the core stack, web UI, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
 - For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
 ### Explicit model downloads (recommended; never implicit in the REPL)

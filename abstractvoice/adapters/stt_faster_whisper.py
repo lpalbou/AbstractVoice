@@ -8,6 +8,8 @@ Faster-Whisper is a reimplementation of OpenAI's Whisper using CTranslate2:
 - Supports GPU acceleration (CUDA) if available
 """
 
+from __future__ import annotations
+
 import os
 import io
 import logging

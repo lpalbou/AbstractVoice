@@ -75,6 +75,9 @@ These are always installed with `pip install abstractvoice`.
 
 ### `abstractvoice[audiodit]` — LongCat-AudioDiT (TTS + prompt-audio cloning)
 
+Supported on Python 3.9+. Python 3.9 uses the latest compatible Transformers
+4.x line; Python 3.10+ uses the Transformers 5.x line.
+
 Python packages:
 
 - **torch**
@@ -129,6 +132,9 @@ Vendored code:
 
 ### `abstractvoice[omnivoice]` — OmniVoice (omnilingual TTS + cloning / design)
 
+Requires Python 3.10+ because the upstream `omnivoice` package declares that
+Python floor.
+
 Python packages:
 
 - **omnivoice**
@@ -158,6 +164,9 @@ Models/weights (Hugging Face):
   - **Prefetch**: `python -m abstractvoice download --omnivoice` or `abstractvoice-prefetch --omnivoice`
 
 ### `abstractvoice[chroma]` — Chroma-4B cloning (GPU-heavy)
+
+Requires Python 3.10+ in AbstractVoice packaging because Chroma depends on
+Transformers 5.x.
 
 - **torch / torchaudio / torchvision**
   - **Repo**: `https://github.com/pytorch/pytorch`
@@ -189,6 +198,11 @@ Model:
 
 ### `abstractvoice[cloning]` — OpenF5 / F5-TTS cloning
 
+Requires Python 3.10+ because current upstream `f5-tts` packages import
+Python 3.10-only annotations during inference. On Python 3.9, use
+`abstractvoice[audiodit]` with the `audiodit` cloning engine for tested
+prompt-audio cloning.
+
 - **f5-tts**
   - **Why**: cloning engine (`f5_tts`) backend.
   - **Where**: `abstractvoice/cloning/engine_f5.py`
@@ -204,6 +218,9 @@ Model:
   - **License**: `https://github.com/librosa/librosa/blob/main/LICENSE.md`
 
 ### `abstractvoice[aec]` — Acoustic echo cancellation
+
+Requires Python 3.11+ because `aec-audio-processing` declares that Python
+floor.
 
 - **aec-audio-processing**
   - **Why**: optional AEC for “full voice” barge-in on speakers.

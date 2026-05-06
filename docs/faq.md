@@ -4,7 +4,10 @@
 
 ### What Python versions are supported?
 
-AbstractVoice supports Python `>=3.10`.
+AbstractVoice supports Python `>=3.9`. The core Piper/faster-whisper path, web
+example, and AudioDiT TTS/prompt-audio cloning are supported on Python 3.9.
+OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
+upstream runtimes do; AEC requires Python 3.11+.
 
 ### Do I need system speech dependencies?
 

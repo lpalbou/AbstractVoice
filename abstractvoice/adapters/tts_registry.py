@@ -12,11 +12,11 @@ Design goals
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Optional
 
 from .base import TTSAdapter
 
-_Factory = Callable[..., TTSAdapter | None]
+_Factory = Callable[..., Optional[TTSAdapter]]
 
 
 def _normalize_engine_name(engine: str | None) -> str:
@@ -165,4 +165,3 @@ def create_tts_adapter(
             f"Supported engines: {', '.join(get_supported_tts_engines())}"
         )
     return adapter, resolved
-

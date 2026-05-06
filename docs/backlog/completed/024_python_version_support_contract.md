@@ -4,6 +4,10 @@
 **Status**: Completed  
 **Priority**: P0  
 
+> Superseded by the Python 3.9 compatibility pass: current package metadata now
+> supports Python `>=3.9`, with Python-version markers on optional engines whose
+> upstream dependencies require newer interpreters.
+
 ---
 
 ## Main goals
@@ -105,10 +109,12 @@ Impact:
 ## Report (completed)
 
 **Completed**: 2026-02-09
+**Superseded**: Python `>=3.9` support restored after a compatibility pass.
 
 ### Outcome
 
-- Packaging metadata now requires Python `>=3.10` (`pyproject.toml`).
+- Packaging metadata required Python `>=3.10` (`pyproject.toml`) at the time this
+  task was completed.
 - Python version messaging is consistent across the external entry points:
   - `README.md` (Install section)
   - `docs/getting-started.md` (Requirements)

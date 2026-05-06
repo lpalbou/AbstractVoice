@@ -8,6 +8,8 @@ Piper is a fast, local neural text-to-speech system that:
 - Has small model sizes (15-60MB vs 200-500MB VITS)
 """
 
+from __future__ import annotations
+
 import gc
 import os
 import io

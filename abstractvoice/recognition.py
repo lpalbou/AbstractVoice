@@ -1,5 +1,7 @@
 """Voice recognition module that combines VAD and STT."""
 
+from __future__ import annotations
+
 import threading
 import time
 from typing import Optional

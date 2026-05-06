@@ -10,7 +10,10 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-05-06
+
 ### Added
+- Python 3.9 package support in metadata, GitHub Actions CI/release matrices, and user-facing docs.
 - Local FastAPI web example routes for `/api/tts`, `/api/stt/transcriptions`, `/api/voices`, and local `/v1/audio/*` smoke-test aliases.
 - Browser discussion reader in `abstractvoice web`, including per-message play/pause and conversation play/pause controls.
 - Example-only local LLM dialogue bridge for the web UI and REPL, backed by a tiny shared OpenAI-compatible provider helper for Ollama, LM Studio, or a custom base URL.
@@ -18,13 +21,25 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Web install bundles for optional engine setups: `web-cloning`, `web-audiodit`, `web-omnivoice`, `web-chroma`, and `web-full`.
 
 ### Changed
+- Optional engine dependency markers now avoid unsupported upstream packages on Python 3.9: OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+; AEC requires Python 3.11+.
+- AudioDiT uses the latest Python 3.9-compatible Transformers 4.x line on Python 3.9 and Transformers 5.x on Python 3.10+.
 - REPL TTS commands now have grouped `/tts ...` forms while keeping `/tts_engine`, `/tts_quality`, `/tts_delivery`, `/speed`, `/profile`, `/tts_voice`, and `/setvoice` as compatibility commands.
 - The `abstractvoice[web]` extra now uses FastAPI/Uvicorn instead of Flask.
 
 ### Fixed
+- Python 3.9 syntax/import compatibility across runtime modules.
+- AudioDiT model loading on Python 3.9 now falls back to plain `safetensors` loading for LongCat checkpoints whose file metadata is rejected by Transformers 4.57.x.
+- Web tests now include the explicit `httpx` dependency required by FastAPI/Starlette's test client.
 - Web UI role voice selection now preloads cloned voices before committing a user/assistant selection, so missing optional engine artifacts leave the previous working voice active.
 - Local web OpenAPI now documents JSON request bodies and binary audio responses for the TTS routes.
 - Browser voice cloning now validates new clones with a short synthesis before reporting success, and removes unusable clones when validation fails.
+
+### Validation
+- Verified on Python 3.9.25 with the non-integration pytest suite, Piper synthesis, faster-whisper transcription, cloning store/dispatch/autofallback paths, and real AudioDiT TTS plus prompt-audio cloning.
+- Confirmed OpenF5 artifact prefetch works, but F5-TTS inference remains gated to Python 3.10+ because available upstream releases import Python 3.10-only annotations on Python 3.9.
+
+### Known Issues
+- OpenF5/F5-TTS, Chroma, and OmniVoice are unavailable on Python 3.9 due upstream Python floors or runtime syntax; use Python 3.10+ for those engines. AEC requires Python 3.11+.
 
 ## [0.8.1] - 2026-05-04
 

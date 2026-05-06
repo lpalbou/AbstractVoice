@@ -5,7 +5,11 @@ Derived from: https://github.com/meituan-longcat/LongCat-AudioDiT (MIT)
 
 from __future__ import annotations
 
-from transformers import PreTrainedConfig, logging
+try:
+    from transformers import PreTrainedConfig, logging
+except ImportError:  # pragma: no cover - transformers 4.55+ compatibility
+    from transformers import logging
+    from transformers.configuration_utils import PretrainedConfig as PreTrainedConfig
 from transformers.models.umt5.configuration_umt5 import UMT5Config
 
 logger = logging.get_logger(__name__)
@@ -127,4 +131,3 @@ class AudioDiTConfig(PreTrainedConfig):
 
 
 __all__ = ["AudioDiTConfig", "AudioDiTVaeConfig"]
-

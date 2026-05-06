@@ -77,7 +77,7 @@ python -m pytest -q -m "not integration and not model_download"
 
 AbstractVoice mirrors the AbstractCore release shape:
 
-- `.github/workflows/ci.yml` runs tests on Python 3.10-3.12 and verifies that
+- `.github/workflows/ci.yml` runs tests on Python 3.9-3.12 and verifies that
   source/wheel distributions build and pass `twine check`.
 - `.github/workflows/release.yml` runs the same test gate, validates that the
   requested tag matches `abstractvoice/_version.py`, extracts release notes from

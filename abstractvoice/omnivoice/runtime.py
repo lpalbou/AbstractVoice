@@ -14,6 +14,7 @@ This wrapper enforces AbstractVoice's core policies:
 from __future__ import annotations
 
 import os
+import sys
 import warnings
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -90,6 +91,11 @@ class OmniVoiceRuntime:
         allow_downloads: bool = True,
         debug: bool = False,
     ):
+        if sys.version_info < (3, 10):
+            raise RuntimeError(
+                "OmniVoice requires Python >=3.10 because the optional "
+                "`omnivoice` package declares Requires-Python >=3.10."
+            )
         self.model_id = str(model_id or self.DEFAULT_MODEL_ID)
         self.revision = str(revision) if revision else None
         self._device_pref = str(device or "auto").strip().lower() or "auto"

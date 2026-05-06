@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 
 
@@ -22,6 +23,11 @@ class WebRtcAecProcessor:
 
     def __init__(self, cfg: AecConfig):
         self.cfg = cfg
+        if sys.version_info < (3, 11):
+            raise ImportError(
+                "AEC requires Python >=3.11 because the optional "
+                "`aec-audio-processing` package does not publish Python 3.9/3.10 builds."
+            )
 
         try:
             from aec_audio_processing import AudioProcessor  # type: ignore
@@ -53,4 +59,3 @@ class WebRtcAecProcessor:
         if far_pcm16:
             self._ap.process_reverse_stream(far_pcm16)
         return self._ap.process_stream(near_pcm16)
-

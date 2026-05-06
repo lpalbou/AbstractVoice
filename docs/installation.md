@@ -2,7 +2,7 @@
 
 AbstractVoice aims to work out of the box with:
 
-- **Python**: `>=3.10` (see `pyproject.toml`)
+- **Python**: `>=3.9` (see `pyproject.toml`)
 - **TTS (default)**: Piper (ONNX; no system deps)
 - **STT (default)**: faster-whisper (CTranslate2)
 - **Audio I/O**: `sounddevice` (PortAudio) + `soundfile` + `webrtcvad`
@@ -27,7 +27,7 @@ AbstractVoice is discovered as the voice/audio capability backend.
 ## Optional extras
 
 ```bash
-pip install "abstractvoice[cloning]"   # OpenF5-based cloning (heavy)
+pip install "abstractvoice[cloning]"   # OpenF5-based cloning (heavy; Python 3.10+)
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
 pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transformers)
 pip install "abstractvoice[omnivoice]" # OmniVoice (very heavy; torch/transformers)
@@ -46,6 +46,14 @@ server, but not every GPU-heavy engine shown in the UI. Use
 `abstractvoice[web-audiodit]`, `abstractvoice[web-chroma]`, or
 `abstractvoice[web-full]` when you want the web UI and those optional engines in
 one install command.
+
+Python-version notes:
+
+- Python 3.9 supports the core Piper/faster-whisper path, the web example,
+  and AudioDiT TTS/prompt-audio cloning.
+- OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
+  upstream runtimes do.
+- AEC requires Python 3.11+ because `aec-audio-processing` declares that floor.
 
 Note (OmniVoice): OmniVoice uses the torch/torchaudio/torchvision stack. If you
 already have an incompatible `torchvision` installed (common after changing
@@ -73,7 +81,7 @@ python -m abstractvoice download --piper en
 python -m abstractvoice download --stt small
 
 # Voice cloning artifacts (optional; require extras)
-pip install "abstractvoice[cloning]"   # for --openf5
+pip install "abstractvoice[cloning]"   # for --openf5 (Python 3.10+)
 python -m abstractvoice download --openf5
 
 pip install "abstractvoice[chroma]"    # for --chroma (GPU-heavy)

@@ -6,6 +6,8 @@ This example shows how to use AbstractVoice to create a CLI application
 that interacts with an LLM API for text generation.
 """
 
+from __future__ import annotations
+
 import argparse
 import cmd
 import atexit

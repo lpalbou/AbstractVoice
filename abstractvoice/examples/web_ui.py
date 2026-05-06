@@ -20,7 +20,7 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from abstractvoice.examples.llm_provider import DEFAULT_MODEL, DEFAULT_PROVIDER, resolve_provider
 
@@ -1568,7 +1568,7 @@ class ExampleState:
         whisper_model: str,
         allow_downloads: bool,
         debug_mode: bool,
-        voice_manager_factory: Callable[["ExampleState"], Any] | None = None,
+        voice_manager_factory: Optional[Callable[["ExampleState"], Any]] = None,
     ) -> None:
         self.language = str(language or "en").strip().lower() or "en"
         self.tts_engine = str(tts_engine or "auto").strip().lower() or "auto"
@@ -1576,8 +1576,8 @@ class ExampleState:
         self.whisper_model = str(whisper_model or "base").strip() or "base"
         self.allow_downloads = bool(allow_downloads)
         self.debug_mode = bool(debug_mode)
-        self.current_voice: str | None = None
-        self.role_voices: dict[str, str | None] = {"assistant": None, "user": None}
+        self.current_voice: Optional[str] = None
+        self.role_voices: dict[str, Optional[str]] = {"assistant": None, "user": None}
         self.lock = threading.RLock()
         self.voice_manager = None
         self._voice_manager_factory = voice_manager_factory
@@ -1752,7 +1752,7 @@ class ExampleState:
                 return voice_id
         raise ValueError(f"Unknown cloned voice: {raw}")
 
-    def _set_selected_voice(self, voice_id: str | None, *, role: str | None) -> None:
+    def _set_selected_voice(self, voice_id: Optional[str], *, role: Optional[str]) -> None:
         if role:
             self.role_voices[role] = voice_id
         else:
@@ -1785,16 +1785,16 @@ class ExampleState:
         self,
         *,
         kind: str,
-        voice: str | None = None,
-        profile: str | None = None,
-        role: str | None = None,
+        voice: Optional[str] = None,
+        profile: Optional[str] = None,
+        role: Optional[str] = None,
         preload: bool = False,
     ) -> dict[str, Any]:
         mode = str(kind or "").strip().lower()
         target_role = normalize_voice_role(role)
         with self.lock:
             vm = self.get_voice_manager()
-            preload_result: dict[str, Any] | None = None
+            preload_result: Optional[dict[str, Any]] = None
             if mode in ("", "base", "tts", "piper"):
                 self._set_selected_voice(None, role=target_role)
                 return {"ok": True, "current": self.status_dict()["current"]}
@@ -1821,12 +1821,12 @@ class ExampleState:
         *,
         text: str,
         fmt: str = "wav",
-        voice: str | None = None,
-        role: str | None = None,
-        language: str | None = None,
-        speed: float | None = None,
+        voice: Optional[str] = None,
+        role: Optional[str] = None,
+        language: Optional[str] = None,
+        speed: Optional[float] = None,
         sanitize_syntax: bool = True,
-    ) -> tuple[bytes, dict[str, Any] | None]:
+    ) -> tuple[bytes, Optional[dict[str, Any]]]:
         speak_text = str(text or "").strip()
         if not speak_text:
             raise ValueError("Missing input text.")
@@ -1881,7 +1881,7 @@ class ExampleState:
                     except Exception:
                         pass
 
-    def transcribe_bytes(self, audio_bytes: bytes, *, filename: str = "audio.wav", language: str | None = None) -> str:
+    def transcribe_bytes(self, audio_bytes: bytes, *, filename: str = "audio.wav", language: Optional[str] = None) -> str:
         if not audio_bytes:
             raise ValueError("Missing audio file.")
         suffix = Path(filename or "audio.wav").suffix or ".wav"
@@ -1910,9 +1910,9 @@ class ExampleState:
         audio_bytes: bytes,
         *,
         filename: str = "reference.wav",
-        name: str | None = None,
-        engine: str | None = None,
-        reference_text: str | None = None,
+        name: Optional[str] = None,
+        engine: Optional[str] = None,
+        reference_text: Optional[str] = None,
         validate: bool = True,
     ) -> dict[str, Any]:
         if not audio_bytes:
@@ -1946,7 +1946,7 @@ class ExampleState:
                     info = dict(vm.get_cloned_voice(str(voice_id)) or {})
                 except Exception:
                     info = {}
-                validation: dict[str, Any] | None = None
+                validation: Optional[dict[str, Any]] = None
                 if bool(validate):
                     try:
                         validation = self._preload_voice(vm, str(voice_id))
@@ -1975,7 +1975,7 @@ class ExampleState:
                 pass
 
 
-def normalize_audio_format(value: str | None) -> str:
+def normalize_audio_format(value: Optional[str]) -> str:
     fmt = str(value or "wav").strip().lower().lstrip(".") or "wav"
     if fmt == "wave":
         fmt = "wav"
@@ -1985,14 +1985,14 @@ def normalize_audio_format(value: str | None) -> str:
     return fmt
 
 
-def normalize_voice_id(value: str | None) -> str | None:
+def normalize_voice_id(value: Optional[str]) -> Optional[str]:
     voice = str(value or "").strip()
     if not voice or voice.lower() in {"base", "default", "piper", "tts"}:
         return None
     return voice
 
 
-def normalize_voice_role(value: str | None) -> str | None:
+def normalize_voice_role(value: Optional[str]) -> Optional[str]:
     role = str(value or "").strip().lower()
     if not role:
         return None
@@ -2005,7 +2005,7 @@ def describe_exception(exc: Exception) -> str:
     """Return the visible error plus useful chained causes."""
     parts: list[str] = []
     seen: set[int] = set()
-    cur: BaseException | None = exc
+    cur: Optional[BaseException] = exc
     while cur is not None and id(cur) not in seen:
         seen.add(id(cur))
         text = str(cur).strip()
@@ -2042,7 +2042,7 @@ def optional_dependency_status() -> dict[str, dict[str, Any]]:
     return out
 
 
-def normalize_chat_messages(messages: Any, *, system_prompt: str | None = None) -> list[dict[str, str]]:
+def normalize_chat_messages(messages: Any, *, system_prompt: Optional[str] = None) -> list[dict[str, str]]:
     """Validate the tiny browser-chat payload before proxying to the LLM."""
     out: list[dict[str, str]] = []
     prompt = str(system_prompt or "").strip()
@@ -2074,7 +2074,7 @@ def normalize_chat_messages(messages: Any, *, system_prompt: str | None = None) 
     return out
 
 
-def clamp_float(value: float | None, *, default: float, minimum: float, maximum: float) -> float:
+def clamp_float(value: Optional[float], *, default: float, minimum: float, maximum: float) -> float:
     try:
         x = float(default if value is None else value)
     except Exception:
@@ -2082,7 +2082,7 @@ def clamp_float(value: float | None, *, default: float, minimum: float, maximum:
     return max(float(minimum), min(float(maximum), x))
 
 
-def clamp_int(value: int | None, *, default: int, minimum: int, maximum: int) -> int:
+def clamp_int(value: Optional[int], *, default: int, minimum: int, maximum: int) -> int:
     try:
         x = int(default if value is None else value)
     except Exception:
@@ -2131,7 +2131,7 @@ def create_app(
     whisper_model: str = "base",
     allow_downloads: bool = False,
     debug_mode: bool = False,
-    voice_manager_factory: Callable[[ExampleState], Any] | None = None,
+    voice_manager_factory: Optional[Callable[[ExampleState], Any]] = None,
 ):
     FastAPI, File, Form, HTTPException, Query, UploadFile, HTMLResponse, Response, BaseModel, Field = _load_fastapi()
     state = ExampleState(
@@ -2152,34 +2152,34 @@ def create_app(
             state.cleanup()
 
     class SpeechRequest(BaseModel):
-        input: str | None = Field(None, description="Text to synthesize.", examples=["Hello from AbstractVoice."])
-        text: str | None = Field(None, description="Alias for input.")
-        voice: str | None = Field(None, description="Optional cloned voice id/name. Omit for base TTS.")
-        format: str | None = Field(None, description="Audio output format alias.", examples=["wav"])
-        response_format: str | None = Field("wav", description="Audio output format.", examples=["wav"])
-        language: str | None = Field(None, description="Language code to use for this request.", examples=["en"])
-        role: str | None = Field(None, description="Browser example role default: assistant or user.", examples=["assistant"])
-        speed: float | None = Field(None, description="Temporary TTS speed for this request, 0.5 to 2.0.", examples=[1.0])
+        input: Optional[str] = Field(None, description="Text to synthesize.", examples=["Hello from AbstractVoice."])
+        text: Optional[str] = Field(None, description="Alias for input.")
+        voice: Optional[str] = Field(None, description="Optional cloned voice id/name. Omit for base TTS.")
+        format: Optional[str] = Field(None, description="Audio output format alias.", examples=["wav"])
+        response_format: Optional[str] = Field("wav", description="Audio output format.", examples=["wav"])
+        language: Optional[str] = Field(None, description="Language code to use for this request.", examples=["en"])
+        role: Optional[str] = Field(None, description="Browser example role default: assistant or user.", examples=["assistant"])
+        speed: Optional[float] = Field(None, description="Temporary TTS speed for this request, 0.5 to 2.0.", examples=[1.0])
         sanitize_syntax: bool = Field(True, description="Sanitize Markdown/code-like syntax before speech.")
 
     class VoiceSelectRequest(BaseModel):
         kind: str = Field("base", description="base, clone, or profile.", examples=["clone"])
-        voice: str | None = Field(None, description="Cloned voice id/name, or profile alias.", examples=["my_voice"])
-        profile: str | None = Field(None, description="Base TTS profile id.", examples=["female_01"])
-        role: str | None = Field(None, description="Browser example role default: assistant or user.", examples=["assistant"])
+        voice: Optional[str] = Field(None, description="Cloned voice id/name, or profile alias.", examples=["my_voice"])
+        profile: Optional[str] = Field(None, description="Base TTS profile id.", examples=["female_01"])
+        role: Optional[str] = Field(None, description="Browser example role default: assistant or user.", examples=["assistant"])
         preload: bool = Field(False, description="Warm the cloned voice before committing the selection.")
 
     class ChatRequest(BaseModel):
-        provider: str | None = Field(None, description="Provider preset or base URL.", examples=["ollama"])
-        model: str | None = Field(None, description="OpenAI-compatible model id.", examples=["gemma3:1b"])
-        system_prompt: str | None = Field(None, description="Optional system prompt prepended by the server.")
-        messages: list[dict[str, Any]] | None = Field(
+        provider: Optional[str] = Field(None, description="Provider preset or base URL.", examples=["ollama"])
+        model: Optional[str] = Field(None, description="OpenAI-compatible model id.", examples=["gemma3:1b"])
+        system_prompt: Optional[str] = Field(None, description="Optional system prompt prepended by the server.")
+        messages: Optional[list[dict[str, Any]]] = Field(
             None,
             description="Short chat history owned by the browser.",
             examples=[[{"role": "user", "content": "Say hi in one sentence."}]],
         )
-        temperature: float | None = Field(0.4, description="Sampling temperature clamped to 0.0-2.0.")
-        max_tokens: int | None = Field(1024, description="Maximum output tokens clamped to 1-32768.")
+        temperature: Optional[float] = Field(0.4, description="Sampling temperature clamped to 0.0-2.0.")
+        max_tokens: Optional[int] = Field(1024, description="Maximum output tokens clamped to 1-32768.")
 
     app = FastAPI(
         title="AbstractVoice Local Example",
@@ -2228,7 +2228,7 @@ def create_app(
             headers={"Content-Disposition": f'inline; filename="abstractvoice.{fmt}"'},
         )
 
-    async def transcription_response(file: UploadFile, language: str | None):
+    async def transcription_response(file: UploadFile, language: Optional[str]):
         try:
             audio_bytes = await file.read()
             text = state.transcribe_bytes(
@@ -2269,13 +2269,13 @@ def create_app(
     )
     async def clone_voice(
         file: UploadFile = File(..., description="Reference audio file. Browser microphone recordings are sent as WAV."),
-        name: str | None = Form(None, description="Friendly cloned voice name.", examples=["my_voice"]),
-        engine: str | None = Form(
+        name: Optional[str] = Form(None, description="Friendly cloned voice name.", examples=["my_voice"]),
+        engine: Optional[str] = Form(
             None,
             description="Optional clone engine id, for example f5_tts, omnivoice, audiodit, or chroma.",
             examples=["omnivoice"],
         ),
-        reference_text: str | None = Form(
+        reference_text: Optional[str] = Form(
             None,
             description="Transcript of the reference audio when the selected engine can use it.",
         ),
@@ -2299,7 +2299,7 @@ def create_app(
             http_error(e)
 
     @app.get("/api/llm/models", summary="List models from an OpenAI-compatible provider")
-    async def llm_models(provider: str | None = Query(None, description="Provider preset or base URL.", examples=["ollama"])):
+    async def llm_models(provider: Optional[str] = Query(None, description="Provider preset or base URL.", examples=["ollama"])):
         llm = resolve_provider(provider or DEFAULT_PROVIDER)
         return {
             "ok": True,
@@ -2360,21 +2360,21 @@ def create_app(
     @app.post("/api/stt/transcriptions", summary="Transcribe uploaded audio")
     async def local_transcriptions(
         file: UploadFile = File(..., description="Audio file to transcribe."),
-        language: str | None = Form(None, description="Optional language code.", examples=["en"]),
+        language: Optional[str] = Form(None, description="Optional language code.", examples=["en"]),
     ):
         return await transcription_response(file, language)
 
     @app.post("/api/stt/transcribe", summary="Compatibility alias for local transcription")
     async def local_transcribe_compat(
         file: UploadFile = File(..., description="Audio file to transcribe."),
-        language: str | None = Form(None, description="Optional language code.", examples=["en"]),
+        language: Optional[str] = Form(None, description="Optional language code.", examples=["en"]),
     ):
         return await transcription_response(file, language)
 
     @app.post("/v1/audio/transcriptions", summary="OpenAI-compatible local transcription alias")
     async def openai_transcriptions(
         file: UploadFile = File(..., description="Audio file to transcribe."),
-        language: str | None = Form(None, description="Optional language code.", examples=["en"]),
+        language: Optional[str] = Form(None, description="Optional language code.", examples=["en"]),
     ):
         return await transcription_response(file, language)
 
@@ -2407,7 +2407,7 @@ def run_server(
     uvicorn.run(app, host=host, port=int(port), log_level="debug" if debug_mode else "info")
 
 
-def parse_args(argv: list[str] | None = None):
+def parse_args(argv: Optional[list[str]] = None):
     parser = argparse.ArgumentParser(description="AbstractVoice local FastAPI web example")
     parser.add_argument("--host", default="127.0.0.1", help="Host to listen on")
     parser.add_argument("--port", type=int, default=5000, help="Port to listen on")
@@ -2420,7 +2420,7 @@ def parse_args(argv: list[str] | None = None):
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> None:
+def main(argv: Optional[list[str]] = None) -> None:
     args = parse_args(argv)
     try:
         run_server(

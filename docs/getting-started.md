@@ -9,7 +9,7 @@ troubleshooting.
 
 ## Requirements
 
-- Python `>=3.10` (see `pyproject.toml`)
+- Python `>=3.9` (see `pyproject.toml`)
 - For microphone input: OS-level microphone permissions for your terminal/IDE
 
 ## Install
@@ -18,8 +18,8 @@ troubleshooting.
 pip install abstractvoice
 ```
 
-Optional extras are documented in `docs/installation.md` (cloning, Chroma, AEC,
-audio-fx, and legacy STT).
+Optional extras are documented in `docs/installation.md` (OpenF5/AudioDiT
+cloning, Chroma, AEC, audio-fx, and legacy STT).
 
 ## 60-second smoke test (no mic required)
 

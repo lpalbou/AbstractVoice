@@ -368,12 +368,20 @@ class AudioDiTRuntime:
                         "ignore",
                         message=r"^You are sending unauthenticated requests to the HF Hub\\..*",
                     )
-                    model = AudioDiTModel.from_pretrained(
-                        self.model_id,
-                        revision=self.revision,
-                        local_files_only=local_only,
-                        torch_dtype=dt,
-                    )
+                    try:
+                        model = AudioDiTModel.from_pretrained(
+                            self.model_id,
+                            revision=self.revision,
+                            local_files_only=local_only,
+                            torch_dtype=dt,
+                        )
+                    except ValueError as e:
+                        if "Incompatible safetensors file" not in str(e):
+                            raise
+                        model = self._load_model_from_plain_safetensors(
+                            AudioDiTModel,
+                            local_files_only=local_only,
+                        )
             except Exception as e:
                 if local_only:
                     raise RuntimeError(
@@ -435,6 +443,42 @@ class AudioDiTRuntime:
 
         self._model = model
         self._tokenizer = tokenizer
+
+    def _load_model_from_plain_safetensors(self, model_cls, *, local_files_only: bool):
+        """Load LongCat weights when Transformers rejects safetensors metadata.
+
+        LongCat-AudioDiT's `model.safetensors` currently has no `format`
+        metadata. Transformers 4.57.x (the Python 3.9-compatible line) rejects
+        that file before loading weights, while newer Transformers accepts it.
+        """
+        try:
+            from huggingface_hub import hf_hub_download
+            from safetensors.torch import load_file
+
+            from .configuration_audiodit import AudioDiTConfig
+        except Exception as e:
+            raise RuntimeError("AudioDiT safetensors fallback requires huggingface_hub and safetensors") from e
+
+        config = AudioDiTConfig.from_pretrained(
+            self.model_id,
+            revision=self.revision,
+            local_files_only=bool(local_files_only),
+        )
+        weights_path = hf_hub_download(
+            repo_id=str(self.model_id),
+            filename="model.safetensors",
+            revision=self.revision,
+            local_files_only=bool(local_files_only),
+        )
+        model = model_cls(config)
+        state_dict = load_file(str(weights_path), device="cpu")
+        missing, unexpected = model.load_state_dict(state_dict, strict=False)
+        if getattr(self, "debug", False) and (missing or unexpected):
+            print(
+                "AudioDiT safetensors fallback loaded with "
+                f"{len(missing)} missing and {len(unexpected)} unexpected keys."
+            )
+        return model
 
     def _frames_from_seconds(self, seconds: float, *, sr: int, hop: int) -> int:
         seconds = max(0.0, float(seconds))
@@ -817,4 +861,3 @@ def prefetch_audiodit(*, model_id: str = AudioDiTRuntime.DEFAULT_MODEL_ID, allow
         pass
 
     return str(path)
-

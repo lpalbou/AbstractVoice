@@ -4,6 +4,8 @@ These abstract base classes define the contract that all TTS and STT adapters
 must implement, ensuring consistent API across different backends.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, Union, Iterable, Tuple
 import numpy as np
