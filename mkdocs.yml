@@ -1,6 +1,6 @@
 site_name: AbstractVoice
 site_description: Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.
-site_url: https://lpalbou.github.io/abstractvoice/
+site_url: https://www.lpalbou.info/AbstractVoice/
 repo_url: https://github.com/lpalbou/abstractvoice
 repo_name: lpalbou/abstractvoice
 

@@ -253,7 +253,7 @@ audio-only = [
 
 [project.urls]
 Repository = "https://github.com/lpalbou/abstractvoice"
-Documentation = "https://lpalbou.github.io/abstractvoice/"
+Documentation = "https://www.lpalbou.info/AbstractVoice/"
 
 [project.scripts]
 abstractvoice = "abstractvoice.examples.voice_cli:main"

@@ -30,7 +30,7 @@ documented in `docs/api.md`, and current engine caveats are tracked in
 `docs/known-issues.md`.
 
 Next: `docs/getting-started.md` (recommended setup + first smoke tests).
-Published documentation: <https://lpalbou.github.io/abstractvoice/>.
+Published documentation: <https://www.lpalbou.info/AbstractVoice/>.
 
 ## Positioning: Library First, Server Through AbstractCore
 
@@ -254,7 +254,7 @@ At a glance:
 
 ## Documentation
 
-- **Published site**: <https://lpalbou.github.io/abstractvoice/>
+- **Published site**: <https://www.lpalbou.info/AbstractVoice/>
 - **Getting started**: `docs/getting-started.md`
 - **Public API**: `docs/api.md`
 - **Architecture**: `docs/architecture.md`
