@@ -121,8 +121,8 @@ def parse_args():
     parser.add_argument(
         "--cloning-engine",
         default="f5_tts",
-        choices=["f5_tts", "chroma", "audiodit", "omnivoice"],
-        help="Default cloning backend for new voices (f5_tts|chroma|audiodit|omnivoice).",
+        choices=["f5_tts", "chroma", "audiodit", "omnivoice", "openai", "openai-compatible"],
+        help="Default cloning backend for new voices (f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible).",
     )
     parser.add_argument(
         "--voice-mode",
@@ -148,6 +148,12 @@ def parse_args():
     )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
+    parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|piper|openai|openai-compatible|audiodit|omnivoice)")
+    parser.add_argument("--stt-engine", default="auto", help="Initial STT engine (auto|faster_whisper|openai|openai-compatible)")
+    parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
+    parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
+    parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
+    parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")
     return parser.parse_args()
 
 def main():
@@ -188,6 +194,12 @@ def main():
                 verbose_mode=args.verbose,
                 language=args.language,
                 tts_model=args.tts_model,
+                tts_engine=args.tts_engine,
+                stt_engine=args.stt_engine,
+                stt_model=args.stt_model,
+                remote_base_url=args.remote_base_url,
+                remote_api_key=args.remote_api_key,
+                remote_timeout_s=args.remote_timeout,
                 voice_mode=args.voice_mode,
                 disable_tts=args.no_tts,
                 cloning_engine=args.cloning_engine,
@@ -213,6 +225,14 @@ def main():
                 run_server(
                     language=args.language,
                     whisper_model=args.whisper,
+                    tts_engine=args.tts_engine,
+                    stt_engine=args.stt_engine,
+                    tts_model=args.tts_model,
+                    stt_model=args.stt_model,
+                    cloning_engine=args.cloning_engine,
+                    remote_base_url=args.remote_base_url,
+                    remote_api_key=args.remote_api_key,
+                    remote_timeout_s=args.remote_timeout,
                     debug_mode=args.debug,
                 )
             except RuntimeError as e:
@@ -249,6 +269,12 @@ def main():
             verbose_mode=args.verbose,
             language=args.language,
             tts_model=args.tts_model,
+            tts_engine=args.tts_engine,
+            stt_engine=args.stt_engine,
+            stt_model=args.stt_model,
+            remote_base_url=args.remote_base_url,
+            remote_api_key=args.remote_api_key,
+            remote_timeout_s=args.remote_timeout,
             voice_mode=args.voice_mode,
             disable_tts=args.no_tts,
             cloning_engine=args.cloning_engine,

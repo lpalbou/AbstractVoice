@@ -1,5 +1,5 @@
 # AbstractVoice (full)
-> Modular Python voice I/O for AI apps (Piper TTS + faster‑whisper STT by default), with optional heavy TTS/cloning engines (AudioDiT / OmniVoice) and voice cloning backends (F5‑TTS / Chroma).
+> Modular Python voice I/O for AI apps (Piper TTS + faster‑whisper STT by default), with optional remote OpenAI/OpenAI-compatible audio engines and heavy local TTS/cloning engines (AudioDiT / OmniVoice / F5‑TTS / Chroma).
 
 This is an expanded, agent-oriented repo index. For the short version, see `llms.txt`.
 
@@ -8,7 +8,7 @@ Sources of truth:
 - Supported integrator contract: `docs/api.md`
 - Internal map + diagrams: `docs/architecture.md`
 
-Requires Python `>=3.10` (see `pyproject.toml`).
+Requires Python `>=3.9` (see `pyproject.toml`).
 
 Offline-first rule: the REPL runs with `allow_downloads=False`, so downloads should be explicit (prefetch/download commands + clear errors).
 
@@ -19,7 +19,8 @@ Positioning:
 - In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** via the capability plugin entry point (`abstractvoice/integrations/abstractcore_plugin.py`).
 - The REPL (`abstractvoice/examples/cli_repl.py`) and local FastAPI web UI (`abstractvoice/examples/web_ui.py`) are **examples/smoke-test harnesses**. They share a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for local providers such as Ollama/LM Studio.
 - REPL voice selection is centered on `/voices`; `/profile`, `/tts_voice`, and `/setvoice` remain compatibility/direct commands.
-- The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, and local `/api/*` routes; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
+- Remote voice engines are explicit opt-in: `tts_engine="openai"|"openai-compatible"` and `stt_engine="openai"|"openai-compatible"`. `openai` defaults to `https://api.openai.com/v1`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
+- The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, local `/api/*` routes, and compatible extension routes `/v1/audio/voices` + `/v1/voice/clone`; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
 - Web install bundles are explicit: `abstractvoice[web]` is lightweight, while `abstractvoice[web-omnivoice]` and `abstractvoice[web-full]` include optional heavy local engines for the browser UI.
 
 Quick commands:
@@ -33,6 +34,12 @@ python -m abstractvoice cli --verbose
 
 # Local browser smoke test (requires abstractvoice[web])
 abstractvoice web --port 5000
+
+# Remote OpenAI audio from the REPL
+OPENAI_API_KEY=... abstractvoice --tts-engine openai --stt-engine openai
+
+# Remote OpenAI-compatible audio from the web example
+abstractvoice web --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
 
 # Explicit prefetch (offline-first friendly)
 abstractvoice-prefetch --piper en
@@ -68,6 +75,9 @@ Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[omnivoice]`: OmniVoice omnilingual TTS + cloning backend (very heavy; artifacts still prefetched explicitly)
 - `abstractvoice[aec]`: optional acoustic echo cancellation (true barge-in)
 - `abstractvoice[audio-fx]`: speed change without pitch change (librosa)
+- `abstractvoice[openai]`: no-op intent extra for remote OpenAI/OpenAI-compatible audio (uses core requests)
+- `abstractvoice[openai-compatible]`: no-op intent extra for remote compatible audio
+- `abstractvoice[remote]`: no-op intent extra for remote compatible audio
 - `abstractvoice[stt]`: current faster-whisper STT path (also included in core installs)
 - `abstractvoice[legacy-stt]`: legacy openai-whisper + tiktoken fallback path
 - `abstractvoice[web]`: local FastAPI web example; production HTTP audio endpoints live in AbstractCore Server
@@ -91,7 +101,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [AbstractCore tool helpers](abstractvoice/integrations/abstractcore.py): `make_voice_tools(...)` (manual wiring)
 - [Artifact store adapter](abstractvoice/artifacts.py): AbstractRuntime-like ArtifactStore adapter (duck-typed)
 - [Entry points + scripts](pyproject.toml): `abstractvoice`, `abstractvoice-prefetch`, plugin registration
-- [CI workflow](.github/workflows/ci.yml): Python 3.10-3.12 tests + build check
+- [CI workflow](.github/workflows/ci.yml): Python 3.9-3.12 tests + build check
 - [Release workflow](.github/workflows/release.yml): tag/manual release to PyPI + GitHub Release
 - [Known issues](docs/known-issues.md): current bug tracker mirror for release-facing caveats
 
@@ -113,6 +123,9 @@ Optional dependency groups (see `pyproject.toml`):
 - [Voice-mode callbacks](abstractvoice/vm/core.py): behavior while speaking
 - [TTS methods + cloning orchestration](abstractvoice/vm/tts_mixin.py)
 - [Voice profiles abstraction](abstractvoice/voice_profiles.py): cross-engine `VoiceProfile` ids + metadata
+- [Remote audio HTTP helpers](abstractvoice/adapters/openai_compatible_http.py): lightweight requests-based OpenAI-compatible audio client
+- [Remote TTS adapter](abstractvoice/adapters/tts_openai_compatible.py): `/audio/speech` + remote profile discovery
+- [Remote STT adapter](abstractvoice/adapters/stt_openai_compatible.py): `/audio/transcriptions`
 - [TTS delivery mode](abstractvoice/tts/delivery_mode.py): normalize `"buffered"` vs `"streamed"`
 - [Text chunking](abstractvoice/tts/text_chunking.py): `split_text_batches(...)` + `TextStreamChunker`
 - [Text→audio streaming bridge](abstractvoice/tts/text_to_speech_stream.py): `TextToSpeechStream` (LLM streaming → TTS)
@@ -130,6 +143,8 @@ Optional dependency groups (see `pyproject.toml`):
 - [OmniVoice runtime wrapper (optional)](abstractvoice/omnivoice/runtime.py)
 - [OmniVoice cloning engine (optional)](abstractvoice/cloning/engine_omnivoice.py)
 - [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py)
+- [Remote OpenAI-compatible TTS adapter](abstractvoice/adapters/tts_openai_compatible.py)
+- [Remote OpenAI-compatible STT adapter](abstractvoice/adapters/stt_openai_compatible.py)
 - [TTS engine wrapper](abstractvoice/tts/adapter_tts_engine.py): wraps adapters + uses `NonBlockingAudioPlayer`
 - [Audio playback](abstractvoice/tts/tts_engine.py): pause/resume/stop + optional audio-fx
 - [Mic capture + VAD + stop phrase](abstractvoice/recognition.py)
@@ -153,6 +168,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Chroma engine](abstractvoice/cloning/engine_chroma.py)
 - [AudioDiT engine](abstractvoice/cloning/engine_audiodit.py)
 - [OmniVoice engine](abstractvoice/cloning/engine_omnivoice.py)
+- [Remote cloning bridge](abstractvoice/cloning/engine_remote.py): compatible `/voice/clone` + stored remote voice ids
 
 ## Tests
 - [tests/](tests/): CI-safe run is `python -m pytest -q -m "not integration and not model_download"`

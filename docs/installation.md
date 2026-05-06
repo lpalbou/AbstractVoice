@@ -31,6 +31,7 @@ pip install "abstractvoice[cloning]"   # OpenF5-based cloning (heavy; Python 3.1
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
 pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transformers)
 pip install "abstractvoice[omnivoice]" # OmniVoice (very heavy; torch/transformers)
+pip install "abstractvoice[openai]"    # Remote OpenAI/OpenAI-compatible audio adapters (no extra deps)
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
 pip install "abstractvoice[audio-fx]"  # Speed change without pitch change (librosa)
 pip install "abstractvoice[web]"       # Local FastAPI browser example (base TTS/STT UI)
@@ -46,6 +47,43 @@ server, but not every GPU-heavy engine shown in the UI. Use
 `abstractvoice[web-audiodit]`, `abstractvoice[web-chroma]`, or
 `abstractvoice[web-full]` when you want the web UI and those optional engines in
 one install command.
+
+Remote OpenAI-compatible audio:
+
+```bash
+# OpenAI hosted audio
+export OPENAI_API_KEY=...
+python - <<'PY'
+from abstractvoice import VoiceManager
+vm = VoiceManager(tts_engine="openai", stt_engine="openai")
+vm.set_profile("nova")  # OpenAI voice id
+wav = vm.speak_to_bytes("Hello from remote TTS.", format="wav")
+PY
+
+# Any OpenAI-compatible /v1 server, including AbstractCore Server
+export ABSTRACTVOICE_REMOTE_BASE_URL=http://localhost:8000/v1
+python - <<'PY'
+from abstractvoice import VoiceManager
+vm = VoiceManager(tts_engine="openai-compatible", stt_engine="openai-compatible")
+print([p.profile_id for p in vm.get_profiles()])
+wav = vm.speak_to_bytes("Hello through a compatible endpoint.", format="wav")
+PY
+```
+
+Remote cloning is provider-specific. For compatible services, configure
+`ABSTRACTVOICE_REMOTE_BASE_URL` and use `cloning_engine="openai-compatible"`;
+the default custom clone route is `POST /voice/clone` and should return
+`{"voice_id": "..."}` or `{"id": "..."}`.
+For `cloning_engine="openai"`, OpenAI custom voice creation is org-gated and
+requires explicit consent configuration such as
+`ABSTRACTVOICE_OPENAI_VOICE_CONSENT_ID`.
+
+Remote profile/voice listing is part of the AbstractVoice-compatible extension
+contract. Compatible servers can expose `GET /v1/audio/voices`; the adapter
+calls it as `GET /audio/voices` relative to `remote_base_url`, parses
+`profiles`, `voices`, `cloned_voices`, or OpenAI-style `data`, and exposes the
+ids through `VoiceManager.get_profiles()`. Static ids can be configured with
+`ABSTRACTVOICE_REMOTE_TTS_VOICES`.
 
 Python-version notes:
 

@@ -37,6 +37,11 @@ LOCAL_ROUTES = [
         "maps_to": "VoiceManager.get_profiles(), list_available_models(), list_cloned_voices()",
     },
     {
+        "method": "GET",
+        "path": "/v1/audio/voices",
+        "maps_to": "OpenAI-compatible extension -> VoiceManager.get_profiles() + list_cloned_voices()",
+    },
+    {
         "method": "POST",
         "path": "/api/voices/select",
         "maps_to": "VoiceManager.set_profile() or local base/cloned voice selection; optional role=assistant|user",
@@ -45,6 +50,11 @@ LOCAL_ROUTES = [
         "method": "POST",
         "path": "/api/voices/clone",
         "maps_to": "Example-only cloned-voice creation from uploaded browser audio; stores via VoiceManager.clone_voice() and validates with a short synthesis by default",
+    },
+    {
+        "method": "POST",
+        "path": "/v1/voice/clone",
+        "maps_to": "OpenAI-compatible extension -> VoiceManager.clone_voice(); returns a voice_id for later /v1/audio/speech voice use",
     },
     {
         "method": "POST",
@@ -557,11 +567,13 @@ PAGE = r"""
                 <option value="chroma">Chroma</option>
                 <option value="audiodit">AudioDiT</option>
                 <option value="omnivoice">OmniVoice</option>
+                <option value="openai-compatible">OpenAI-compatible Remote</option>
+                <option value="openai">OpenAI Remote</option>
               </select>
             </label>
           </div>
           <label>Reference Audio
-            <input id="clone-file" type="file" accept=".wav,.flac,.ogg,audio/wav,audio/flac,audio/ogg">
+            <input id="clone-file" type="file" accept=".wav,.flac,.ogg,.mp3,.m4a,.webm,.aac,audio/*">
           </label>
           <label>Reference Text
             <textarea id="clone-reference-text" class="compact"></textarea>
@@ -1566,14 +1578,30 @@ class ExampleState:
         tts_engine: str,
         stt_engine: str,
         whisper_model: str,
-        allow_downloads: bool,
-        debug_mode: bool,
+        tts_model: Optional[str] = None,
+        stt_model: Optional[str] = None,
+        cloning_engine: str = "f5_tts",
+        remote_base_url: Optional[str] = None,
+        remote_api_key: Optional[str] = None,
+        remote_timeout_s: Optional[float] = None,
+        allow_downloads: bool = False,
+        debug_mode: bool = False,
         voice_manager_factory: Optional[Callable[["ExampleState"], Any]] = None,
     ) -> None:
         self.language = str(language or "en").strip().lower() or "en"
-        self.tts_engine = str(tts_engine or "auto").strip().lower() or "auto"
-        self.stt_engine = str(stt_engine or "auto").strip().lower() or "auto"
+        self.tts_engine = str(tts_engine or "auto").strip().lower().replace("_", "-") or "auto"
+        self.stt_engine = str(stt_engine or "auto").strip().lower().replace("_", "-") or "auto"
         self.whisper_model = str(whisper_model or "base").strip() or "base"
+        self.tts_model = str(tts_model).strip() if isinstance(tts_model, str) and tts_model.strip() else None
+        self.stt_model = str(stt_model).strip() if isinstance(stt_model, str) and stt_model.strip() else None
+        self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower().replace("_", "-") or "f5_tts"
+        self.remote_base_url = (
+            str(remote_base_url).strip() if isinstance(remote_base_url, str) and remote_base_url.strip() else None
+        )
+        self.remote_api_key = (
+            str(remote_api_key).strip() if isinstance(remote_api_key, str) and remote_api_key.strip() else None
+        )
+        self.remote_timeout_s = remote_timeout_s
         self.allow_downloads = bool(allow_downloads)
         self.debug_mode = bool(debug_mode)
         self.current_voice: Optional[str] = None
@@ -1599,8 +1627,14 @@ class ExampleState:
                 debug_mode=self.debug_mode,
                 tts_engine=self.tts_engine,
                 stt_engine=self.stt_engine,
+                tts_model=self.tts_model,
+                stt_model=self.stt_model,
                 allow_downloads=self.allow_downloads,
                 cloned_tts_streaming=False,
+                cloning_engine=self.cloning_engine,
+                remote_base_url=self.remote_base_url,
+                remote_api_key=self.remote_api_key,
+                remote_timeout_s=self.remote_timeout_s,
             )
             return self.voice_manager
 
@@ -1633,6 +1667,12 @@ class ExampleState:
                     "language": self.language,
                     "tts_engine": self.tts_engine,
                     "stt_engine": self.stt_engine,
+                    "tts_model": self.tts_model,
+                    "stt_model": self.stt_model,
+                    "cloning_engine": self.cloning_engine,
+                    "remote_base_url": self.remote_base_url,
+                    "remote_api_key_configured": bool(self.remote_api_key),
+                    "remote_timeout_s": self.remote_timeout_s,
                     "whisper_model": self.whisper_model,
                     "llm_provider": DEFAULT_PROVIDER,
                     "llm_model": DEFAULT_MODEL,
@@ -1675,6 +1715,8 @@ class ExampleState:
             "engine_id": engine_id,
             "label": str(getattr(profile, "label", "") or pid),
             "description": str(getattr(profile, "description", "") or ""),
+            "params": dict(getattr(profile, "params", {}) or {}),
+            "tags": dict(getattr(profile, "tags", {}) or {}),
             "active": bool(active),
         }
 
@@ -1738,6 +1780,36 @@ class ExampleState:
                 "clones_error": clones_error,
                 "base_models": base_models,
             }
+
+    def voice_profile_payload(self) -> dict[str, Any]:
+        voices = self.list_voices()
+        data: list[dict[str, Any]] = []
+        for profile in list(voices.get("profiles") or []):
+            pid = str(profile.get("profile_id") or profile.get("id") or "").strip()
+            if not pid:
+                continue
+            item = dict(profile)
+            item.setdefault("id", pid)
+            item.setdefault("voice", pid)
+            item.setdefault("object", "voice.profile")
+            item.setdefault("kind", "profile")
+            data.append(item)
+        for clone in list(voices.get("cloned_voices") or []):
+            vid = str(clone.get("voice_id") or clone.get("id") or "").strip()
+            if not vid:
+                continue
+            item = dict(clone)
+            item.setdefault("id", vid)
+            item.setdefault("voice_id", vid)
+            item.setdefault("voice", vid)
+            item.setdefault("object", "voice")
+            item.setdefault("kind", "clone")
+            data.append(item)
+
+        out = dict(voices)
+        out["object"] = "list"
+        out["data"] = data
+        return out
 
     def _resolve_cloned_voice_id(self, wanted: str) -> str:
         raw = str(wanted or "").strip()
@@ -1844,11 +1916,23 @@ class ExampleState:
                 self.language = requested_language
 
             selected_voice = requested_voice
+            profile_restore_id: Optional[str] = None
+            profile_changed = False
             if selected_voice is None:
                 if requested_role:
                     selected_voice = self.role_voices.get(requested_role)
                 if selected_voice is None:
                     selected_voice = self.current_voice
+            elif self._matches_tts_profile(vm, selected_voice):
+                try:
+                    active = vm.get_active_profile(kind="tts")
+                    profile_restore_id = str(getattr(active, "profile_id", "") or "").strip() if active else None
+                except Exception:
+                    profile_restore_id = None
+                if not bool(vm.set_profile(str(selected_voice), kind="tts")):
+                    raise ValueError(f"Unknown TTS profile: {selected_voice}")
+                profile_changed = True
+                selected_voice = None
 
             old_speed = None
             speed_changed = False
@@ -1875,11 +1959,37 @@ class ExampleState:
                     metrics = None
                 return bytes(audio), metrics if isinstance(metrics, dict) else None
             finally:
+                if profile_changed and profile_restore_id:
+                    try:
+                        vm.set_profile(str(profile_restore_id), kind="tts")
+                    except Exception:
+                        pass
                 if speed_changed and old_speed is not None:
                     try:
                         vm.set_speed(old_speed)
                     except Exception:
                         pass
+
+    def _matches_tts_profile(self, vm: Any, profile_id: str) -> bool:
+        wanted = str(profile_id or "").strip().lower()
+        if not wanted:
+            return False
+        try:
+            for item in list(vm.list_cloned_voices() or []):
+                vid = str(item.get("voice_id") or "").strip().lower()
+                name = str(item.get("name") or "").strip().lower()
+                if wanted in {vid, name}:
+                    return False
+        except Exception:
+            pass
+        try:
+            for profile in list(vm.get_profiles(kind="tts") or []):
+                pid = str(getattr(profile, "profile_id", "") or "").strip().lower()
+                if pid and pid == wanted:
+                    return True
+        except Exception:
+            return False
+        return False
 
     def transcribe_bytes(self, audio_bytes: bytes, *, filename: str = "audio.wav", language: Optional[str] = None) -> str:
         if not audio_bytes:
@@ -1918,7 +2028,13 @@ class ExampleState:
         if not audio_bytes:
             raise ValueError("Missing reference audio.")
         suffix = Path(filename or "reference.wav").suffix.lower() or ".wav"
-        if suffix not in {".wav", ".flac", ".ogg"}:
+        engine_name = str(engine or self.cloning_engine or "").strip().lower().replace("_", "-")
+        allowed_suffixes = {".wav", ".flac", ".ogg"}
+        if engine_name in {"openai", "openai-compatible", "remote"}:
+            allowed_suffixes |= {".mp3", ".mpeg", ".mpga", ".m4a", ".webm", ".aac"}
+        if suffix not in allowed_suffixes:
+            if engine_name in {"openai", "openai-compatible", "remote"}:
+                raise ValueError("Remote reference audio must be WAV, FLAC, OGG, MP3, M4A, WEBM, or AAC.")
             raise ValueError("Reference audio must be WAV, FLAC, or OGG. Browser microphone recordings are converted to WAV.")
 
         tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
@@ -2129,6 +2245,12 @@ def create_app(
     tts_engine: str = "auto",
     stt_engine: str = "auto",
     whisper_model: str = "base",
+    tts_model: Optional[str] = None,
+    stt_model: Optional[str] = None,
+    cloning_engine: str = "f5_tts",
+    remote_base_url: Optional[str] = None,
+    remote_api_key: Optional[str] = None,
+    remote_timeout_s: Optional[float] = None,
     allow_downloads: bool = False,
     debug_mode: bool = False,
     voice_manager_factory: Optional[Callable[[ExampleState], Any]] = None,
@@ -2139,6 +2261,12 @@ def create_app(
         tts_engine=tts_engine,
         stt_engine=stt_engine,
         whisper_model=whisper_model,
+        tts_model=tts_model,
+        stt_model=stt_model,
+        cloning_engine=cloning_engine,
+        remote_base_url=remote_base_url,
+        remote_api_key=remote_api_key,
+        remote_timeout_s=remote_timeout_s,
         allow_downloads=allow_downloads,
         debug_mode=debug_mode,
         voice_manager_factory=voice_manager_factory,
@@ -2154,7 +2282,7 @@ def create_app(
     class SpeechRequest(BaseModel):
         input: Optional[str] = Field(None, description="Text to synthesize.", examples=["Hello from AbstractVoice."])
         text: Optional[str] = Field(None, description="Alias for input.")
-        voice: Optional[str] = Field(None, description="Optional cloned voice id/name. Omit for base TTS.")
+        voice: Optional[str] = Field(None, description="Optional cloned voice id/name or active-engine profile id. Omit for base TTS.")
         format: Optional[str] = Field(None, description="Audio output format alias.", examples=["wav"])
         response_format: Optional[str] = Field("wav", description="Audio output format.", examples=["wav"])
         language: Optional[str] = Field(None, description="Language code to use for this request.", examples=["en"])
@@ -2259,6 +2387,13 @@ def create_app(
         except Exception as e:
             http_error(e)
 
+    @app.get("/v1/audio/voices", summary="List TTS profiles and cloned voices")
+    async def openai_voice_profiles():
+        try:
+            return state.voice_profile_payload()
+        except Exception as e:
+            http_error(e)
+
     @app.post(
         "/api/voices/clone",
         summary="Clone and validate a browser voice",
@@ -2272,8 +2407,8 @@ def create_app(
         name: Optional[str] = Form(None, description="Friendly cloned voice name.", examples=["my_voice"]),
         engine: Optional[str] = Form(
             None,
-            description="Optional clone engine id, for example f5_tts, omnivoice, audiodit, or chroma.",
-            examples=["omnivoice"],
+            description="Optional clone engine id, for example f5_tts, omnivoice, audiodit, chroma, openai, or openai-compatible.",
+            examples=["openai-compatible"],
         ),
         reference_text: Optional[str] = Form(
             None,
@@ -2295,6 +2430,44 @@ def create_app(
                 reference_text=reference_text,
                 validate=bool(validate_clone),
             )
+        except Exception as e:
+            http_error(e)
+
+    @app.post(
+        "/v1/voice/clone",
+        summary="Create a remote-compatible cloned voice",
+        description=(
+            "AbstractVoice-compatible extension endpoint. It stores a cloned voice "
+            "through VoiceManager.clone_voice() and returns a voice_id for later "
+            "/v1/audio/speech requests."
+        ),
+    )
+    async def openai_compatible_clone_voice(
+        file: UploadFile = File(..., description="Reference audio file."),
+        name: Optional[str] = Form(None, description="Friendly cloned voice name.", examples=["my_voice"]),
+        reference_text: Optional[str] = Form(None, description="Transcript of the reference audio when available."),
+        engine: Optional[str] = Form(None, description="Optional clone engine id."),
+        validate_clone: bool = Form(False, alias="validate", description="When true, validate by synthesizing a short sample."),
+    ):
+        try:
+            audio_bytes = await file.read()
+            out = state.clone_voice_from_upload(
+                audio_bytes,
+                filename=str(file.filename or "reference.wav"),
+                name=name,
+                engine=engine,
+                reference_text=reference_text,
+                validate=bool(validate_clone),
+            )
+            return {
+                "ok": True,
+                "id": out["voice_id"],
+                "voice_id": out["voice_id"],
+                "voice": out.get("voice") or {},
+                "name": out.get("name"),
+                "engine": out.get("engine"),
+                "validation": out.get("validation"),
+            }
         except Exception as e:
             http_error(e)
 
@@ -2389,6 +2562,12 @@ def run_server(
     tts_engine: str = "auto",
     stt_engine: str = "auto",
     whisper_model: str = "base",
+    tts_model: Optional[str] = None,
+    stt_model: Optional[str] = None,
+    cloning_engine: str = "f5_tts",
+    remote_base_url: Optional[str] = None,
+    remote_api_key: Optional[str] = None,
+    remote_timeout_s: Optional[float] = None,
     allow_downloads: bool = False,
     debug_mode: bool = False,
 ) -> None:
@@ -2397,6 +2576,12 @@ def run_server(
         tts_engine=tts_engine,
         stt_engine=stt_engine,
         whisper_model=whisper_model,
+        tts_model=tts_model,
+        stt_model=stt_model,
+        cloning_engine=cloning_engine,
+        remote_base_url=remote_base_url,
+        remote_api_key=remote_api_key,
+        remote_timeout_s=remote_timeout_s,
         allow_downloads=allow_downloads,
         debug_mode=debug_mode,
     )
@@ -2414,6 +2599,17 @@ def parse_args(argv: Optional[list[str]] = None):
     parser.add_argument("--language", "--lang", default="en", help="Default language code")
     parser.add_argument("--tts-engine", default="auto", help="Default TTS engine")
     parser.add_argument("--stt-engine", default="auto", help="Default STT engine")
+    parser.add_argument("--tts-model", default=None, help="Model id for remote TTS engines")
+    parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
+    parser.add_argument(
+        "--cloning-engine",
+        default="f5_tts",
+        choices=["f5_tts", "chroma", "audiodit", "omnivoice", "openai", "openai-compatible"],
+        help="Default cloning backend for new voices",
+    )
+    parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
+    parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
+    parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")
     parser.add_argument("--whisper", default="base", help="Default faster-whisper model")
     parser.add_argument("--allow-downloads", action="store_true", help="Allow model downloads from web requests")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
@@ -2430,6 +2626,12 @@ def main(argv: Optional[list[str]] = None) -> None:
             tts_engine=args.tts_engine,
             stt_engine=args.stt_engine,
             whisper_model=args.whisper,
+            tts_model=args.tts_model,
+            stt_model=args.stt_model,
+            cloning_engine=args.cloning_engine,
+            remote_base_url=args.remote_base_url,
+            remote_api_key=args.remote_api_key,
+            remote_timeout_s=args.remote_timeout,
             allow_downloads=args.allow_downloads,
             debug_mode=args.debug,
         )

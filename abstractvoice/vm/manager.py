@@ -39,9 +39,18 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         cloned_tts_streaming: bool = True,
         cloning_engine: str = "f5_tts",
         tts_delivery_mode: str | None = None,
+        stt_model: str | None = None,
+        remote_base_url: str | None = None,
+        remote_api_key: str | None = None,
+        remote_timeout_s: float | None = None,
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
+        self.tts_model = tts_model
+        self.stt_model = stt_model
+        self.remote_base_url = str(remote_base_url).strip() if remote_base_url else None
+        self.remote_api_key = str(remote_api_key).strip() if remote_api_key else None
+        self.remote_timeout_s = remote_timeout_s
         # Controls whether the library may download model weights implicitly.
         # The REPL sets this to False to enforce "no surprise downloads".
         self.allow_downloads = bool(allow_downloads)
@@ -57,7 +66,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
             self.tts_delivery_mode = normalize_audio_delivery_mode(tts_delivery_mode)
         self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
 
-        requested_engine = str(tts_engine or "auto").strip().lower() or "auto"
+        requested_engine = str(tts_engine or "auto").strip().lower().replace("_", "-") or "auto"
 
         # Language normalization:
         # - For Piper (default/auto), keep the historical catalog validation so
@@ -91,6 +100,10 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
                 allow_downloads=bool(self.allow_downloads),
                 auto_load=True,
                 debug_mode=bool(debug_mode),
+                model_id=tts_model,
+                base_url=self.remote_base_url,
+                api_key=self.remote_api_key,
+                timeout_s=self.remote_timeout_s,
             )
         except ValueError:
             # Preserve caller-facing validation semantics (explicit engine names must be valid).

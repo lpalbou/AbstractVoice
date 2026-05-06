@@ -10,6 +10,19 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-05-06
+
+### Added
+- Remote OpenAI/OpenAI-compatible voice engines for `VoiceManager`: `tts_engine="openai"|"openai-compatible"` and `stt_engine="openai"|"openai-compatible"` call `/audio/speech` and `/audio/transcriptions` directly without importing AbstractCore.
+- Remote-compatible cloning support through `cloning_engine="openai"|"openai-compatible"` with a configurable clone endpoint and stored remote voice ids for later synthesis.
+- Remote/provider voice profiles: OpenAI built-in voices and compatible endpoint voice lists are exposed through `VoiceManager.get_profiles()`, selected with `set_profile(...)`, and sent as the remote speech `voice`.
+- REPL and web UI startup flags for remote engines, remote models, base URL, API key, and timeout.
+- Local web compatible extension routes: `GET /v1/audio/voices` for profile/voice discovery and `POST /v1/voice/clone` for remote clone creation smoke tests.
+
+### Changed
+- The local web `/v1/audio/speech` alias can treat `voice` as either a cloned voice id/name or an active-engine profile id.
+- `tts_engine="openai"` and `stt_engine="openai"` now default to OpenAI's hosted `https://api.openai.com/v1` and read `OPENAI_API_KEY`.
+
 ## [0.8.4] - 2026-05-06
 
 ### Fixed

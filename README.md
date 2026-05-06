@@ -16,6 +16,7 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 
 - **TTS (default)**: Piper (cross-platform, no system deps)
 - **STT (default)**: faster-whisper
+- **Remote audio (optional engine)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
 - **Local assistant**: `listen()` + `speak()` with playback/listening control
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`
@@ -34,7 +35,7 @@ Published documentation: <https://www.lpalbou.info/AbstractVoice/>.
 
 ## Positioning: Library First, Server Through AbstractCore
 
-AbstractVoice has three intended usage modes:
+AbstractVoice has four intended usage modes:
 
 1. **Standalone Python library**: call `VoiceManager` directly from a desktop app,
    local assistant, batch job, or your own backend.
@@ -131,6 +132,7 @@ Optional extras (feature flags):
 ```bash
 pip install "abstractvoice[all]"
 pip install "abstractvoice[web]"   # local FastAPI web example
+pip install "abstractvoice[openai]" # remote OpenAI/OpenAI-compatible audio intent extra (no extra deps)
 ```
 
 Notes:
@@ -212,6 +214,12 @@ See `docs/repl_guide.md`.
 ```bash
 pip install "abstractvoice[web]"
 abstractvoice web --port 5000
+
+# Hosted OpenAI audio in the same web UI
+OPENAI_API_KEY=... abstractvoice web --tts-engine openai --stt-engine openai
+
+# OpenAI-compatible remote audio
+abstractvoice web --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
 ```
 
 Use `pip install "abstractvoice[web-omnivoice]"` for the browser UI plus
@@ -223,8 +231,10 @@ playback, chat clearing, assistant/user voice selectors, browser voice cloning
 from uploaded or recorded reference audio, text-to-WAV, file transcription, and
 a tiny optional LLM dialogue panel for OpenAI-compatible local providers such as
 Ollama or LM Studio. It exposes small local `/api/*` routes plus `/v1/audio/*`
-smoke-test aliases, but the supported production HTTP path remains AbstractCore
-Server.
+smoke-test aliases. The `/v1/audio/voices` and `/v1/voice/clone` extension
+routes let another AbstractVoice client discover profiles/cloned voices and
+request compatible remote cloning. The supported production HTTP path remains
+AbstractCore Server.
 
 The browser clone action validates the new voice by synthesizing a short sample
 before it reports success. If the selected optional engine cannot load, the

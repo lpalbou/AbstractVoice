@@ -6,6 +6,18 @@ from typing import Any, Dict, Iterable, List, Optional
 from .store import VoiceCloneStore
 
 
+_REMOTE_CLONING_ENGINES = {"openai", "openai-compatible", "remote"}
+
+
+def _normalize_cloning_engine(engine: str | None) -> str:
+    name = str(engine or "").strip().lower().replace("_", "-")
+    if name in ("f5-tts", "f5tts", "openf5", "open-f5"):
+        return "f5_tts"
+    if name in ("compatible", "proxy"):
+        return "openai-compatible"
+    return name
+
+
 class VoiceCloner:
     """High-level voice cloning manager (optional).
 
@@ -21,18 +33,28 @@ class VoiceCloner:
         reference_text_whisper_model: str = "small",
         allow_downloads: bool = True,
         default_engine: str = "f5_tts",
+        remote_base_url: str | None = None,
+        remote_api_key: str | None = None,
+        remote_timeout_s: float | None = None,
+        remote_tts_model: str | None = None,
+        remote_session: Any = None,
     ):
         self.store = store or VoiceCloneStore()
         self.debug = debug
         self._whisper_model = whisper_model
         self._reference_text_whisper_model = reference_text_whisper_model
         self._allow_downloads = bool(allow_downloads)
-        self._default_engine = str(default_engine or "f5_tts").strip().lower()
+        self._default_engine = _normalize_cloning_engine(default_engine) or "f5_tts"
+        self._remote_base_url = str(remote_base_url).strip() if remote_base_url else None
+        self._remote_api_key = str(remote_api_key).strip() if remote_api_key else None
+        self._remote_timeout_s = remote_timeout_s
+        self._remote_tts_model = str(remote_tts_model).strip() if remote_tts_model else None
+        self._remote_session = remote_session
         self._engines: Dict[str, Any] = {}
         self._quality_preset = "standard"
 
     def _get_engine(self, engine: str) -> Any:
-        name = str(engine or "").strip().lower()
+        name = _normalize_cloning_engine(engine)
         if not name:
             raise ValueError("engine must be a non-empty string")
         if name in self._engines:
@@ -68,6 +90,19 @@ class VoiceCloner:
                 debug=self.debug,
                 device="auto",
                 allow_downloads=bool(self._allow_downloads),
+            )
+        elif name in _REMOTE_CLONING_ENGINES:
+            from .engine_remote import RemoteVoiceCloningEngine
+
+            provider = "openai" if name == "openai" else "openai-compatible"
+            inst = RemoteVoiceCloningEngine(
+                provider=provider,
+                base_url=self._remote_base_url,
+                api_key=self._remote_api_key,
+                timeout_s=self._remote_timeout_s,
+                tts_model=self._remote_tts_model,
+                session=self._remote_session,
+                debug=self.debug,
             )
         else:
             raise ValueError(f"Unknown cloning engine: {name}")
@@ -107,7 +142,7 @@ class VoiceCloner:
         This does NOT delete any cloned voices on disk; it only releases runtime
         model weights/processors kept in memory.
         """
-        name = str(engine or "").strip().lower()
+        name = _normalize_cloning_engine(engine)
         if not name:
             return False
         inst = self._engines.pop(name, None)
@@ -168,9 +203,11 @@ class VoiceCloner:
 
         supported = {".wav", ".flac", ".ogg"}
 
-        engine_name = str(engine or self._default_engine).strip().lower()
-        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice"):
-            raise ValueError("engine must be one of: f5_tts|chroma|audiodit|omnivoice")
+        engine_name = _normalize_cloning_engine(engine or self._default_engine)
+        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", *_REMOTE_CLONING_ENGINES):
+            raise ValueError("engine must be one of: f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible")
+        if engine_name in _REMOTE_CLONING_ENGINES:
+            supported = supported | {".mp3", ".mpeg", ".mpga", ".m4a", ".webm", ".aac"}
 
         if p.is_dir():
             refs = sorted([x for x in p.glob("*") if x.suffix.lower() in supported])
@@ -184,10 +221,24 @@ class VoiceCloner:
                 )
             refs = [p]
 
-        if engine_name in ("chroma", "omnivoice") and len(refs) != 1:
+        if engine_name in ("chroma", "omnivoice", *_REMOTE_CLONING_ENGINES) and len(refs) != 1:
             raise ValueError(
                 f"{engine_name} cloning currently supports exactly one reference audio file.\n"
                 "Provide a single WAV/FLAC/OGG file (not a directory with multiple files)."
+            )
+
+        if engine_name in _REMOTE_CLONING_ENGINES:
+            eng = self._get_engine(engine_name)
+            remote_meta = eng.clone_voice(str(refs[0]), name=name, reference_text=reference_text)
+            meta = {"source": str(p)}
+            if isinstance(remote_meta, dict):
+                meta.update(remote_meta)
+            return self.store.create_voice(
+                refs,
+                name=name,
+                reference_text=reference_text,
+                engine=engine_name,
+                meta=meta,
             )
 
         voice_id = self.store.create_voice(
@@ -212,12 +263,24 @@ class VoiceCloner:
         if not wav_bytes:
             raise ValueError("wav_bytes must be non-empty")
 
-        engine_name = str(engine or self._default_engine).strip().lower()
-        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice"):
-            raise ValueError("engine must be one of: f5_tts|chroma|audiodit|omnivoice")
+        engine_name = _normalize_cloning_engine(engine or self._default_engine)
+        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", *_REMOTE_CLONING_ENGINES):
+            raise ValueError("engine must be one of: f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible")
 
         meta_out = dict(meta or {})
         meta_out.setdefault("source", "bytes")
+
+        if engine_name in _REMOTE_CLONING_ENGINES:
+            eng = self._get_engine(engine_name)
+            remote_meta = eng.clone_voice_from_bytes(
+                wav_bytes,
+                filename="reference.wav",
+                content_type="audio/wav",
+                name=name,
+                reference_text=reference_text,
+            )
+            if isinstance(remote_meta, dict):
+                meta_out.update(remote_meta)
 
         voice_id = self.store.create_voice_from_wav_bytes(
             wav_bytes,
@@ -403,6 +466,18 @@ class VoiceCloner:
             raise ValueError("Voice cloning currently supports WAV output only.")
 
         voice = self.store.get_voice(voice_id)
+        engine_name = _normalize_cloning_engine(getattr(voice, "engine", None) or "f5_tts")
+        if engine_name in _REMOTE_CLONING_ENGINES:
+            eng = self._get_engine(engine_name)
+            if hasattr(eng, "speak_to_bytes_for_voice"):
+                return eng.speak_to_bytes_for_voice(
+                    text=text,
+                    voice=self.store.get_voice_dict(voice_id),
+                    format=format,
+                    speed=speed,
+                    language=language,
+                )
+
         # Best-effort: normalize stored references (e.g. MP3-in-WAV) to avoid noisy
         # native decoder stderr output during synthesis.
         try:
@@ -430,6 +505,17 @@ class VoiceCloner:
         language: Optional[str] = None,
     ):
         voice = self.store.get_voice(voice_id)
+        engine_name = _normalize_cloning_engine(getattr(voice, "engine", None) or "f5_tts")
+        if engine_name in _REMOTE_CLONING_ENGINES:
+            eng = self._get_engine(engine_name)
+            if hasattr(eng, "audio_chunks_for_voice"):
+                return eng.audio_chunks_for_voice(
+                    text=text,
+                    voice=self.store.get_voice_dict(voice_id),
+                    speed=speed,
+                    language=language,
+                )
+
         try:
             self.store.normalize_reference_audio(voice_id)
         except Exception:

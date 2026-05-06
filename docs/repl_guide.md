@@ -24,6 +24,13 @@ abstractvoice --voice-mode stop
 python -m abstractvoice cli --voice-mode stop
 ```
 
+Remote audio startup examples:
+
+```bash
+OPENAI_API_KEY=... abstractvoice --tts-engine openai --stt-engine openai
+abstractvoice --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
+```
+
 Useful startup flags:
 
 - `--verbose`: print compact timing and token/audio stats after each turn.
@@ -31,6 +38,10 @@ Useful startup flags:
 - `--voice-mode stop|wait|full|ptt|off`: choose the initial microphone mode.
 - `--provider <preset-or-url>`: choose an OpenAI-compatible LLM provider.
 - `--model <name>`: choose the LLM model.
+- `--tts-engine auto|piper|openai|openai-compatible|audiodit|omnivoice`: choose the initial TTS engine.
+- `--stt-engine auto|faster_whisper|openai|openai-compatible`: choose the initial STT engine.
+- `--tts-model <id>` / `--stt-model <id>`: model ids for remote audio engines.
+- `--remote-base-url <url>` / `--remote-api-key <key>`: OpenAI-compatible remote voice endpoint config. `--tts-engine openai` and `--stt-engine openai` default to OpenAI's hosted API and read `OPENAI_API_KEY`.
 
 The default provider preset is Ollama at `http://localhost:11434`.
 
@@ -168,15 +179,22 @@ REPL commands:
 /voices models
 /tts engine auto
 /tts engine piper
+/tts engine openai-compatible
 /tts engine audiodit
 /tts engine omnivoice
 /stt_engine faster_whisper
+/stt_engine openai-compatible
 /whisper small
 ```
 
 Engine notes:
 
 - `piper`: default TTS path; best first choice for reliable local speech.
+- `openai` / `openai-compatible`: remote TTS/STT endpoints. Configure
+  `OPENAI_API_KEY` for OpenAI or `ABSTRACTVOICE_REMOTE_BASE_URL` for compatible
+  servers. Compatible servers may expose `GET /v1/audio/voices`; `/voices
+  profiles` lists those remote profile/voice ids and `/voices profile <id>`
+  uses the selected id as the remote speech `voice`.
 - `audiodit`: optional heavy engine; direct/base TTS can sound distorted in
   `0.8.1`, while AudioDiT cloning remains the better-validated AudioDiT path.
 - `omnivoice`: optional heavy engine for omnilingual TTS, voice design, and
@@ -205,6 +223,10 @@ apply profiles:
 For OmniVoice, profiles may use either designed voice settings or a persistent
 prompt cache. Prompt-cached profiles are the stronger route for keeping a voice
 identity stable across turns.
+
+For remote engines, profiles are provider voice ids. `openai` exposes the known
+built-in voices such as `alloy` and `nova`; `openai-compatible` can discover
+profiles from `GET /v1/audio/voices` (or from `ABSTRACTVOICE_REMOTE_TTS_VOICES`).
 
 Manual OmniVoice voice design:
 
@@ -360,7 +382,7 @@ TTS:
 
 - `/tts`
 - `/tts on|off`
-- `/tts engine auto|piper|audiodit|omnivoice`
+- `/tts engine auto|piper|openai|openai-compatible|audiodit|omnivoice`
 - `/tts quality low|standard|high`
 - `/tts delivery buffered|streamed`
 - `/tts speed <number>`
@@ -377,7 +399,7 @@ TTS:
 
 Compatibility shortcuts that still work:
 
-- `/tts_engine auto|piper|audiodit|omnivoice`
+- `/tts_engine auto|piper|openai|openai-compatible|audiodit|omnivoice`
 - `/tts_quality low|standard|high`
 - `/tts_delivery buffered|streamed`
 - `/speed <number>`
@@ -393,7 +415,7 @@ Voice input:
 Cloning:
 
 - `/cloning_status`
-- `/cloning_download f5_tts|chroma|audiodit|omnivoice`
+- `/cloning_download f5_tts|chroma|audiodit|omnivoice|openai-compatible`
 - `/clone ...`
 - `/clone_use ...`
 - `/clones`
@@ -402,9 +424,15 @@ Cloning:
 - `/clone_export`, `/clone_import`
 - `/clone_quality low|standard|high`
 
+Remote clone-compatible services can be used with
+`/clone <path> --engine openai-compatible` after setting
+`ABSTRACTVOICE_REMOTE_BASE_URL`; no local artifact download is needed.
+OpenAI custom voice creation can be selected with `--engine openai`, but it is
+org-gated and requires explicit consent configuration.
+
 STT:
 
-- `/stt_engine auto|faster_whisper|whisper`
+- `/stt_engine auto|faster_whisper|openai|openai-compatible|whisper`
 - `/whisper <model>`
 - `/transcribe <path>`
 

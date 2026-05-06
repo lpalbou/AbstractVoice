@@ -39,6 +39,10 @@ VoiceManager(
     cloned_tts_streaming: bool = True,
     cloning_engine: str = "f5_tts",
     tts_delivery_mode: str | None = None,  # buffered|streamed (override)
+    stt_model: str | None = None,
+    remote_base_url: str | None = None,
+    remote_api_key: str | None = None,
+    remote_timeout_s: float | None = None,
 )
 ```
 
@@ -48,16 +52,23 @@ Notes:
 - `tts_engine` supports:
   - `auto` (deterministic default: resolves to `piper`)
   - `piper` (default core TTS)
+  - `openai` (remote OpenAI `/v1/audio/speech`; requires `OPENAI_API_KEY`)
+  - `openai-compatible` (remote compatible `/v1/audio/speech`; configure `remote_base_url` or `ABSTRACTVOICE_REMOTE_BASE_URL`)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
-- `stt_engine` is currently `auto|faster_whisper` for the adapter path. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[legacy-stt]`; see `abstractvoice/vm/stt_mixin.py`).
-- `tts_model` is reserved/back-compat (Piper selection is language-driven today).
+- `stt_engine` supports `auto|faster_whisper|openai|openai-compatible`. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[legacy-stt]`; see `abstractvoice/vm/stt_mixin.py`). Explicit remote STT failures raise actionable errors instead of falling back.
+- `tts_model` is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request `model`.
+- For remote STT, `stt_model` maps to the transcription `model`.
+- Remote configuration can be passed in the constructor or via env vars:
+  - OpenAI: `OPENAI_API_KEY`, optional `ABSTRACTVOICE_OPENAI_TTS_MODEL`, `ABSTRACTVOICE_OPENAI_STT_MODEL`
+  - Compatible endpoints: `ABSTRACTVOICE_REMOTE_BASE_URL`, optional `ABSTRACTVOICE_REMOTE_API_KEY`, `ABSTRACTVOICE_REMOTE_TTS_MODEL`, `ABSTRACTVOICE_REMOTE_STT_MODEL`
+  - OpenAI-compatible profile discovery: `GET /audio/voices` is tried by default for compatible endpoints; override with `ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATH` or `ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATHS`. Static voice/profile ids can also be supplied with `ABSTRACTVOICE_REMOTE_TTS_VOICES`.
 - `tts_delivery_mode` is an optional override that applies consistently to both base TTS and cloned voices:
   - `buffered`: synthesize full audio first (one payload)
   - `streamed`: deliver audio in chunks when available (lower time-to-first-audio)
 
 Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
-For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through hint and the engine decides what it supports.
+For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `language` is treated as a pass-through hint and the engine decides what it supports.
 
 ## TTS (text → audio)
 
@@ -81,6 +92,9 @@ For non-Piper engines (e.g. OmniVoice), `language` is treated as a pass-through 
   - Profiles are **engine-local**: you select `tts_engine` first, then apply a profile id for that engine.
   - Engines without profiles return an empty list / False / None.
   - **Concurrency note**: profile selection mutates engine state. For servers, prefer one `VoiceManager` per session (or guard profile changes with a lock).
+  - **Remote OpenAI note**: built-in/custom provider voices are selected with profiles (for example `vm.set_profile("alloy")` or `vm.set_profile("voice_...")`). `tts_engine="openai"` defaults to `https://api.openai.com/v1` and reads `OPENAI_API_KEY`.
+  - **Remote compatible note**: compatible endpoints may expose `GET /v1/audio/voices` (adapter path: `GET /audio/voices`) returning `profiles`, `voices`, `cloned_voices`, or OpenAI-style `data`. Returned ids are exposed as `VoiceProfile`s and used as the request `voice` for `/audio/speech`.
+  - The `voice=` argument on `speak_to_bytes(...)` remains the cloned-voice handle path for backward compatibility; select base-provider voices with `set_profile(...)`.
   - **OmniVoice notes**:
     - Some profiles may enable **persistent prompt caching** (a tokenized `voice_clone_prompt`). The first `set_profile(...)` can pay a one-time build cost; later synthesis reuses cached tokens for stable voice identity. Prompt-conditioned synthesis can be heavier than pure voice design; use `/tts quality low|standard|high` (or `VoiceManager.set_tts_quality_preset(...)`) to tune the trade-off.
     - On macOS / Apple Silicon, OmniVoice uses **MPS (Metal)** by default when `device="auto"`.
@@ -198,6 +212,19 @@ Requires installing at least one cloning backend extra (and explicit artifact do
 - `abstractvoice[audiodit]` → `audiodit`
 - `abstractvoice[omnivoice]` → `omnivoice`
 
+Remote clone-compatible endpoints can also be used without local cloning model
+weights by selecting `cloning_engine="openai-compatible"` (or
+`engine="openai-compatible"` per call). Configure `remote_base_url` or
+`ABSTRACTVOICE_REMOTE_BASE_URL`; the default clone endpoint is `POST /voice/clone`
+and must return a remote voice id (`voice_id` or `id`). The local clone store
+keeps a handle and routes later `speak_to_bytes(..., voice=<local_id>)` calls to
+remote `/audio/speech` with that remote voice id.
+
+`cloning_engine="openai"` targets OpenAI's hosted API by default. Custom voice
+creation is provider/org gated and requires explicit consent configuration such
+as `ABSTRACTVOICE_OPENAI_VOICE_CONSENT_ID`; otherwise the adapter raises an
+actionable error instead of silently pretending cloning is standardized.
+
 Core cloning calls:
 
 - `clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -> str`
@@ -301,10 +328,15 @@ Audio outputs can optionally be stored into an AbstractRuntime-like `artifact_st
 Plugin configuration (owner `config` dict, best-effort):
 - `voice_language`: default language (e.g. `"en"`)
 - `voice_allow_downloads`: allow on-demand downloads (bool)
-- `voice_tts_engine`: base TTS engine (`"auto"|"piper"|"audiodit"|"omnivoice"`)
-- `voice_stt_engine`: STT engine (currently `"auto"` for faster-whisper)
+- `voice_tts_engine`: base TTS engine (`"auto"|"piper"|"openai"|"openai-compatible"|"audiodit"|"omnivoice"`)
+- `voice_stt_engine`: STT engine (`"auto"|"faster_whisper"|"openai"|"openai-compatible"`)
+- `voice_tts_model`: model id for remote TTS engines
+- `voice_stt_model`: model id for remote STT engines
+- `voice_remote_base_url`: base URL for OpenAI-compatible remote audio endpoints
+- `voice_remote_api_key`: optional bearer key for remote audio endpoints
+- `voice_remote_timeout_s`: request timeout for remote audio endpoints
 - `voice_whisper_model`: faster-whisper model size (e.g. `"base"`, `"small"`)
-- `voice_cloning_engine`: default cloning backend (`"f5_tts"|"chroma"|"audiodit"|"omnivoice"`)
+- `voice_cloning_engine`: default cloning backend (`"f5_tts"|"chroma"|"audiodit"|"omnivoice"|"openai"|"openai-compatible"`)
 - `voice_cloned_tts_streaming`: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when `voice_tts_delivery_mode` is unset.
 - `voice_tts_delivery_mode`: unified audio delivery mode for base + cloned voices (`"buffered"|"streamed"`). Takes precedence over `voice_cloned_tts_streaming`.
 - `voice_tts_streaming`: bool alias for `voice_tts_delivery_mode` (`true` → `"streamed"`, `false` → `"buffered"`).
@@ -352,16 +384,23 @@ falling back.
 The local `abstractvoice web` example exposes these smoke-test routes. They are
 example routes, not a replacement for AbstractCore Server:
 
+```bash
+abstractvoice web --tts-engine openai --stt-engine openai
+abstractvoice web --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
+```
+
 - `GET /api/status` -> lightweight server/config status
 - `GET /api/voices` -> `VoiceManager.get_profiles()`, `list_available_models()`, `list_cloned_voices()`
+- `GET /v1/audio/voices` -> compatible extension for remote profile/voice discovery (`VoiceManager.get_profiles()` + `list_cloned_voices()`)
 - `POST /api/voices/select` -> select base TTS, a cloned voice, or a TTS profile; optional local `role="assistant"|"user"` stores browser-example defaults; optional `preload=true` warms a cloned voice by calling a tiny `VoiceManager.speak_to_bytes(...)`
 - `POST /api/voices/clone` -> example-only multipart upload for browser voice cloning; stores the uploaded/recorded reference with `VoiceManager.clone_voice(...)` and validates by synthesizing a short sample by default (`validate=false` skips validation)
+- `POST /v1/voice/clone` -> compatible extension for remote clone creation; returns `voice_id`/`id` for later `/v1/audio/speech` `voice`
 - `POST /api/tts` -> `VoiceManager.speak_to_bytes(...)`; accepts `input`/`text`, `voice`, `role`, `language`, `speed`, `format`/`response_format`, and `sanitize_syntax`
 - `POST /api/stt/transcriptions` -> `VoiceManager.transcribe_file(...)`
 - `POST /api/stt/transcribe` -> compatibility alias for `/api/stt/transcriptions`
 - `GET /api/llm/models` -> example-only model listing for an OpenAI-compatible local provider such as Ollama
 - `POST /api/chat` -> example-only non-streaming chat completion proxy; the browser owns history and sends the full short message list
-- `POST /v1/audio/speech` and `POST /v1/audio/transcriptions` -> local aliases for quick AbstractCore-compatible smoke tests
+- `POST /v1/audio/speech` and `POST /v1/audio/transcriptions` -> local aliases for quick AbstractCore-compatible smoke tests. In the web example, `voice` may be either a cloned voice id/name or an active-engine profile id.
 
 Local web example payload sketches:
 
@@ -383,6 +422,16 @@ curl -X POST http://127.0.0.1:5000/api/tts \
   -H "Content-Type: application/json" \
   -d '{"input":"Hello.","role":"assistant","response_format":"wav"}' \
   --output hello.wav
+
+# Compatible extension: discover profiles/cloned voices from another
+# AbstractVoice client configured with remote_base_url=http://127.0.0.1:5000/v1.
+curl http://127.0.0.1:5000/v1/audio/voices
+
+# Compatible extension: create a remote cloned voice handle.
+curl -X POST http://127.0.0.1:5000/v1/voice/clone \
+  -F "name=my_remote_voice" \
+  -F "reference_text=Exact transcript of the reference audio." \
+  -F "file=@reference.wav"
 
 # Example dialogue call via a local OpenAI-compatible provider.
 curl -X POST http://127.0.0.1:5000/api/chat \

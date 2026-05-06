@@ -78,6 +78,10 @@ class TtsMixin:
                 reference_text_whisper_model="small",
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
                 default_engine=str(getattr(self, "cloning_engine", "f5_tts") or "f5_tts"),
+                remote_base_url=getattr(self, "remote_base_url", None),
+                remote_api_key=getattr(self, "remote_api_key", None),
+                remote_timeout_s=getattr(self, "remote_timeout_s", None),
+                remote_tts_model=getattr(self, "tts_model", None),
             )
         return self._voice_cloner
 
@@ -1312,6 +1316,10 @@ class TtsMixin:
                     allow_downloads=bool(getattr(self, "allow_downloads", True)),
                     auto_load=False,
                     debug_mode=bool(getattr(self, "debug_mode", False)),
+                    model_id=getattr(self, "tts_model", None),
+                    base_url=getattr(self, "remote_base_url", None),
+                    api_key=getattr(self, "remote_api_key", None),
+                    timeout_s=getattr(self, "remote_timeout_s", None),
                 )
                 if self.tts_adapter is None:
                     return False

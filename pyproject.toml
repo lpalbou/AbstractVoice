@@ -54,6 +54,13 @@ voice = [
     "soundfile>=0.12.1",
 ]
 
+# Remote OpenAI/OpenAI-compatible audio adapters use core `requests`.
+# This no-op extra is provided so installers can declare intent explicitly:
+#   pip install "abstractvoice[openai]"
+openai = []
+openai-compatible = []
+remote = []
+
 # Audio effects (optional; only needed for speed/pitch processing)
 audio-fx = [
     "librosa>=0.10.0",

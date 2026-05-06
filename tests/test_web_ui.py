@@ -75,6 +75,7 @@ def test_web_ui_openapi_documents_request_bodies_and_audio_responses():
     for path in (
         "/api/voices/select",
         "/api/voices/clone",
+        "/v1/voice/clone",
         "/api/tts",
         "/api/stt/transcriptions",
         "/api/stt/transcribe",
@@ -257,8 +258,10 @@ def test_web_ui_all_declared_routes_smoke(monkeypatch):
     assert {r["path"] for r in routes} >= {
         "/api/status",
         "/api/voices",
+        "/v1/audio/voices",
         "/api/voices/select",
         "/api/voices/clone",
+        "/v1/voice/clone",
         "/api/tts",
         "/api/stt/transcriptions",
         "/api/stt/transcribe",
@@ -268,6 +271,7 @@ def test_web_ui_all_declared_routes_smoke(monkeypatch):
         "/v1/audio/transcriptions",
     }
     assert client.get("/api/voices").status_code == 200
+    assert client.get("/v1/audio/voices").status_code == 200
     assert client.get("/api/llm/models?provider=ollama").json()["models"] == ["dummy-model"]
     assert client.post("/api/chat", json={"messages": [{"role": "user", "content": "Hi"}]}).status_code == 200
     assert client.post("/api/voices/select", json={"kind": "base", "role": "assistant"}).status_code == 200
@@ -290,6 +294,80 @@ def test_web_ui_all_declared_routes_smoke(monkeypatch):
         data={"name": "Web Voice", "engine": "f5_tts", "reference_text": "Hello."},
         files={"file": ("reference.wav", b"RIFFdummy", "audio/wav")},
     ).status_code == 200
+    assert client.post(
+        "/v1/voice/clone",
+        data={"name": "Web Voice", "engine": "f5_tts", "reference_text": "Hello."},
+        files={"file": ("reference.wav", b"RIFFdummy", "audio/wav")},
+    ).status_code == 200
+
+
+def test_web_ui_voice_profile_extension_lists_profiles_and_accepts_voice_as_profile():
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from abstractvoice.examples.web_ui import create_app
+
+    class DummyProfile:
+        engine_id = "openai-compatible"
+        profile_id = "narrator"
+        label = "Narrator"
+        description = "Remote-style profile"
+        params = {"voice": "narrator"}
+        tags = {"kind": "profile"}
+
+    class DummyVoiceManager:
+        def __init__(self):
+            self.calls = []
+            self.profile = None
+
+        def get_language(self):
+            return "en"
+
+        def get_speed(self):
+            return 1.0
+
+        def get_active_profile(self, kind="tts"):
+            return None
+
+        def get_profiles(self, kind="tts"):
+            return [DummyProfile()]
+
+        def set_profile(self, profile_id, kind="tts"):
+            self.profile = profile_id
+            return profile_id == "narrator"
+
+        def list_cloned_voices(self):
+            return [{"voice_id": "clone_a", "name": "Alice", "engine": "dummy"}]
+
+        def list_available_models(self, language=None):
+            return {}
+
+        def get_supported_languages(self):
+            return ["en"]
+
+        def speak_to_bytes(self, text, format="wav", voice=None, sanitize_syntax=True):
+            self.calls.append({"text": text, "voice": voice, "profile": self.profile})
+            return b"RIFFdummy"
+
+        def pop_last_tts_metrics(self):
+            return {"profile_id": self.profile}
+
+        def cleanup(self):
+            return True
+
+    dummy = DummyVoiceManager()
+    app = create_app(voice_manager_factory=lambda _state: dummy)
+    client = TestClient(app)
+
+    voices = client.get("/v1/audio/voices")
+    assert voices.status_code == 200
+    payload = voices.json()
+    assert payload["object"] == "list"
+    assert {item["id"] for item in payload["data"]} >= {"narrator", "clone_a"}
+
+    speech = client.post("/v1/audio/speech", json={"input": "Hi", "voice": "narrator"})
+    assert speech.status_code == 200
+    assert dummy.calls[-1] == {"text": "Hi", "voice": None, "profile": "narrator"}
 
 
 def test_web_ui_role_voice_selection_preloads_and_drives_tts():
@@ -560,6 +638,42 @@ def test_web_ui_clone_voice_route_rejects_browser_webm_upload():
 
     assert response.status_code == 400
     assert "WAV, FLAC, or OGG" in response.json()["detail"]
+
+
+def test_web_ui_remote_clone_default_accepts_remote_audio_formats():
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from abstractvoice.examples.web_ui import create_app
+
+    class DummyVoiceManager:
+        def __init__(self):
+            self.calls = []
+
+        def clone_voice(self, reference_audio_path, name=None, reference_text=None, engine=None):
+            path = __import__("pathlib").Path(reference_audio_path)
+            self.calls.append({"suffix": path.suffix, "engine": engine, "bytes": path.read_bytes()})
+            return "remote_clone"
+
+        def get_cloned_voice(self, voice_id):
+            return {"voice_id": voice_id, "name": "Remote", "engine": "openai-compatible"}
+
+        def cleanup(self):
+            return True
+
+    dummy = DummyVoiceManager()
+    app = create_app(cloning_engine="openai-compatible", voice_manager_factory=lambda _state: dummy)
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/voice/clone",
+        data={"name": "Remote", "reference_text": "Hello."},
+        files={"file": ("reference.webm", b"webm", "audio/webm")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["voice_id"] == "remote_clone"
+    assert dummy.calls == [{"suffix": ".webm", "engine": None, "bytes": b"webm"}]
 
 
 def test_web_ui_openai_alias_ignores_local_role_without_voice_selection():

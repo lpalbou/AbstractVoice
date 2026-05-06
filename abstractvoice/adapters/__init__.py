@@ -8,5 +8,14 @@ while maintaining API compatibility.
 from .base import TTSAdapter, STTAdapter
 from .tts_piper import PiperTTSAdapter
 from .stt_faster_whisper import FasterWhisperAdapter
+from .tts_openai_compatible import OpenAICompatibleTTSAdapter
+from .stt_openai_compatible import OpenAICompatibleSTTAdapter
 
-__all__ = ['TTSAdapter', 'STTAdapter', 'PiperTTSAdapter', 'FasterWhisperAdapter']
+__all__ = [
+    'TTSAdapter',
+    'STTAdapter',
+    'PiperTTSAdapter',
+    'FasterWhisperAdapter',
+    'OpenAICompatibleTTSAdapter',
+    'OpenAICompatibleSTTAdapter',
+]

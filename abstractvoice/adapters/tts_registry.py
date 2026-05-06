@@ -20,7 +20,9 @@ _Factory = Callable[..., Optional[TTSAdapter]]
 
 
 def _normalize_engine_name(engine: str | None) -> str:
-    name = str(engine or "").strip().lower()
+    name = str(engine or "").strip().lower().replace("_", "-")
+    if name in ("remote", "compatible", "proxy"):
+        return "openai-compatible"
     return name or "auto"
 
 
@@ -105,7 +107,59 @@ def _omnivoice_factory(
     )
 
 
+def _openai_factory(
+    *,
+    language: str,
+    allow_downloads: bool,
+    auto_load: bool,
+    debug_mode: bool = False,
+    **kwargs: Any,
+) -> TTSAdapter | None:
+    _ = allow_downloads, auto_load
+    from .tts_openai_compatible import OpenAICompatibleTTSAdapter
+
+    return OpenAICompatibleTTSAdapter(
+        provider="openai",
+        language=str(language),
+        base_url=kwargs.get("base_url"),
+        api_key=kwargs.get("api_key"),
+        model_id=kwargs.get("model_id"),
+        voice=kwargs.get("voice"),
+        instructions=kwargs.get("instructions"),
+        timeout_s=kwargs.get("timeout_s"),
+        session=kwargs.get("session"),
+        debug_mode=bool(debug_mode),
+    )
+
+
+def _openai_compatible_factory(
+    *,
+    language: str,
+    allow_downloads: bool,
+    auto_load: bool,
+    debug_mode: bool = False,
+    **kwargs: Any,
+) -> TTSAdapter | None:
+    _ = allow_downloads, auto_load
+    from .tts_openai_compatible import OpenAICompatibleTTSAdapter
+
+    return OpenAICompatibleTTSAdapter(
+        provider="openai-compatible",
+        language=str(language),
+        base_url=kwargs.get("base_url"),
+        api_key=kwargs.get("api_key"),
+        model_id=kwargs.get("model_id"),
+        voice=kwargs.get("voice"),
+        instructions=kwargs.get("instructions"),
+        timeout_s=kwargs.get("timeout_s"),
+        session=kwargs.get("session"),
+        debug_mode=bool(debug_mode),
+    )
+
+
 _TTS_ADAPTER_FACTORIES: dict[str, _Factory] = {
+    "openai": _openai_factory,
+    "openai-compatible": _openai_compatible_factory,
     "piper": _piper_factory,
     "audiodit": _audiodit_factory,
     "omnivoice": _omnivoice_factory,

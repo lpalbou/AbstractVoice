@@ -9,6 +9,10 @@ from .common import import_voice_recognizer
 
 class SttMixin:
     def transcribe_from_bytes(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
+        stt = self._get_stt_adapter()
+        if stt is not None and hasattr(stt, "transcribe_from_bytes"):
+            return stt.transcribe_from_bytes(bytes(audio_bytes), language=language)
+
         import tempfile
         import os
 
@@ -40,7 +44,29 @@ class SttMixin:
         if self.stt_adapter is not None:
             return self.stt_adapter if self.stt_adapter.is_available() else None
 
-        if self._stt_engine_preference not in ("auto", "faster_whisper"):
+        pref = str(getattr(self, "_stt_engine_preference", "auto") or "auto").strip().lower().replace("-", "_")
+        if pref in ("openai", "openai_compatible", "remote", "compatible"):
+            try:
+                from ..adapters.stt_openai_compatible import OpenAICompatibleSTTAdapter
+
+                provider = "openai" if pref == "openai" else "openai-compatible"
+                self.stt_adapter = OpenAICompatibleSTTAdapter(
+                    provider=provider,
+                    language=getattr(self, "language", None),
+                    base_url=getattr(self, "remote_base_url", None),
+                    api_key=getattr(self, "remote_api_key", None),
+                    model_id=getattr(self, "stt_model", None),
+                    timeout_s=getattr(self, "remote_timeout_s", None),
+                    debug_mode=bool(getattr(self, "debug_mode", False)),
+                )
+                return self.stt_adapter if self.stt_adapter.is_available() else None
+            except Exception as e:
+                self.stt_adapter = None
+                if self.debug_mode:
+                    print(f"⚠️  Remote STT not available: {e}")
+                raise
+
+        if pref not in ("auto", "faster_whisper", "faster-whisper"):
             return None
 
         try:
@@ -163,4 +189,3 @@ class SttMixin:
         if self.voice_recognizer:
             return self.voice_recognizer.change_vad_aggressiveness(aggressiveness)
         return False
-

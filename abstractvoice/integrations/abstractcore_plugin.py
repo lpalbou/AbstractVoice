@@ -54,9 +54,14 @@ class _BaseVoice:
         tts_engine = "auto"
         stt_engine = "auto"
         whisper_model = "base"
+        stt_model = None
+        tts_model = None
         cloning_engine = "f5_tts"
         cloned_tts_streaming = True
         tts_delivery_mode = None
+        remote_base_url = None
+        remote_api_key = None
+        remote_timeout_s = None
         debug_mode = False
         try:
             cfg = getattr(self._owner, "config", None)
@@ -71,8 +76,21 @@ class _BaseVoice:
                     stt_engine = str(cfg["voice_stt_engine"]).strip().lower()
                 if isinstance(cfg.get("voice_whisper_model"), str) and str(cfg["voice_whisper_model"]).strip():
                     whisper_model = str(cfg["voice_whisper_model"]).strip()
+                if isinstance(cfg.get("voice_tts_model"), str) and str(cfg["voice_tts_model"]).strip():
+                    tts_model = str(cfg["voice_tts_model"]).strip()
+                if isinstance(cfg.get("voice_stt_model"), str) and str(cfg["voice_stt_model"]).strip():
+                    stt_model = str(cfg["voice_stt_model"]).strip()
                 if isinstance(cfg.get("voice_cloning_engine"), str) and str(cfg["voice_cloning_engine"]).strip():
                     cloning_engine = str(cfg["voice_cloning_engine"]).strip().lower()
+                if isinstance(cfg.get("voice_remote_base_url"), str) and str(cfg["voice_remote_base_url"]).strip():
+                    remote_base_url = str(cfg["voice_remote_base_url"]).strip()
+                if isinstance(cfg.get("voice_remote_api_key"), str) and str(cfg["voice_remote_api_key"]).strip():
+                    remote_api_key = str(cfg["voice_remote_api_key"]).strip()
+                if cfg.get("voice_remote_timeout_s") not in (None, ""):
+                    try:
+                        remote_timeout_s = float(cfg.get("voice_remote_timeout_s"))
+                    except Exception:
+                        remote_timeout_s = None
                 if "voice_cloned_tts_streaming" in cfg:
                     cloned_tts_streaming = bool(cfg.get("voice_cloned_tts_streaming"))
                 # Unified override for delivery mode (applies to base + clone).
@@ -105,9 +123,14 @@ class _BaseVoice:
             str(tts_engine),
             str(stt_engine),
             str(whisper_model),
+            str(tts_model or ""),
+            str(stt_model or ""),
             str(cloning_engine),
             bool(cloned_tts_streaming),
             str(tts_delivery_mode) if tts_delivery_mode else "",
+            str(remote_base_url or ""),
+            str(remote_api_key or ""),
+            str(remote_timeout_s or ""),
             bool(debug_mode),
         )
 
@@ -121,9 +144,14 @@ class _BaseVoice:
                     tts_engine=str(tts_engine),
                     stt_engine=str(stt_engine),
                     whisper_model=str(whisper_model),
+                    tts_model=str(tts_model) if tts_model else None,
+                    stt_model=str(stt_model) if stt_model else None,
                     cloning_engine=str(cloning_engine),
                     cloned_tts_streaming=bool(cloned_tts_streaming),
                     tts_delivery_mode=str(tts_delivery_mode) if tts_delivery_mode else None,
+                    remote_base_url=str(remote_base_url) if remote_base_url else None,
+                    remote_api_key=str(remote_api_key) if remote_api_key else None,
+                    remote_timeout_s=remote_timeout_s,
                 )
                 _VM_CACHE[key] = cached
                 _VM_LOCKS[cached] = threading.Lock()
