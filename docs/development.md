@@ -78,11 +78,13 @@ python -m pytest -q -m "not integration and not model_download"
 AbstractVoice mirrors the AbstractCore release shape:
 
 - `.github/workflows/ci.yml` runs tests on Python 3.9-3.12 and verifies that
-  source/wheel distributions build and pass `twine check`.
+  source/wheel distributions build and pass `twine check`; it also smoke-builds
+  the MkDocs site.
 - `.github/workflows/release.yml` runs the same test gate, validates that the
   requested tag matches `abstractvoice/_version.py`, extracts release notes from
   `CHANGELOG.md`, publishes to PyPI via trusted publishing, and creates a GitHub
-  Release with the built distributions attached.
+  Release with the built distributions attached. Release runs also publish the
+  MkDocs site to the `gh-pages` branch.
 
 Release checklist:
 

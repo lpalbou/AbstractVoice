@@ -212,11 +212,19 @@ test = [
     "tomli>=1.1.0; python_version < '3.11'",
 ]
 
+# Documentation dependencies.
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.0.0",
+]
+
 # Development dependencies
 dev = [
     "pytest>=7.0.0",
     "black>=22.0.0",
     "flake8>=5.0.0",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.0.0",
 ]
 
 # Complete voice functionality - TTS + STT + Audio I/O (most common use case)
@@ -245,7 +253,7 @@ audio-only = [
 
 [project.urls]
 Repository = "https://github.com/lpalbou/abstractvoice"
-Documentation = "https://github.com/lpalbou/abstractvoice#readme"
+Documentation = "https://lpalbou.github.io/abstractvoice/"
 
 [project.scripts]
 abstractvoice = "abstractvoice.examples.voice_cli:main"

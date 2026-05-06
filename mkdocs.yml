@@ -1,0 +1,59 @@
+site_name: AbstractVoice
+site_description: Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.
+site_url: https://lpalbou.github.io/abstractvoice/
+repo_url: https://github.com/lpalbou/abstractvoice
+repo_name: lpalbou/abstractvoice
+
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+
+plugins:
+  - search
+
+validation:
+  nav:
+    omitted_files: ignore
+  links:
+    not_found: ignore
+    unrecognized_links: ignore
+
+nav:
+  - Home: README.md
+  - Getting Started: getting-started.md
+  - Installation: installation.md
+  - Public API: api.md
+  - Architecture: architecture.md
+  - REPL Guide: repl_guide.md
+  - Local Engines:
+      - Model Management: model-management.md
+      - Voice Cloning: voice_cloning_2026.md
+      - Multilingual Support: multilingual.md
+      - Dependencies: dependencies.md
+      - Voices and Licenses: voices-and-licenses.md
+  - Support:
+      - FAQ: faq.md
+      - Known Issues: known-issues.md
+      - Acronyms: acronyms.md
+  - Project:
+      - Benchmark: benchmark.md
+      - Development: development.md
+      - ADR 0001 - Local Assistant: adr/0001-local_assistant_out_of_box.md
+      - ADR 0002 - Barge-In: adr/0002_barge_in_interruption.md
+      - ADR 0003 - Reference Text Fallback: adr/0003_cloning_reference_text_fallback.md
+      - ADR 0004 - Cloned TTS Streaming: adr/0004_streaming_and_cancellation_for_cloned_tts.md
+      - ADR 0005 - Torch Device and Dtype: adr/0005_torch_device_and_dtype_policy.md

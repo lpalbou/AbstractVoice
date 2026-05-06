@@ -10,6 +10,14 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-05-06
+
+### Added
+- MkDocs Material configuration for the default documentation site at `https://lpalbou.github.io/abstractvoice/`.
+- CI docs build job that verifies the MkDocs site on pushes and pull requests.
+- Release workflow docs gate and `mkdocs gh-deploy` deployment to the `gh-pages` branch after the GitHub Release is created.
+- `docs` optional dependency extra for installing MkDocs tooling locally.
+
 ## [0.8.2] - 2026-05-06
 
 ### Added
