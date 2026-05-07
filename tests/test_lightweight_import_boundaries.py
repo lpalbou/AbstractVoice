@@ -45,7 +45,11 @@ def test_import_abstractvoice_and_plugin_without_local_voice_deps() -> None:
         import abstractvoice.integrations.abstractcore_plugin
         import importlib.metadata as metadata
 
-        eps = metadata.entry_points(group="abstractcore.capabilities_plugins")
+        all_eps = metadata.entry_points()
+        if hasattr(all_eps, "select"):
+            eps = all_eps.select(group="abstractcore.capabilities_plugins")
+        else:
+            eps = all_eps.get("abstractcore.capabilities_plugins", [])
         assert any(ep.name == "abstractvoice" for ep in eps)
         print("ok")
         """
