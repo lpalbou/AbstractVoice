@@ -22,21 +22,114 @@ def _has_marked_dep(deps: list[str], prefix: str, marker: str) -> bool:
     return any(dep.startswith(prefix) and marker in dep for dep in deps)
 
 
-def test_dependency_checker_tracks_current_core_voice_stack() -> None:
+def test_dependency_checker_tracks_lightweight_base_and_local_profiles() -> None:
     checker = DependencyChecker(verbose=False)
 
+    assert set(checker.CORE_DEPS) == {"numpy", "requests", "appdirs"}
+
     for package in (
+        "piper-tts",
+    ):
+        assert package in checker.LOCAL_TTS_DEPS
+        assert package not in checker.CORE_DEPS
+
+    for package in (
+        "huggingface_hub",
+    ):
+        assert package in checker.OPTIONAL_DEPS
+        assert package not in checker.CORE_DEPS
+
+    for package in (
+        "faster-whisper",
+        "soundfile",
+    ):
+        assert package in checker.LOCAL_STT_DEPS
+        assert package not in checker.CORE_DEPS
+
+    for package in (
+        "sounddevice",
+        "soundfile",
+        "webrtcvad",
+    ):
+        assert package in checker.AUDIO_IO_DEPS
+        assert package not in checker.CORE_DEPS
+
+    assert checker.PYTORCH_COMPAT["torch"][1] is None
+    assert checker.PYTORCH_COMPAT["torchvision"][1] is None
+
+
+def test_base_dependencies_exclude_local_runtime_stacks() -> None:
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    deps = pyproject["project"]["dependencies"]
+    forbidden_prefixes = (
         "piper-tts",
         "huggingface_hub",
         "faster-whisper",
         "sounddevice",
         "soundfile",
         "webrtcvad",
-    ):
-        assert package in checker.CORE_DEPS
+        "torch",
+        "torchaudio",
+        "torchvision",
+        "f5-tts",
+        "omnivoice",
+    )
 
-    assert checker.PYTORCH_COMPAT["torch"][1] is None
-    assert checker.PYTORCH_COMPAT["torchvision"][1] is None
+    assert "numpy>=1.24.0" in deps
+    assert "requests>=2.31.0" in deps
+    assert "appdirs>=1.4.0" in deps
+    for prefix in forbidden_prefixes:
+        assert not _has_dep(deps, prefix)
+
+
+def test_local_voice_extras_include_expected_runtime_stacks() -> None:
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    extras = pyproject["project"]["optional-dependencies"]
+
+    for name in ("piper", "local-tts"):
+        assert "piper-tts>=1.2.0" in extras[name]
+
+    for name in ("stt", "local-stt", "core-stt"):
+        assert "faster-whisper>=0.10.0" in extras[name]
+        assert "soundfile>=0.12.1" in extras[name]
+
+    for name in ("audio-io", "audio-only"):
+        assert "sounddevice>=0.4.6" in extras[name]
+        assert "webrtcvad>=2.0.10" in extras[name]
+        assert "soundfile>=0.12.1" in extras[name]
+
+    for name in ("voice", "local", "voice-full"):
+        assert "piper-tts>=1.2.0" in extras[name]
+        assert "faster-whisper>=0.10.0" in extras[name]
+        assert "sounddevice>=0.4.6" in extras[name]
+        assert "webrtcvad>=2.0.10" in extras[name]
+        assert "soundfile>=0.12.1" in extras[name]
+
+    assert "piper-tts>=1.2.0" in extras["all"]
+    assert "faster-whisper>=0.10.0" in extras["all"]
+    assert "sounddevice>=0.4.6" in extras["all"]
+    assert "librosa>=0.10.0" in extras["all"]
+
+
+def test_remote_and_heavy_engine_extras_are_self_contained() -> None:
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    extras = pyproject["project"]["optional-dependencies"]
+
+    for name in ("openai", "openai-compatible", "remote"):
+        assert extras[name] == []
+
+    for name in (
+        "cloning",
+        "audiodit",
+        "omnivoice",
+        "chroma",
+        "web-cloning",
+        "web-audiodit",
+        "web-omnivoice",
+        "web-chroma",
+        "web-full",
+    ):
+        assert _has_dep(extras[name], "soundfile>=0.12.1")
 
 
 def test_python_support_contract_includes_39() -> None:

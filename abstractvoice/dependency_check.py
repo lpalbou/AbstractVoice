@@ -21,9 +21,18 @@ class DependencyChecker:
         "numpy": ("1.24.0", None),
         "requests": ("2.31.0", None),
         "appdirs": ("1.4.0", None),
+    }
+
+    LOCAL_TTS_DEPS = {
         "piper-tts": ("1.2.0", None),
-        "huggingface_hub": ("0.20.0", None),
+    }
+
+    LOCAL_STT_DEPS = {
         "faster-whisper": ("0.10.0", None),
+        "soundfile": ("0.12.1", None),
+    }
+
+    AUDIO_IO_DEPS = {
         "sounddevice": ("0.4.6", None),
         "soundfile": ("0.12.1", None),
         "webrtcvad": ("2.0.10", None),
@@ -38,6 +47,7 @@ class DependencyChecker:
     }
 
     OPTIONAL_DEPS = {
+        "huggingface_hub": ("0.20.0", None),
         "librosa": ("0.10.0", None),
         "tiktoken": ("0.6.0", None),
         "openai-whisper": ("20230314", None),
@@ -155,10 +165,31 @@ class DependencyChecker:
             }
 
     def check_core_dependencies(self) -> Dict[str, Any]:
-        """Check core dependencies (always required)."""
+        """Check lightweight base dependencies (always required)."""
         return {
             package: self._check_package(package, min_ver, max_ver)
             for package, (min_ver, max_ver) in self.CORE_DEPS.items()
+        }
+
+    def check_local_tts_dependencies(self) -> Dict[str, Any]:
+        """Check local TTS dependencies (`abstractvoice[piper]` / `[voice]`)."""
+        return {
+            package: self._check_package(package, min_ver, max_ver)
+            for package, (min_ver, max_ver) in self.LOCAL_TTS_DEPS.items()
+        }
+
+    def check_local_stt_dependencies(self) -> Dict[str, Any]:
+        """Check local STT dependencies (`abstractvoice[stt]` / `[voice]`)."""
+        return {
+            package: self._check_package(package, min_ver, max_ver)
+            for package, (min_ver, max_ver) in self.LOCAL_STT_DEPS.items()
+        }
+
+    def check_audio_io_dependencies(self) -> Dict[str, Any]:
+        """Check microphone/playback/VAD dependencies (`abstractvoice[audio-io]` / `[voice]`)."""
+        return {
+            package: self._check_package(package, min_ver, max_ver)
+            for package, (min_ver, max_ver) in self.AUDIO_IO_DEPS.items()
         }
 
     def check_pytorch_ecosystem(self) -> Dict[str, Any]:
@@ -250,6 +281,9 @@ class DependencyChecker:
         """Run comprehensive dependency check."""
         results = {
             "core": self.check_core_dependencies(),
+            "local_tts": self.check_local_tts_dependencies(),
+            "local_stt": self.check_local_stt_dependencies(),
+            "audio_io": self.check_audio_io_dependencies(),
             "pytorch": self.check_pytorch_ecosystem(),
             "optional": self.check_optional_dependencies(),
             "conflicts": self.check_pytorch_conflicts(),
@@ -283,10 +317,25 @@ class DependencyChecker:
         print(f"\nPython: {results['python_version']}")
         print(f"Platform: {results['platform']}")
 
-        print("\nCore dependencies:")
+        print("\nLightweight base dependencies:")
         for package, info in results["core"].items():
             version_info = f"v{info['version']}" if info.get("version") else "not installed"
             print(f"  [{self._status_label(info)}] {package}: {version_info}")
+
+        print("\nLocal TTS dependencies (optional: abstractvoice[piper] or [voice]):")
+        for package, info in results.get("local_tts", {}).items():
+            version_info = f"v{info['version']}" if info.get("version") else "not installed"
+            print(f"  [{self._status_label(info, optional=True)}] {package}: {version_info}")
+
+        print("\nLocal STT dependencies (optional: abstractvoice[stt] or [voice]):")
+        for package, info in results.get("local_stt", {}).items():
+            version_info = f"v{info['version']}" if info.get("version") else "not installed"
+            print(f"  [{self._status_label(info, optional=True)}] {package}: {version_info}")
+
+        print("\nAudio I/O dependencies (optional: abstractvoice[audio-io] or [voice]):")
+        for package, info in results.get("audio_io", {}).items():
+            version_info = f"v{info['version']}" if info.get("version") else "not installed"
+            print(f"  [{self._status_label(info, optional=True)}] {package}: {version_info}")
 
         print("\nOptional PyTorch ecosystem:")
         for package, info in results["pytorch"].items():
@@ -320,6 +369,15 @@ class DependencyChecker:
         recommendations: List[str] = []
         if any(info.get("status") != "installed" or not info.get("compatible") for info in results["core"].values()):
             recommendations.append("Reinstall or upgrade the base package: pip install --upgrade abstractvoice")
+        local_voice_missing = any(
+            info.get("status") != "installed"
+            for group in ("local_tts", "local_stt", "audio_io")
+            for info in results.get(group, {}).values()
+        )
+        if local_voice_missing:
+            recommendations.append(
+                "For local Piper/faster-whisper/microphone playback, install: pip install \"abstractvoice[voice]\""
+            )
         if results["conflicts"]:
             recommendations.append("Align torch, torchaudio, and torchvision versions for the optional engine you are using.")
         if audio.get("status") in ("warning", "error"):

@@ -81,7 +81,8 @@ def _import_sounddevice():
     except ImportError as e:
         raise ImportError(
             "Audio playback requires sounddevice. Install with:\n"
-            "  pip install abstractvoice\n"
+            "  pip install \"abstractvoice[audio-io]\"\n"
+            "  pip install \"abstractvoice[voice]\"\n"
             f"Original error: {e}"
         ) from e
 

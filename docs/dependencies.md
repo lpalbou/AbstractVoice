@@ -11,7 +11,7 @@ If you need licensing guidance for model weights and voices, also read `docs/voi
 
 ---
 
-## Core dependencies (installed by default)
+## Lightweight base dependencies (installed by default)
 
 These are always installed with `pip install abstractvoice`.
 
@@ -33,20 +33,22 @@ These are always installed with `pip install abstractvoice`.
   - **Repo**: `https://github.com/ActiveState/appdirs`
   - **License**: `https://github.com/ActiveState/appdirs/blob/master/LICENSE.txt`
 
+---
+
+## Optional extras (opt-in)
+
+### `abstractvoice[voice]` — local Piper + faster-whisper + audio I/O
+
+This is the replacement for the old local-first base install.
+
 - **piper-tts**
-  - **Why**: default local neural TTS backend (Piper-first).
+  - **Why**: local neural TTS backend (Piper-first).
   - **Where**: `abstractvoice/adapters/tts_piper.py`
   - **Repo**: `https://github.com/rhasspy/piper`
   - **License**: `https://github.com/rhasspy/piper/blob/master/LICENSE`
 
-- **huggingface_hub**
-  - **Why**: download and cache model weights (STT models, optional engines).
-  - **Where**: `abstractvoice/adapters/stt_faster_whisper.py`, `abstractvoice/prefetch.py`, `abstractvoice/audiodit/runtime.py`, `abstractvoice/omnivoice/runtime.py`
-  - **Repo**: `https://github.com/huggingface/huggingface_hub`
-  - **License**: `https://github.com/huggingface/huggingface_hub/blob/main/LICENSE`
-
 - **faster-whisper**
-  - **Why**: default STT backend (fast Whisper inference).
+  - **Why**: local STT backend (fast Whisper inference).
   - **Where**: `abstractvoice/adapters/stt_faster_whisper.py`
   - **Repo**: `https://github.com/SYSTRAN/faster-whisper`
   - **License**: `https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE`
@@ -69,9 +71,13 @@ These are always installed with `pip install abstractvoice`.
   - **Repo**: `https://github.com/wiseman/py-webrtcvad`
   - **License**: `https://github.com/wiseman/py-webrtcvad/blob/master/LICENSE.txt`
 
----
+### `abstractvoice[cloning]`, `[chroma]`, `[audiodit]`, `[omnivoice]` — model prefetch support
 
-## Optional extras (opt-in)
+- **huggingface_hub**
+  - **Why**: download and cache optional engine model weights/artifacts.
+  - **Where**: `abstractvoice/cloning/engine_f5.py`, `abstractvoice/cloning/engine_chroma.py`, `abstractvoice/audiodit/runtime.py`, `abstractvoice/omnivoice/runtime.py`
+  - **Repo**: `https://github.com/huggingface/huggingface_hub`
+  - **License**: `https://github.com/huggingface/huggingface_hub/blob/main/LICENSE`
 
 ### `abstractvoice[audiodit]` — LongCat-AudioDiT (TTS + prompt-audio cloning)
 
@@ -257,7 +263,7 @@ plus optional local voice engines.
 ### `abstractvoice[stt]` — Faster-Whisper STT
 
 - **faster-whisper**
-  - **Why**: current STT adapter path (also installed by the base package).
+  - **Why**: local STT adapter path.
   - **Where**: `abstractvoice/adapters/stt_faster_whisper.py`
   - **Repo**: `https://github.com/SYSTRAN/faster-whisper`
   - **License**: `https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE`

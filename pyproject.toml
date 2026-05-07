@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "abstractvoice"
 dynamic = ["version"]
-description = "Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications"
+description = "Remote-compatible and local TTS/STT, streaming voice output, and optional voice cloning for AI applications"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
@@ -34,32 +34,46 @@ dependencies = [
     "numpy>=1.24.0",
     "requests>=2.31.0",
     "appdirs>=1.4.0",
-    # Core TTS: Piper (lightweight, no system dependencies)
-    "piper-tts>=1.2.0",
-    "huggingface_hub>=0.20.0",
-    # Core STT: faster-whisper (4x faster than openai-whisper)
-    "faster-whisper>=0.10.0",
-    # Core audio
-    "sounddevice>=0.4.6",
-    "soundfile>=0.12.1",
-    # Core VAD (needed for listen() out-of-the-box)
-    "webrtcvad>=2.0.10",
 ]
 
 [project.optional-dependencies]
-# Core voice functionality - install this for basic TTS/STT features
-voice = [
-    "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
-    "soundfile>=0.12.1",
-]
-
 # Remote OpenAI/OpenAI-compatible audio adapters use core `requests`.
-# This no-op extra is provided so installers can declare intent explicitly:
+# These no-op extras are provided so installers can declare intent explicitly:
 #   pip install "abstractvoice[openai]"
 openai = []
 openai-compatible = []
 remote = []
+
+# Local Piper TTS runtime.
+piper = [
+    "piper-tts>=1.2.0",
+]
+local-tts = [
+    "piper-tts>=1.2.0",
+]
+
+# Local audio input/output and VAD.
+audio-io = [
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "soundfile>=0.12.1",
+]
+
+# Local voice functionality: TTS + STT + microphone/playback.
+voice = [
+    "piper-tts>=1.2.0",
+    "faster-whisper>=0.10.0",
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "soundfile>=0.12.1",
+]
+local = [
+    "piper-tts>=1.2.0",
+    "faster-whisper>=0.10.0",
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "soundfile>=0.12.1",
+]
 
 # Audio effects (optional; only needed for speed/pitch processing)
 audio-fx = [
@@ -68,11 +82,14 @@ audio-fx = [
 
 # Voice cloning (optional; research-grade, heavy deps).
 cloning = [
+    "huggingface_hub>=0.20.0",
     "f5-tts>=1.1.0; python_version >= '3.10'",
+    "soundfile>=0.12.1",
 ]
 
 # Chroma (optional; GPU-heavy end-to-end speech model).
 chroma = [
+    "huggingface_hub>=0.20.0; python_version >= '3.10'",
     "torch>=2.0.0; python_version >= '3.10'",
     "torchaudio>=2.0.0; python_version >= '3.10'",
     "torchvision>=0.15.0; python_version >= '3.10'",
@@ -83,27 +100,32 @@ chroma = [
     "audioread>=3.0.0; python_version >= '3.10'",
     "pillow>=11.0.0; python_version >= '3.10'",
     "safetensors>=0.5.0; python_version >= '3.10'",
+    "soundfile>=0.12.1; python_version >= '3.10'",
 ]
 
 # LongCat-AudioDiT (optional; torch/transformers-based TTS + prompt-audio cloning)
 audiodit = [
+    "huggingface_hub>=0.20.0",
     "torch>=2.0.0",
     "transformers>=4.55.4,<5; python_version < '3.10'",
     "transformers>=5.3.0; python_version >= '3.10'",
     "safetensors>=0.4.0",
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
+    "soundfile>=0.12.1",
 ]
 
 # OmniVoice (optional; omnilingual TTS + voice cloning / design)
 omnivoice = [
     # Torch-backed and heavy; treat this as an opt-in extra to avoid affecting
     # default installs.
+    "huggingface_hub>=0.20.0; python_version >= '3.10'",
     "omnivoice>=0.1.2; python_version >= '3.10'",
     "torch>=2.0.0; python_version >= '3.10'",
     "torchaudio>=2.0.0; python_version >= '3.10'",
     "transformers>=5.3.0; python_version >= '3.10'",
     "accelerate>=1.0.0; python_version >= '3.10'",
+    "soundfile>=0.12.1; python_version >= '3.10'",
 ]
 
 # Optional AEC (Acoustic Echo Cancellation) for true barge-in.
@@ -112,8 +134,12 @@ aec = [
     "aec-audio-processing>=1.0.1; python_version >= '3.11'",
 ]
 
-# Speech-to-Text functionality (current core STT path; duplicated for metadata clarity).
+# Local Speech-to-Text functionality.
 stt = [
+    "faster-whisper>=0.10.0",
+    "soundfile>=0.12.1",
+]
+local-stt = [
     "faster-whisper>=0.10.0",
     "soundfile>=0.12.1",
 ]
@@ -137,33 +163,40 @@ web-cloning = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-multipart>=0.0.9",
+    "huggingface_hub>=0.20.0",
     "f5-tts>=1.1.0; python_version >= '3.10'",
+    "soundfile>=0.12.1",
 ]
 web-audiodit = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-multipart>=0.0.9",
+    "huggingface_hub>=0.20.0",
     "torch>=2.0.0",
     "transformers>=4.55.4,<5; python_version < '3.10'",
     "transformers>=5.3.0; python_version >= '3.10'",
     "safetensors>=0.4.0",
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
+    "soundfile>=0.12.1",
 ]
 web-omnivoice = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-multipart>=0.0.9",
+    "huggingface_hub>=0.20.0; python_version >= '3.10'",
     "omnivoice>=0.1.2; python_version >= '3.10'",
     "torch>=2.0.0; python_version >= '3.10'",
     "torchaudio>=2.0.0; python_version >= '3.10'",
     "transformers>=5.3.0; python_version >= '3.10'",
     "accelerate>=1.0.0; python_version >= '3.10'",
+    "soundfile>=0.12.1; python_version >= '3.10'",
 ]
 web-chroma = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-multipart>=0.0.9",
+    "huggingface_hub>=0.20.0; python_version >= '3.10'",
     "torch>=2.0.0; python_version >= '3.10'",
     "torchaudio>=2.0.0; python_version >= '3.10'",
     "torchvision>=0.15.0; python_version >= '3.10'",
@@ -174,11 +207,13 @@ web-chroma = [
     "audioread>=3.0.0; python_version >= '3.10'",
     "pillow>=11.0.0; python_version >= '3.10'",
     "safetensors>=0.5.0; python_version >= '3.10'",
+    "soundfile>=0.12.1; python_version >= '3.10'",
 ]
 web-full = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-multipart>=0.0.9",
+    "huggingface_hub>=0.20.0",
     "f5-tts>=1.1.0; python_version >= '3.10'",
     "torch>=2.0.0",
     "torchaudio>=2.0.0; python_version >= '3.10'",
@@ -196,6 +231,7 @@ web-full = [
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
     "omnivoice>=0.1.2; python_version >= '3.10'",
+    "soundfile>=0.12.1",
 ]
 
 # Convenience bundle for common optional features (not GPU-heavy engines).
@@ -237,7 +273,6 @@ dev = [
 # Complete voice functionality - TTS + STT + Audio I/O (most common use case)
 voice-full = [
     "piper-tts>=1.2.0",
-    "huggingface_hub>=0.20.0",
     "faster-whisper>=0.10.0",
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",
@@ -245,13 +280,13 @@ voice-full = [
     "soundfile>=0.12.1",
 ]
 
-# Core STT-only (lightweight, no TTS)
+# Local STT-only (no TTS)
 core-stt = [
     "faster-whisper>=0.10.0",
     "soundfile>=0.12.1",
 ]
 
-# Audio processing only (for custom TTS/STT implementations)
+# Audio I/O only (for custom TTS/STT implementations)
 audio-only = [
     "sounddevice>=0.4.6",
     "webrtcvad>=2.0.10",

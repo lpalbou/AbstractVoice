@@ -189,7 +189,8 @@ REPL commands:
 
 Engine notes:
 
-- `piper`: default TTS path; best first choice for reliable local speech.
+- `piper`: default local TTS path; install `abstractvoice[voice]` or
+  `abstractvoice[piper]`. Best first choice for reliable local speech.
 - `openai` / `openai-compatible`: remote TTS/STT endpoints. Configure
   `OPENAI_API_KEY` for OpenAI or `ABSTRACTVOICE_REMOTE_BASE_URL` for compatible
   servers. Compatible servers may expose `GET /v1/audio/voices`; `/voices
@@ -199,7 +200,8 @@ Engine notes:
   `0.8.1`, while AudioDiT cloning remains the better-validated AudioDiT path.
 - `omnivoice`: optional heavy engine for omnilingual TTS, voice design, and
   cloning. Stable reusable profiles are still being curated.
-- `faster_whisper`: default STT path.
+- `faster_whisper`: default local STT path; install `abstractvoice[voice]` or
+  `abstractvoice[stt]`.
 
 Current caveats are tracked in `docs/known-issues.md`.
 

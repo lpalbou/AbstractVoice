@@ -22,8 +22,8 @@ def _import_audio_deps():
     except ImportError as e:
         raise ImportError(
             "Audio capture/playback requires sounddevice. Install with:\n"
-            "  pip install abstractvoice          # Core install (includes sounddevice)\n"
-            "  pip install abstractvoice[all]      # All features\n"
+            "  pip install \"abstractvoice[audio-io]\"\n"
+            "  pip install \"abstractvoice[voice]\"\n"
             f"Original error: {e}"
         ) from e
 
@@ -36,8 +36,8 @@ def _import_vad():
         if "webrtcvad" in str(e):
             raise ImportError(
                 "Voice activity detection requires optional dependencies. Install with:\n"
-                "  pip install abstractvoice[voice]  # For basic audio\n"
-                "  pip install abstractvoice[all]    # For all features\n"
+                "  pip install \"abstractvoice[audio-io]\"\n"
+                "  pip install \"abstractvoice[voice]\"\n"
                 f"Original error: {e}"
             ) from e
         raise
@@ -49,10 +49,9 @@ def _import_transcriber():
         return FasterWhisperAdapter
     except ImportError as e:
         raise ImportError(
-            "Speech recognition requires faster-whisper (core dependency). "
-            "If this error occurs, your installation is inconsistent.\n"
-            "Try reinstalling:\n"
-            "  pip install --upgrade abstractvoice\n"
+            "Local speech recognition requires faster-whisper. Install with:\n"
+            "  pip install \"abstractvoice[stt]\"\n"
+            "  pip install \"abstractvoice[voice]\"\n"
             f"Original error: {e}"
         ) from e
         raise

@@ -90,8 +90,8 @@ Release checklist:
 
 1. Update `abstractvoice/_version.py` (`__version__`, the single version source).
 2. Move `CHANGELOG.md` notes from `[Unreleased]` into a dated version section.
-3. Push a tag like `v0.8.1`, or run the `Release` workflow manually with
-   `version=0.8.1`.
+3. Push a tag like `v0.9.0`, or run the `Release` workflow manually with
+   `version=0.9.0`.
 
 The PyPI workflow expects a GitHub environment named `pypi` configured for
 trusted publishing on the `abstractvoice` project.

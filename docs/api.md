@@ -51,12 +51,12 @@ Notes:
 - `whisper_model` controls the faster‑whisper model size used by `listen()` and `transcribe_*()`.
 - `tts_engine` supports:
   - `auto` (deterministic default: resolves to `piper`)
-  - `piper` (default core TTS)
+  - `piper` (default local TTS; requires `abstractvoice[voice]` or `abstractvoice[piper]`)
   - `openai` (remote OpenAI `/v1/audio/speech`; requires `OPENAI_API_KEY`)
   - `openai-compatible` (remote compatible `/v1/audio/speech`; configure `remote_base_url` or `ABSTRACTVOICE_REMOTE_BASE_URL`)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
-- `stt_engine` supports `auto|faster_whisper|openai|openai-compatible`. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[legacy-stt]`; see `abstractvoice/vm/stt_mixin.py`). Explicit remote STT failures raise actionable errors instead of falling back.
+- `stt_engine` supports `auto|faster_whisper|openai|openai-compatible`. The local faster‑whisper path requires `abstractvoice[voice]` or `abstractvoice[stt]`. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[legacy-stt]`; see `abstractvoice/vm/stt_mixin.py`). Explicit remote STT failures raise actionable errors instead of falling back.
 - `tts_model` is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request `model`.
 - For remote STT, `stt_model` maps to the transcription `model`.
 - Remote configuration can be passed in the constructor or via env vars:

@@ -10,6 +10,20 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-07
+
+### Added
+- First-class lightweight install profile: `pip install abstractvoice` now keeps remote OpenAI-compatible audio adapters, AbstractCore plugin registration, shared voice types, and dependency diagnostics importable without installing local speech runtimes.
+- Explicit install extras for deployment intent: `abstractvoice[voice]`, `abstractvoice[piper]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`, `abstractvoice[openai]`, `abstractvoice[openai-compatible]`, `abstractvoice[remote]`, and `abstractvoice[all]`.
+- Import-boundary tests that verify base package imports, plugin entry point discovery, and remote `VoiceManager` construction do not require Piper, faster-whisper, PortAudio/audio-device packages, or local audio file libraries.
+
+### Changed
+- Moved local Piper, faster-whisper, microphone/playback, and audio-file runtime dependencies out of the base package and into explicit extras.
+- Kept `abstractvoice[all]` as the common local feature bundle while leaving GPU-heavy Chroma, AudioDiT, and OmniVoice behind their own explicit extras.
+- Made `abstractvoice.audio` and `abstractvoice.adapters` import local/audio dependencies lazily so remote and plugin deployments stay lightweight.
+- Updated dependency diagnostics and user-facing install hints to distinguish lightweight base, local TTS, local STT, and audio I/O requirements.
+- Refreshed README, installation, getting-started, dependencies, FAQ, API, REPL, and backlog docs for the lightweight base install contract.
+
 ## [0.8.5] - 2026-05-06
 
 ### Added

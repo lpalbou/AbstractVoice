@@ -92,6 +92,13 @@ class SttMixin:
             if self.debug_mode:
                 print(f"⚠️  Faster-Whisper STT not available: {e}")
             self.stt_adapter = None
+            if pref in ("faster_whisper", "faster-whisper"):
+                raise RuntimeError(
+                    "Local STT engine 'faster-whisper' requires optional dependencies.\n"
+                    "Install with:\n"
+                    "  pip install \"abstractvoice[stt]\"\n"
+                    "  pip install \"abstractvoice[voice]\""
+                ) from e
             return None
 
     def set_whisper(self, model_name):

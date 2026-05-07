@@ -1,11 +1,10 @@
 # Installation
 
-AbstractVoice aims to work out of the box with:
+AbstractVoice has a lightweight base install plus explicit local voice extras:
 
 - **Python**: `>=3.9` (see `pyproject.toml`)
-- **TTS (default)**: Piper (ONNX; no system deps)
-- **STT (default)**: faster-whisper (CTranslate2)
-- **Audio I/O**: `sounddevice` (PortAudio) + `soundfile` + `webrtcvad`
+- **Base install**: remote/OpenAI-compatible TTS/STT/profile/clone adapters and AbstractCore plugin discovery
+- **Local voice extra**: Piper TTS, faster-whisper STT, and `sounddevice`/`soundfile`/`webrtcvad` audio I/O
 
 ## Install
 
@@ -13,8 +12,15 @@ AbstractVoice aims to work out of the box with:
 pip install abstractvoice
 ```
 
+This is the remote/plugin-friendly install. For local desktop/REPL voice:
+
+```bash
+pip install "abstractvoice[voice]"
+```
+
 For OpenAI-compatible HTTP audio endpoints, install AbstractVoice beside
-AbstractCore Server:
+AbstractCore Server and configure a remote provider or install local voice
+runtimes explicitly:
 
 ```bash
 pip install "abstractcore[server]" abstractvoice
@@ -27,17 +33,23 @@ AbstractVoice is discovered as the voice/audio capability backend.
 ## Optional extras
 
 ```bash
+pip install "abstractvoice[voice]"     # Local Piper + faster-whisper + audio I/O
+pip install "abstractvoice[piper]"     # Local Piper TTS only
+pip install "abstractvoice[stt]"       # Local faster-whisper STT
+pip install "abstractvoice[audio-io]"  # Microphone/playback/VAD dependencies
 pip install "abstractvoice[cloning]"   # OpenF5-based cloning (heavy; Python 3.10+)
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
 pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transformers)
 pip install "abstractvoice[omnivoice]" # OmniVoice (very heavy; torch/transformers)
-pip install "abstractvoice[openai]"    # Remote OpenAI/OpenAI-compatible audio adapters (no extra deps)
+pip install "abstractvoice[openai]"    # Hosted OpenAI intent extra (no extra deps today)
+pip install "abstractvoice[openai-compatible]" # Generic compatible provider intent extra
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
 pip install "abstractvoice[audio-fx]"  # Speed change without pitch change (librosa)
-pip install "abstractvoice[web]"       # Local FastAPI browser example (base TTS/STT UI)
+pip install "abstractvoice[web]"       # Local FastAPI browser example
+pip install "abstractvoice[web,voice]" # Web example + local Piper/faster-whisper
+pip install "abstractvoice[all]"       # Common local bundle; excludes Chroma/AudioDiT/OmniVoice
 pip install "abstractvoice[web-omnivoice]" # Web UI + OmniVoice dependency
 pip install "abstractvoice[web-full]"  # Web UI + optional local engine dependencies
-pip install "abstractvoice[stt]"       # Current faster-whisper STT path (also in core)
 pip install "abstractvoice[legacy-stt]" # Legacy openai-whisper + tiktoken
 ```
 
@@ -87,8 +99,8 @@ ids through `VoiceManager.get_profiles()`. Static ids can be configured with
 
 Python-version notes:
 
-- Python 3.9 supports the core Piper/faster-whisper path, the web example,
-  and AudioDiT TTS/prompt-audio cloning.
+- Python 3.9 supports the lightweight base, local Piper/faster-whisper extras,
+  the web example, and AudioDiT TTS/prompt-audio cloning.
 - OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
   upstream runtimes do.
 - AEC requires Python 3.11+ because `aec-audio-processing` declares that floor.

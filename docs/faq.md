@@ -4,18 +4,22 @@
 
 ### What Python versions are supported?
 
-AbstractVoice supports Python `>=3.9`. The core Piper/faster-whisper path, web
-example, and AudioDiT TTS/prompt-audio cloning are supported on Python 3.9.
-OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
-upstream runtimes do; AEC requires Python 3.11+.
+AbstractVoice supports Python `>=3.9`. The lightweight base install and the
+remote/OpenAI-compatible path are supported on Python 3.9. Local
+Piper/faster-whisper voice extras and the web example are also supported on
+Python 3.9. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because
+their upstream runtimes do; AEC requires Python 3.11+.
 
 ### Do I need system speech dependencies?
 
-The default TTS engine is Piper through ONNX Runtime, so it does not require
-system packages such as `espeak-ng`.
+The bare package install does not require local speech engines. Install
+`abstractvoice[voice]` for the local Piper/faster-whisper path. Piper runs
+through ONNX Runtime, so it does not require system packages such as
+`espeak-ng`.
 
-Microphone and speaker I/O use `sounddevice` / PortAudio. On some Linux
-systems you may need PortAudio packages from the OS package manager. See
+Microphone and speaker I/O use `sounddevice` / PortAudio and are installed by
+`abstractvoice[voice]` or `abstractvoice[audio-io]`. On some Linux systems you
+may need PortAudio packages from the OS package manager. See
 `docs/installation.md` for platform notes.
 
 ### I installed the package but `abstractvoice` is not found. What should I check?
@@ -293,8 +297,12 @@ python -m abstractvoice download --piper fr
 
 ### Which TTS engine should I use?
 
-- Piper is the default and the recommended reliable path for local TTS.
-- faster-whisper is the default STT path.
+- Remote OpenAI-compatible engines are the lightest path for server and plugin
+  deployments.
+- Piper is the recommended reliable path for local TTS; install
+  `abstractvoice[voice]` or `abstractvoice[piper]`.
+- faster-whisper is the default local STT path; install `abstractvoice[voice]`
+  or `abstractvoice[stt]`.
 - OpenF5, Chroma, AudioDiT, and OmniVoice are optional heavier engines for
   cloning, research, or richer voice experiments.
 - AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine

@@ -213,6 +213,13 @@ def create_tts_adapter(
         **kwargs,
     )
     if adapter is None and requested != "auto":
+        if requested == "piper":
+            raise RuntimeError(
+                "TTS engine 'piper' requires optional dependencies.\n"
+                "Install with:\n"
+                "  pip install \"abstractvoice[piper]\"\n"
+                "  pip install \"abstractvoice[voice]\""
+            )
         raise RuntimeError(
             f"TTS engine '{requested}' is not available in this environment.\n"
             f"Install the required optional dependencies (or pick a different engine).\n"

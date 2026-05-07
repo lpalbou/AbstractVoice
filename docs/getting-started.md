@@ -15,11 +15,13 @@ troubleshooting.
 ## Install
 
 ```bash
-pip install abstractvoice
+pip install "abstractvoice[voice]"
 ```
 
-Optional extras are documented in `docs/installation.md` (OpenF5/AudioDiT
-cloning, Chroma, AEC, audio-fx, and legacy STT).
+The plain `pip install abstractvoice` path is lightweight and remote/plugin
+oriented. Optional extras are documented in `docs/installation.md` (remote
+OpenAI-compatible providers, web, OpenF5/AudioDiT cloning, Chroma, AEC,
+audio-fx, and legacy STT).
 
 ## 60-second smoke test (no mic required)
 
@@ -54,6 +56,13 @@ AbstractCore Server for production OpenAI-compatible HTTP endpoints.
 
 ```bash
 pip install "abstractvoice[web]"
+abstractvoice web --port 5000 --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
+```
+
+For a local web lab with Piper/faster-whisper instead:
+
+```bash
+pip install "abstractvoice[web,voice]"
 abstractvoice web --port 5000
 ```
 

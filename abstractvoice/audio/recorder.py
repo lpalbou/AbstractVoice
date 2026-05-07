@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-import soundfile as sf
 
 
 def record_wav(
@@ -23,7 +22,16 @@ def record_wav(
     except Exception as e:
         raise ImportError(
             "Microphone recording requires sounddevice.\n"
-            "Install with: pip install abstractvoice\n"
+            "Install with: pip install \"abstractvoice[audio-io]\" or \"abstractvoice[voice]\"\n"
+            f"Original error: {e}"
+        ) from e
+
+    try:
+        import soundfile as sf
+    except Exception as e:
+        raise ImportError(
+            "Writing recorded WAV files requires soundfile.\n"
+            "Install with: pip install \"abstractvoice[audio-io]\" or \"abstractvoice[voice]\"\n"
             f"Original error: {e}"
         ) from e
 
@@ -43,4 +51,3 @@ def record_wav(
 
     sf.write(str(out), audio, sample_rate, subtype="PCM_16")
     return str(out)
-

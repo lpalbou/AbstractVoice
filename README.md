@@ -6,27 +6,29 @@
 [![license](https://img.shields.io/github/license/lpalbou/AbstractVoice)](https://github.com/lpalbou/AbstractVoice/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/lpalbou/AbstractVoice?style=social)](https://github.com/lpalbou/AbstractVoice/stargazers)
 
-Local-first **voice I/O** for AI applications: TTS, STT, microphone control,
-streaming speech output, and optional voice cloning behind a small Python API.
+Lightweight **voice I/O** for AI applications: remote/OpenAI-compatible audio
+adapters by default, plus local TTS, STT, microphone control, streaming speech
+output, and optional voice cloning behind explicit extras.
 
 AbstractVoice is useful on its own, and it is also the voice capability package
 for the AbstractFramework ecosystem. It does not force you to run a daemon:
 embed `VoiceManager` directly when you want an in-process library; install it
 beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 
-- **TTS (default)**: Piper (cross-platform, no system deps)
-- **STT (default)**: faster-whisper
-- **Remote audio (optional engine)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
-- **Local assistant**: `listen()` + `speak()` with playback/listening control
+- **Remote audio (base install)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
+- **Local TTS (`abstractvoice[voice]`)**: Piper (cross-platform, no system deps)
+- **Local STT (`abstractvoice[voice]`)**: faster-whisper
+- **Local assistant (`abstractvoice[voice]`)**: `listen()` + `speak()` with playback/listening control
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`
 - **Voice cloning / heavier TTS (optional)**: OpenF5, Chroma, AudioDiT, OmniVoice
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
 
-Status: **alpha** (`0.8.x`). The default Piper/faster-whisper path is usable
-today; optional cloning and torch-based engines are heavier and should be
-validated on your target hardware. The supported integrator surface is
+Status: **alpha** (`0.9.x`). The lightweight remote/plugin path is the base
+install; the Piper/faster-whisper local path is available through
+`abstractvoice[voice]`. Optional cloning and torch-based engines are heavier and
+should be validated on your target hardware. The supported integrator surface is
 documented in `docs/api.md`, and current engine caveats are tracked in
 `docs/known-issues.md`.
 
@@ -66,9 +68,10 @@ the concrete voice implementation.
 ```mermaid
 flowchart LR
   App["Your app / REPL"] --> VM["abstractvoice.VoiceManager"]
-  VM --> TTS["Piper TTS"]
-  VM --> STT["faster-whisper STT"]
-  VM --> IO["sounddevice / PortAudio"]
+  VM --> Remote["OpenAI-compatible audio"]
+  VM --> TTS["Piper TTS (voice extra)"]
+  VM --> STT["faster-whisper STT (voice extra)"]
+  VM --> IO["sounddevice / PortAudio (voice extra)"]
 
   subgraph AbstractFramework
     AC["AbstractCore"] -. "capability plugin" .-> VM
@@ -94,6 +97,11 @@ AbstractCore discovers AbstractVoice through the
 - OpenAI-compatible server endpoints when AbstractCore Server is running:
   - `POST /v1/audio/speech`
   - `POST /v1/audio/transcriptions`
+
+For a remote-first media image, configure the AbstractVoice plugin with
+`voice_tts_engine=openai-compatible`, `voice_stt_engine=openai-compatible`, and
+`voice_remote_base_url=...`. For local Piper/faster-whisper inside the same
+environment, install `abstractvoice[voice]`.
 
 Minimal server smoke test:
 
@@ -127,17 +135,24 @@ Requires Python `>=3.9` (see `pyproject.toml`).
 pip install abstractvoice
 ```
 
-Optional extras (feature flags):
+This is the lightweight remote/plugin base. For local desktop/REPL voice:
 
 ```bash
-pip install "abstractvoice[all]"
-pip install "abstractvoice[web]"   # local FastAPI web example
-pip install "abstractvoice[openai]" # remote OpenAI/OpenAI-compatible audio intent extra (no extra deps)
+pip install "abstractvoice[voice]"
+```
+
+Common extras:
+
+```bash
+pip install "abstractvoice[openai]"            # hosted OpenAI intent extra (no extra deps today)
+pip install "abstractvoice[openai-compatible]" # generic compatible provider intent extra
+pip install "abstractvoice[web]"               # local FastAPI web example
+pip install "abstractvoice[all]"               # common local bundle; excludes GPU-heavy stacks
 ```
 
 Notes:
-- `abstractvoice[all]` enables most optional features (incl. cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime, AudioDiT, or OmniVoice.
-- Python 3.9 supports the core stack, web UI, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
+- `abstractvoice[all]` enables common local features (local voice + cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime, AudioDiT, or OmniVoice.
+- Python 3.9 supports the lightweight base, web UI, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
 - For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
 ### Explicit model downloads (recommended; never implicit in the REPL)

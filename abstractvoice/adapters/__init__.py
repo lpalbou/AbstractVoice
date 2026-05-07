@@ -6,10 +6,6 @@ while maintaining API compatibility.
 """
 
 from .base import TTSAdapter, STTAdapter
-from .tts_piper import PiperTTSAdapter
-from .stt_faster_whisper import FasterWhisperAdapter
-from .tts_openai_compatible import OpenAICompatibleTTSAdapter
-from .stt_openai_compatible import OpenAICompatibleSTTAdapter
 
 __all__ = [
     'TTSAdapter',
@@ -19,3 +15,23 @@ __all__ = [
     'OpenAICompatibleTTSAdapter',
     'OpenAICompatibleSTTAdapter',
 ]
+
+
+def __getattr__(name: str):
+    if name == "PiperTTSAdapter":
+        from .tts_piper import PiperTTSAdapter
+
+        return PiperTTSAdapter
+    if name == "FasterWhisperAdapter":
+        from .stt_faster_whisper import FasterWhisperAdapter
+
+        return FasterWhisperAdapter
+    if name == "OpenAICompatibleTTSAdapter":
+        from .tts_openai_compatible import OpenAICompatibleTTSAdapter
+
+        return OpenAICompatibleTTSAdapter
+    if name == "OpenAICompatibleSTTAdapter":
+        from .stt_openai_compatible import OpenAICompatibleSTTAdapter
+
+        return OpenAICompatibleSTTAdapter
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
