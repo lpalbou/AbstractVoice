@@ -579,10 +579,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#core-dependencies-installed-by-default" class="md-nav__link">
+  <a href="#lightweight-base-dependencies-installed-by-default" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core dependencies (installed by default)
+        Lightweight base dependencies (installed by default)
       
     </span>
   </a>
@@ -600,6 +600,28 @@
   
     <nav class="md-nav" aria-label="Optional extras (opt-in)">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicevoice-local-piper-faster-whisper-audio-io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[voice] — local Piper + faster-whisper + audio I/O
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[cloning], [chroma], [audiodit], [omnivoice] — model prefetch support
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#abstractvoiceaudiodit-longcat-audiodit-tts-prompt-audio-cloning" class="md-nav__link">
@@ -1186,10 +1208,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#core-dependencies-installed-by-default" class="md-nav__link">
+  <a href="#lightweight-base-dependencies-installed-by-default" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core dependencies (installed by default)
+        Lightweight base dependencies (installed by default)
       
     </span>
   </a>
@@ -1207,6 +1229,28 @@
   
     <nav class="md-nav" aria-label="Optional extras (opt-in)">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicevoice-local-piper-faster-whisper-audio-io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[voice] — local Piper + faster-whisper + audio I/O
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[cloning], [chroma], [audiodit], [omnivoice] — model prefetch support
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#abstractvoiceaudiodit-longcat-audiodit-tts-prompt-audio-cloning" class="md-nav__link">
@@ -1363,7 +1407,7 @@
 </ul>
 <p>If you need licensing guidance for model weights and voices, also read <code>docs/voices-and-licenses.md</code>.</p>
 <hr />
-<h2 id="core-dependencies-installed-by-default">Core dependencies (installed by default)<a class="headerlink" href="#core-dependencies-installed-by-default" title="Permanent link">&para;</a></h2>
+<h2 id="lightweight-base-dependencies-installed-by-default">Lightweight base dependencies (installed by default)<a class="headerlink" href="#lightweight-base-dependencies-installed-by-default" title="Permanent link">&para;</a></h2>
 <p>These are always installed with <code>pip install abstractvoice</code>.</p>
 <ul>
 <li><strong>numpy</strong></li>
@@ -1388,31 +1432,24 @@
 <li><strong>Why</strong>: OS-appropriate cache/data directory locations.</li>
 <li><strong>Where</strong>: used in cache/storage helpers.</li>
 <li><strong>Repo</strong>: <code>https://github.com/ActiveState/appdirs</code></li>
-<li>
-<p><strong>License</strong>: <code>https://github.com/ActiveState/appdirs/blob/master/LICENSE.txt</code></p>
-</li>
-<li>
-<p><strong>piper-tts</strong></p>
-</li>
-<li><strong>Why</strong>: default local neural TTS backend (Piper-first).</li>
+<li><strong>License</strong>: <code>https://github.com/ActiveState/appdirs/blob/master/LICENSE.txt</code></li>
+</ul>
+<hr />
+<h2 id="optional-extras-opt-in">Optional extras (opt-in)<a class="headerlink" href="#optional-extras-opt-in" title="Permanent link">&para;</a></h2>
+<h3 id="abstractvoicevoice-local-piper-faster-whisper-audio-io"><code>abstractvoice[voice]</code> — local Piper + faster-whisper + audio I/O<a class="headerlink" href="#abstractvoicevoice-local-piper-faster-whisper-audio-io" title="Permanent link">&para;</a></h3>
+<p>This is the replacement for the old local-first base install.</p>
+<ul>
+<li><strong>piper-tts</strong></li>
+<li><strong>Why</strong>: local neural TTS backend (Piper-first).</li>
 <li><strong>Where</strong>: <code>abstractvoice/adapters/tts_piper.py</code></li>
 <li><strong>Repo</strong>: <code>https://github.com/rhasspy/piper</code></li>
 <li>
 <p><strong>License</strong>: <code>https://github.com/rhasspy/piper/blob/master/LICENSE</code></p>
 </li>
 <li>
-<p><strong>huggingface_hub</strong></p>
-</li>
-<li><strong>Why</strong>: download and cache model weights (STT models, optional engines).</li>
-<li><strong>Where</strong>: <code>abstractvoice/adapters/stt_faster_whisper.py</code>, <code>abstractvoice/prefetch.py</code>, <code>abstractvoice/audiodit/runtime.py</code>, <code>abstractvoice/omnivoice/runtime.py</code></li>
-<li><strong>Repo</strong>: <code>https://github.com/huggingface/huggingface_hub</code></li>
-<li>
-<p><strong>License</strong>: <code>https://github.com/huggingface/huggingface_hub/blob/main/LICENSE</code></p>
-</li>
-<li>
 <p><strong>faster-whisper</strong></p>
 </li>
-<li><strong>Why</strong>: default STT backend (fast Whisper inference).</li>
+<li><strong>Why</strong>: local STT backend (fast Whisper inference).</li>
 <li><strong>Where</strong>: <code>abstractvoice/adapters/stt_faster_whisper.py</code></li>
 <li><strong>Repo</strong>: <code>https://github.com/SYSTRAN/faster-whisper</code></li>
 <li>
@@ -1444,8 +1481,14 @@
 <li><strong>Repo</strong>: <code>https://github.com/wiseman/py-webrtcvad</code></li>
 <li><strong>License</strong>: <code>https://github.com/wiseman/py-webrtcvad/blob/master/LICENSE.txt</code></li>
 </ul>
-<hr />
-<h2 id="optional-extras-opt-in">Optional extras (opt-in)<a class="headerlink" href="#optional-extras-opt-in" title="Permanent link">&para;</a></h2>
+<h3 id="abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support"><code>abstractvoice[cloning]</code>, <code>[chroma]</code>, <code>[audiodit]</code>, <code>[omnivoice]</code> — model prefetch support<a class="headerlink" href="#abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>huggingface_hub</strong></li>
+<li><strong>Why</strong>: download and cache optional engine model weights/artifacts.</li>
+<li><strong>Where</strong>: <code>abstractvoice/cloning/engine_f5.py</code>, <code>abstractvoice/cloning/engine_chroma.py</code>, <code>abstractvoice/audiodit/runtime.py</code>, <code>abstractvoice/omnivoice/runtime.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/huggingface_hub</code></li>
+<li><strong>License</strong>: <code>https://github.com/huggingface/huggingface_hub/blob/main/LICENSE</code></li>
+</ul>
 <h3 id="abstractvoiceaudiodit-longcat-audiodit-tts-prompt-audio-cloning"><code>abstractvoice[audiodit]</code> — LongCat-AudioDiT (TTS + prompt-audio cloning)<a class="headerlink" href="#abstractvoiceaudiodit-longcat-audiodit-tts-prompt-audio-cloning" title="Permanent link">&para;</a></h3>
 <p>Supported on Python 3.9+. Python 3.9 uses the latest compatible Transformers
 4.x line; Python 3.10+ uses the Transformers 5.x line.</p>
@@ -1664,7 +1707,7 @@ plus optional local voice engines.</p>
 <h3 id="abstractvoicestt-faster-whisper-stt"><code>abstractvoice[stt]</code> — Faster-Whisper STT<a class="headerlink" href="#abstractvoicestt-faster-whisper-stt" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>faster-whisper</strong></li>
-<li><strong>Why</strong>: current STT adapter path (also installed by the base package).</li>
+<li><strong>Why</strong>: local STT adapter path.</li>
 <li><strong>Where</strong>: <code>abstractvoice/adapters/stt_faster_whisper.py</code></li>
 <li><strong>Repo</strong>: <code>https://github.com/SYSTRAN/faster-whisper</code></li>
 <li><strong>License</strong>: <code>https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE</code></li>

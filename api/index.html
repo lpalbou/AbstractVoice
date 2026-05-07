@@ -1585,12 +1585,12 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
 - <code>whisper_model</code> controls the faster‑whisper model size used by <code>listen()</code> and <code>transcribe_*()</code>.
 - <code>tts_engine</code> supports:
   - <code>auto</code> (deterministic default: resolves to <code>piper</code>)
-  - <code>piper</code> (default core TTS)
+  - <code>piper</code> (default local TTS; requires <code>abstractvoice[voice]</code> or <code>abstractvoice[piper]</code>)
   - <code>openai</code> (remote OpenAI <code>/v1/audio/speech</code>; requires <code>OPENAI_API_KEY</code>)
   - <code>openai-compatible</code> (remote compatible <code>/v1/audio/speech</code>; configure <code>remote_base_url</code> or <code>ABSTRACTVOICE_REMOTE_BASE_URL</code>)
   - <code>audiodit</code> (LongCat-AudioDiT; requires <code>abstractvoice[audiodit]</code>; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in <code>0.8.1</code>)
   - <code>omnivoice</code> (OmniVoice; requires <code>abstractvoice[omnivoice]</code>; upstream supports 600+ languages)
-- <code>stt_engine</code> supports <code>auto|faster_whisper|openai|openai-compatible</code>. If the faster‑whisper adapter is unavailable (or disabled), <code>transcribe_*()</code> falls back to the legacy <code>abstractvoice.stt.Transcriber</code> (requires <code>abstractvoice[legacy-stt]</code>; see <code>abstractvoice/vm/stt_mixin.py</code>). Explicit remote STT failures raise actionable errors instead of falling back.
+- <code>stt_engine</code> supports <code>auto|faster_whisper|openai|openai-compatible</code>. The local faster‑whisper path requires <code>abstractvoice[voice]</code> or <code>abstractvoice[stt]</code>. If the faster‑whisper adapter is unavailable (or disabled), <code>transcribe_*()</code> falls back to the legacy <code>abstractvoice.stt.Transcriber</code> (requires <code>abstractvoice[legacy-stt]</code>; see <code>abstractvoice/vm/stt_mixin.py</code>). Explicit remote STT failures raise actionable errors instead of falling back.
 - <code>tts_model</code> is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request <code>model</code>.
 - For remote STT, <code>stt_model</code> maps to the transcription <code>model</code>.
 - Remote configuration can be passed in the constructor or via env vars:

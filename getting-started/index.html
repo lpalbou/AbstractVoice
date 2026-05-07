@@ -1286,10 +1286,12 @@ troubleshooting.</p>
 <li>For microphone input: OS-level microphone permissions for your terminal/IDE</li>
 </ul>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[voice]&quot;</span>
 </code></pre></div>
-<p>Optional extras are documented in <code>docs/installation.md</code> (OpenF5/AudioDiT
-cloning, Chroma, AEC, audio-fx, and legacy STT).</p>
+<p>The plain <code>pip install abstractvoice</code> path is lightweight and remote/plugin
+oriented. Optional extras are documented in <code>docs/installation.md</code> (remote
+OpenAI-compatible providers, web, OpenF5/AudioDiT cloning, Chroma, AEC,
+audio-fx, and legacy STT).</p>
 <h2 id="60-second-smoke-test-no-mic-required">60-second smoke test (no mic required)<a class="headerlink" href="#60-second-smoke-test-no-mic-required" title="Permanent link">&para;</a></h2>
 <p>Start the REPL:</p>
 <div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--verbose
@@ -1311,6 +1313,10 @@ transcription, and a tiny optional LLM dialogue panel for OpenAI-compatible
 local providers such as Ollama. It is not the production server surface; use
 AbstractCore Server for production OpenAI-compatible HTTP endpoints.</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span>
+abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
+</code></pre></div>
+<p>For a local web lab with Piper/faster-whisper instead:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,voice]&quot;</span>
 abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span>
 </code></pre></div>
 <p>If you want the browser UI and optional engines in one install command, use

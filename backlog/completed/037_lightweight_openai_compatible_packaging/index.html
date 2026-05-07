@@ -1,0 +1,2146 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/completed/037_lightweight_openai_compatible_packaging/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>037 lightweight openai compatible packaging - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#task-037-lightweight-openai-compatible-packaging-for-pluginserver-hosts" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              037 lightweight openai compatible packaging
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#task-037-lightweight-openai-compatible-packaging-for-pluginserver-hosts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 037: Lightweight OpenAI-compatible packaging for plugin/server hosts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secondary-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secondary goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context / problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#investigation-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Investigation findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime-abstraction-that-already-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime abstraction that already exists
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#import-blockers-to-fix-before-metadata-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import blockers to fix before metadata migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs-and-tests-that-currently-assume-local-first-base-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docs and tests that currently assume local-first base install
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-options-and-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research, options, and references
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Research, options, and references">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-keep-base-local-first-and-document-custom-docker-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: Keep base local-first and document custom Docker images
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-make-base-lightweight-and-move-local-runtimes-behind-extras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: Make base lightweight and move local runtimes behind extras
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-add-a-separate-lightweight-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option C: Add a separate lightweight distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-d-keep-base-dependencies-but-rely-on-no-deps-or-docker-pruning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option D: Keep base dependencies but rely on --no-deps or Docker pruning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chosen-install-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chosen install profiles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Chosen install profiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#base" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Base
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remote-intent-extras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remote intent extras
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-engine-extras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local engine extras
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compatibility-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compatibility aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#all-extra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        All extra
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#web-extras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web extras
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloning-extras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cloning extras
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#install-recipes-to-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install recipes to document
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Install recipes to document">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#remote-only-library-or-plugin-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remote-only library or plugin host
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hosted-openai-audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hosted OpenAI audio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-desktop-repl-voice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local desktop / REPL voice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remote-web-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remote web example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-web-lab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local web lab
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remote-compatible-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remote compatible cloning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lightweight-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lightweight CI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-voice-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local voice CI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractcore-remote-media-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AbstractCore remote media image
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-add-packagingimport-tests-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Add packaging/import tests first
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-fix-import-light-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Fix import-light boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-move-dependencies-into-extras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Move dependencies into extras
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-make-local-failures-actionable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Make local failures actionable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-5-update-dependency-checker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Update dependency checker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-6-update-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 6: Update docs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-7-test-profiles-and-release-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 7: Test profiles and release notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Report">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>037 lightweight openai compatible packaging</h1>
+
+<h2 id="task-037-lightweight-openai-compatible-packaging-for-pluginserver-hosts">Task 037: Lightweight OpenAI-compatible packaging for plugin/server hosts<a class="headerlink" href="#task-037-lightweight-openai-compatible-packaging-for-pluginserver-hosts" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-05-07<br />
+<strong>Status</strong>: Completed<br />
+<strong>Priority</strong>: P1  </p>
+<hr />
+<h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Make <code>pip install abstractvoice</code> a lightweight install that supports:</li>
+<li>remote OpenAI/OpenAI-compatible TTS</li>
+<li>remote OpenAI/OpenAI-compatible STT</li>
+<li>remote voice/profile listing</li>
+<li>compatible remote clone handles</li>
+<li>AbstractCore capability plugin discovery and registration</li>
+<li>Move local voice runtimes and platform-sensitive audio I/O dependencies behind explicit extras.</li>
+<li>Let AbstractCore publish a media-capable, remote-first Docker image without implicitly installing Piper, faster-whisper, PortAudio/audio-device packages, or optional cloning stacks.</li>
+</ul>
+<h2 id="secondary-goals">Secondary goals<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Preserve the public <code>VoiceManager</code> API and AbstractCore plugin entry point.</li>
+<li>Preserve local-first desktop/REPL behavior through a clear <code>abstractvoice[voice]</code> or <code>abstractvoice[local]</code> install.</li>
+<li>Keep Python 3.9 support for the lightweight remote/plugin path where practical.</li>
+<li>Keep optional local engines first-class but explicit.</li>
+<li>Avoid implicit model downloads and surprise network/model runtime weight.</li>
+</ul>
+<hr />
+<h2 id="context-problem">Context / problem<a class="headerlink" href="#context-problem" title="Permanent link">&para;</a></h2>
+<p>AbstractVoice now has two valid deployment shapes:</p>
+<ul>
+<li><strong>Local voice library / REPL</strong>: Piper TTS, faster-whisper STT, microphone/playback, optional cloning.</li>
+<li><strong>Remote/plugin host</strong>: OpenAI-compatible audio adapters loaded inside AbstractCore or another server, with all synthesis/transcription happening upstream.</li>
+</ul>
+<p>The code already has much of the runtime abstraction:</p>
+<ul>
+<li>TTS engine selection goes through <code>abstractvoice/adapters/tts_registry.py</code>.</li>
+<li><code>tts_engine="openai"</code> and <code>tts_engine="openai-compatible"</code> use <code>OpenAICompatibleTTSAdapter</code>.</li>
+<li><code>stt_engine="openai"</code> and <code>stt_engine="openai-compatible"</code> use <code>OpenAICompatibleSTTAdapter</code>.</li>
+<li>Remote voice profiles are exposed through <code>VoiceManager.get_profiles()</code>.</li>
+<li>Remote compatible clone creation is routed through <code>RemoteVoiceCloningEngine</code>.</li>
+<li>AbstractCore discovers the plugin through:</li>
+<li><code>pyproject.toml</code> -&gt; <code>[project.entry-points."abstractcore.capabilities_plugins"]</code></li>
+<li><code>abstractvoice = "abstractvoice.integrations.abstractcore_plugin:register"</code></li>
+</ul>
+<p>The packaging does not match that architecture yet. Current base dependencies include:</p>
+<ul>
+<li><code>piper-tts</code></li>
+<li><code>huggingface_hub</code></li>
+<li><code>faster-whisper</code></li>
+<li><code>sounddevice</code></li>
+<li><code>soundfile</code></li>
+<li><code>webrtcvad</code></li>
+<li><code>numpy</code></li>
+<li><code>requests</code></li>
+<li><code>appdirs</code></li>
+</ul>
+<p>Python extras can add dependencies, but cannot remove base dependencies. While the local runtime stack remains in base, <code>abstractvoice[openai-compatible]</code> and <code>abstractvoice[remote]</code> cannot be lightweight in Docker or CI.</p>
+<p>There is also an import-boundary issue: a lightweight install must be able to import <code>abstractvoice</code>, load the AbstractCore plugin entry point, and construct remote-only <code>VoiceManager</code> instances without importing local engine modules or requiring local audio packages.</p>
+<hr />
+<h2 id="investigation-findings">Investigation findings<a class="headerlink" href="#investigation-findings" title="Permanent link">&para;</a></h2>
+<h3 id="runtime-abstraction-that-already-exists">Runtime abstraction that already exists<a class="headerlink" href="#runtime-abstraction-that-already-exists" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>VoiceManager</code> accepts <code>tts_engine</code>, <code>stt_engine</code>, <code>remote_base_url</code>, <code>remote_api_key</code>, and <code>remote_timeout_s</code>.</li>
+<li>TTS <code>auto</code> currently resolves to Piper; explicit <code>openai</code> and <code>openai-compatible</code> routes avoid Piper.</li>
+<li>Remote TTS uses a <code>requests</code>-based client and posts to <code>/audio/speech</code>.</li>
+<li>Remote STT uses multipart HTTP and posts to <code>/audio/transcriptions</code>.</li>
+<li>Remote profile listing uses <code>/audio/voices</code> and <code>/voices</code>.</li>
+<li>Remote clone support stores a remote voice id locally and reuses it for remote speech.</li>
+<li>Audio playback imports <code>sounddevice</code> only when a playback stream is opened, so <code>speak_to_bytes()</code> is naturally headless-friendly.</li>
+</ul>
+<h3 id="import-blockers-to-fix-before-metadata-migration">Import blockers to fix before metadata migration<a class="headerlink" href="#import-blockers-to-fix-before-metadata-migration" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>abstractvoice/audio/__init__.py</code> imports <code>record_wav</code>.</li>
+<li><code>abstractvoice/audio/recorder.py</code> imports <code>soundfile</code> at module import time.</li>
+<li><code>abstractvoice/__init__.py</code> imports <code>VoiceManager</code>, which imports <code>AdapterTTSEngine</code>, which reaches <code>tts_engine.py</code>, which imports <code>audio.resample</code>; importing <code>abstractvoice.audio.resample</code> executes <code>audio/__init__.py</code>.</li>
+<li>Result: <code>import abstractvoice</code> currently requires <code>soundfile</code> even for remote-only users.</li>
+<li><code>abstractvoice/adapters/__init__.py</code> eagerly imports <code>PiperTTSAdapter</code> and <code>FasterWhisperAdapter</code>. This does not necessarily import external <code>piper</code> or <code>faster_whisper</code>, but it does import local adapter modules and weakens import-light guarantees.</li>
+</ul>
+<h3 id="docs-and-tests-that-currently-assume-local-first-base-install">Docs and tests that currently assume local-first base install<a class="headerlink" href="#docs-and-tests-that-currently-assume-local-first-base-install" title="Permanent link">&para;</a></h3>
+<ul>
+<li>README and installation docs say <code>pip install abstractvoice</code> provides Piper/faster-whisper/audio I/O.</li>
+<li><code>docs/dependencies.md</code> describes Piper/faster-whisper/audio I/O as core dependencies.</li>
+<li><code>DependencyChecker.CORE_DEPS</code> lists the local voice stack as core.</li>
+<li><code>tests/test_dependency_check.py</code> asserts the local voice stack is core.</li>
+<li><code>tests/test_fresh_install.py</code> is really local Piper/model-download coverage, not lightweight-base coverage.</li>
+</ul>
+<hr />
+<h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Do not redesign <code>VoiceManager</code>.</li>
+<li>Do not move OpenAI-compatible server routes into AbstractVoice; AbstractCore owns production HTTP server routing.</li>
+<li>Keep remote adapters and plugin registration importable from the base package.</li>
+<li>Keep <code>tts_engine="auto"</code> behavior stable for local installs: <code>auto</code> remains Piper-first.</li>
+<li>For lightweight installs, require explicit remote engine selection or AbstractCore config.</li>
+<li>Keep local audio playback/capture optional for server images.</li>
+<li>Keep cloning engines explicit and avoid installing torch-backed stacks by default.</li>
+<li>Keep install errors actionable and exact: tell users which extra to install.</li>
+</ul>
+<hr />
+<h2 id="research-options-and-references">Research, options, and references<a class="headerlink" href="#research-options-and-references" title="Permanent link">&para;</a></h2>
+<h3 id="option-a-keep-base-local-first-and-document-custom-docker-images">Option A: Keep base local-first and document custom Docker images<a class="headerlink" href="#option-a-keep-base-local-first-and-document-custom-docker-images" title="Permanent link">&para;</a></h3>
+<p>Pros:
+- Preserves current <code>pip install abstractvoice</code> local desktop behavior.
+- Minimal packaging churn.</p>
+<p>Cons:
+- Does not solve AbstractCore media-image size/runtime sensitivity.
+- Remote-only users still install local model and device packages.
+- No extra can remove <code>piper-tts</code>, <code>faster-whisper</code>, <code>sounddevice</code>, <code>soundfile</code>, or <code>webrtcvad</code> from base.</p>
+<h3 id="option-b-make-base-lightweight-and-move-local-runtimes-behind-extras">Option B: Make base lightweight and move local runtimes behind extras<a class="headerlink" href="#option-b-make-base-lightweight-and-move-local-runtimes-behind-extras" title="Permanent link">&para;</a></h3>
+<p>Pros:
+- Clean single-distribution model.
+- Lets AbstractCore depend on AbstractVoice in a remote-first media image.
+- Makes deployment weight explicit.
+- Aligns with remote TTS/STT/profile/clone paths already implemented.</p>
+<p>Cons:
+- Changes user expectation for <code>pip install abstractvoice</code>.
+- Requires docs, dependency checker, tests, and install hints to move from "local core" to "lightweight core + local extras".</p>
+<h3 id="option-c-add-a-separate-lightweight-distribution">Option C: Add a separate lightweight distribution<a class="headerlink" href="#option-c-add-a-separate-lightweight-distribution" title="Permanent link">&para;</a></h3>
+<p>Examples:
+- <code>abstractvoice-core</code>
+- <code>abstractvoice-remote</code></p>
+<p>Pros:
+- Preserves current <code>abstractvoice</code> local-first behavior.
+- Gives AbstractCore a small dependency.</p>
+<p>Cons:
+- Splits package ownership and docs.
+- Creates confusing import-path and entry-point ownership questions.
+- Increases release complexity for little runtime benefit.</p>
+<h3 id="option-d-keep-base-dependencies-but-rely-on-no-deps-or-docker-pruning">Option D: Keep base dependencies but rely on <code>--no-deps</code> or Docker pruning<a class="headerlink" href="#option-d-keep-base-dependencies-but-rely-on-no-deps-or-docker-pruning" title="Permanent link">&para;</a></h3>
+<p>Pros:
+- Avoids user-facing packaging change.</p>
+<p>Cons:
+- Fragile and non-standard.
+- Pushes dependency correctness onto AbstractCore Docker builds.
+- Breaks normal resolver expectations.</p>
+<hr />
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p><strong>Chosen approach</strong>: Option B.</p>
+<p>Make <code>abstractvoice</code> lightweight by default, and make local engines explicit extras. Keep the package single-distribution and preserve the public API.</p>
+<p><strong>Why</strong>:
+- It is the only clean single-distribution path that supports AbstractCore's remote-first media image.
+- The runtime architecture already supports remote TTS/STT/profile/clone paths.
+- The known blockers are import-boundary and packaging/test/docs migration issues, not a <code>VoiceManager</code> redesign.</p>
+<hr />
+<h2 id="chosen-install-profiles">Chosen install profiles<a class="headerlink" href="#chosen-install-profiles" title="Permanent link">&para;</a></h2>
+<h3 id="base">Base<a class="headerlink" href="#base" title="Permanent link">&para;</a></h3>
+<p><code>abstractvoice</code></p>
+<p>Recommended base dependencies:</p>
+<ul>
+<li><code>numpy&gt;=1.24.0</code></li>
+<li><code>requests&gt;=2.31.0</code></li>
+<li><code>appdirs&gt;=1.4.0</code></li>
+</ul>
+<p>Rationale:
+- <code>numpy</code> is still part of the adapter/audio-array surface and remote bytes/array helpers.
+- <code>requests</code> is the HTTP runtime for remote audio.
+- <code>appdirs</code> is small and keeps remote clone-handle storage usable from the base package. If clone-store path handling is later refactored to avoid <code>appdirs</code>, this can be revisited.</p>
+<p>Base must not include:</p>
+<ul>
+<li><code>piper-tts</code></li>
+<li><code>faster-whisper</code></li>
+<li><code>sounddevice</code></li>
+<li><code>soundfile</code></li>
+<li><code>webrtcvad</code></li>
+<li>torch/torchaudio/torchvision</li>
+<li><code>f5-tts</code></li>
+<li><code>omnivoice</code></li>
+<li>Chroma/AudioDiT runtime stacks</li>
+</ul>
+<h3 id="remote-intent-extras">Remote intent extras<a class="headerlink" href="#remote-intent-extras" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>abstractvoice[openai]</code>: no-op intent extra for hosted OpenAI audio unless a future OpenAI SDK dependency is adopted.</li>
+<li><code>abstractvoice[openai-compatible]</code>: no-op intent extra for generic compatible providers.</li>
+<li><code>abstractvoice[remote]</code>: alias no-op intent extra.</li>
+</ul>
+<p>Keep both <code>openai</code> and <code>openai-compatible</code>. They are technically redundant while
+both are empty and remote adapters use the shared <code>requests</code> client, but they
+encode different installer intent:</p>
+<ul>
+<li><code>openai</code>: hosted OpenAI API, default OpenAI base URL, OpenAI API key/env semantics, and possible future OpenAI SDK/helper dependency.</li>
+<li><code>openai-compatible</code>: any compatible <code>/v1</code> provider, including AbstractCore Server, LM Studio-style gateways, or custom proxies.</li>
+</ul>
+<p>Because empty extras add no install weight, keeping both is clearer than forcing
+hosted OpenAI and generic compatible providers into one ambiguous extra.</p>
+<h3 id="local-engine-extras">Local engine extras<a class="headerlink" href="#local-engine-extras" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>abstractvoice[piper]</code> or <code>abstractvoice[local-tts]</code></li>
+<li><code>piper-tts&gt;=1.2.0</code></li>
+<li>Include <code>huggingface_hub</code> only if implementation still directly needs it for this path. Current Piper downloads use direct HTTPS, so this should be audited instead of assumed.</li>
+<li><code>abstractvoice[stt]</code> or <code>abstractvoice[local-stt]</code></li>
+<li><code>faster-whisper&gt;=0.10.0</code></li>
+<li><code>soundfile&gt;=0.12.1</code> if local STT/transcode/test paths require it.</li>
+<li><code>abstractvoice[audio-io]</code></li>
+<li><code>sounddevice&gt;=0.4.6</code></li>
+<li><code>soundfile&gt;=0.12.1</code></li>
+<li><code>webrtcvad&gt;=2.0.10</code></li>
+<li><code>abstractvoice[voice]</code></li>
+<li>local TTS + local STT + audio I/O</li>
+<li><code>abstractvoice[local]</code></li>
+<li>alias for <code>voice</code></li>
+</ul>
+<h3 id="compatibility-aliases">Compatibility aliases<a class="headerlink" href="#compatibility-aliases" title="Permanent link">&para;</a></h3>
+<p>Keep these working for at least one release cycle:</p>
+<ul>
+<li><code>voice-full</code>: alias for <code>voice</code></li>
+<li><code>core-stt</code>: alias for <code>stt</code></li>
+<li><code>audio-only</code>: alias for <code>audio-io</code></li>
+</ul>
+<h3 id="all-extra">All extra<a class="headerlink" href="#all-extra" title="Permanent link">&para;</a></h3>
+<p>Keep <code>abstractvoice[all]</code> as a first-class convenience bundle.</p>
+<p>Recommended meaning:</p>
+<ul>
+<li>local voice path (<code>voice</code>)</li>
+<li>audio effects (<code>audio-fx</code>)</li>
+<li>common local cloning/AEC extras where resolver-safe:</li>
+<li><code>cloning</code></li>
+<li><code>aec</code></li>
+<li>exclude GPU-heavy or highly specialized stacks unless explicitly requested:</li>
+<li>Chroma</li>
+<li>AudioDiT</li>
+<li>OmniVoice</li>
+</ul>
+<p>Rationale:
+- <code>all</code> should mean "common local features" rather than "every possible model stack".
+- Keeping Chroma/AudioDiT/OmniVoice explicit avoids surprising torch/transformers installs and Python-version resolver conflicts.
+- Existing users already have an <code>all</code> extra today, so removing it would be unnecessary churn.</p>
+<h3 id="web-extras">Web extras<a class="headerlink" href="#web-extras" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>abstractvoice[web]</code></li>
+<li>FastAPI local web example only; remote-compatible and engine-agnostic.</li>
+<li><code>abstractvoice[web,voice]</code></li>
+<li>web example plus local Piper/faster-whisper/audio I/O.</li>
+<li><code>abstractvoice[web-cloning]</code></li>
+<li>web example plus OpenF5 cloning runtime.</li>
+<li><code>abstractvoice[web-audiodit]</code></li>
+<li>web example plus AudioDiT runtime.</li>
+<li><code>abstractvoice[web-omnivoice]</code></li>
+<li>web example plus OmniVoice runtime.</li>
+<li><code>abstractvoice[web-chroma]</code></li>
+<li>web example plus Chroma runtime.</li>
+<li><code>abstractvoice[web-full]</code></li>
+<li>explicit heavy web/demo bundle.</li>
+</ul>
+<h3 id="cloning-extras">Cloning extras<a class="headerlink" href="#cloning-extras" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Remote compatible clone handles should work from base as long as <code>appdirs</code> remains in base.</li>
+<li><code>abstractvoice[cloning]</code> remains the local OpenF5 cloning extra.</li>
+<li><code>abstractvoice[chroma]</code>, <code>abstractvoice[audiodit]</code>, and <code>abstractvoice[omnivoice]</code> remain explicit heavy engine extras.</li>
+<li>Audit direct <code>huggingface_hub</code> imports in OpenF5, Chroma, AudioDiT, and OmniVoice prefetch paths. Do not rely on transitive dependencies if a public prefetch command imports <code>huggingface_hub</code> directly.</li>
+</ul>
+<hr />
+<h2 id="install-recipes-to-document">Install recipes to document<a class="headerlink" href="#install-recipes-to-document" title="Permanent link">&para;</a></h2>
+<h3 id="remote-only-library-or-plugin-host">Remote-only library or plugin host<a class="headerlink" href="#remote-only-library-or-plugin-host" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span>
+    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">,</span>
+    <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">,</span>
+    <span class="n">remote_base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000/v1&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="hosted-openai-audio">Hosted OpenAI audio<a class="headerlink" href="#hosted-openai-audio" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[openai]&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="local-desktop-repl-voice">Local desktop / REPL voice<a class="headerlink" href="#local-desktop-repl-voice" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[voice]&quot;</span>
+abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
+abstractvoice-prefetch<span class="w"> </span>--stt<span class="w"> </span>small
+abstractvoice
+</code></pre></div>
+<h3 id="remote-web-example">Remote web example<a class="headerlink" href="#remote-web-example" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span>
+abstractvoice<span class="w"> </span>web<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
+</code></pre></div>
+<h3 id="local-web-lab">Local web lab<a class="headerlink" href="#local-web-lab" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,voice]&quot;</span>
+abstractvoice<span class="w"> </span>web
+</code></pre></div>
+<h3 id="remote-compatible-cloning">Remote compatible cloning<a class="headerlink" href="#remote-compatible-cloning" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span>
+    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">,</span>
+    <span class="n">cloning_engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">,</span>
+    <span class="n">remote_base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000/v1&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;reference.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;demo&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">)</span>
+<span class="n">wav</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello.&quot;</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
+</code></pre></div>
+<p>The compatible server must expose the configured clone route, defaulting to <code>POST /voice/clone</code>, and return <code>{"voice_id": "..."}</code> or <code>{"id": "..."}</code>.</p>
+<h3 id="lightweight-ci">Lightweight CI<a class="headerlink" href="#lightweight-ci" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[test]&quot;</span>
+pytest<span class="w"> </span>-q<span class="w"> </span>tests/test_remote_openai_compatible_adapters.py<span class="w"> </span>tests/test_abstractcore_plugin.py
+</code></pre></div>
+<h3 id="local-voice-ci">Local voice CI<a class="headerlink" href="#local-voice-ci" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[test,voice]&quot;</span>
+pytest<span class="w"> </span>-q<span class="w"> </span>tests/test_piper_adapter.py<span class="w"> </span>tests/test_faster_whisper_adapter.py
+</code></pre></div>
+<h3 id="abstractcore-remote-media-image">AbstractCore remote media image<a class="headerlink" href="#abstractcore-remote-media-image" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractcore[server]&quot;</span><span class="w"> </span>abstractvoice
+</code></pre></div>
+<p>Configure the plugin host with:</p>
+<ul>
+<li><code>voice_tts_engine=openai-compatible</code></li>
+<li><code>voice_stt_engine=openai-compatible</code></li>
+<li><code>voice_remote_base_url=http://.../v1</code></li>
+<li>optional <code>voice_remote_api_key=...</code></li>
+</ul>
+<hr />
+<h2 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Backlog tasks</strong>:</li>
+<li><code>docs/backlog/planned/013_openai_compatible_audio_endpoint.md</code></li>
+<li><code>docs/backlog/planned/027_refresh_dependency_check.md</code></li>
+<li><code>docs/backlog/planned/036_voice_profile_abstraction.md</code></li>
+<li><code>docs/backlog/proposed/2026-05-07_lightweight_openai_compatible_packaging.md</code></li>
+<li><strong>Key implementation files</strong>:</li>
+<li><code>pyproject.toml</code></li>
+<li><code>abstractvoice/__init__.py</code></li>
+<li><code>abstractvoice/adapters/__init__.py</code></li>
+<li><code>abstractvoice/audio/__init__.py</code></li>
+<li><code>abstractvoice/audio/recorder.py</code></li>
+<li><code>abstractvoice/tts/tts_engine.py</code></li>
+<li><code>abstractvoice/recognition.py</code></li>
+<li><code>abstractvoice/vm/stt_mixin.py</code></li>
+<li><code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
+<li><code>abstractvoice/dependency_check.py</code></li>
+</ul>
+<hr />
+<h2 id="implementation-plan">Implementation plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h2>
+<h3 id="phase-1-add-packagingimport-tests-first">Phase 1: Add packaging/import tests first<a class="headerlink" href="#phase-1-add-packagingimport-tests-first" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add metadata tests proving base dependencies exclude local runtime stacks.</li>
+<li>Add metadata tests proving local extras include expected runtime stacks.</li>
+<li>Add an import-blocking test that simulates missing:</li>
+<li><code>piper</code></li>
+<li><code>faster_whisper</code></li>
+<li><code>sounddevice</code></li>
+<li><code>soundfile</code></li>
+<li><code>webrtcvad</code></li>
+<li>Assert these still succeed:</li>
+<li><code>import abstractvoice</code></li>
+<li><code>import abstractvoice.integrations.abstractcore_plugin</code></li>
+<li>AbstractCore entry point discovery via <code>importlib.metadata.entry_points(...)</code></li>
+</ul>
+<h3 id="phase-2-fix-import-light-boundaries">Phase 2: Fix import-light boundaries<a class="headerlink" href="#phase-2-fix-import-light-boundaries" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Stop <code>abstractvoice/audio/__init__.py</code> from importing <code>record_wav</code> eagerly, or move <code>soundfile</code> import inside <code>record_wav()</code>.</li>
+<li>Update <code>abstractvoice/audio/recorder.py</code> so both <code>sounddevice</code> and <code>soundfile</code> failures point to <code>abstractvoice[audio-io]</code> or <code>abstractvoice[voice]</code>.</li>
+<li>Make <code>abstractvoice/adapters/__init__.py</code> import-light:</li>
+<li>export base interfaces directly</li>
+<li>expose local adapter classes through lazy <code>__getattr__</code>, or stop re-exporting concrete adapters from package import</li>
+<li>Re-run import-blocking tests.</li>
+<li>Consider making <code>abstractvoice/__init__.py</code> lazy only if the above changes are not enough to keep base import clean.</li>
+</ul>
+<h3 id="phase-3-move-dependencies-into-extras">Phase 3: Move dependencies into extras<a class="headerlink" href="#phase-3-move-dependencies-into-extras" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Reduce <code>[project].dependencies</code> to the selected lightweight base set.</li>
+<li>Add canonical extras:</li>
+<li><code>piper</code></li>
+<li><code>local-tts</code></li>
+<li><code>stt</code></li>
+<li><code>local-stt</code></li>
+<li><code>audio-io</code></li>
+<li><code>voice</code></li>
+<li><code>local</code></li>
+<li>Preserve compatibility aliases:</li>
+<li><code>voice-full</code></li>
+<li><code>core-stt</code></li>
+<li><code>audio-only</code></li>
+<li>Keep <code>all</code> as a first-class common local bundle:</li>
+<li><code>voice</code></li>
+<li><code>audio-fx</code></li>
+<li>resolver-safe <code>cloning</code></li>
+<li>resolver-safe <code>aec</code></li>
+<li>not Chroma/AudioDiT/OmniVoice unless explicitly requested</li>
+<li>Keep remote intent extras:</li>
+<li><code>openai</code></li>
+<li><code>openai-compatible</code></li>
+<li><code>remote</code></li>
+<li>Audit <code>huggingface_hub</code> direct imports and assign it to the extras whose public commands require it.</li>
+<li>Review Python markers:</li>
+<li>F5/OpenF5, Chroma, OmniVoice: Python 3.10+</li>
+<li>AEC: Python 3.11+</li>
+<li>AudioDiT: keep existing Python 3.9-compatible split only if it still resolves cleanly.</li>
+</ul>
+<h3 id="phase-4-make-local-failures-actionable">Phase 4: Make local failures actionable<a class="headerlink" href="#phase-4-make-local-failures-actionable" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Explicit local TTS without <code>piper-tts</code> should say:</li>
+<li><code>pip install "abstractvoice[piper]"</code></li>
+<li>or <code>pip install "abstractvoice[voice]"</code></li>
+<li>Explicit local STT without <code>faster-whisper</code> should say:</li>
+<li><code>pip install "abstractvoice[stt]"</code></li>
+<li>or <code>pip install "abstractvoice[voice]"</code></li>
+<li><code>listen()</code> / microphone capture failures should say:</li>
+<li><code>pip install "abstractvoice[audio-io]"</code></li>
+<li>or <code>pip install "abstractvoice[voice]"</code></li>
+<li>Playback failures should say:</li>
+<li><code>pip install "abstractvoice[audio-io]"</code></li>
+<li>or <code>pip install "abstractvoice[voice]"</code></li>
+<li>Cloning failures should point to exact engine extras:</li>
+<li><code>abstractvoice[cloning]</code></li>
+<li><code>abstractvoice[chroma]</code></li>
+<li><code>abstractvoice[audiodit]</code></li>
+<li><code>abstractvoice[omnivoice]</code></li>
+</ul>
+<h3 id="phase-5-update-dependency-checker">Phase 5: Update dependency checker<a class="headerlink" href="#phase-5-update-dependency-checker" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Replace "core voice stack" with profiles:</li>
+<li><code>base</code></li>
+<li><code>remote</code></li>
+<li><code>local_tts</code></li>
+<li><code>local_stt</code></li>
+<li><code>audio_io</code></li>
+<li><code>local_voice</code></li>
+<li><code>web</code></li>
+<li><code>cloning</code></li>
+<li>Keep audio device probing optional and skip cleanly when <code>sounddevice</code> is absent.</li>
+<li>Update recommendations so missing local packages are not reported as a broken base install.</li>
+</ul>
+<h3 id="phase-6-update-docs">Phase 6: Update docs<a class="headerlink" href="#phase-6-update-docs" title="Permanent link">&para;</a></h3>
+<ul>
+<li>README:</li>
+<li>Split install into lightweight remote/plugin base and local voice install.</li>
+<li>Update AbstractCore recipe to avoid implying local runtimes are included.</li>
+<li><code>docs/installation.md</code>:</li>
+<li>Add the install matrix above.</li>
+<li>Update optional extras descriptions.</li>
+<li>Update Python-version notes.</li>
+<li><code>docs/dependencies.md</code>:</li>
+<li>Rename current core dependency section to lightweight base.</li>
+<li>Move Piper/faster-whisper/audio I/O into extras sections.</li>
+<li><code>docs/getting-started.md</code>:</li>
+<li>Require <code>abstractvoice[voice]</code> before local <code>/speak</code> or present a remote-first smoke test.</li>
+<li><code>docs/api.md</code>:</li>
+<li>Clarify that <code>tts_engine="auto"</code> remains Piper-first but requires local extras in lightweight installs.</li>
+<li><code>docs/development.md</code>:</li>
+<li>Add lightweight CI and local-voice CI commands.</li>
+</ul>
+<h3 id="phase-7-test-profiles-and-release-notes">Phase 7: Test profiles and release notes<a class="headerlink" href="#phase-7-test-profiles-and-release-notes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Mark local engine tests so they skip or run only when relevant extras are installed.</li>
+<li>Rename or re-scope fresh-install tests as local voice tests.</li>
+<li>Add a migration note:</li>
+<li>old local behavior: <code>pip install abstractvoice</code></li>
+<li>new local behavior: <code>pip install "abstractvoice[voice]"</code></li>
+<li>remote/plugin behavior: <code>pip install abstractvoice</code></li>
+</ul>
+<hr />
+<h2 id="success-criteria">Success criteria<a class="headerlink" href="#success-criteria" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>pip install abstractvoice</code> does not install Piper, faster-whisper, sounddevice, soundfile, webrtcvad, torch, F5-TTS, Chroma, AudioDiT, or OmniVoice.</li>
+<li>Base install supports remote/OpenAI-compatible TTS and STT with explicit remote engine selection.</li>
+<li>Base install supports AbstractCore capability plugin discovery and registration.</li>
+<li>Remote-compatible profile listing works from base install.</li>
+<li>Remote-compatible clone handles work from base install if <code>appdirs</code> remains in base.</li>
+<li><code>pip install "abstractvoice[voice]"</code> restores the expected local Piper + faster-whisper + microphone/playback path.</li>
+<li>Local runtime failures produce exact extra install hints.</li>
+<li>Python 3.9 can install the lightweight remote/plugin path even when optional engines require Python 3.10+ or 3.11+.</li>
+</ul>
+<hr />
+<h2 id="test-plan">Test plan<a class="headerlink" href="#test-plan" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>pytest -q</code></li>
+<li>Focused lightweight tests:</li>
+<li>packaging metadata base/extras tests</li>
+<li>import-blocking subprocess/import-hook tests</li>
+<li><code>tests/test_remote_openai_compatible_adapters.py</code></li>
+<li><code>tests/test_abstractcore_plugin.py</code></li>
+<li>Focused local voice tests:</li>
+<li><code>tests/test_piper_adapter.py</code></li>
+<li><code>tests/test_faster_whisper_adapter.py</code></li>
+<li><code>tests/test_dependency_check.py</code></li>
+<li>Subprocess smoke:</li>
+<li><code>python -c "import abstractvoice; import importlib.metadata as m; list(m.entry_points(group='abstractcore.capabilities_plugins'))"</code></li>
+<li>Optional live smoke, gated by env:</li>
+<li>hosted OpenAI TTS/STT</li>
+<li>configured OpenAI-compatible remote audio server</li>
+<li>AbstractCore server media image build</li>
+</ul>
+<hr />
+<h2 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Do not remove local TTS, STT, streaming, voice cloning, AEC, or web-demo capabilities.</li>
+<li>Do not make AbstractVoice own production OpenAI-compatible HTTP server routing.</li>
+<li>Do not make AbstractVoice a standalone LLM server.</li>
+<li>Do not include model weights in Python package metadata.</li>
+</ul>
+<hr />
+<h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
+<h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Implemented Option B: the base package is now lightweight and remote/plugin friendly.</li>
+<li>Moved local Piper, faster-whisper, audio I/O, and local file/audio runtime dependencies into explicit extras.</li>
+<li>Kept <code>abstractvoice[openai]</code>, <code>abstractvoice[openai-compatible]</code>, and <code>abstractvoice[remote]</code> as no-op intent extras because remote adapters use the base <code>requests</code> dependency today.</li>
+<li>Added <code>abstractvoice[all]</code> as the common local feature bundle while keeping Chroma, AudioDiT, and OmniVoice behind explicit heavy-engine extras.</li>
+<li>Made <code>abstractvoice.audio</code> and <code>abstractvoice.adapters</code> lazy enough that base imports and AbstractCore plugin discovery do not pull local speech packages.</li>
+<li>Updated dependency diagnostics, install hints, README, installation, getting-started, dependencies, API, FAQ, REPL, changelog, and release metadata for the new install contract.</li>
+<li>During the final independent check, added <code>soundfile</code> explicitly to optional engine extras that import it, so those extras no longer rely on the old base dependency set.</li>
+</ul>
+<h3 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Focused: <code>pytest -q tests/test_dependency_check.py tests/test_lightweight_import_boundaries.py tests/test_remote_openai_compatible_adapters.py tests/test_abstractcore_plugin.py</code> -&gt; 20 passed.</li>
+<li>Full suite: <code>pytest -q</code> -&gt; 135 passed, 8 skipped.</li>
+<li>Known warnings: <code>webrtcvad</code>/<code>pkg_resources</code> deprecations in the full-mode echo-gate test.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

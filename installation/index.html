@@ -1243,35 +1243,44 @@
 
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<p>AbstractVoice aims to work out of the box with:</p>
+<p>AbstractVoice has a lightweight base install plus explicit local voice extras:</p>
 <ul>
 <li><strong>Python</strong>: <code>&gt;=3.9</code> (see <code>pyproject.toml</code>)</li>
-<li><strong>TTS (default)</strong>: Piper (ONNX; no system deps)</li>
-<li><strong>STT (default)</strong>: faster-whisper (CTranslate2)</li>
-<li><strong>Audio I/O</strong>: <code>sounddevice</code> (PortAudio) + <code>soundfile</code> + <code>webrtcvad</code></li>
+<li><strong>Base install</strong>: remote/OpenAI-compatible TTS/STT/profile/clone adapters and AbstractCore plugin discovery</li>
+<li><strong>Local voice extra</strong>: Piper TTS, faster-whisper STT, and <code>sounddevice</code>/<code>soundfile</code>/<code>webrtcvad</code> audio I/O</li>
 </ul>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice
 </code></pre></div>
+<p>This is the remote/plugin-friendly install. For local desktop/REPL voice:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[voice]&quot;</span>
+</code></pre></div>
 <p>For OpenAI-compatible HTTP audio endpoints, install AbstractVoice beside
-AbstractCore Server:</p>
+AbstractCore Server and configure a remote provider or install local voice
+runtimes explicitly:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractcore[server]&quot;</span><span class="w"> </span>abstractvoice
 python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
 </code></pre></div>
 <p>AbstractCore provides <code>/v1/audio/speech</code> and <code>/v1/audio/transcriptions</code>;
 AbstractVoice is discovered as the voice/audio capability backend.</p>
 <h2 id="optional-extras">Optional extras<a class="headerlink" href="#optional-extras" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="w">   </span><span class="c1"># OpenF5-based cloning (heavy; Python 3.10+)</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[voice]&quot;</span><span class="w">     </span><span class="c1"># Local Piper + faster-whisper + audio I/O</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[piper]&quot;</span><span class="w">     </span><span class="c1"># Local Piper TTS only</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[stt]&quot;</span><span class="w">       </span><span class="c1"># Local faster-whisper STT</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audio-io]&quot;</span><span class="w">  </span><span class="c1"># Microphone/playback/VAD dependencies</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="w">   </span><span class="c1"># OpenF5-based cloning (heavy; Python 3.10+)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[chroma]&quot;</span><span class="w">    </span><span class="c1"># Chroma-4B (very heavy; torch/transformers)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audiodit]&quot;</span><span class="w">  </span><span class="c1"># LongCat-AudioDiT (heavy; torch/transformers)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span><span class="w"> </span><span class="c1"># OmniVoice (very heavy; torch/transformers)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[openai]&quot;</span><span class="w">    </span><span class="c1"># Remote OpenAI/OpenAI-compatible audio adapters (no extra deps)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[openai]&quot;</span><span class="w">    </span><span class="c1"># Hosted OpenAI intent extra (no extra deps today)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[openai-compatible]&quot;</span><span class="w"> </span><span class="c1"># Generic compatible provider intent extra</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[aec]&quot;</span><span class="w">       </span><span class="c1"># Optional echo cancellation (true barge-in)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audio-fx]&quot;</span><span class="w">  </span><span class="c1"># Speed change without pitch change (librosa)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span><span class="w">       </span><span class="c1"># Local FastAPI browser example (base TTS/STT UI)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span><span class="w">       </span><span class="c1"># Local FastAPI browser example</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,voice]&quot;</span><span class="w"> </span><span class="c1"># Web example + local Piper/faster-whisper</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[all]&quot;</span><span class="w">       </span><span class="c1"># Common local bundle; excludes Chroma/AudioDiT/OmniVoice</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web-omnivoice]&quot;</span><span class="w"> </span><span class="c1"># Web UI + OmniVoice dependency</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web-full]&quot;</span><span class="w">  </span><span class="c1"># Web UI + optional local engine dependencies</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[stt]&quot;</span><span class="w">       </span><span class="c1"># Current faster-whisper STT path (also in core)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[legacy-stt]&quot;</span><span class="w"> </span><span class="c1"># Legacy openai-whisper + tiktoken</span>
 </code></pre></div>
 <p><code>abstractvoice[web]</code> intentionally stays lightweight: it installs the browser
@@ -1314,8 +1323,8 @@ ids through <code>VoiceManager.get_profiles()</code>. Static ids can be configur
 <code>ABSTRACTVOICE_REMOTE_TTS_VOICES</code>.</p>
 <p>Python-version notes:</p>
 <ul>
-<li>Python 3.9 supports the core Piper/faster-whisper path, the web example,
-  and AudioDiT TTS/prompt-audio cloning.</li>
+<li>Python 3.9 supports the lightweight base, local Piper/faster-whisper extras,
+  the web example, and AudioDiT TTS/prompt-audio cloning.</li>
 <li>OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
   upstream runtimes do.</li>
 <li>AEC requires Python 3.11+ because <code>aec-audio-processing</code> declares that floor.</li>

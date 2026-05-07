@@ -1937,15 +1937,19 @@
 <h1 id="faq">FAQ<a class="headerlink" href="#faq" title="Permanent link">&para;</a></h1>
 <h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
 <h3 id="what-python-versions-are-supported">What Python versions are supported?<a class="headerlink" href="#what-python-versions-are-supported" title="Permanent link">&para;</a></h3>
-<p>AbstractVoice supports Python <code>&gt;=3.9</code>. The core Piper/faster-whisper path, web
-example, and AudioDiT TTS/prompt-audio cloning are supported on Python 3.9.
-OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
-upstream runtimes do; AEC requires Python 3.11+.</p>
+<p>AbstractVoice supports Python <code>&gt;=3.9</code>. The lightweight base install and the
+remote/OpenAI-compatible path are supported on Python 3.9. Local
+Piper/faster-whisper voice extras and the web example are also supported on
+Python 3.9. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because
+their upstream runtimes do; AEC requires Python 3.11+.</p>
 <h3 id="do-i-need-system-speech-dependencies">Do I need system speech dependencies?<a class="headerlink" href="#do-i-need-system-speech-dependencies" title="Permanent link">&para;</a></h3>
-<p>The default TTS engine is Piper through ONNX Runtime, so it does not require
-system packages such as <code>espeak-ng</code>.</p>
-<p>Microphone and speaker I/O use <code>sounddevice</code> / PortAudio. On some Linux
-systems you may need PortAudio packages from the OS package manager. See
+<p>The bare package install does not require local speech engines. Install
+<code>abstractvoice[voice]</code> for the local Piper/faster-whisper path. Piper runs
+through ONNX Runtime, so it does not require system packages such as
+<code>espeak-ng</code>.</p>
+<p>Microphone and speaker I/O use <code>sounddevice</code> / PortAudio and are installed by
+<code>abstractvoice[voice]</code> or <code>abstractvoice[audio-io]</code>. On some Linux systems you
+may need PortAudio packages from the OS package manager. See
 <code>docs/installation.md</code> for platform notes.</p>
 <h3 id="i-installed-the-package-but-abstractvoice-is-not-found-what-should-i-check">I installed the package but <code>abstractvoice</code> is not found. What should I check?<a class="headerlink" href="#i-installed-the-package-but-abstractvoice-is-not-found-what-should-i-check" title="Permanent link">&para;</a></h3>
 <p>Install into the Python environment that runs your shell:</p>
@@ -2130,8 +2134,12 @@ OpenAI-compatible audio endpoints such as:</p>
 </code></pre></div>
 <h3 id="which-tts-engine-should-i-use">Which TTS engine should I use?<a class="headerlink" href="#which-tts-engine-should-i-use" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Piper is the default and the recommended reliable path for local TTS.</li>
-<li>faster-whisper is the default STT path.</li>
+<li>Remote OpenAI-compatible engines are the lightest path for server and plugin
+  deployments.</li>
+<li>Piper is the recommended reliable path for local TTS; install
+  <code>abstractvoice[voice]</code> or <code>abstractvoice[piper]</code>.</li>
+<li>faster-whisper is the default local STT path; install <code>abstractvoice[voice]</code>
+  or <code>abstractvoice[stt]</code>.</li>
 <li>OpenF5, Chroma, AudioDiT, and OmniVoice are optional heavier engines for
   cloning, research, or richer voice experiments.</li>
 <li>AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine

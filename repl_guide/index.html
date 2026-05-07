@@ -1561,7 +1561,8 @@ language:</p>
 </code></pre></div>
 <p>Engine notes:</p>
 <ul>
-<li><code>piper</code>: default TTS path; best first choice for reliable local speech.</li>
+<li><code>piper</code>: default local TTS path; install <code>abstractvoice[voice]</code> or
+  <code>abstractvoice[piper]</code>. Best first choice for reliable local speech.</li>
 <li><code>openai</code> / <code>openai-compatible</code>: remote TTS/STT endpoints. Configure
   <code>OPENAI_API_KEY</code> for OpenAI or <code>ABSTRACTVOICE_REMOTE_BASE_URL</code> for compatible
   servers. Compatible servers may expose <code>GET /v1/audio/voices</code>; <code>/voices
@@ -1571,7 +1572,8 @@ language:</p>
   <code>0.8.1</code>, while AudioDiT cloning remains the better-validated AudioDiT path.</li>
 <li><code>omnivoice</code>: optional heavy engine for omnilingual TTS, voice design, and
   cloning. Stable reusable profiles are still being curated.</li>
-<li><code>faster_whisper</code>: default STT path.</li>
+<li><code>faster_whisper</code>: default local STT path; install <code>abstractvoice[voice]</code> or
+  <code>abstractvoice[stt]</code>.</li>
 </ul>
 <p>Current caveats are tracked in <code>docs/known-issues.md</code>.</p>
 <h2 id="voice-profiles">Voice Profiles<a class="headerlink" href="#voice-profiles" title="Permanent link">&para;</a></h2>
