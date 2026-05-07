@@ -180,6 +180,8 @@ def test_python39_optional_engine_markers_are_resolver_safe() -> None:
     extras = pyproject["project"]["optional-dependencies"]
 
     assert "httpx>=0.23.0" in extras["test"]
+    assert "soundfile>=0.12.1" in extras["test"]
+    assert "webrtcvad>=2.0.10" in extras["test"]
     assert "transformers>=4.55.4,<5; python_version < '3.10'" in extras["audiodit"]
     assert "transformers>=5.3.0; python_version >= '3.10'" in extras["audiodit"]
     assert _has_marked_dep(extras["cloning"], "f5-tts>=1.1.0", "python_version >= '3.10'")

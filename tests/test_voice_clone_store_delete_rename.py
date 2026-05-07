@@ -1,7 +1,9 @@
 from pathlib import Path
 
 import numpy as np
-import soundfile as sf
+import pytest
+
+sf = pytest.importorskip("soundfile")
 
 from abstractvoice.cloning.store import VoiceCloneStore
 
@@ -19,4 +21,3 @@ def test_voice_clone_store_rename_and_delete(tmp_path: Path):
     store.delete_voice(voice_id)
     voices = store.list_voices()
     assert not any(v.get("voice_id") == voice_id for v in voices)
-

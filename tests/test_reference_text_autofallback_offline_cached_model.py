@@ -1,7 +1,9 @@
 from pathlib import Path
 
 import numpy as np
-import soundfile as sf
+import pytest
+
+sf = pytest.importorskip("soundfile")
 
 from abstractvoice.cloning.manager import VoiceCloner
 from abstractvoice.cloning.store import VoiceCloneStore
