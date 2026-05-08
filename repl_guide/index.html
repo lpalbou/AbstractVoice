@@ -1420,24 +1420,29 @@
 
 <h1 id="repl-guide">REPL Guide<a class="headerlink" href="#repl-guide" title="Permanent link">&para;</a></h1>
 <p>The <code>abstractvoice</code> REPL is the fastest way to validate the package end to end:
-local TTS, optional microphone input, optional cloning engines, and an
-OpenAI-compatible chat endpoint.</p>
+remote-first TTS/STT by default, optional microphone input, optional local
+engines, optional cloning engines, and an OpenAI-compatible chat endpoint.</p>
 <p>For production agent/server deployments in the AbstractFramework ecosystem,
 run AbstractCore Server and let AbstractVoice provide the audio capability
-backend. The REPL stays intentionally lightweight and local.</p>
+backend. The REPL stays intentionally lightweight and avoids implicit model
+downloads.</p>
 <h2 id="start">Start<a class="headerlink" href="#start" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--verbose
+<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>abstractvoice<span class="w"> </span>--verbose
 
 <span class="c1"># From a source checkout:</span>
-python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--verbose
+<span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--verbose
 </code></pre></div>
 <p>Microphone input is off by default. Enable it explicitly:</p>
-<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--voice-mode<span class="w"> </span>stop
-python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--voice-mode<span class="w"> </span>stop
+<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>abstractvoice<span class="w"> </span>--voice-mode<span class="w"> </span>stop
+<span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--voice-mode<span class="w"> </span>stop
 </code></pre></div>
 <p>Remote audio startup examples:</p>
 <div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>openai<span class="w"> </span>--stt-engine<span class="w"> </span>openai
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
+</code></pre></div>
+<p>Local/offline startup example:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[local]&quot;</span>
+abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
 </code></pre></div>
 <p>Useful startup flags:</p>
 <ul>
@@ -1446,8 +1451,8 @@ abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>openai-
 <li><code>--voice-mode stop|wait|full|ptt|off</code>: choose the initial microphone mode.</li>
 <li><code>--provider &lt;preset-or-url&gt;</code>: choose an OpenAI-compatible LLM provider.</li>
 <li><code>--model &lt;name&gt;</code>: choose the LLM model.</li>
-<li><code>--tts-engine auto|piper|openai|openai-compatible|audiodit|omnivoice</code>: choose the initial TTS engine.</li>
-<li><code>--stt-engine auto|faster_whisper|openai|openai-compatible</code>: choose the initial STT engine.</li>
+<li><code>--tts-engine openai|openai-compatible|piper|audiodit|omnivoice|auto</code>: choose the initial TTS engine.</li>
+<li><code>--stt-engine openai|openai-compatible|faster_whisper|auto</code>: choose the initial STT engine.</li>
 <li><code>--tts-model &lt;id&gt;</code> / <code>--stt-model &lt;id&gt;</code>: model ids for remote audio engines.</li>
 <li><code>--remote-base-url &lt;url&gt;</code> / <code>--remote-api-key &lt;key&gt;</code>: OpenAI-compatible remote voice endpoint config. <code>--tts-engine openai</code> and <code>--stt-engine openai</code> default to OpenAI's hosted API and read <code>OPENAI_API_KEY</code>.</li>
 </ul>
@@ -1456,7 +1461,8 @@ abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>openai-
 <h3 id="test-tts-without-an-llm">Test TTS without an LLM<a class="headerlink" href="#test-tts-without-an-llm" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>/speak hello from AbstractVoice
 </code></pre></div>
-<p>If Piper cannot speak, prefetch the default voice:</p>
+<p>The default TTS engine is OpenAI remote audio. If you select Piper for local
+speech, prefetch the default voice:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
 </code></pre></div>
 <h3 id="test-a-chat-turn">Test a chat turn<a class="headerlink" href="#test-a-chat-turn" title="Permanent link">&para;</a></h3>
@@ -1538,8 +1544,8 @@ for compatibility:</p>
 </ul>
 <p>There is no separate top-level <code>/profiles</code> command; use <code>/voices profiles</code>.</p>
 <h2 id="languages-and-engines">Languages And Engines<a class="headerlink" href="#languages-and-engines" title="Permanent link">&para;</a></h2>
-<p>Piper is the default reliable local TTS engine. It uses one cached voice per
-language:</p>
+<p>OpenAI remote audio is the default path. Piper is the reliable local TTS engine
+when you install local extras; it uses one cached voice per language:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>fr
 </code></pre></div>
 <p>REPL commands:</p>
@@ -1561,7 +1567,7 @@ language:</p>
 </code></pre></div>
 <p>Engine notes:</p>
 <ul>
-<li><code>piper</code>: default local TTS path; install <code>abstractvoice[voice]</code> or
+<li><code>piper</code>: local TTS path; install <code>abstractvoice[local]</code> or
   <code>abstractvoice[piper]</code>. Best first choice for reliable local speech.</li>
 <li><code>openai</code> / <code>openai-compatible</code>: remote TTS/STT endpoints. Configure
   <code>OPENAI_API_KEY</code> for OpenAI or <code>ABSTRACTVOICE_REMOTE_BASE_URL</code> for compatible
@@ -1572,7 +1578,7 @@ language:</p>
   <code>0.8.1</code>, while AudioDiT cloning remains the better-validated AudioDiT path.</li>
 <li><code>omnivoice</code>: optional heavy engine for omnilingual TTS, voice design, and
   cloning. Stable reusable profiles are still being curated.</li>
-<li><code>faster_whisper</code>: default local STT path; install <code>abstractvoice[voice]</code> or
+<li><code>faster_whisper</code>: local STT path; install <code>abstractvoice[local]</code> or
   <code>abstractvoice[stt]</code>.</li>
 </ul>
 <p>Current caveats are tracked in <code>docs/known-issues.md</code>.</p>
@@ -1680,7 +1686,8 @@ state. Neither command deletes saved <code>.mem</code> files or terminal command
 <h2 id="file-transcription">File Transcription<a class="headerlink" href="#file-transcription" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>/transcribe /path/to/audio.wav
 </code></pre></div>
-<p>The default path uses faster-whisper. Prefetch an STT model for offline REPL use:</p>
+<p>The default path uses OpenAI remote transcription. If you select
+<code>faster_whisper</code> for offline REPL use, prefetch an STT model:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--stt<span class="w"> </span>small
 </code></pre></div>
 <h2 id="debugging">Debugging<a class="headerlink" href="#debugging" title="Permanent link">&para;</a></h2>
@@ -1756,7 +1763,7 @@ OpenAI custom voice creation can be selected with <code>--engine openai</code>, 
 org-gated and requires explicit consent configuration.</p>
 <p>STT:</p>
 <ul>
-<li><code>/stt_engine auto|faster_whisper|openai|openai-compatible|whisper</code></li>
+<li><code>/stt_engine openai|openai-compatible|faster_whisper|auto</code></li>
 <li><code>/whisper &lt;model&gt;</code></li>
 <li><code>/transcribe &lt;path&gt;</code></li>
 </ul>

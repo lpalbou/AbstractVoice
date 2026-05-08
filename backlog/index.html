@@ -1088,7 +1088,9 @@
 <h2 id="folder-layout">Folder layout<a class="headerlink" href="#folder-layout" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>docs/backlog/planned/</code>: work to do next</li>
+<li><code>docs/backlog/proposed/</code>: plausible ideas and follow-ups not yet committed</li>
 <li><code>docs/backlog/completed/</code>: finished tasks with a completion report</li>
+<li><code>docs/backlog/recurrent/</code>: checklists to run after development cycles</li>
 </ul>
 <hr />
 <h2 id="naming-convention">Naming convention<a class="headerlink" href="#naming-convention" title="Permanent link">&para;</a></h2>
@@ -1128,9 +1130,12 @@
 <li><strong>Implement</strong> the task.</li>
 <li><strong>Test</strong> and fix issues.</li>
 <li><strong>Only when all tests pass</strong>, move the task to <code>docs/backlog/completed/</code> and add the completion report at the end.</li>
-<li><strong>Check recurrent tasks</strong> (see <code>docs/recurrent/</code>) before claiming completion.</li>
+<li><strong>Check recurrent tasks</strong> (see <code>docs/backlog/recurrent/</code>) before claiming completion.</li>
 <li>After completion, <strong>bump semantic version</strong> and add a <strong>CHANGELOG</strong> entry (this is a recurrent task).</li>
 </ol>
+<p>Proposed items should be promoted before implementation when they become
+accepted work. If an agent completes a small proposed item in one cycle, the
+completed report must say it was promoted from <code>docs/backlog/proposed/</code>.</p>
 
 
 

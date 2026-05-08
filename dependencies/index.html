@@ -602,10 +602,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#abstractvoicevoice-local-piper-faster-whisper-audio-io" class="md-nav__link">
+  <a href="#abstractvoicelocal-full-local-stack" class="md-nav__link">
     <span class="md-ellipsis">
       
-        abstractvoice[voice] — local Piper + faster-whisper + audio I/O
+        abstractvoice[local] — full local stack
       
     </span>
   </a>
@@ -705,17 +705,6 @@
     <span class="md-ellipsis">
       
         abstractvoice[stt] — Faster-Whisper STT
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#abstractvoicelegacy-stt-legacy-whisper-token-stats" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        abstractvoice[legacy-stt] — Legacy Whisper + token stats
       
     </span>
   </a>
@@ -1231,10 +1220,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#abstractvoicevoice-local-piper-faster-whisper-audio-io" class="md-nav__link">
+  <a href="#abstractvoicelocal-full-local-stack" class="md-nav__link">
     <span class="md-ellipsis">
       
-        abstractvoice[voice] — local Piper + faster-whisper + audio I/O
+        abstractvoice[local] — full local stack
       
     </span>
   </a>
@@ -1340,17 +1329,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#abstractvoicelegacy-stt-legacy-whisper-token-stats" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        abstractvoice[legacy-stt] — Legacy Whisper + token stats
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1436,11 +1414,14 @@
 </ul>
 <hr />
 <h2 id="optional-extras-opt-in">Optional extras (opt-in)<a class="headerlink" href="#optional-extras-opt-in" title="Permanent link">&para;</a></h2>
-<h3 id="abstractvoicevoice-local-piper-faster-whisper-audio-io"><code>abstractvoice[voice]</code> — local Piper + faster-whisper + audio I/O<a class="headerlink" href="#abstractvoicevoice-local-piper-faster-whisper-audio-io" title="Permanent link">&para;</a></h3>
-<p>This is the replacement for the old local-first base install.</p>
+<h3 id="abstractvoicelocal-full-local-stack"><code>abstractvoice[local]</code> — full local stack<a class="headerlink" href="#abstractvoicelocal-full-local-stack" title="Permanent link">&para;</a></h3>
+<p>This is the full local/offline handle. It includes local Piper TTS,
+faster-whisper STT, microphone/playback/VAD dependencies, AEC where supported,
+and the optional local cloning/TTS engine dependencies that are resolver-safe on
+the current Python version. Use granular extras below for smaller installs.</p>
 <ul>
 <li><strong>piper-tts</strong></li>
-<li><strong>Why</strong>: local neural TTS backend (Piper-first).</li>
+<li><strong>Why</strong>: local neural TTS backend.</li>
 <li><strong>Where</strong>: <code>abstractvoice/adapters/tts_piper.py</code></li>
 <li><strong>Repo</strong>: <code>https://github.com/rhasspy/piper</code></li>
 <li>
@@ -1674,11 +1655,9 @@ floor.</p>
 <li><strong>License</strong>: <code>https://github.com/shichaog/AEC-Audio-Processing/blob/main/LICENSE</code></li>
 </ul>
 <h3 id="abstractvoiceweb-local-web-example"><code>abstractvoice[web]</code> — Local web example<a class="headerlink" href="#abstractvoiceweb-local-web-example" title="Permanent link">&para;</a></h3>
-<p>The base web extra installs only the browser server stack. Use
-<code>abstractvoice[web-cloning]</code>, <code>abstractvoice[web-audiodit]</code>,
-<code>abstractvoice[web-omnivoice]</code>, <code>abstractvoice[web-chroma]</code>, or
-<code>abstractvoice[web-full]</code> when you want a one-command install for the web UI
-plus optional local voice engines.</p>
+<p>The base web extra installs only the browser server stack. Compose it with
+<code>abstractvoice[local]</code> for the full local lab, or with granular engine extras
+such as <code>abstractvoice[omnivoice]</code> for smaller installs.</p>
 <ul>
 <li><strong>FastAPI</strong></li>
 <li><strong>Why</strong>: local browser example routes for TTS, transcription, assistant/user voice selection, voice cloning upload forms, and discussion playback (<code>abstractvoice web</code>).</li>
@@ -1712,20 +1691,6 @@ plus optional local voice engines.</p>
 <li><strong>Repo</strong>: <code>https://github.com/SYSTRAN/faster-whisper</code></li>
 <li><strong>License</strong>: <code>https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE</code></li>
 </ul>
-<h3 id="abstractvoicelegacy-stt-legacy-whisper-token-stats"><code>abstractvoice[legacy-stt]</code> — Legacy Whisper + token stats<a class="headerlink" href="#abstractvoicelegacy-stt-legacy-whisper-token-stats" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>openai-whisper</strong></li>
-<li><strong>Repo</strong>: <code>https://github.com/openai/whisper</code></li>
-<li>
-<p><strong>License</strong>: <code>https://github.com/openai/whisper/blob/main/LICENSE</code></p>
-</li>
-<li>
-<p><strong>tiktoken</strong></p>
-</li>
-<li><strong>Repo</strong>: <code>https://github.com/openai/tiktoken</code></li>
-<li><strong>License</strong>: <code>https://github.com/openai/tiktoken/blob/main/LICENSE</code></li>
-</ul>
-<hr />
 <h2 id="notable-transitive-runtimes-debugging-oriented">Notable transitive runtimes (debugging-oriented)<a class="headerlink" href="#notable-transitive-runtimes-debugging-oriented" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>CTranslate2</strong> (used by <code>faster-whisper</code>)</li>

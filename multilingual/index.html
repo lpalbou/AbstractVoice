@@ -551,10 +551,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tts-piper-default" class="md-nav__link">
+  <a href="#tts-remote-default-piper-local" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TTS (Piper, default)
+        TTS (remote default, Piper local)
       
     </span>
   </a>
@@ -562,10 +562,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stt-faster-whisper-default" class="md-nav__link">
+  <a href="#stt-openai-default-faster-whisper-local" class="md-nav__link">
     <span class="md-ellipsis">
       
-        STT (faster-whisper, default)
+        STT (OpenAI default, faster-whisper local)
       
     </span>
   </a>
@@ -1092,10 +1092,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tts-piper-default" class="md-nav__link">
+  <a href="#tts-remote-default-piper-local" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TTS (Piper, default)
+        TTS (remote default, Piper local)
       
     </span>
   </a>
@@ -1103,10 +1103,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stt-faster-whisper-default" class="md-nav__link">
+  <a href="#stt-openai-default-faster-whisper-local" class="md-nav__link">
     <span class="md-ellipsis">
       
-        STT (faster-whisper, default)
+        STT (OpenAI default, faster-whisper local)
       
     </span>
   </a>
@@ -1167,15 +1167,17 @@
 
 
 <h1 id="multilingual-support">Multilingual support<a class="headerlink" href="#multilingual-support" title="Permanent link">&para;</a></h1>
-<h2 id="tts-piper-default">TTS (Piper, default)<a class="headerlink" href="#tts-piper-default" title="Permanent link">&para;</a></h2>
-<p>AbstractVoice ships a small default Piper mapping for these language codes:</p>
+<h2 id="tts-remote-default-piper-local">TTS (remote default, Piper local)<a class="headerlink" href="#tts-remote-default-piper-local" title="Permanent link">&para;</a></h2>
+<p><code>VoiceManager()</code> uses OpenAI remote audio by default and treats <code>language</code> as a
+provider hint. The local Piper engine ships a small curated mapping for these
+language codes:</p>
 <ul>
 <li><code>en</code>, <code>fr</code>, <code>de</code>, <code>es</code>, <code>ru</code>, <code>zh</code></li>
 </ul>
 <p>Programmatic usage:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;piper&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
 
 <span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s2">&quot;fr&quot;</span><span class="p">)</span>
@@ -1185,9 +1187,14 @@
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>fr
 </code></pre></div>
-<h2 id="stt-faster-whisper-default">STT (faster-whisper, default)<a class="headerlink" href="#stt-faster-whisper-default" title="Permanent link">&para;</a></h2>
-<p>STT supports many languages. You can pass a language hint when transcribing:</p>
-<div class="highlight"><pre><span></span><code><span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">&quot;audio.wav&quot;</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s2">&quot;fr&quot;</span><span class="p">)</span>
+<h2 id="stt-openai-default-faster-whisper-local">STT (OpenAI default, faster-whisper local)<a class="headerlink" href="#stt-openai-default-faster-whisper-local" title="Permanent link">&para;</a></h2>
+<p>OpenAI remote transcription is the default. Local faster-whisper supports many
+languages when selected explicitly. You can pass a language hint when
+transcribing:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;piper&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;faster_whisper&quot;</span><span class="p">)</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">&quot;audio.wav&quot;</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s2">&quot;fr&quot;</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="repl">REPL<a class="headerlink" href="#repl" title="Permanent link">&para;</a></h2>
 <ul>

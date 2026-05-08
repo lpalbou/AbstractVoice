@@ -1559,7 +1559,7 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
 </ul>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">remote_api_key</span><span class="o">=</span><span class="s2">&quot;sk-...&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="constructor-most-used-knobs">Constructor (most-used knobs)<a class="headerlink" href="#constructor-most-used-knobs" title="Permanent link">&para;</a></h2>
 <p>The source of truth is <code>abstractvoice/vm/manager.py</code>:</p>
@@ -1568,8 +1568,8 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
     <span class="n">tts_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">whisper_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;base&quot;</span><span class="p">,</span>
     <span class="n">debug_mode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">tts_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
-    <span class="n">stt_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">tts_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+    <span class="n">stt_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;openai&quot;</span><span class="p">,</span>
     <span class="n">allow_downloads</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">cloned_tts_streaming</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">cloning_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;f5_tts&quot;</span><span class="p">,</span>
@@ -1581,16 +1581,17 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
 <span class="p">)</span>
 </code></pre></div>
 <p>Notes:
-- <code>allow_downloads</code> gates <em>implicit</em> model downloads in adapters. The REPL sets <code>False</code> (offline-first).
-- <code>whisper_model</code> controls the faster‑whisper model size used by <code>listen()</code> and <code>transcribe_*()</code>.
+- <code>VoiceManager()</code> and <code>auto</code> are remote-first. Hosted OpenAI audio requires <code>OPENAI_API_KEY</code> or <code>remote_api_key=...</code>.
+- <code>allow_downloads</code> gates <em>implicit</em> local model downloads in adapters. The REPL sets <code>False</code> (offline-first).
+- <code>whisper_model</code> controls the faster-whisper model size used by local <code>listen()</code> / <code>transcribe_*()</code> paths.
 - <code>tts_engine</code> supports:
-  - <code>auto</code> (deterministic default: resolves to <code>piper</code>)
-  - <code>piper</code> (default local TTS; requires <code>abstractvoice[voice]</code> or <code>abstractvoice[piper]</code>)
-  - <code>openai</code> (remote OpenAI <code>/v1/audio/speech</code>; requires <code>OPENAI_API_KEY</code>)
+  - <code>openai</code> (default; remote OpenAI <code>/v1/audio/speech</code>; requires <code>OPENAI_API_KEY</code>)
+  - <code>auto</code> (deterministic default: resolves to <code>openai</code>)
+  - <code>piper</code> (local TTS; requires <code>abstractvoice[local]</code> or <code>abstractvoice[piper]</code>)
   - <code>openai-compatible</code> (remote compatible <code>/v1/audio/speech</code>; configure <code>remote_base_url</code> or <code>ABSTRACTVOICE_REMOTE_BASE_URL</code>)
   - <code>audiodit</code> (LongCat-AudioDiT; requires <code>abstractvoice[audiodit]</code>; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in <code>0.8.1</code>)
   - <code>omnivoice</code> (OmniVoice; requires <code>abstractvoice[omnivoice]</code>; upstream supports 600+ languages)
-- <code>stt_engine</code> supports <code>auto|faster_whisper|openai|openai-compatible</code>. The local faster‑whisper path requires <code>abstractvoice[voice]</code> or <code>abstractvoice[stt]</code>. If the faster‑whisper adapter is unavailable (or disabled), <code>transcribe_*()</code> falls back to the legacy <code>abstractvoice.stt.Transcriber</code> (requires <code>abstractvoice[legacy-stt]</code>; see <code>abstractvoice/vm/stt_mixin.py</code>). Explicit remote STT failures raise actionable errors instead of falling back.
+- <code>stt_engine</code> supports <code>openai|auto|faster_whisper|openai-compatible</code>. <code>auto</code> resolves to <code>openai</code>. The local faster-whisper path requires <code>abstractvoice[local]</code> or <code>abstractvoice[stt]</code>. Missing credentials or missing explicit local dependencies raise actionable errors; the legacy OpenAI Whisper fallback was removed.
 - <code>tts_model</code> is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request <code>model</code>.
 - For remote STT, <code>stt_model</code> maps to the transcription <code>model</code>.
 - Remote configuration can be passed in the constructor or via env vars:
@@ -1600,7 +1601,7 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
 - <code>tts_delivery_mode</code> is an optional override that applies consistently to both base TTS and cloned voices:
   - <code>buffered</code>: synthesize full audio first (one payload)
   - <code>streamed</code>: deliver audio in chunks when available (lower time-to-first-audio)</p>
-<p>Supported language codes for the default Piper mapping: <code>en, fr, de, es, ru, zh</code> (see <code>abstractvoice/config/voice_catalog.py</code> and <code>abstractvoice/adapters/tts_piper.py</code>).
+<p>Supported language codes for the Piper mapping: <code>en, fr, de, es, ru, zh</code> (see <code>abstractvoice/config/voice_catalog.py</code> and <code>abstractvoice/adapters/tts_piper.py</code>).
 For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), <code>language</code> is treated as a pass-through hint and the engine decides what it supports.</p>
 <h2 id="tts-text-audio">TTS (text → audio)<a class="headerlink" href="#tts-text-audio" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1633,7 +1634,7 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), <cod
 <li>Profiles are <strong>engine-local</strong>: you select <code>tts_engine</code> first, then apply a profile id for that engine.</li>
 <li>Engines without profiles return an empty list / False / None.</li>
 <li><strong>Concurrency note</strong>: profile selection mutates engine state. For servers, prefer one <code>VoiceManager</code> per session (or guard profile changes with a lock).</li>
-<li><strong>Remote OpenAI note</strong>: built-in/custom provider voices are selected with profiles (for example <code>vm.set_profile("alloy")</code> or <code>vm.set_profile("voice_...")</code>). <code>tts_engine="openai"</code> defaults to <code>https://api.openai.com/v1</code> and reads <code>OPENAI_API_KEY</code>.</li>
+<li><strong>Remote OpenAI note</strong>: hosted built-in voices are always exposed as profiles (for example <code>vm.set_profile("alloy")</code>), and the adapter also tries OpenAI voice discovery for account/org-specific voices such as <code>voice_...</code>. <code>tts_engine="openai"</code> defaults to <code>https://api.openai.com/v1</code> and reads <code>OPENAI_API_KEY</code>.</li>
 <li><strong>Remote compatible note</strong>: compatible endpoints may expose <code>GET /v1/audio/voices</code> (adapter path: <code>GET /audio/voices</code>) returning <code>profiles</code>, <code>voices</code>, <code>cloned_voices</code>, or OpenAI-style <code>data</code>. Returned ids are exposed as <code>VoiceProfile</code>s and used as the request <code>voice</code> for <code>/audio/speech</code>.</li>
 <li>The <code>voice=</code> argument on <code>speak_to_bytes(...)</code> remains the cloned-voice handle path for backward compatibility; select base-provider voices with <code>set_profile(...)</code>.</li>
 <li>
@@ -1695,7 +1696,7 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), <cod
 <ul>
 <li><code>set_language(language: str) -&gt; bool</code></li>
 <li>Switches the active language.</li>
-<li>For Piper (and <code>auto</code> before another engine is active), validation uses the curated Piper mapping in <code>abstractvoice/config/voice_catalog.py</code>.</li>
+<li>For explicit Piper, validation uses the curated Piper mapping in <code>abstractvoice/config/voice_catalog.py</code>.</li>
 <li>For non-Piper engines such as OmniVoice, the language code is passed through to the adapter and the engine decides what it supports.</li>
 <li>
 <p>If microphone listening is active, the recognizer is recreated on the next <code>listen(...)</code> call so STT receives the updated language.</p>
@@ -1709,7 +1710,9 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), <cod
 <li>
 <p><code>list_available_models(language: str | None = None) -&gt; dict</code></p>
 </li>
-<li>Lists Piper voices/models for CLI display (see <code>abstractvoice/vm/tts_mixin.py</code>).</li>
+<li>Lists voice/model catalog entries for CLI/web display (see <code>abstractvoice/vm/tts_mixin.py</code>).</li>
+<li>Piper returns local voice cache status by language.</li>
+<li>OpenAI/OpenAI-compatible TTS returns remote voice profiles plus configured/discovered TTS model ids when the active adapter supports model listing.</li>
 <li>
 <p>Back-compat alias: <code>list_voices()</code>.</p>
 </li>
@@ -1873,7 +1876,13 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
 <span class="c1"># Load once, reuse for all requests.</span>
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;omnivoice&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span>
+    <span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span>
+    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;omnivoice&quot;</span><span class="p">,</span>
+    <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+    <span class="n">remote_api_key</span><span class="o">=</span><span class="s2">&quot;sk-...&quot;</span><span class="p">,</span>
+    <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
 </code></pre></div>
 <h2 id="integrations-abstractframework-ecosystem">Integrations (AbstractFramework ecosystem)<a class="headerlink" href="#integrations-abstractframework-ecosystem" title="Permanent link">&para;</a></h2>
 <p>AbstractVoice is designed to work standalone, and also integrate cleanly into the AbstractFramework ecosystem (AbstractCore + AbstractRuntime). Overview and links: <code>README.md</code>.</p>
@@ -1891,7 +1900,19 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 - a voice backend (<code>backend_id="abstractvoice:default"</code>) for TTS+STT
 - an audio backend (<code>backend_id="abstractvoice:stt"</code>) for STT-only</p>
 <p>Audio outputs can optionally be stored into an AbstractRuntime-like <code>artifact_store</code> via the duck-typed adapter in <code>abstractvoice/artifacts.py</code>.</p>
-<p>Plugin configuration (owner <code>config</code> dict, best-effort):
+<p>The voice backend also exposes thin catalog discovery methods for Core/Gateway
+integration code:
+- <code>list_profiles(kind="tts") -&gt; list[dict]</code>
+- <code>list_tts_models() -&gt; list[str]</code>
+- <code>voice_catalog() -&gt; {kind, engine_id, active_profile, active_model, profiles, tts_models, catalog}</code></p>
+<p>These methods delegate to the active <code>VoiceManager</code> and keep voice/profile/model
+semantics in AbstractVoice. AbstractCore still owns HTTP routing, auth, and
+browser/security policy.</p>
+<p>Plugin configuration (owner <code>config</code> dict, best-effort). In AbstractCore
+integrations, the env/default path uses OpenAI remote TTS/STT
+(<code>OPENAI_API_KEY</code>, optional <code>ABSTRACTVOICE_OPENAI_*</code> overrides) unless owner
+config or <code>ABSTRACTVOICE_TTS_ENGINE</code> / <code>ABSTRACTVOICE_STT_ENGINE</code> selects a
+different engine:
 - <code>voice_language</code>: default language (e.g. <code>"en"</code>)
 - <code>voice_allow_downloads</code>: allow on-demand downloads (bool)
 - <code>voice_tts_engine</code>: base TTS engine (<code>"auto"|"piper"|"openai"|"openai-compatible"|"audiodit"|"omnivoice"</code>)
@@ -1907,6 +1928,9 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 - <code>voice_tts_delivery_mode</code>: unified audio delivery mode for base + cloned voices (<code>"buffered"|"streamed"</code>). Takes precedence over <code>voice_cloned_tts_streaming</code>.
 - <code>voice_tts_streaming</code>: bool alias for <code>voice_tts_delivery_mode</code> (<code>true</code> → <code>"streamed"</code>, <code>false</code> → <code>"buffered"</code>).
 - <code>voice_debug_mode</code>: enable debug prints (bool)</p>
+<p>Boolean owner config/env values accept common strings such as <code>true</code>, <code>false</code>,
+<code>on</code>, <code>off</code>, <code>1</code>, and <code>0</code>; string values like <code>"false"</code> are not treated as
+truthy.</p>
 <p>Performance note:
 - The capability plugin caches <code>VoiceManager</code> instances <strong>in-process</strong> (keyed by the config above) so engines are <strong>not reloaded per request</strong>.</p>
 <p>TTS metrics:
@@ -1923,7 +1947,7 @@ capability plugin:</p>
 <li><code>POST /v1/audio/transcriptions</code> -&gt; <code>core.audio.transcribe(...)</code> -&gt; <code>VoiceManager.transcribe_*()</code></li>
 </ul>
 <p>Example:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
+<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
 
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/v1/audio/speech<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -1938,8 +1962,13 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 the standard <code>Authorization: Bearer &lt;key&gt;</code> header. If the plugin is unavailable,
 AbstractCore returns <code>501</code> with install/config guidance instead of silently
 falling back.</p>
+<p>For <code>openai-compatible</code> plugin configuration, do not set <code>voice_remote_base_url</code>
+to the same AbstractCore Server instance that is currently routing the
+<code>/v1/audio/*</code> request. That configuration recurses through the plugin path; use
+an upstream compatible provider/gateway, or select local engines explicitly.</p>
 <p>The local <code>abstractvoice web</code> example exposes these smoke-test routes. They are
-example routes, not a replacement for AbstractCore Server:</p>
+example routes, not a replacement for AbstractCore Server, and they do not
+inherit AbstractCore/Gateway authentication or browser-origin policy:</p>
 <div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>web<span class="w"> </span>--tts-engine<span class="w"> </span>openai<span class="w"> </span>--stt-engine<span class="w"> </span>openai
 abstractvoice<span class="w"> </span>web<span class="w"> </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
 </code></pre></div>
@@ -2011,7 +2040,7 @@ compatibility remains the capability/plugin contract: clients may pass a
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.integrations.abstractcore</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_voice_tools</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">remote_api_key</span><span class="o">=</span><span class="s2">&quot;sk-...&quot;</span><span class="p">)</span>
 <span class="n">tools</span> <span class="o">=</span> <span class="n">make_voice_tools</span><span class="p">(</span><span class="n">voice_manager</span><span class="o">=</span><span class="n">vm</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="n">artifact_store</span><span class="p">)</span>
 </code></pre></div>
 <p>Example (engine-agnostic profile selection):</p>

@@ -1145,9 +1145,10 @@
 
 
 <h1 id="model-voice-management">Model / Voice Management<a class="headerlink" href="#model-voice-management" title="Permanent link">&para;</a></h1>
-<p>AbstractVoice core is <strong>Piper-first</strong>:</p>
+<p>AbstractVoice core is <strong>remote-first</strong>:</p>
 <ul>
-<li><strong>Piper (default)</strong>: small ONNX voices downloaded/managed by <code>abstractvoice/adapters/tts_piper.py</code></li>
+<li><strong>OpenAI remote audio (default)</strong>: no local model download in the base install.</li>
+<li><strong>Piper (local)</strong>: small ONNX voices downloaded/managed by <code>abstractvoice/adapters/tts_piper.py</code> when you select <code>tts_engine="piper"</code>.</li>
 <li>There is <strong>no legacy Coqui model management</strong> in core.</li>
 <li>Heavier engines (torch/transformers) are <strong>opt-in</strong> via extras (e.g. <code>abstractvoice[chroma]</code>, <code>abstractvoice[audiodit]</code>, <code>abstractvoice[omnivoice]</code>).</li>
 </ul>
@@ -1158,7 +1159,8 @@
 </ul>
 <p>Downloads are controlled by <code>allow_downloads</code>:</p>
 <ul>
-<li><strong>Library default</strong>: <code>VoiceManager(..., allow_downloads=True)</code> may download Piper models on-demand.</li>
+<li><strong>Library default</strong>: <code>VoiceManager()</code> uses OpenAI remote audio and does not download Piper models.</li>
+<li><strong>Local Piper</strong>: <code>VoiceManager(tts_engine="piper", allow_downloads=True)</code> may download Piper models on-demand.</li>
 <li>
 <p><strong>REPL default</strong>: <code>python -m abstractvoice cli</code> runs with <code>allow_downloads=False</code> (offline-first), so it will <strong>not</strong> download implicitly.</p>
 </li>

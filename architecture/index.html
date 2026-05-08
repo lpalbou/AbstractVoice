@@ -437,10 +437,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#tts-local-playback" class="md-nav__link">
+  <a href="#tts-playback" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TTS (local playback)
+        TTS (playback)
       
     </span>
   </a>
@@ -486,10 +486,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#offline-first-model-policy" class="md-nav__link">
+  <a href="#remote-first-and-offline-model-policy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Offline-first model policy
+        Remote-first and offline model policy
       
     </span>
   </a>
@@ -1196,10 +1196,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#tts-local-playback" class="md-nav__link">
+  <a href="#tts-playback" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TTS (local playback)
+        TTS (playback)
       
     </span>
   </a>
@@ -1245,10 +1245,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#offline-first-model-policy" class="md-nav__link">
+  <a href="#remote-first-and-offline-model-policy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Offline-first model policy
+        Remote-first and offline model policy
       
     </span>
   </a>
@@ -1287,7 +1287,7 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>AbstractVoice <code>0.8.x</code> is built around a small public facade and engine adapters
+<p>AbstractVoice <code>0.9.x</code> is built around a small public facade and engine adapters
 that keep optional heavy runtimes out of the default path.</p>
 <p>Use <code>docs/api.md</code> for the supported integrator contract, <code>docs/repl_guide.md</code>
 for REPL behavior and commands, and <code>docs/known-issues.md</code> for current release
@@ -1296,8 +1296,8 @@ caveats.</p>
 <h2 id="tldr">TL;DR<a class="headerlink" href="#tldr" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>abstractvoice.VoiceManager</code> is the orchestration façade (<code>abstractvoice/vm/*</code>).</li>
-<li><strong>TTS (default)</strong>: TTS adapter registry → <code>AdapterTTSEngine</code> → <code>NonBlockingAudioPlayer</code> (pause/resume/stop). Remote adapters can call OpenAI/OpenAI-compatible <code>/audio/speech</code> and expose provider voices through the same <code>VoiceProfile</code> API as local engines.</li>
-<li><strong>STT (default)</strong>: <code>VoiceRecognizer</code> loop (mic capture) → <code>VoiceDetector</code> (webrtcvad) → <code>FasterWhisperAdapter</code>. Headless <code>transcribe_*()</code> can also route to remote OpenAI/OpenAI-compatible <code>/audio/transcriptions</code>.</li>
+<li><strong>TTS (default)</strong>: TTS adapter registry resolves <code>openai</code> / <code>auto</code> to <code>OpenAICompatibleTTSAdapter</code>; playback uses <code>AdapterTTSEngine</code> → <code>NonBlockingAudioPlayer</code> when local audio output is requested.</li>
+<li><strong>STT (default)</strong>: <code>openai</code> / <code>auto</code> routes <code>transcribe_*()</code> and <code>listen()</code> recognition to <code>OpenAICompatibleSTTAdapter</code>. Local microphone capture still uses <code>VoiceRecognizer</code> → <code>VoiceDetector</code> and can pass captured audio to the selected STT adapter.</li>
 <li><strong>Voice cloning (optional)</strong>: <code>VoiceCloner</code> + clone store + engine backends (<code>f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible</code>).</li>
 <li>Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (<code>abstractvoice/vm/core.py</code>).</li>
 </ul>
@@ -1318,6 +1318,7 @@ caveats.</p>
   Rec --&gt; In[(sounddevice InputStream)]
   Rec --&gt; VAD[VoiceDetector (webrtcvad)]
   Rec --&gt; STT[FasterWhisperAdapter]
+  Rec --&gt; RemoteSTT[OpenAICompatibleSTTAdapter]
 
   Player -. on_audio_chunk (optional AEC) .-&gt; Rec
 </code></pre></div>
@@ -1356,10 +1357,10 @@ caveats.</p>
 <li>AbstractCore plugin: <code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
 </ul>
 <h2 id="data-flows">Data flows<a class="headerlink" href="#data-flows" title="Permanent link">&para;</a></h2>
-<h3 id="tts-local-playback">TTS (local playback)<a class="headerlink" href="#tts-local-playback" title="Permanent link">&para;</a></h3>
+<h3 id="tts-playback">TTS (playback)<a class="headerlink" href="#tts-playback" title="Permanent link">&para;</a></h3>
 <p>1) Your app calls <code>VoiceManager.speak()</code> (<code>abstractvoice/vm/tts_mixin.py</code>).
-2) Default path (Piper): <code>AdapterTTSEngine.speak()</code> (<code>abstractvoice/tts/adapter_tts_engine.py</code>)
-   - synthesizes audio via the selected adapter (default <code>PiperTTSAdapter.synthesize()</code>, <code>abstractvoice/adapters/tts_piper.py</code>)
+2) Default path (OpenAI remote): <code>AdapterTTSEngine.speak()</code> (<code>abstractvoice/tts/adapter_tts_engine.py</code>)
+   - synthesizes audio via the selected adapter (default <code>OpenAICompatibleTTSAdapter</code>, <code>abstractvoice/adapters/tts_openai_compatible.py</code>)
    - enqueues audio into <code>NonBlockingAudioPlayer.play_audio()</code> (<code>abstractvoice/tts/tts_engine.py</code>)
 3) Playback runs in the PortAudio callback thread (<code>sounddevice.OutputStream</code>).</p>
 <p>Pause/resume is implemented by toggling a lock-protected paused flag inside the audio callback (see <code>NonBlockingAudioPlayer.pause()/resume()</code>).</p>
@@ -1367,7 +1368,7 @@ caveats.</p>
 <p>1) Your app calls <code>VoiceManager.listen()</code> (<code>abstractvoice/vm/stt_mixin.py</code>).
 2) A <code>VoiceRecognizer</code> instance is created (<code>abstractvoice/recognition.py</code>) with:
    - a VAD (<code>VoiceDetector</code>, <code>abstractvoice/vad/voice_detector.py</code>)
-   - an STT adapter (<code>FasterWhisperAdapter</code>, <code>abstractvoice/adapters/stt_faster_whisper.py</code>)
+   - the configured STT adapter (OpenAI remote by default; <code>FasterWhisperAdapter</code> when explicitly selected)
 3) The recognizer thread opens a <code>sounddevice.InputStream</code> and loops:
    - optional AEC preprocessing
    - VAD detection and buffering
@@ -1397,8 +1398,12 @@ caveats.</p>
 <li><strong>Audio callback thread</strong>: speaker output callback (<code>NonBlockingAudioPlayer._audio_callback()</code>).</li>
 <li><strong>Cloned TTS synthesis thread (optional)</strong>: streaming/cancellation worker in <code>abstractvoice/vm/tts_mixin.py</code>.</li>
 </ul>
-<h2 id="offline-first-model-policy">Offline-first model policy<a class="headerlink" href="#offline-first-model-policy" title="Permanent link">&para;</a></h2>
-<p>The library defaults to <code>allow_downloads=True</code>, but the REPL creates <code>VoiceManager(..., allow_downloads=False)</code> (see <code>abstractvoice/examples/cli_repl.py</code>).</p>
+<h2 id="remote-first-and-offline-model-policy">Remote-first and offline model policy<a class="headerlink" href="#remote-first-and-offline-model-policy" title="Permanent link">&para;</a></h2>
+<p>The library default uses OpenAI remote audio and requires <code>OPENAI_API_KEY</code> or
+<code>remote_api_key=...</code>; it does not download local model weights. Local engines
+are explicit (<code>tts_engine="piper"</code>, <code>stt_engine="faster_whisper"</code>, etc.) and
+respect <code>allow_downloads</code>. The REPL creates <code>VoiceManager(...,
+allow_downloads=False)</code> so local engines never fetch weights implicitly.</p>
 <p>Explicit prefetch entry points:
 - <code>python -m abstractvoice download ...</code> (<code>abstractvoice/__main__.py</code>)
 - <code>abstractvoice-prefetch ...</code> (<code>abstractvoice/prefetch.py</code>)</p>

@@ -1157,13 +1157,12 @@ the “Integrations” section in <code>docs/api.md</code>. In that mode, Abstra
 the server/API surface; AbstractVoice is the capability plugin that backs
 voice/audio operations such as <code>/v1/audio/speech</code> and
 <code>/v1/audio/transcriptions</code>.</p>
-<p>For a local browser smoke test, install <code>abstractvoice[web]</code> and run
-<code>abstractvoice web</code>. That web UI is a small <code>VoiceManager</code> example with
+<p>For a browser smoke test, install <code>abstractvoice[web]</code> and run
+<code>OPENAI_API_KEY=... abstractvoice web</code>. That web UI is a small <code>VoiceManager</code> example with
 assistant/user voice selection, browser voice cloning from uploaded or recorded
 reference audio, and an example-only local LLM dialogue bridge, not the
-production API server. Optional engine bundles such as
-<code>abstractvoice[web-omnivoice]</code> and <code>abstractvoice[web-full]</code> install the web UI
-plus the matching heavy local engines.</p>
+production API server. Compose extras such as <code>abstractvoice[web,local]</code> or
+<code>abstractvoice[web,omnivoice]</code> when you want local engines in the same install.</p>
 <h2 id="user-facing-docs">User-facing docs<a class="headerlink" href="#user-facing-docs" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>FAQ</strong>: <code>docs/faq.md</code></li>
@@ -1171,7 +1170,7 @@ plus the matching heavy local engines.</p>
 <li><strong>Install &amp; troubleshooting</strong>: <code>docs/installation.md</code></li>
 <li><strong>REPL guide (voice assistant)</strong>: <code>docs/repl_guide.md</code></li>
 <li><strong>Multilingual</strong>: <code>docs/multilingual.md</code></li>
-<li><strong>Voice/model management (Piper-first)</strong>: <code>docs/model-management.md</code></li>
+<li><strong>Voice/model management</strong>: <code>docs/model-management.md</code></li>
 <li><strong>Dependencies &amp; model sources</strong>: <code>docs/dependencies.md</code></li>
 <li><strong>Licensing notes for models/voices</strong>: <code>docs/voices-and-licenses.md</code></li>
 <li><strong>Benchmarks (TTS-only)</strong>: <code>docs/benchmark.md</code></li>

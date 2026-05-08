@@ -1275,36 +1275,40 @@
 
 
 <h1 id="getting-started">Getting started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<p>Start here after <code>README.md</code> when you want to run the package locally and
-confirm the default path works.</p>
+<p>Start here after <code>README.md</code> when you want to confirm the default remote path
+works, then optionally switch to local/offline engines.</p>
 <p>Use <code>docs/api.md</code> for the supported integrator contract, <code>docs/architecture.md</code>
 for the implementation map, and <code>docs/faq.md</code> for cache/history reset and common
 troubleshooting.</p>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Python <code>&gt;=3.9</code> (see <code>pyproject.toml</code>)</li>
+<li><code>OPENAI_API_KEY</code> for the default <code>VoiceManager()</code> / REPL path</li>
 <li>For microphone input: OS-level microphone permissions for your terminal/IDE</li>
 </ul>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[voice]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice
+<span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...
 </code></pre></div>
-<p>The plain <code>pip install abstractvoice</code> path is lightweight and remote/plugin
-oriented. Optional extras are documented in <code>docs/installation.md</code> (remote
-OpenAI-compatible providers, web, OpenF5/AudioDiT cloning, Chroma, AEC,
-audio-fx, and legacy STT).</p>
+<p>The plain install is lightweight and remote/plugin oriented. For fully local
+inference, listening, and cloning engines, install <code>abstractvoice[local]</code> and
+select local engines explicitly. Optional extras are documented in
+<code>docs/installation.md</code>.</p>
 <h2 id="60-second-smoke-test-no-mic-required">60-second smoke test (no mic required)<a class="headerlink" href="#60-second-smoke-test-no-mic-required" title="Permanent link">&para;</a></h2>
 <p>Start the REPL:</p>
-<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--verbose
+<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>abstractvoice<span class="w"> </span>--verbose
 </code></pre></div>
 <p>From a source checkout (without installing the console script), use:
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--verbose
+<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--verbose
 </code></pre></div></p>
 <p>In the REPL, run:</p>
 <ul>
 <li><code>/speak hello</code> (tests TTS without calling an LLM)</li>
 </ul>
-<p>If Piper can’t speak in offline-first mode, prefetch a voice model:</p>
-<div class="highlight"><pre><span></span><code>abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
+<p>For local/offline TTS instead:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[local]&quot;</span>
+abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
+abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
 </code></pre></div>
 <h2 id="optional-browser-example">Optional Browser Example<a class="headerlink" href="#optional-browser-example" title="Permanent link">&para;</a></h2>
 <p>The local web UI is a small FastAPI example around <code>VoiceManager</code>: discussion
@@ -1316,12 +1320,11 @@ AbstractCore Server for production OpenAI-compatible HTTP endpoints.</p>
 abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
 </code></pre></div>
 <p>For a local web lab with Piper/faster-whisper instead:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,voice]&quot;</span>
-abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,local]&quot;</span>
+abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--tts-engine<span class="w"> </span>piper<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper
 </code></pre></div>
-<p>If you want the browser UI and optional engines in one install command, use
-<code>abstractvoice[web-omnivoice]</code> for OmniVoice or <code>abstractvoice[web-full]</code> for
-the broader local voice/cloning lab setup.</p>
+<p>If you want the browser UI and a smaller optional engine install, compose
+extras directly, such as <code>abstractvoice[web,omnivoice]</code>.</p>
 <p>Then open <code>http://127.0.0.1:5000</code>.</p>
 <p>The web example is offline-first by default. Prefetch models first, or start it with
 <code>--allow-downloads</code> when you explicitly want web requests to download missing
@@ -1342,6 +1345,12 @@ server only forwards one <code>/v1/chat/completions</code> request.</p>
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
 <span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello from AbstractVoice.&quot;</span><span class="p">)</span>
 </code></pre></div>
+<p>This uses OpenAI remote audio and reads <code>OPENAI_API_KEY</code>. For local inference:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;piper&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;faster_whisper&quot;</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello from the local stack.&quot;</span><span class="p">)</span>
+</code></pre></div>
 <p>The public entry point is <code>abstractvoice.VoiceManager</code> (<code>abstractvoice/voice_manager.py</code>).</p>
 <h2 id="recommended-in-abstractframework-use-abstractcore">Recommended in AbstractFramework: use AbstractCore<a class="headerlink" href="#recommended-in-abstractframework-use-abstractcore" title="Permanent link">&para;</a></h2>
 <p>If you’re using AbstractVoice inside the AbstractFramework ecosystem, the intended architecture is:</p>
@@ -1359,7 +1368,7 @@ server only forwards one <code>/v1/chat/completions</code> request.</p>
 - <code>docs/api.md</code> (Integrations section; code pointers)</p>
 <p>Minimal AbstractCore Server smoke test:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractcore[server]&quot;</span><span class="w"> </span>abstractvoice
-python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
+<span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
 
 <span class="c1"># TTS through AbstractCore + AbstractVoice</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/v1/audio/speech<span class="w"> </span><span class="se">\</span>

@@ -1089,8 +1089,8 @@
 <h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
 <p>AbstractVoice is a Python library for <strong>voice I/O</strong> around AI applications:</p>
 <ul>
-<li><strong>TTS (text → audio)</strong>: default engine is <strong>Piper</strong> (cross‑platform, no system deps).</li>
-<li><strong>STT (audio → text)</strong>: default engine is <strong>faster‑whisper</strong> (fast, multilingual).</li>
+<li><strong>TTS (text -&gt; audio)</strong>: default engine is <strong>OpenAI remote audio</strong> from the base install.</li>
+<li><strong>STT (audio -&gt; text)</strong>: default engine is <strong>OpenAI remote transcription</strong> from the base install.</li>
 <li><strong>Streaming TTS</strong>: chunked speech output for LLM streaming pipelines.</li>
 <li><strong>Voice cloning (optional)</strong>: prompt-audio cloning engines (engine-bound clones).</li>
 </ul>
@@ -1121,6 +1121,8 @@ embedded into:</p>
 <ul>
 <li><code>speak()</code> plays to speakers</li>
 <li><code>pause_speaking()/resume_speaking()</code> control playback</li>
+<li>For offline/local inference, install <code>abstractvoice[local]</code> and select
+  <code>tts_engine="piper"</code> / <code>stt_engine="faster_whisper"</code>.</li>
 </ul>
 <h3 id="2-backendserver-code-headless">2) Backend/server code (headless)<a class="headerlink" href="#2-backendserver-code-headless" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1140,6 +1142,7 @@ capability backend discovered through <code>abstractcore.capabilities_plugins</c
 <ul>
 <li><code>python -m abstractvoice cli</code> is the fastest end‑to‑end smoke test.</li>
 <li>The REPL is offline-first: no implicit model downloads.</li>
+<li>Default voice engines are remote OpenAI; local engines are explicit.</li>
 <li>Optional engines are opt-in via extras (e.g. <code>abstractvoice[audiodit]</code>, <code>abstractvoice[omnivoice]</code>, <code>abstractvoice[chroma]</code>) and require explicit prefetch.</li>
 <li>The REPL is a <strong>demonstrator</strong>: it includes a minimal OpenAI-compatible LLM HTTP client for convenience (<code>abstractvoice/examples/llm_provider.py</code>), but production agent/server use should be done via AbstractCore.</li>
 </ul>
