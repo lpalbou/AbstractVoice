@@ -21,8 +21,8 @@ def _import_webrtcvad():
             pass
         raise ImportError(
             "Voice activity detection requires optional dependencies. Install with:\n"
-            "  pip install abstractvoice[voice]  # For basic audio\n"
-            "  pip install abstractvoice[all]    # For all features\n"
+            "  pip install abstractvoice[audio-io]  # For audio I/O only\n"
+            "  pip install abstractvoice[local]     # For the full local stack\n"
             f"Original error: {e}"
         ) from e
 
@@ -96,4 +96,4 @@ class VoiceDetector:
         else:
             if self.debug_mode:
                 print(f" > Invalid aggressiveness: {aggressiveness}")
-            return False 
+            return False

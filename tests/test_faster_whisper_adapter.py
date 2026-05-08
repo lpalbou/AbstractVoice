@@ -5,7 +5,7 @@ This test suite validates:
 2. Language support
 3. Audio transcription (real audio files)
 4. Network methods (bytes/array transcription)
-5. Performance improvements over openai-whisper
+5. Performance characteristics of faster-whisper
 
 NOTE: These are REAL functional tests, not mocked tests.
 """
@@ -260,7 +260,13 @@ def test_voice_manager_integration():
         pytest.skip(f"AbstractVoice not installed: {e}")
     
     # Initialize VoiceManager (it should handle STT internally)
-    vm = VoiceManager(language='en', whisper_model='tiny', debug_mode=False)
+    vm = VoiceManager(
+        language='en',
+        whisper_model='tiny',
+        stt_engine='faster_whisper',
+        remote_api_key='sk-test',
+        debug_mode=False,
+    )
     
     # VoiceManager doesn't expose STT adapter directly yet
     # This test verifies it initializes without error
@@ -275,7 +281,13 @@ def test_voice_manager_transcribe_methods():
     except ImportError as e:
         pytest.skip(f"AbstractVoice not installed: {e}")
     
-    vm = VoiceManager(language='en', whisper_model='tiny', debug_mode=False)
+    vm = VoiceManager(
+        language='en',
+        whisper_model='tiny',
+        stt_engine='faster_whisper',
+        remote_api_key='sk-test',
+        debug_mode=False,
+    )
     
     # Create test audio file
     audio_path = create_test_audio_file(duration_seconds=2)

@@ -1,16 +1,17 @@
 # AbstractVoice
-> Modular Python voice I/O for AI apps (Piper TTS + faster‑whisper STT by default), with optional remote OpenAI/OpenAI-compatible audio engines and heavy local TTS/cloning engines (AudioDiT / OmniVoice / F5‑TTS / Chroma).
+> Modular Python voice I/O for AI apps. The base install is remote-first (OpenAI/OpenAI-compatible TTS/STT by default); `abstractvoice[local]` installs the full local Piper/faster-whisper/audio/cloning stack.
 
 Start with `README.md` for the primary entry flow and treat `docs/api.md` as the supported integrator contract. Requires Python `>=3.9` (see `pyproject.toml`).
 
 Positioning:
 - AbstractVoice is a **voice I/O library** (TTS/STT + optional cloning). It does not run an agent loop or an LLM server.
-- In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** (via the capability plugin entry point).
+- In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** (via the capability plugin entry point, including TTS/STT and voice catalog discovery).
 - The REPL and local FastAPI web UI are **examples/smoke-test harnesses**. They share a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for local providers such as Ollama/LM Studio.
 - REPL voice selection is centered on `/voices`; `/profile`, `/tts_voice`, and `/setvoice` remain compatibility/direct commands.
-- Remote voice engines are explicit opt-in: `tts_engine="openai"|"openai-compatible"` and `stt_engine="openai"|"openai-compatible"`. `openai` defaults to `https://api.openai.com/v1`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
+- `VoiceManager()` and `auto` are remote-first: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
+- Local inference/listening is explicit: install `abstractvoice[local]` and select `tts_engine="piper"` / `stt_engine="faster_whisper"` (or granular extras such as `abstractvoice[piper]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`).
 - The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, local `/api/*` routes, and compatible extension routes `/v1/audio/voices` + `/v1/voice/clone`; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
-- Web install bundles are explicit: `abstractvoice[web]` is lightweight, while `abstractvoice[web-omnivoice]` and `abstractvoice[web-full]` include optional heavy local engines for the browser UI.
+- Web extras compose directly: `abstractvoice[web]` is lightweight; use `abstractvoice[web,local]` for the full local lab or `abstractvoice[web,omnivoice]` for a narrower engine install.
 
 Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downloads should be explicit (see `docs/installation.md` and `docs/model-management.md`).
 CI/release tests use `python -m pytest -q -m "not integration and not model_download"` to avoid optional integration and artifact-download paths.
@@ -73,7 +74,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Local web example](abstractvoice/examples/web_ui.py): browser TTS/STT smoke test
 
 ## Integrations (AbstractFramework ecosystem)
-- [AbstractCore capability plugin](abstractvoice/integrations/abstractcore_plugin.py): registers voice/audio backends
+- [AbstractCore capability plugin](abstractvoice/integrations/abstractcore_plugin.py): registers voice/audio backends and exposes profile/model catalog discovery
 - [AbstractCore tool helpers](abstractvoice/integrations/abstractcore.py): `make_voice_tools(...)`
 - [Artifact store adapter](abstractvoice/artifacts.py): AbstractRuntime-like ArtifactStore adapter (duck-typed)
 

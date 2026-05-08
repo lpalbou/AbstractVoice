@@ -43,6 +43,12 @@ _OPENAI_BUILTIN_VOICES = (
     "verse",
 )
 
+_OPENAI_KNOWN_TTS_MODELS = (
+    "gpt-4o-mini-tts",
+    "tts-1",
+    "tts-1-hd",
+)
+
 
 def _default_tts_model(provider: str, model_id: str | None) -> str | None:
     if model_id and str(model_id).strip():
@@ -80,22 +86,151 @@ def _split_csv(value: str | None) -> list[str]:
     return out
 
 
-def _remote_profile_paths(provider: str) -> list[str]:
+def _dedupe(items: list[str]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        value = str(item or "").strip()
+        key = value.lower()
+        if not value or key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+    return out
+
+
+def _configured_tts_models(provider: str) -> list[str]:
     p = normalize_remote_provider(provider)
+    if p == "openai":
+        raw = env_first("ABSTRACTVOICE_OPENAI_TTS_MODELS")
+        return _dedupe(_split_csv(raw) + list(_OPENAI_KNOWN_TTS_MODELS))
     raw = env_first(
-        "ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATHS",
-        "ABSTRACTVOICE_REMOTE_VOICE_LIST_PATHS",
-        "ABSTRACTVOICE_OPENAI_COMPATIBLE_VOICE_PROFILE_PATHS",
-        "ABSTRACTVOICE_OPENAI_COMPATIBLE_VOICE_LIST_PATHS",
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_TTS_MODELS",
+        "ABSTRACTVOICE_REMOTE_TTS_MODELS",
+        "ABSTRACTVOICE_OPENAI_TTS_MODELS",
+    )
+    return _dedupe(_split_csv(raw))
+
+
+def _remote_model_paths(provider: str) -> list[str]:
+    p = normalize_remote_provider(provider)
+    if p == "openai":
+        raw = env_first(
+            "ABSTRACTVOICE_OPENAI_MODEL_PATHS",
+            "ABSTRACTVOICE_OPENAI_TTS_MODEL_PATHS",
+            "ABSTRACTVOICE_REMOTE_MODEL_PATHS",
+            "ABSTRACTVOICE_REMOTE_TTS_MODEL_PATHS",
+        )
+        if raw:
+            return _split_csv(raw)
+        path = env_first(
+            "ABSTRACTVOICE_OPENAI_MODEL_PATH",
+            "ABSTRACTVOICE_OPENAI_TTS_MODEL_PATH",
+            "ABSTRACTVOICE_REMOTE_MODEL_PATH",
+            "ABSTRACTVOICE_REMOTE_TTS_MODEL_PATH",
+        )
+        return [path] if path else ["/models"]
+
+    raw = env_first(
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_MODEL_PATHS",
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_TTS_MODEL_PATHS",
+        "ABSTRACTVOICE_REMOTE_MODEL_PATHS",
+        "ABSTRACTVOICE_REMOTE_TTS_MODEL_PATHS",
     )
     if raw:
         return _split_csv(raw)
 
+    path = env_first(
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_MODEL_PATH",
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_TTS_MODEL_PATH",
+        "ABSTRACTVOICE_REMOTE_MODEL_PATH",
+        "ABSTRACTVOICE_REMOTE_TTS_MODEL_PATH",
+    )
+    return [path] if path else ["/models"]
+
+
+def _remote_model_id(item: Any) -> str | None:
+    if isinstance(item, str):
+        value = item.strip()
+        return value or None
+    if not isinstance(item, dict):
+        return None
+    value = item.get("id") or item.get("model") or item.get("model_id") or item.get("name")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _looks_like_tts_model(model_id: str, item: Any, *, explicit_tts_list: bool) -> bool:
+    if explicit_tts_list:
+        return True
+    mid = str(model_id or "").strip().lower()
+    if "tts" in mid or "speech" in mid:
+        return True
+    if isinstance(item, dict):
+        kind = str(item.get("kind") or item.get("type") or item.get("capability") or "").strip().lower()
+        if kind in {"tts", "speech", "audio_speech", "audio.speech"}:
+            return True
+        modalities = item.get("modalities")
+        if isinstance(modalities, list) and any(str(v).strip().lower() in {"tts", "speech"} for v in modalities):
+            return True
+    return False
+
+
+def _models_from_remote_payload(payload: dict[str, Any]) -> list[str]:
+    models: list[str] = []
+
+    def add_many(items: Any, *, explicit_tts_list: bool) -> None:
+        if not isinstance(items, list):
+            return
+        for item in items:
+            model_id = _remote_model_id(item)
+            if model_id and _looks_like_tts_model(model_id, item, explicit_tts_list=explicit_tts_list):
+                models.append(model_id)
+
+    add_many(payload.get("tts_models"), explicit_tts_list=True)
+    add_many(payload.get("speech_models"), explicit_tts_list=True)
+    add_many(payload.get("audio_speech_models"), explicit_tts_list=True)
+    add_many(payload.get("models"), explicit_tts_list=False)
+
+    data = payload.get("data")
+    if isinstance(data, list):
+        add_many(data, explicit_tts_list=False)
+    elif isinstance(data, dict):
+        models.extend(_models_from_remote_payload(data))
+
+    return _dedupe(models)
+
+
+def _remote_profile_paths(provider: str) -> list[str]:
+    p = normalize_remote_provider(provider)
     if p == "openai":
-        # OpenAI built-in voices are available without an HTTP list call. Custom
-        # voice listing is opt-in because that API surface is provider-specific.
-        path = env_first("ABSTRACTVOICE_OPENAI_VOICE_LIST_PATH")
-        return [path] if path else []
+        raw = env_first(
+            "ABSTRACTVOICE_OPENAI_VOICE_PROFILE_PATHS",
+            "ABSTRACTVOICE_OPENAI_VOICE_LIST_PATHS",
+            "ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATHS",
+            "ABSTRACTVOICE_REMOTE_VOICE_LIST_PATHS",
+        )
+        if raw:
+            return _split_csv(raw)
+        # Built-in voices are available locally; this discovery path adds
+        # account/org-specific custom voices when the API exposes them.
+        path = env_first(
+            "ABSTRACTVOICE_OPENAI_VOICE_PROFILE_PATH",
+            "ABSTRACTVOICE_OPENAI_VOICE_LIST_PATH",
+            "ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATH",
+            "ABSTRACTVOICE_REMOTE_VOICE_LIST_PATH",
+        )
+        return [path] if path else ["/audio/voices"]
+
+    raw = env_first(
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_VOICE_PROFILE_PATHS",
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_VOICE_LIST_PATHS",
+        "ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATHS",
+        "ABSTRACTVOICE_REMOTE_VOICE_LIST_PATHS",
+    )
+    if raw:
+        return _split_csv(raw)
 
     path = env_first(
         "ABSTRACTVOICE_OPENAI_COMPATIBLE_VOICE_PROFILE_PATH",
@@ -236,6 +371,8 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
         self._sample_rate = 24000
         self._remote_profiles_loaded = False
         self._remote_profiles: list[VoiceProfile] = []
+        self._remote_tts_models_loaded = False
+        self._remote_tts_models: list[str] = []
 
         self.base_url = resolve_base_url(self.provider, base_url)
         self.api_key = resolve_api_key(self.provider, api_key)
@@ -393,6 +530,43 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
             profiles.append(profile)
         return profiles
 
+    def list_available_models(self, language: Optional[str] = None) -> dict[str, Any]:
+        """List remote TTS voices with available/configured model ids.
+
+        `VoiceManager.list_available_models()` historically displays local Piper
+        catalogs. When this remote adapter is active, returning a remote-shaped
+        catalog prevents server/web callers from falling back to the local Piper
+        catalog and implying local models are installed.
+        """
+        _ = language
+        model_ids = self._get_tts_models()
+        active_model = str(self.model_id or (model_ids[0] if model_ids else "")).strip()
+
+        catalog: dict[str, Any] = {}
+        for profile in self.get_profiles():
+            voice_id = str(getattr(profile, "profile_id", "") or "").strip()
+            if not voice_id:
+                continue
+            tags = getattr(profile, "tags", None) if isinstance(getattr(profile, "tags", None), dict) else {}
+            kind = str(tags.get("kind") or "voice") if isinstance(tags, dict) else "voice"
+            catalog[voice_id] = {
+                "name": str(getattr(profile, "label", "") or voice_id),
+                "quality": "remote",
+                "size_mb": 0,
+                "description": str(getattr(profile, "description", "") or f"{self.engine_id} {kind}"),
+                "requires_espeak": False,
+                "cached": True,
+                "remote": True,
+                "engine": self.engine_id,
+                "provider": self.provider,
+                "voice": voice_id,
+                "profile_id": voice_id,
+                "model": active_model,
+                "available_models": list(model_ids),
+            }
+
+        return {self.engine_id: catalog}
+
     def set_profile(self, profile_id: str) -> bool:
         voice = str(profile_id or "").strip()
         if not voice:
@@ -403,7 +577,33 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
     def refresh_profiles(self) -> bool:
         self._remote_profiles_loaded = False
         self._remote_profiles = []
+        self._remote_tts_models_loaded = False
+        self._remote_tts_models = []
         return True
+
+    def _get_tts_models(self) -> list[str]:
+        configured = _configured_tts_models(self.provider)
+        if self._remote_tts_models_loaded:
+            return _dedupe(list(self._remote_tts_models) + configured)
+
+        self._remote_tts_models_loaded = True
+        found: list[str] = []
+        for path in _remote_model_paths(self.provider):
+            try:
+                response = self._client.request(
+                    "GET",
+                    path,
+                    endpoint_name="models",
+                )
+                found = _models_from_remote_payload(response_json(response))
+                break
+            except Exception as e:
+                if self.debug_mode:
+                    print(f"⚠️  Remote model list failed for {path}: {e}")
+                continue
+
+        self._remote_tts_models = _dedupe(found)
+        return _dedupe(list(found) + configured)
 
     def _get_remote_profiles(self) -> list[VoiceProfile]:
         if self._remote_profiles_loaded:

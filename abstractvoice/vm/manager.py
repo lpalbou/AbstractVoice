@@ -33,8 +33,8 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # especially for short commands and non-ideal microphone conditions.
         whisper_model: str = "base",
         debug_mode: bool = False,
-        tts_engine: str = "auto",
-        stt_engine: str = "auto",
+        tts_engine: str = "openai",
+        stt_engine: str = "openai",
         allow_downloads: bool = True,
         cloned_tts_streaming: bool = True,
         cloning_engine: str = "f5_tts",
@@ -66,15 +66,15 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
             self.tts_delivery_mode = normalize_audio_delivery_mode(tts_delivery_mode)
         self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
 
-        requested_engine = str(tts_engine or "auto").strip().lower().replace("_", "-") or "auto"
+        requested_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
 
         # Language normalization:
-        # - For Piper (default/auto), keep the historical catalog validation so
+        # - For Piper/local explicit engines, keep the historical catalog validation so
         #   we don't try to load non-existent voices.
         # - For other engines (e.g. OmniVoice), allow arbitrary language codes
         #   and let the engine decide (some engines support 100s of languages).
         language = str(language or "en").strip().lower() or "en"
-        if requested_engine in ("", "auto", "piper"):
+        if requested_engine in ("piper",):
             if language not in self.LANGUAGES:
                 if debug_mode:
                     available = ", ".join(self.LANGUAGES.keys())
@@ -82,8 +82,8 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
                 language = "en"
         self.language = language
 
-        self._tts_engine_preference = tts_engine
-        self._stt_engine_preference = stt_engine
+        self._tts_engine_preference = tts_engine or "openai"
+        self._stt_engine_preference = stt_engine or "openai"
 
         # TTS selection
         self.tts_adapter = None
@@ -95,7 +95,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # when no TTS model is cached locally (offline-first).
         try:
             self.tts_adapter, resolved_engine = create_tts_adapter(
-                engine=str(tts_engine or "auto"),
+                engine=str(tts_engine or "openai"),
                 language=language,
                 allow_downloads=bool(self.allow_downloads),
                 auto_load=True,
@@ -109,14 +109,11 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
             # Preserve caller-facing validation semantics (explicit engine names must be valid).
             raise
         except Exception as e:
-            # If the caller explicitly selected an engine, surface the error so
-            # it's actionable (no silent fallback).
-            if requested_engine != "auto":
-                raise
+            # Remote-first defaults should fail clearly when credentials or
+            # explicit local extras are missing; no hidden fallback.
             if debug_mode:
                 print(f"⚠️  TTS engine init failed: {e}")
-            self.tts_adapter = None
-            resolved_engine = None
+            raise
 
         if self.tts_adapter:
             self.tts_engine = AdapterTTSEngine(self.tts_adapter, debug_mode=debug_mode)

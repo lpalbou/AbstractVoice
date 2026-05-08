@@ -1,8 +1,8 @@
-"""Language metadata (Piper-first).
+"""Language metadata for curated local Piper voices.
 
-AbstractVoice core uses Piper as the default (and only) TTS engine. We keep a
-small language list here for validation / UX messaging. Voice selection is
-handled by the Piper adapter itself.
+Remote engines treat language as a provider hint. We keep a small language list
+here for local Piper validation / UX messaging. Voice selection is handled by
+the Piper adapter itself.
 """
 
 LANGUAGES = {
@@ -16,4 +16,3 @@ LANGUAGES = {
 
 # Universal safe fallback language code.
 SAFE_FALLBACK = "en"
-

@@ -8,13 +8,6 @@ This file lists the notable third-party libraries that AbstractVoice uses (see `
 
 ## Core dependencies (installed by default)
 
-- Piper / `piper-tts` (local neural TTS): https://github.com/rhasspy/piper
-- faster-whisper (STT): https://github.com/SYSTRAN/faster-whisper
-- CTranslate2 (inference runtime used by faster-whisper): https://github.com/OpenNMT/CTranslate2
-- Hugging Face Hub (`huggingface_hub`) (artifact downloads): https://github.com/huggingface/huggingface_hub
-- SoundDevice + PortAudio (audio I/O): https://github.com/spatialaudio/python-sounddevice and http://www.portaudio.com/
-- SoundFile (WAV/FLAC/OGG I/O): https://github.com/bastibe/python-soundfile
-- WebRTC VAD (`webrtcvad`) (voice activity detection): https://github.com/wiseman/py-webrtcvad
 - NumPy: https://github.com/numpy/numpy
 - Requests: https://github.com/psf/requests
 - appdirs: https://github.com/ActiveState/appdirs
@@ -23,6 +16,13 @@ This file lists the notable third-party libraries that AbstractVoice uses (see `
 
 These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`):
 
+- Piper / `piper-tts` (`abstractvoice[piper]` / `abstractvoice[local]`) for local neural TTS: https://github.com/rhasspy/piper
+- faster-whisper (`abstractvoice[stt]` / `abstractvoice[local]`) for local STT: https://github.com/SYSTRAN/faster-whisper
+  - CTranslate2 (inference runtime used by faster-whisper): https://github.com/OpenNMT/CTranslate2
+- Hugging Face Hub (`huggingface_hub`) (artifact downloads): https://github.com/huggingface/huggingface_hub
+- SoundDevice + PortAudio (`abstractvoice[audio-io]` / `abstractvoice[local]`) for audio I/O: https://github.com/spatialaudio/python-sounddevice and http://www.portaudio.com/
+- SoundFile (WAV/FLAC/OGG I/O): https://github.com/bastibe/python-soundfile
+- WebRTC VAD (`webrtcvad`) for voice activity detection: https://github.com/wiseman/py-webrtcvad
 - F5-TTS (`abstractvoice[cloning]`) for cloning backends: https://github.com/SWivid/F5-TTS
   - Hydra (used by F5-TTS runtime): https://github.com/facebookresearch/hydra
   - OmegaConf (used by F5-TTS runtime): https://github.com/omry/omegaconf
@@ -46,8 +46,7 @@ These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`)
   - Accelerate (runtime helpers): https://github.com/huggingface/accelerate
 - AEC (`abstractvoice[aec]`) for true barge-in on speakers: https://github.com/shichaog/AEC-Audio-Processing
 - Audio effects (`abstractvoice[audio-fx]`): https://github.com/librosa/librosa
-- Legacy Whisper + token stats (`abstractvoice[stt]`): https://github.com/openai/whisper and https://github.com/openai/tiktoken
-- Web demo/API (`abstractvoice[web]`): https://github.com/pallets/flask
+- Web example (`abstractvoice[web]`): https://github.com/fastapi/fastapi and https://github.com/encode/uvicorn
 
 ## Optional integrations
 

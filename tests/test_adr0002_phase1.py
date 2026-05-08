@@ -2,7 +2,7 @@ from abstractvoice import VoiceManager
 
 
 def test_default_voice_mode_is_wait():
-    vm = VoiceManager()
+    vm = VoiceManager(remote_api_key="sk-test")
     assert vm._voice_mode == "wait"
 
 
@@ -28,7 +28,7 @@ def test_stop_phrase_stops_speaking_but_does_not_force_stop_listening(monkeypatc
     import abstractvoice.vm.stt_mixin as stt_mixin_module
     monkeypatch.setattr(stt_mixin_module, "import_voice_recognizer", lambda: FakeVoiceRecognizer)
 
-    vm = VoiceManager()
+    vm = VoiceManager(remote_api_key="sk-test")
 
     # Patch methods we care about.
     monkeypatch.setattr(vm, "stop_speaking", lambda: calls.__setitem__("stop_speaking", calls["stop_speaking"] + 1) or True)
@@ -51,4 +51,3 @@ def test_stop_phrase_normalization_is_conservative():
     assert is_stop_phrase("ok stop", phrases) is True
     assert is_stop_phrase("Okay, stop!!!", phrases) is True
     assert is_stop_phrase("stop", phrases) is False
-

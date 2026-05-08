@@ -2,8 +2,8 @@
 
 AbstractVoice is a Python library for **voice I/O** around AI applications:
 
-- **TTS (text → audio)**: default engine is **Piper** (cross‑platform, no system deps).
-- **STT (audio → text)**: default engine is **faster‑whisper** (fast, multilingual).
+- **TTS (text -> audio)**: default engine is **OpenAI remote audio** from the base install.
+- **STT (audio -> text)**: default engine is **OpenAI remote transcription** from the base install.
 - **Streaming TTS**: chunked speech output for LLM streaming pipelines.
 - **Voice cloning (optional)**: prompt-audio cloning engines (engine-bound clones).
 
@@ -38,6 +38,8 @@ Next reads:
 
 - `speak()` plays to speakers
 - `pause_speaking()/resume_speaking()` control playback
+- For offline/local inference, install `abstractvoice[local]` and select
+  `tts_engine="piper"` / `stt_engine="faster_whisper"`.
 
 ### 2) Backend/server code (headless)
 
@@ -59,6 +61,7 @@ capability backend discovered through `abstractcore.capabilities_plugins`.
 
 - `python -m abstractvoice cli` is the fastest end‑to‑end smoke test.
   - The REPL is offline-first: no implicit model downloads.
+  - Default voice engines are remote OpenAI; local engines are explicit.
   - Optional engines are opt-in via extras (e.g. `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`) and require explicit prefetch.
   - The REPL is a **demonstrator**: it includes a minimal OpenAI-compatible LLM HTTP client for convenience (`abstractvoice/examples/llm_provider.py`), but production agent/server use should be done via AbstractCore.
 

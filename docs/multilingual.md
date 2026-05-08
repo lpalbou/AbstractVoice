@@ -1,8 +1,10 @@
 # Multilingual support
 
-## TTS (Piper, default)
+## TTS (remote default, Piper local)
 
-AbstractVoice ships a small default Piper mapping for these language codes:
+`VoiceManager()` uses OpenAI remote audio by default and treats `language` as a
+provider hint. The local Piper engine ships a small curated mapping for these
+language codes:
 
 - `en`, `fr`, `de`, `es`, `ru`, `zh`
 
@@ -11,7 +13,7 @@ Programmatic usage:
 ```python
 from abstractvoice import VoiceManager
 
-vm = VoiceManager(language="en", allow_downloads=False)
+vm = VoiceManager(language="en", tts_engine="piper", allow_downloads=False)
 vm.speak("Hello")
 
 vm.set_language("fr")
@@ -25,11 +27,16 @@ python -m abstractvoice download --piper en
 python -m abstractvoice download --piper fr
 ```
 
-## STT (faster-whisper, default)
+## STT (OpenAI default, faster-whisper local)
 
-STT supports many languages. You can pass a language hint when transcribing:
+OpenAI remote transcription is the default. Local faster-whisper supports many
+languages when selected explicitly. You can pass a language hint when
+transcribing:
 
 ```python
+from abstractvoice import VoiceManager
+
+vm = VoiceManager(tts_engine="piper", stt_engine="faster_whisper")
 text = vm.transcribe_file("audio.wav", language="fr")
 ```
 
@@ -65,4 +72,3 @@ Language handling note:
 
 - When using the OmniVoice engine, AbstractVoice treats `language` as a **pass-through hint** (it does not clamp to the small Piper catalog).
 - Common ISO codes like `fr`, `de`, `es`, `ru`, `zh` work; for the full set of IDs, see OmniVoice’s `LANG_IDS`.
-

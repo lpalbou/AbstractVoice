@@ -1237,7 +1237,7 @@ class TtsMixin:
         return list(self.LANGUAGES.keys())
 
     def list_available_models(self, language: str | None = None) -> dict:
-        """List available TTS voices/models (Piper-only core).
+        """List available TTS voices/models for the active adapter.
 
         Returns a dict shaped for CLI display:
         { "en": { "amy": { ... } }, "fr": { ... } }
@@ -1274,7 +1274,7 @@ class TtsMixin:
             return False
 
         # Language validation is engine-dependent:
-        # - Piper (and auto->Piper) uses a small curated mapping to avoid trying to
+        # - Piper uses a small curated mapping to avoid trying to
         #   load non-existent voices.
         # - Other engines (e.g. OmniVoice) can support many languages; treat the
         #   language code as a pass-through hint and let the engine decide.
@@ -1289,7 +1289,7 @@ class TtsMixin:
         if active_engine:
             validate_against_catalog = active_engine == "piper"
         else:
-            validate_against_catalog = pref in ("", "auto", "piper")
+            validate_against_catalog = pref in ("piper",)
         if validate_against_catalog and language not in self.LANGUAGES:
             if self.debug_mode:
                 available = ", ".join(self.LANGUAGES.keys())

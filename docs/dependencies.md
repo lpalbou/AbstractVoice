@@ -37,12 +37,15 @@ These are always installed with `pip install abstractvoice`.
 
 ## Optional extras (opt-in)
 
-### `abstractvoice[voice]` — local Piper + faster-whisper + audio I/O
+### `abstractvoice[local]` — full local stack
 
-This is the replacement for the old local-first base install.
+This is the full local/offline handle. It includes local Piper TTS,
+faster-whisper STT, microphone/playback/VAD dependencies, AEC where supported,
+and the optional local cloning/TTS engine dependencies that are resolver-safe on
+the current Python version. Use granular extras below for smaller installs.
 
 - **piper-tts**
-  - **Why**: local neural TTS backend (Piper-first).
+  - **Why**: local neural TTS backend.
   - **Where**: `abstractvoice/adapters/tts_piper.py`
   - **Repo**: `https://github.com/rhasspy/piper`
   - **License**: `https://github.com/rhasspy/piper/blob/master/LICENSE`
@@ -236,11 +239,9 @@ floor.
 
 ### `abstractvoice[web]` — Local web example
 
-The base web extra installs only the browser server stack. Use
-`abstractvoice[web-cloning]`, `abstractvoice[web-audiodit]`,
-`abstractvoice[web-omnivoice]`, `abstractvoice[web-chroma]`, or
-`abstractvoice[web-full]` when you want a one-command install for the web UI
-plus optional local voice engines.
+The base web extra installs only the browser server stack. Compose it with
+`abstractvoice[local]` for the full local lab, or with granular engine extras
+such as `abstractvoice[omnivoice]` for smaller installs.
 
 - **FastAPI**
   - **Why**: local browser example routes for TTS, transcription, assistant/user voice selection, voice cloning upload forms, and discussion playback (`abstractvoice web`).
@@ -267,18 +268,6 @@ plus optional local voice engines.
   - **Where**: `abstractvoice/adapters/stt_faster_whisper.py`
   - **Repo**: `https://github.com/SYSTRAN/faster-whisper`
   - **License**: `https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE`
-
-### `abstractvoice[legacy-stt]` — Legacy Whisper + token stats
-
-- **openai-whisper**
-  - **Repo**: `https://github.com/openai/whisper`
-  - **License**: `https://github.com/openai/whisper/blob/main/LICENSE`
-
-- **tiktoken**
-  - **Repo**: `https://github.com/openai/tiktoken`
-  - **License**: `https://github.com/openai/tiktoken/blob/main/LICENSE`
-
----
 
 ## Notable transitive runtimes (debugging-oriented)
 

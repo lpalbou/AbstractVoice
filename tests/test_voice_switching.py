@@ -6,13 +6,17 @@ This will help us validate the fixes to the voice switching system.
 
 from abstractvoice import VoiceManager
 import time
+import pytest
 
 def test_voice_switching():
     """Test voice switching to ensure different models actually load."""
     print("🧪 Testing Voice Switching Fixes...")
     print("=" * 50)
 
-    vm = VoiceManager(debug_mode=True)
+    try:
+        vm = VoiceManager(debug_mode=True, tts_engine="piper")
+    except RuntimeError as e:
+        pytest.skip(f"Local Piper TTS unavailable: {e}")
     print("✅ VoiceManager initialized")
 
     # Test voices that should sound different

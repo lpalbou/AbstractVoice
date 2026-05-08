@@ -14,7 +14,9 @@ This folder is the **single source of truth** for planned and completed work in 
 ## Folder layout
 
 - `docs/backlog/planned/`: work to do next
+- `docs/backlog/proposed/`: plausible ideas and follow-ups not yet committed
 - `docs/backlog/completed/`: finished tasks with a completion report
+- `docs/backlog/recurrent/`: checklists to run after development cycles
 
 ---
 
@@ -62,6 +64,9 @@ See `docs/backlog/template.md`.
 2. **Implement** the task.
 3. **Test** and fix issues.
 4. **Only when all tests pass**, move the task to `docs/backlog/completed/` and add the completion report at the end.
-5. **Check recurrent tasks** (see `docs/recurrent/`) before claiming completion.
+5. **Check recurrent tasks** (see `docs/backlog/recurrent/`) before claiming completion.
 6. After completion, **bump semantic version** and add a **CHANGELOG** entry (this is a recurrent task).
 
+Proposed items should be promoted before implementation when they become
+accepted work. If an agent completes a small proposed item in one cycle, the
+completed report must say it was promoted from `docs/backlog/proposed/`.

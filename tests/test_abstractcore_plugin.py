@@ -3,6 +3,42 @@ import pytest
 from abstractvoice.integrations.abstractcore_plugin import _AudioCapability, _VoiceCapability, register
 
 
+_PLUGIN_ENV_KEYS = (
+    "ABSTRACTVOICE_LANGUAGE",
+    "ABSTRACTVOICE_ALLOW_DOWNLOADS",
+    "ABSTRACTVOICE_TTS_ENGINE",
+    "ABSTRACTVOICE_STT_ENGINE",
+    "ABSTRACTVOICE_TTS_MODEL",
+    "ABSTRACTVOICE_STT_MODEL",
+    "ABSTRACTVOICE_REMOTE_BASE_URL",
+    "ABSTRACTVOICE_REMOTE_API_KEY",
+    "ABSTRACTVOICE_REMOTE_TIMEOUT_S",
+    "ABSTRACTVOICE_OPENAI_TTS_MODEL",
+    "ABSTRACTVOICE_OPENAI_STT_MODEL",
+    "ABSTRACTVOICE_OPENAI_BASE_URL",
+    "ABSTRACTVOICE_OPENAI_API_KEY",
+    "ABSTRACTVOICE_OPENAI_TIMEOUT_S",
+    "ABSTRACTVOICE_OPENAI_COMPATIBLE_TTS_MODEL",
+    "ABSTRACTVOICE_OPENAI_COMPATIBLE_STT_MODEL",
+    "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
+    "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
+    "ABSTRACTVOICE_OPENAI_COMPATIBLE_TIMEOUT_S",
+    "ABSTRACTVOICE_REMOTE_TTS_MODEL",
+    "ABSTRACTVOICE_REMOTE_STT_MODEL",
+    "ABSTRACTVOICE_CLONING_ENGINE",
+    "ABSTRACTVOICE_CLONED_TTS_STREAMING",
+    "ABSTRACTVOICE_TTS_DELIVERY_MODE",
+    "ABSTRACTVOICE_DEBUG",
+    "OPENAI_BASE_URL",
+    "OPENAI_API_KEY",
+)
+
+
+def _clear_plugin_env(monkeypatch):
+    for key in _PLUGIN_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
+
 def test_register_adds_voice_and_audio_backends():
     calls = {"voice": None, "audio": None}
 
@@ -18,6 +54,216 @@ def test_register_adds_voice_and_audio_backends():
     assert callable(calls["voice"]["factory"])
     assert calls["audio"]["backend_id"] == "abstractvoice:stt"
     assert callable(calls["audio"]["factory"])
+
+
+def test_voice_capability_defaults_to_openai_env_for_abstractcore(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    seen = {}
+
+    class _VM:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    plugin._VM_CACHE.clear()
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    assert cap._get_vm() is not None
+
+    assert seen["tts_engine"] == "openai"
+    assert seen["stt_engine"] == "openai"
+    assert seen["remote_api_key"] == "sk-test"
+
+
+def test_voice_capability_env_overrides_openai_defaults(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("ABSTRACTVOICE_TTS_ENGINE", "openai-compatible")
+    monkeypatch.setenv("ABSTRACTVOICE_STT_ENGINE", "openai-compatible")
+    monkeypatch.setenv("ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL", "http://remote.test/v1")
+    monkeypatch.setenv("ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY", "remote-key")
+    monkeypatch.setenv("ABSTRACTVOICE_ALLOW_DOWNLOADS", "false")
+    monkeypatch.setenv("ABSTRACTVOICE_CLONED_TTS_STREAMING", "off")
+    monkeypatch.setenv("ABSTRACTVOICE_DEBUG", "true")
+    seen = {}
+
+    class _VM:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    plugin._VM_CACHE.clear()
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    assert cap._get_vm() is not None
+
+    assert seen["tts_engine"] == "openai-compatible"
+    assert seen["stt_engine"] == "openai-compatible"
+    assert seen["remote_base_url"] == "http://remote.test/v1"
+    assert seen["remote_api_key"] == "remote-key"
+    assert seen["allow_downloads"] is False
+    assert seen["cloned_tts_streaming"] is False
+    assert seen["debug_mode"] is True
+
+
+def test_voice_capability_owner_config_overrides_openai_env(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    seen = {}
+
+    class _VM:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    plugin._VM_CACHE.clear()
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {
+            "voice_tts_engine": "openai-compatible",
+            "voice_stt_engine": "openai-compatible",
+            "voice_remote_base_url": "http://remote.test/v1",
+            "voice_remote_api_key": "remote-key",
+        }
+
+    cap = _VoiceCapability(_Owner())
+    assert cap._get_vm() is not None
+
+    assert seen["tts_engine"] == "openai-compatible"
+    assert seen["stt_engine"] == "openai-compatible"
+    assert seen["remote_base_url"] == "http://remote.test/v1"
+    assert seen["remote_api_key"] == "remote-key"
+
+
+def test_voice_capability_owner_config_string_bools_are_not_truthy(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    seen = {}
+
+    class _VM:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    plugin._VM_CACHE.clear()
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {
+            "voice_allow_downloads": "false",
+            "voice_cloned_tts_streaming": "0",
+            "voice_tts_streaming": "false",
+            "voice_debug_mode": "off",
+        }
+
+    cap = _VoiceCapability(_Owner())
+    assert cap._get_vm() is not None
+
+    assert seen["allow_downloads"] is False
+    assert seen["cloned_tts_streaming"] is False
+    assert seen["tts_delivery_mode"] == "buffered"
+    assert seen["debug_mode"] is False
+
+
+def test_voice_capability_default_openai_without_api_key_has_clear_error(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    plugin._VM_CACHE.clear()
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    with pytest.raises(ValueError, match="OpenAI audio requires OPENAI_API_KEY"):
+        cap._get_vm()
+
+
+def test_voice_capability_catalog_surface_serializes_profiles_and_models():
+    from abstractvoice.voice_profiles import VoiceProfile
+
+    class _Adapter:
+        engine_id = "openai"
+        model_id = "gpt-active-tts"
+
+    class _VM:
+        tts_adapter = _Adapter()
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return [
+                VoiceProfile(
+                    engine_id="openai",
+                    profile_id="alloy",
+                    label="Alloy",
+                    params={"voice": "alloy"},
+                    tags={"provider": "openai"},
+                ),
+                {
+                    "engine_id": "openai",
+                    "profile_id": "dict_voice",
+                    "label": "Dict Voice",
+                    "params": {"voice": "dict_voice"},
+                },
+            ]
+
+        def get_active_profile(self, *, kind="tts"):
+            assert kind == "tts"
+            return VoiceProfile(
+                engine_id="openai",
+                profile_id="alloy",
+                label="Alloy",
+                params={"voice": "alloy"},
+                tags={"provider": "openai"},
+            )
+
+        def list_available_models(self):
+            return {
+                "openai": {
+                    "alloy": {
+                        "model": "gpt-active-tts",
+                        "available_models": ["gpt-active-tts", "tts-1"],
+                        "remote": True,
+                    },
+                    "nova": {
+                        "available_models": ["tts-1", "tts-1-hd"],
+                        "remote": True,
+                    },
+                }
+            }
+
+    class _Owner:
+        def __init__(self):
+            self.config = {"voice_manager_instance": _VM()}
+
+    cap = _VoiceCapability(_Owner())
+
+    profiles = cap.list_profiles()
+    assert [p["profile_id"] for p in profiles] == ["alloy", "dict_voice"]
+    assert profiles[0]["params"] == {"voice": "alloy"}
+
+    assert cap.list_tts_models() == ["gpt-active-tts", "tts-1", "tts-1-hd"]
+
+    catalog = cap.voice_catalog()
+    assert catalog["engine_id"] == "openai"
+    assert catalog["active_profile"]["profile_id"] == "alloy"
+    assert catalog["active_model"] == "gpt-active-tts"
+    assert catalog["tts_models"] == ["gpt-active-tts", "tts-1", "tts-1-hd"]
+    assert catalog["catalog"]["openai"]["alloy"]["remote"] is True
 
 
 def test_voice_capability_injection_bytes_and_artifact():

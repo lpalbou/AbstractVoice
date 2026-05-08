@@ -6,19 +6,20 @@
 
 AbstractVoice supports Python `>=3.9`. The lightweight base install and the
 remote/OpenAI-compatible path are supported on Python 3.9. Local
-Piper/faster-whisper voice extras and the web example are also supported on
+Piper/faster-whisper extras and the web example are also supported on
 Python 3.9. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because
 their upstream runtimes do; AEC requires Python 3.11+.
 
 ### Do I need system speech dependencies?
 
 The bare package install does not require local speech engines. Install
-`abstractvoice[voice]` for the local Piper/faster-whisper path. Piper runs
+`abstractvoice[local]` for the full local Piper/faster-whisper/cloning path.
+Piper runs
 through ONNX Runtime, so it does not require system packages such as
 `espeak-ng`.
 
 Microphone and speaker I/O use `sounddevice` / PortAudio and are installed by
-`abstractvoice[voice]` or `abstractvoice[audio-io]`. On some Linux systems you
+`abstractvoice[local]` or `abstractvoice[audio-io]`. On some Linux systems you
 may need PortAudio packages from the OS package manager. See
 `docs/installation.md` for platform notes.
 
@@ -148,8 +149,9 @@ abstractvoice-prefetch --piper en
 abstractvoice-prefetch --stt small
 ```
 
-The library default is different: `VoiceManager()` uses `allow_downloads=True`,
-so an application can choose on-demand downloads when that is appropriate.
+The library default is remote-first: `VoiceManager()` uses OpenAI audio and
+reads `OPENAI_API_KEY`. Local adapters still respect `allow_downloads=True`
+when you explicitly select them.
 
 ### What should I prefetch first?
 
@@ -176,7 +178,7 @@ Install the matching extra before prefetching optional engines, for example
 
 ### Can I use the REPL without an LLM server?
 
-Yes. Use `/speak <text>` to test local TTS directly:
+Yes. Use `/speak <text>` to test the configured TTS engine directly:
 
 ```text
 /speak hello from AbstractVoice
@@ -190,7 +192,7 @@ default provider preset is Ollama at `http://localhost:11434`.
 Microphone input is off by default. Start with:
 
 ```bash
-abstractvoice --voice-mode stop
+OPENAI_API_KEY=... abstractvoice --voice-mode stop
 ```
 
 Or enable it inside the REPL:
@@ -232,6 +234,10 @@ wav = vm.speak_to_bytes("Hello.", format="wav")
 text = vm.transcribe_file("hello.wav")
 ```
 
+`VoiceManager()` reads `OPENAI_API_KEY` by default. For local/offline use,
+install `abstractvoice[local]` and create
+`VoiceManager(tts_engine="piper", stt_engine="faster_whisper")`.
+
 For long-lived apps and servers, create one `VoiceManager` per configuration and
 reuse it. Heavy engines are expensive to load repeatedly.
 
@@ -241,7 +247,7 @@ AbstractVoice ships a small local FastAPI web example:
 
 ```bash
 pip install "abstractvoice[web]"
-abstractvoice web --port 5000
+OPENAI_API_KEY=... abstractvoice web --port 5000
 ```
 
 Open `http://127.0.0.1:5000` and use it to test discussion playback,
@@ -262,7 +268,7 @@ Install both packages in the same environment:
 
 ```bash
 pip install "abstractcore[server]" abstractvoice
-python -m abstractcore.server.app
+OPENAI_API_KEY=... python -m abstractcore.server.app
 ```
 
 AbstractCore discovers the AbstractVoice capability plugin and can expose
@@ -298,10 +304,10 @@ python -m abstractvoice download --piper fr
 ### Which TTS engine should I use?
 
 - Remote OpenAI-compatible engines are the lightest path for server and plugin
-  deployments.
+  deployments, and hosted OpenAI is the default `VoiceManager()` path.
 - Piper is the recommended reliable path for local TTS; install
-  `abstractvoice[voice]` or `abstractvoice[piper]`.
-- faster-whisper is the default local STT path; install `abstractvoice[voice]`
+  `abstractvoice[local]` or `abstractvoice[piper]`.
+- faster-whisper is the local STT path; install `abstractvoice[local]`
   or `abstractvoice[stt]`.
 - OpenF5, Chroma, AudioDiT, and OmniVoice are optional heavier engines for
   cloning, research, or richer voice experiments.

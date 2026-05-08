@@ -2,7 +2,7 @@ from abstractvoice import VoiceManager
 
 
 def test_stop_speaking_calls_on_tts_end_to_restore_recognizer_state():
-    vm = VoiceManager()
+    vm = VoiceManager(remote_api_key="sk-test")
     vm.set_voice_mode("stop")
 
     calls = {"resume_transcriptions": 0, "resume_tts_interrupt": 0}
@@ -24,4 +24,3 @@ def test_stop_speaking_calls_on_tts_end_to_restore_recognizer_state():
     vm.stop_speaking()
     assert calls["resume_transcriptions"] >= 1
     assert calls["resume_tts_interrupt"] >= 1
-

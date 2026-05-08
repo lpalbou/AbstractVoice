@@ -74,7 +74,10 @@ def test_audio_callbacks():
     
     # Initialize VoiceManager
     print("Initializing VoiceManager...")
-    vm = VoiceManager(debug_mode=True)
+    try:
+        vm = VoiceManager(debug_mode=True, tts_engine="piper")
+    except RuntimeError as e:
+        pytest.skip(f"Local Piper TTS unavailable: {e}")
     
     # Wire up callbacks
     vm.tts_engine.on_playback_start = on_synthesis_start

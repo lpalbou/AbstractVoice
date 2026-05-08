@@ -19,10 +19,9 @@ def test_hal9000_cloning_synthesizes_wav_bytes():
     if not ref.exists():
         pytest.skip("HAL9000 reference sample not present")
 
-    vm = VoiceManager()
-    voice_id = vm.clone_voice(str(ref), name="hal9000_test")
+    vm = VoiceManager(remote_api_key="sk-test")
+    voice_id = vm.clone_voice(str(ref), name="hal9000_test", reference_text="Hello, I am HAL 9000.")
 
     data = vm.speak_to_bytes("Good evening, Dave.", voice=voice_id, format="wav")
     assert isinstance(data, (bytes, bytearray))
     assert data[:4] == b"RIFF"
-

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import threading
 import weakref
 from typing import Any, Dict, Optional, Union
@@ -10,6 +11,151 @@ from ..artifacts import RuntimeArtifactStoreAdapter, is_artifact_ref, get_artifa
 _VM_CACHE_LOCK = threading.Lock()
 _VM_CACHE: dict[tuple, Any] = {}
 _VM_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = weakref.WeakKeyDictionary()
+_TRUE_BOOL_VALUES = {"1", "true", "yes", "y", "on"}
+_FALSE_BOOL_VALUES = {"0", "false", "no", "n", "off"}
+
+
+def _env(key: str, default: Optional[str] = None) -> Optional[str]:
+    raw = os.environ.get(str(key), None)
+    if raw is None:
+        return default
+    value = str(raw).strip()
+    return value if value else default
+
+
+def _env_first(*keys: str, default: Optional[str] = None) -> Optional[str]:
+    for key in keys:
+        value = _env(str(key))
+        if value is not None:
+            return value
+    return default
+
+
+def _coerce_bool(value: Any, default: bool = False) -> bool:
+    if value is None:
+        return bool(default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+
+    text = str(value).strip().lower()
+    if not text:
+        return bool(default)
+    if text in _TRUE_BOOL_VALUES:
+        return True
+    if text in _FALSE_BOOL_VALUES:
+        return False
+    return bool(default)
+
+
+def _env_bool(key: str, default: bool = False) -> bool:
+    raw = _env(str(key))
+    return _coerce_bool(raw, default)
+
+
+def _env_float(*keys: str) -> Optional[float]:
+    raw = _env_first(*keys)
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except Exception:
+        return None
+
+
+def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(v) for v in value]
+    return str(value)
+
+
+def _voice_profile_to_dict(profile: Any) -> Dict[str, Any]:
+    if profile is None:
+        return {}
+    if isinstance(profile, dict):
+        return _json_safe(profile)
+
+    return {
+        "engine_id": _json_safe(getattr(profile, "engine_id", None)),
+        "profile_id": _json_safe(getattr(profile, "profile_id", None)),
+        "label": _json_safe(getattr(profile, "label", None)),
+        "description": _json_safe(getattr(profile, "description", None)),
+        "params": _json_safe(getattr(profile, "params", None) or {}),
+        "tags": _json_safe(getattr(profile, "tags", None)),
+        "provenance": _json_safe(getattr(profile, "provenance", None)),
+    }
+
+
+def _dedupe_strings(values: Any) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in list(values or []):
+        text = str(value or "").strip()
+        key = text.lower()
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    return out
+
+
+def _extract_tts_model_ids(catalog: Any) -> list[str]:
+    model_ids: list[str] = []
+
+    def add_many(values: Any) -> None:
+        if isinstance(values, str):
+            model_ids.append(values)
+        elif isinstance(values, (list, tuple, set)):
+            for value in values:
+                if isinstance(value, str):
+                    model_ids.append(value)
+                elif isinstance(value, dict):
+                    for key in ("id", "model", "model_id", "name"):
+                        item = value.get(key)
+                        if isinstance(item, str):
+                            model_ids.append(item)
+                            break
+
+    def visit(node: Any) -> None:
+        if isinstance(node, dict):
+            for key in ("available_models", "tts_models", "speech_models", "audio_speech_models"):
+                add_many(node.get(key))
+            for key in ("model", "model_id"):
+                value = node.get(key)
+                if isinstance(value, str):
+                    model_ids.append(value)
+            for value in node.values():
+                if isinstance(value, (dict, list, tuple, set)):
+                    visit(value)
+        elif isinstance(node, (list, tuple, set)):
+            for item in node:
+                visit(item)
+
+    visit(catalog)
+    return _dedupe_strings(model_ids)
+
+
+def _active_tts_model(vm: Any, catalog: Any, model_ids: list[str]) -> Optional[str]:
+    adapter = getattr(vm, "tts_adapter", None)
+    model = getattr(adapter, "model_id", None)
+    if isinstance(model, str) and model.strip():
+        return model.strip()
+
+    if isinstance(catalog, dict):
+        for engine_catalog in catalog.values():
+            if not isinstance(engine_catalog, dict):
+                continue
+            for item in engine_catalog.values():
+                if isinstance(item, dict):
+                    model = item.get("model") or item.get("model_id")
+                    if isinstance(model, str) and model.strip():
+                        return model.strip()
+    return model_ids[0] if model_ids else None
 
 
 class _BaseVoice:
@@ -48,28 +194,53 @@ class _BaseVoice:
         # Lazy import (keeps plugin import-light).
         from ..voice_manager import VoiceManager
 
-        # Best-effort config overrides (optional).
-        language = "en"
-        allow_downloads = True
-        tts_engine = "auto"
-        stt_engine = "auto"
-        whisper_model = "base"
-        stt_model = None
-        tts_model = None
-        cloning_engine = "f5_tts"
-        cloned_tts_streaming = True
-        tts_delivery_mode = None
-        remote_base_url = None
-        remote_api_key = None
-        remote_timeout_s = None
-        debug_mode = False
+        # Best-effort config overrides (optional). Hosted integrations and the
+        # public VoiceManager default both select OpenAI remote engines.
+        language = _env("ABSTRACTVOICE_LANGUAGE", "en") or "en"
+        allow_downloads = _env_bool("ABSTRACTVOICE_ALLOW_DOWNLOADS", True)
+        tts_engine = _env("ABSTRACTVOICE_TTS_ENGINE", "openai") or "openai"
+        stt_engine = _env("ABSTRACTVOICE_STT_ENGINE", "openai") or "openai"
+        whisper_model = _env("ABSTRACTVOICE_WHISPER_MODEL", "base") or "base"
+        stt_model = _env_first(
+            "ABSTRACTVOICE_STT_MODEL",
+            "ABSTRACTVOICE_OPENAI_STT_MODEL",
+            "ABSTRACTVOICE_OPENAI_COMPATIBLE_STT_MODEL",
+            "ABSTRACTVOICE_REMOTE_STT_MODEL",
+        )
+        tts_model = _env_first(
+            "ABSTRACTVOICE_TTS_MODEL",
+            "ABSTRACTVOICE_OPENAI_TTS_MODEL",
+            "ABSTRACTVOICE_OPENAI_COMPATIBLE_TTS_MODEL",
+            "ABSTRACTVOICE_REMOTE_TTS_MODEL",
+        )
+        cloning_engine = _env("ABSTRACTVOICE_CLONING_ENGINE", "f5_tts") or "f5_tts"
+        cloned_tts_streaming = _env_bool("ABSTRACTVOICE_CLONED_TTS_STREAMING", True)
+        tts_delivery_mode = _env("ABSTRACTVOICE_TTS_DELIVERY_MODE")
+        remote_base_url = _env_first(
+            "ABSTRACTVOICE_REMOTE_BASE_URL",
+            "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
+            "ABSTRACTVOICE_OPENAI_BASE_URL",
+            "OPENAI_BASE_URL",
+        )
+        remote_api_key = _env_first(
+            "ABSTRACTVOICE_REMOTE_API_KEY",
+            "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
+            "ABSTRACTVOICE_OPENAI_API_KEY",
+            "OPENAI_API_KEY",
+        )
+        remote_timeout_s = _env_float(
+            "ABSTRACTVOICE_REMOTE_TIMEOUT_S",
+            "ABSTRACTVOICE_OPENAI_TIMEOUT_S",
+            "ABSTRACTVOICE_OPENAI_COMPATIBLE_TIMEOUT_S",
+        )
+        debug_mode = _env_bool("ABSTRACTVOICE_DEBUG", False)
         try:
             cfg = getattr(self._owner, "config", None)
             if isinstance(cfg, dict):
                 if isinstance(cfg.get("voice_language"), str) and cfg["voice_language"].strip():
                     language = str(cfg["voice_language"]).strip().lower()
                 if "voice_allow_downloads" in cfg:
-                    allow_downloads = bool(cfg.get("voice_allow_downloads"))
+                    allow_downloads = _coerce_bool(cfg.get("voice_allow_downloads"), allow_downloads)
                 if isinstance(cfg.get("voice_tts_engine"), str) and str(cfg["voice_tts_engine"]).strip():
                     tts_engine = str(cfg["voice_tts_engine"]).strip().lower()
                 if isinstance(cfg.get("voice_stt_engine"), str) and str(cfg["voice_stt_engine"]).strip():
@@ -92,7 +263,10 @@ class _BaseVoice:
                     except Exception:
                         remote_timeout_s = None
                 if "voice_cloned_tts_streaming" in cfg:
-                    cloned_tts_streaming = bool(cfg.get("voice_cloned_tts_streaming"))
+                    cloned_tts_streaming = _coerce_bool(
+                        cfg.get("voice_cloned_tts_streaming"),
+                        cloned_tts_streaming,
+                    )
                 # Unified override for delivery mode (applies to base + clone).
                 # Accept either a mode string (buffered|streamed) or a bool-ish flag.
                 if "voice_tts_delivery_mode" in cfg:
@@ -109,11 +283,11 @@ class _BaseVoice:
                     try:
                         from ..tts.delivery_mode import normalize_audio_delivery_mode
 
-                        tts_delivery_mode = normalize_audio_delivery_mode(bool(raw))
+                        tts_delivery_mode = normalize_audio_delivery_mode(raw)
                     except Exception:
                         tts_delivery_mode = None
                 if "voice_debug_mode" in cfg:
-                    debug_mode = bool(cfg.get("voice_debug_mode"))
+                    debug_mode = _coerce_bool(cfg.get("voice_debug_mode"), debug_mode)
         except Exception:
             pass
 
@@ -255,6 +429,47 @@ class _BaseVoice:
 class _VoiceCapability(_BaseVoice):
     backend_id = "abstractvoice:default"
 
+    def list_profiles(self, *, kind: str = "tts") -> list[Dict[str, Any]]:
+        """List active-engine voice profiles through the plugin boundary."""
+        vm = self._get_vm()
+        profiles = []
+        if hasattr(vm, "get_profiles"):
+            profiles = list(vm.get_profiles(kind=str(kind or "tts")) or [])
+        return [_voice_profile_to_dict(profile) for profile in profiles]
+
+    def list_tts_models(self) -> list[str]:
+        """List deduplicated TTS model ids from the active VoiceManager catalog."""
+        vm = self._get_vm()
+        catalog: Any = {}
+        if hasattr(vm, "list_available_models"):
+            catalog = vm.list_available_models()
+        return _extract_tts_model_ids(catalog)
+
+    def voice_catalog(self) -> Dict[str, Any]:
+        """Return JSON-safe profile/model discovery data for Core/Gateway."""
+        vm = self._get_vm()
+
+        profiles = self.list_profiles(kind="tts")
+        active_profile = None
+        if hasattr(vm, "get_active_profile"):
+            active_profile = vm.get_active_profile(kind="tts")
+
+        catalog: Any = {}
+        if hasattr(vm, "list_available_models"):
+            catalog = vm.list_available_models()
+        tts_models = _extract_tts_model_ids(catalog)
+        adapter = getattr(vm, "tts_adapter", None)
+
+        return {
+            "kind": "tts",
+            "engine_id": getattr(adapter, "engine_id", None) or getattr(vm, "_tts_engine_name", None),
+            "active_profile": _voice_profile_to_dict(active_profile) if active_profile is not None else None,
+            "active_model": _active_tts_model(vm, catalog, tts_models),
+            "profiles": profiles,
+            "tts_models": tts_models,
+            "catalog": _json_safe(catalog),
+        }
+
     def tts(
         self,
         text: str,
@@ -374,12 +589,18 @@ def register(registry: Any) -> None:
         factory=lambda owner: _VoiceCapability(owner),
         priority=0,
         description="AbstractVoice VoiceManager (TTS+STT).",
-        config_hint="Install voices/models with `abstractvoice-prefetch` for offline use (or allow downloads).",
+        config_hint=(
+            "Defaults to OpenAI remote TTS in AbstractCore integrations; set OPENAI_API_KEY "
+            "or configure voice_tts_engine/ABSTRACTVOICE_TTS_ENGINE. Use piper with abstractvoice[local] for local offline TTS."
+        ),
     )
     registry.register_audio_backend(
         backend_id=_AudioCapability.backend_id,
         factory=lambda owner: _AudioCapability(owner),
         priority=0,
         description="AbstractVoice STT (speech-to-text).",
-        config_hint="Install STT models with `abstractvoice-prefetch --stt <size>` for offline use (or allow downloads).",
+        config_hint=(
+            "Defaults to OpenAI remote STT in AbstractCore integrations; set OPENAI_API_KEY "
+            "or configure voice_stt_engine/ABSTRACTVOICE_STT_ENGINE. Use faster_whisper with abstractvoice[local] for local offline STT."
+        ),
     )

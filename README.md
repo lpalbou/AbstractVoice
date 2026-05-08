@@ -16,20 +16,21 @@ embed `VoiceManager` directly when you want an in-process library; install it
 beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 
 - **Remote audio (base install)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
-- **Local TTS (`abstractvoice[voice]`)**: Piper (cross-platform, no system deps)
-- **Local STT (`abstractvoice[voice]`)**: faster-whisper
-- **Local assistant (`abstractvoice[voice]`)**: `listen()` + `speak()` with playback/listening control
+- **Local stack (`abstractvoice[local]`)**: Piper, faster-whisper, microphone/playback, AEC, and local cloning/TTS engines
+- **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`
 - **Voice cloning / heavier TTS (optional)**: OpenF5, Chroma, AudioDiT, OmniVoice
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
 
-Status: **alpha** (`0.9.x`). The lightweight remote/plugin path is the base
-install; the Piper/faster-whisper local path is available through
-`abstractvoice[voice]`. Optional cloning and torch-based engines are heavier and
-should be validated on your target hardware. The supported integrator surface is
-documented in `docs/api.md`, and current engine caveats are tracked in
+Status: **alpha** (`0.9.x`). The base install is remote-first:
+`VoiceManager()` and `auto` select hosted OpenAI audio and require
+`OPENAI_API_KEY` (or `remote_api_key=...`). The full local/offline stack is
+available through `abstractvoice[local]` and explicit local engine selection.
+Optional cloning and torch-based engines are heavier and should be validated on
+your target hardware. The supported integrator surface is documented in
+`docs/api.md`, and current engine caveats are tracked in
 `docs/known-issues.md`.
 
 Next: `docs/getting-started.md` (recommended setup + first smoke tests).
@@ -69,9 +70,9 @@ the concrete voice implementation.
 flowchart LR
   App["Your app / REPL"] --> VM["abstractvoice.VoiceManager"]
   VM --> Remote["OpenAI-compatible audio"]
-  VM --> TTS["Piper TTS (voice extra)"]
-  VM --> STT["faster-whisper STT (voice extra)"]
-  VM --> IO["sounddevice / PortAudio (voice extra)"]
+  VM --> TTS["Piper TTS (local extra)"]
+  VM --> STT["faster-whisper STT (local extra)"]
+  VM --> IO["sounddevice / PortAudio (local extra)"]
 
   subgraph AbstractFramework
     AC["AbstractCore"] -. "capability plugin" .-> VM
@@ -93,20 +94,29 @@ AbstractCore discovers AbstractVoice through the
 `abstractcore.capabilities_plugins` entry point and can use it as:
 
 - `core.voice.tts(...)` / `llm.voice.tts(...)` for TTS
+- voice catalog discovery through the backend methods `list_profiles(...)`,
+  `list_tts_models()`, and `voice_catalog()`
 - `core.audio.transcribe(...)` / `llm.audio.transcribe(...)` for STT
 - OpenAI-compatible server endpoints when AbstractCore Server is running:
   - `POST /v1/audio/speech`
   - `POST /v1/audio/transcriptions`
 
-For a remote-first media image, configure the AbstractVoice plugin with
+For a remote-first Gateway/Core deployment, the AbstractCore plugin defaults to
+OpenAI remote TTS/STT and reads `OPENAI_API_KEY`. Configure
 `voice_tts_engine=openai-compatible`, `voice_stt_engine=openai-compatible`, and
-`voice_remote_base_url=...`. For local Piper/faster-whisper inside the same
-environment, install `abstractvoice[voice]`.
+`voice_remote_base_url=...` for a compatible audio endpoint. For local
+Piper/faster-whisper inside the same environment, install
+`abstractvoice[local]` and select `piper` / `faster_whisper` explicitly.
+
+Do not point `voice_remote_base_url` back at the same AbstractCore Server
+instance that is resolving the plugin fallback; that loops through
+`/v1/audio/*` recursively. Use an upstream provider/gateway URL, or install the
+local extra and select local engines.
 
 Minimal server smoke test:
 
 ```bash
-python -m abstractcore.server.app
+OPENAI_API_KEY=... python -m abstractcore.server.app
 
 curl -X POST http://localhost:8000/v1/audio/speech \
   -H "Content-Type: application/json" \
@@ -135,10 +145,16 @@ Requires Python `>=3.9` (see `pyproject.toml`).
 pip install abstractvoice
 ```
 
-This is the lightweight remote/plugin base. For local desktop/REPL voice:
+This is the lightweight remote/plugin base. It uses OpenAI audio by default:
 
 ```bash
-pip install "abstractvoice[voice]"
+export OPENAI_API_KEY=...
+```
+
+For local desktop/REPL voice and local cloning engines:
+
+```bash
+pip install "abstractvoice[local]"
 ```
 
 Common extras:
@@ -147,12 +163,13 @@ Common extras:
 pip install "abstractvoice[openai]"            # hosted OpenAI intent extra (no extra deps today)
 pip install "abstractvoice[openai-compatible]" # generic compatible provider intent extra
 pip install "abstractvoice[web]"               # local FastAPI web example
-pip install "abstractvoice[all]"               # common local bundle; excludes GPU-heavy stacks
+pip install "abstractvoice[piper]"             # local Piper TTS only
+pip install "abstractvoice[stt]"               # local faster-whisper STT only
 ```
 
 Notes:
-- `abstractvoice[all]` enables common local features (local voice + cloning + AEC + audio-fx), but **does not** include the GPU-heavy Chroma runtime, AudioDiT, or OmniVoice.
-- Python 3.9 supports the lightweight base, web UI, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
+- `abstractvoice[local]` is the full local handle: Piper, faster-whisper, audio I/O, AEC where supported, and local cloning/TTS engines gated by Python-version markers.
+- Python 3.9 supports the lightweight base, web UI, local Piper/faster-whisper, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
 - For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
 ### Explicit model downloads (recommended; never implicit in the REPL)
@@ -209,14 +226,16 @@ Notes:
 ### REPL (fastest end-to-end)
 
 ```bash
-abstractvoice --verbose
+OPENAI_API_KEY=... abstractvoice --verbose
 # or (from a source checkout):
-python -m abstractvoice cli --verbose
+OPENAI_API_KEY=... python -m abstractvoice cli --verbose
 ```
 
 Notes:
 - Mic voice input is **off by default** for fast startup. Enable with `--voice-mode stop` (or in-session: `/voice stop`).
 - The REPL is **offline-first**: no implicit model downloads. Use the explicit download commands above.
+- For fully local REPL use, install `abstractvoice[local]` and start with
+  `abstractvoice --tts-engine piper --stt-engine faster_whisper`.
 - REPL voice selection is centered on `/voices`; older commands such as
   `/profile`, `/tts_voice`, and `/setvoice` remain as compatibility/direct
   forms.
@@ -228,7 +247,7 @@ See `docs/repl_guide.md`.
 
 ```bash
 pip install "abstractvoice[web]"
-abstractvoice web --port 5000
+OPENAI_API_KEY=... abstractvoice web --port 5000
 
 # Hosted OpenAI audio in the same web UI
 OPENAI_API_KEY=... abstractvoice web --tts-engine openai --stt-engine openai
@@ -237,8 +256,8 @@ OPENAI_API_KEY=... abstractvoice web --tts-engine openai --stt-engine openai
 abstractvoice web --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
 ```
 
-Use `pip install "abstractvoice[web-omnivoice]"` for the browser UI plus
-OmniVoice, or `pip install "abstractvoice[web-full]"` for the browser UI plus
+Use `pip install "abstractvoice[web,omnivoice]"` for the browser UI plus
+OmniVoice, or `pip install "abstractvoice[web,local]"` for the browser UI plus
 the optional local voice/cloning engine dependencies.
 
 Open `http://127.0.0.1:5000`. The browser example has message/conversation
@@ -249,13 +268,14 @@ Ollama or LM Studio. It exposes small local `/api/*` routes plus `/v1/audio/*`
 smoke-test aliases. The `/v1/audio/voices` and `/v1/voice/clone` extension
 routes let another AbstractVoice client discover profiles/cloned voices and
 request compatible remote cloning. The supported production HTTP path remains
-AbstractCore Server.
+AbstractCore Server. Treat the browser example as a local/dev surface: it does
+not inherit AbstractCore/Gateway bearer-token or browser-origin policy.
 
 The browser clone action validates the new voice by synthesizing a short sample
 before it reports success. If the selected optional engine cannot load, the
 unusable clone is removed and the UI shows the backend error.
 
-### Minimal Python
+### Local Python
 
 ```python
 from abstractvoice import VoiceManager
@@ -263,6 +283,18 @@ from abstractvoice import VoiceManager
 vm = VoiceManager()
 vm.speak("Hello! This is AbstractVoice.")
 ```
+
+`VoiceManager()` is remote-first and reads `OPENAI_API_KEY` from the
+environment. For offline/local inference:
+
+```python
+from abstractvoice import VoiceManager
+
+vm = VoiceManager(tts_engine="piper", stt_engine="faster_whisper")
+vm.speak("Hello from the local stack.")
+```
+
+Install local support first with `pip install "abstractvoice[local]"`.
 
 ---
 
@@ -291,7 +323,7 @@ At a glance:
 - **Multilingual support**: `docs/multilingual.md`
 - **Design decisions**: `docs/adr/`
 - **Acronyms**: `docs/acronyms.md`
-- **Model management (Piper-first)**: `docs/model-management.md`
+- **Model management**: `docs/model-management.md`
 - **Licensing notes**: `docs/voices-and-licenses.md`
 
 ---

@@ -4,7 +4,7 @@ from abstractvoice import VoiceManager
 
 
 def test_interrupting_cloned_speak_does_not_resume_old_audio(monkeypatch):
-    vm = VoiceManager()
+    vm = VoiceManager(remote_api_key="sk-test")
 
     # Fake minimal tts_engine surface needed by speak() streaming path.
     class FakeAudioPlayer:
@@ -62,4 +62,3 @@ def test_interrupting_cloned_speak_does_not_resume_old_audio(monkeypatch):
     time.sleep(0.05)
     tail = produced[idx:]
     assert not any(abs(x - 0.1) <= 1e-3 for x in tail)
-

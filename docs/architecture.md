@@ -1,6 +1,6 @@
 # Architecture
 
-AbstractVoice `0.8.x` is built around a small public facade and engine adapters
+AbstractVoice `0.9.x` is built around a small public facade and engine adapters
 that keep optional heavy runtimes out of the default path.
 
 Use `docs/api.md` for the supported integrator contract, `docs/repl_guide.md`
@@ -12,8 +12,8 @@ For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 ## TL;DR
 
 - `abstractvoice.VoiceManager` is the orchestration façade (`abstractvoice/vm/*`).
-- **TTS (default)**: TTS adapter registry → `AdapterTTSEngine` → `NonBlockingAudioPlayer` (pause/resume/stop). Remote adapters can call OpenAI/OpenAI-compatible `/audio/speech` and expose provider voices through the same `VoiceProfile` API as local engines.
-- **STT (default)**: `VoiceRecognizer` loop (mic capture) → `VoiceDetector` (webrtcvad) → `FasterWhisperAdapter`. Headless `transcribe_*()` can also route to remote OpenAI/OpenAI-compatible `/audio/transcriptions`.
+- **TTS (default)**: TTS adapter registry resolves `openai` / `auto` to `OpenAICompatibleTTSAdapter`; playback uses `AdapterTTSEngine` → `NonBlockingAudioPlayer` when local audio output is requested.
+- **STT (default)**: `openai` / `auto` routes `transcribe_*()` and `listen()` recognition to `OpenAICompatibleSTTAdapter`. Local microphone capture still uses `VoiceRecognizer` → `VoiceDetector` and can pass captured audio to the selected STT adapter.
 - **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible`).
 - Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (`abstractvoice/vm/core.py`).
 
@@ -36,6 +36,7 @@ flowchart LR
   Rec --> In[(sounddevice InputStream)]
   Rec --> VAD[VoiceDetector (webrtcvad)]
   Rec --> STT[FasterWhisperAdapter]
+  Rec --> RemoteSTT[OpenAICompatibleSTTAdapter]
 
   Player -. on_audio_chunk (optional AEC) .-> Rec
 ```
@@ -77,11 +78,11 @@ Optional features:
 
 ## Data flows
 
-### TTS (local playback)
+### TTS (playback)
 
 1) Your app calls `VoiceManager.speak()` (`abstractvoice/vm/tts_mixin.py`).
-2) Default path (Piper): `AdapterTTSEngine.speak()` (`abstractvoice/tts/adapter_tts_engine.py`)
-   - synthesizes audio via the selected adapter (default `PiperTTSAdapter.synthesize()`, `abstractvoice/adapters/tts_piper.py`)
+2) Default path (OpenAI remote): `AdapterTTSEngine.speak()` (`abstractvoice/tts/adapter_tts_engine.py`)
+   - synthesizes audio via the selected adapter (default `OpenAICompatibleTTSAdapter`, `abstractvoice/adapters/tts_openai_compatible.py`)
    - enqueues audio into `NonBlockingAudioPlayer.play_audio()` (`abstractvoice/tts/tts_engine.py`)
 3) Playback runs in the PortAudio callback thread (`sounddevice.OutputStream`).
 
@@ -92,7 +93,7 @@ Pause/resume is implemented by toggling a lock-protected paused flag inside the 
 1) Your app calls `VoiceManager.listen()` (`abstractvoice/vm/stt_mixin.py`).
 2) A `VoiceRecognizer` instance is created (`abstractvoice/recognition.py`) with:
    - a VAD (`VoiceDetector`, `abstractvoice/vad/voice_detector.py`)
-   - an STT adapter (`FasterWhisperAdapter`, `abstractvoice/adapters/stt_faster_whisper.py`)
+   - the configured STT adapter (OpenAI remote by default; `FasterWhisperAdapter` when explicitly selected)
 3) The recognizer thread opens a `sounddevice.InputStream` and loops:
    - optional AEC preprocessing
    - VAD detection and buffering
@@ -126,9 +127,13 @@ Design decisions behind these modes:
 - **Audio callback thread**: speaker output callback (`NonBlockingAudioPlayer._audio_callback()`).
 - **Cloned TTS synthesis thread (optional)**: streaming/cancellation worker in `abstractvoice/vm/tts_mixin.py`.
 
-## Offline-first model policy
+## Remote-first and offline model policy
 
-The library defaults to `allow_downloads=True`, but the REPL creates `VoiceManager(..., allow_downloads=False)` (see `abstractvoice/examples/cli_repl.py`).
+The library default uses OpenAI remote audio and requires `OPENAI_API_KEY` or
+`remote_api_key=...`; it does not download local model weights. Local engines
+are explicit (`tts_engine="piper"`, `stt_engine="faster_whisper"`, etc.) and
+respect `allow_downloads`. The REPL creates `VoiceManager(...,
+allow_downloads=False)` so local engines never fetch weights implicitly.
 
 Explicit prefetch entry points:
 - `python -m abstractvoice download ...` (`abstractvoice/__main__.py`)

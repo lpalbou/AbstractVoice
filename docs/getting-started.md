@@ -1,7 +1,7 @@
 # Getting started
 
-Start here after `README.md` when you want to run the package locally and
-confirm the default path works.
+Start here after `README.md` when you want to confirm the default remote path
+works, then optionally switch to local/offline engines.
 
 Use `docs/api.md` for the supported integrator contract, `docs/architecture.md`
 for the implementation map, and `docs/faq.md` for cache/history reset and common
@@ -10,40 +10,44 @@ troubleshooting.
 ## Requirements
 
 - Python `>=3.9` (see `pyproject.toml`)
+- `OPENAI_API_KEY` for the default `VoiceManager()` / REPL path
 - For microphone input: OS-level microphone permissions for your terminal/IDE
 
 ## Install
 
 ```bash
-pip install "abstractvoice[voice]"
+pip install abstractvoice
+export OPENAI_API_KEY=...
 ```
 
-The plain `pip install abstractvoice` path is lightweight and remote/plugin
-oriented. Optional extras are documented in `docs/installation.md` (remote
-OpenAI-compatible providers, web, OpenF5/AudioDiT cloning, Chroma, AEC,
-audio-fx, and legacy STT).
+The plain install is lightweight and remote/plugin oriented. For fully local
+inference, listening, and cloning engines, install `abstractvoice[local]` and
+select local engines explicitly. Optional extras are documented in
+`docs/installation.md`.
 
 ## 60-second smoke test (no mic required)
 
 Start the REPL:
 
 ```bash
-abstractvoice --verbose
+OPENAI_API_KEY=... abstractvoice --verbose
 ```
 
 From a source checkout (without installing the console script), use:
 ```bash
-python -m abstractvoice cli --verbose
+OPENAI_API_KEY=... python -m abstractvoice cli --verbose
 ```
 
 In the REPL, run:
 
 - `/speak hello` (tests TTS without calling an LLM)
 
-If Piper can’t speak in offline-first mode, prefetch a voice model:
+For local/offline TTS instead:
 
 ```bash
+pip install "abstractvoice[local]"
 abstractvoice-prefetch --piper en
+abstractvoice --tts-engine piper --stt-engine faster_whisper --verbose
 ```
 
 ## Optional Browser Example
@@ -62,13 +66,12 @@ abstractvoice web --port 5000 --tts-engine openai-compatible --stt-engine openai
 For a local web lab with Piper/faster-whisper instead:
 
 ```bash
-pip install "abstractvoice[web,voice]"
-abstractvoice web --port 5000
+pip install "abstractvoice[web,local]"
+abstractvoice web --port 5000 --tts-engine piper --stt-engine faster_whisper
 ```
 
-If you want the browser UI and optional engines in one install command, use
-`abstractvoice[web-omnivoice]` for OmniVoice or `abstractvoice[web-full]` for
-the broader local voice/cloning lab setup.
+If you want the browser UI and a smaller optional engine install, compose
+extras directly, such as `abstractvoice[web,omnivoice]`.
 
 Then open `http://127.0.0.1:5000`.
 
@@ -97,6 +100,15 @@ vm = VoiceManager()
 vm.speak("Hello from AbstractVoice.")
 ```
 
+This uses OpenAI remote audio and reads `OPENAI_API_KEY`. For local inference:
+
+```python
+from abstractvoice import VoiceManager
+
+vm = VoiceManager(tts_engine="piper", stt_engine="faster_whisper")
+vm.speak("Hello from the local stack.")
+```
+
 The public entry point is `abstractvoice.VoiceManager` (`abstractvoice/voice_manager.py`).
 
 ## Recommended in AbstractFramework: use AbstractCore
@@ -119,7 +131,7 @@ Minimal AbstractCore Server smoke test:
 
 ```bash
 pip install "abstractcore[server]" abstractvoice
-python -m abstractcore.server.app
+OPENAI_API_KEY=... python -m abstractcore.server.app
 
 # TTS through AbstractCore + AbstractVoice
 curl -X POST http://localhost:8000/v1/audio/speech \

@@ -79,3 +79,22 @@ def test_remote_voicemanager_constructs_without_local_voice_deps() -> None:
 
     assert result.returncode == 0, result.stderr + result.stdout
     assert result.stdout.strip() == "ok"
+
+
+def test_default_voicemanager_constructs_without_local_voice_deps() -> None:
+    result = _run_blocked_import_smoke(
+        """
+        from abstractvoice import VoiceManager
+
+        vm = VoiceManager(
+            remote_api_key="sk-test",
+            allow_downloads=False,
+        )
+        assert vm.tts_adapter is not None
+        assert getattr(vm.tts_adapter, "engine_id", "") == "openai"
+        print("ok")
+        """
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert result.stdout.strip() == "ok"

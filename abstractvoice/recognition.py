@@ -23,7 +23,7 @@ def _import_audio_deps():
         raise ImportError(
             "Audio capture/playback requires sounddevice. Install with:\n"
             "  pip install \"abstractvoice[audio-io]\"\n"
-            "  pip install \"abstractvoice[voice]\"\n"
+            "  pip install \"abstractvoice[local]\"\n"
             f"Original error: {e}"
         ) from e
 
@@ -37,7 +37,7 @@ def _import_vad():
             raise ImportError(
                 "Voice activity detection requires optional dependencies. Install with:\n"
                 "  pip install \"abstractvoice[audio-io]\"\n"
-                "  pip install \"abstractvoice[voice]\"\n"
+                "  pip install \"abstractvoice[local]\"\n"
                 f"Original error: {e}"
             ) from e
         raise
@@ -51,7 +51,7 @@ def _import_transcriber():
         raise ImportError(
             "Local speech recognition requires faster-whisper. Install with:\n"
             "  pip install \"abstractvoice[stt]\"\n"
-            "  pip install \"abstractvoice[voice]\"\n"
+            "  pip install \"abstractvoice[local]\"\n"
             f"Original error: {e}"
         ) from e
         raise
@@ -139,7 +139,7 @@ class VoiceRecognizer:
             debug_mode=debug_mode
         )
 
-        # STT: use provided adapter or load faster-whisper (default).
+        # STT: use provided adapter or load the local faster-whisper adapter.
         if stt_adapter is not None:
             self.stt_adapter = stt_adapter
         else:

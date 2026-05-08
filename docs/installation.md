@@ -1,10 +1,10 @@
 # Installation
 
-AbstractVoice has a lightweight base install plus explicit local voice extras:
+AbstractVoice has a lightweight remote-first base install plus explicit local extras:
 
 - **Python**: `>=3.9` (see `pyproject.toml`)
-- **Base install**: remote/OpenAI-compatible TTS/STT/profile/clone adapters and AbstractCore plugin discovery
-- **Local voice extra**: Piper TTS, faster-whisper STT, and `sounddevice`/`soundfile`/`webrtcvad` audio I/O
+- **Base install**: OpenAI/OpenAI-compatible TTS/STT/profile/clone adapters and AbstractCore plugin discovery
+- **Local extra**: Piper TTS, faster-whisper STT, audio I/O, AEC where supported, and local cloning/TTS engines
 
 ## Install
 
@@ -12,10 +12,12 @@ AbstractVoice has a lightweight base install plus explicit local voice extras:
 pip install abstractvoice
 ```
 
-This is the remote/plugin-friendly install. For local desktop/REPL voice:
+This is the remote/plugin-friendly install. `VoiceManager()` and `auto` select
+OpenAI hosted audio by default; set `OPENAI_API_KEY` or pass
+`remote_api_key=...`. For local desktop/REPL voice and local cloning engines:
 
 ```bash
-pip install "abstractvoice[voice]"
+pip install "abstractvoice[local]"
 ```
 
 For OpenAI-compatible HTTP audio endpoints, install AbstractVoice beside
@@ -24,7 +26,7 @@ runtimes explicitly:
 
 ```bash
 pip install "abstractcore[server]" abstractvoice
-python -m abstractcore.server.app
+OPENAI_API_KEY=... python -m abstractcore.server.app
 ```
 
 AbstractCore provides `/v1/audio/speech` and `/v1/audio/transcriptions`;
@@ -33,7 +35,7 @@ AbstractVoice is discovered as the voice/audio capability backend.
 ## Optional extras
 
 ```bash
-pip install "abstractvoice[voice]"     # Local Piper + faster-whisper + audio I/O
+pip install "abstractvoice[local]"     # Full local stack: Piper, faster-whisper, audio I/O, AEC, cloning/TTS engines
 pip install "abstractvoice[piper]"     # Local Piper TTS only
 pip install "abstractvoice[stt]"       # Local faster-whisper STT
 pip install "abstractvoice[audio-io]"  # Microphone/playback/VAD dependencies
@@ -46,19 +48,14 @@ pip install "abstractvoice[openai-compatible]" # Generic compatible provider int
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
 pip install "abstractvoice[audio-fx]"  # Speed change without pitch change (librosa)
 pip install "abstractvoice[web]"       # Local FastAPI browser example
-pip install "abstractvoice[web,voice]" # Web example + local Piper/faster-whisper
-pip install "abstractvoice[all]"       # Common local bundle; excludes Chroma/AudioDiT/OmniVoice
-pip install "abstractvoice[web-omnivoice]" # Web UI + OmniVoice dependency
-pip install "abstractvoice[web-full]"  # Web UI + optional local engine dependencies
-pip install "abstractvoice[legacy-stt]" # Legacy openai-whisper + tiktoken
+pip install "abstractvoice[web,local]" # Web example + full local stack
+pip install "abstractvoice[web,omnivoice]" # Web example + OmniVoice dependency
 ```
 
 `abstractvoice[web]` intentionally stays lightweight: it installs the browser
-server, but not every GPU-heavy engine shown in the UI. Use
-`abstractvoice[web-omnivoice]`, `abstractvoice[web-cloning]`,
-`abstractvoice[web-audiodit]`, `abstractvoice[web-chroma]`, or
-`abstractvoice[web-full]` when you want the web UI and those optional engines in
-one install command.
+server, but no local engines. Compose it with `abstractvoice[local]` for the
+full local lab, or with granular engine extras such as `abstractvoice[omnivoice]`
+for smaller installs.
 
 Remote OpenAI-compatible audio:
 

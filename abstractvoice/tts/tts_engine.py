@@ -1,4 +1,4 @@
-"""Core audio playback utilities (Piper-first).
+"""Core audio playback utilities.
 
 AbstractVoice core intentionally avoids shipping legacy Coqui-based TTSEngine
 logic. This module contains only reusable audio utilities:
@@ -82,7 +82,7 @@ def _import_sounddevice():
         raise ImportError(
             "Audio playback requires sounddevice. Install with:\n"
             "  pip install \"abstractvoice[audio-io]\"\n"
-            "  pip install \"abstractvoice[voice]\"\n"
+            "  pip install \"abstractvoice[local]\"\n"
             f"Original error: {e}"
         ) from e
 

@@ -1,8 +1,9 @@
 # Model / Voice Management
 
-AbstractVoice core is **Piper-first**:
+AbstractVoice core is **remote-first**:
 
-- **Piper (default)**: small ONNX voices downloaded/managed by `abstractvoice/adapters/tts_piper.py`
+- **OpenAI remote audio (default)**: no local model download in the base install.
+- **Piper (local)**: small ONNX voices downloaded/managed by `abstractvoice/adapters/tts_piper.py` when you select `tts_engine="piper"`.
 - There is **no legacy Coqui model management** in core.
 - Heavier engines (torch/transformers) are **opt-in** via extras (e.g. `abstractvoice[chroma]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`).
 
@@ -14,7 +15,8 @@ Piper voices are stored as small ONNX files under:
 
 Downloads are controlled by `allow_downloads`:
 
-- **Library default**: `VoiceManager(..., allow_downloads=True)` may download Piper models on-demand.
+- **Library default**: `VoiceManager()` uses OpenAI remote audio and does not download Piper models.
+- **Local Piper**: `VoiceManager(tts_engine="piper", allow_downloads=True)` may download Piper models on-demand.
 - **REPL default**: `python -m abstractvoice cli` runs with `allow_downloads=False` (offline-first), so it will **not** download implicitly.
 
 - Typical voice size: tens of MB per language

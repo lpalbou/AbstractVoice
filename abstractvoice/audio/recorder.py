@@ -22,7 +22,7 @@ def record_wav(
     except Exception as e:
         raise ImportError(
             "Microphone recording requires sounddevice.\n"
-            "Install with: pip install \"abstractvoice[audio-io]\" or \"abstractvoice[voice]\"\n"
+            "Install with: pip install \"abstractvoice[audio-io]\" or \"abstractvoice[local]\"\n"
             f"Original error: {e}"
         ) from e
 
@@ -31,7 +31,7 @@ def record_wav(
     except Exception as e:
         raise ImportError(
             "Writing recorded WAV files requires soundfile.\n"
-            "Install with: pip install \"abstractvoice[audio-io]\" or \"abstractvoice[voice]\"\n"
+            "Install with: pip install \"abstractvoice[audio-io]\" or \"abstractvoice[local]\"\n"
             f"Original error: {e}"
         ) from e
 

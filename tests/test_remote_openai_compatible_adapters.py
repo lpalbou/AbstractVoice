@@ -2,9 +2,20 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import wave
 from pathlib import Path
 from typing import Any
+
+import pytest
+
+
+def _live_openai_api_key() -> str | None:
+    for name in ("ABSTRACTVOICE_OPENAI_API_KEY", "OPENAI_API_KEY"):
+        value = os.environ.get(name)
+        if value and value.strip():
+            return value.strip()
+    return None
 
 
 class _FakeResponse:
@@ -43,6 +54,62 @@ def _wav_bytes() -> bytes:
     return buf.getvalue()
 
 
+def test_voicemanager_default_is_openai_remote_and_transcribes_with_openai(monkeypatch):
+    from abstractvoice import VoiceManager
+
+    session = _FakeSession()
+    session.queue(_FakeResponse(content=b'{"text":"default remote transcript"}'))
+    monkeypatch.setattr("abstractvoice.adapters.openai_compatible_http.requests.Session", lambda: session)
+
+    vm = VoiceManager(remote_api_key="sk-test", allow_downloads=False)
+
+    assert getattr(vm.tts_adapter, "engine_id", "") == "openai"
+    assert vm._tts_engine_name == "openai"
+
+    text = vm.transcribe_from_bytes(_wav_bytes(), language="en")
+
+    assert text == "default remote transcript"
+    req = session.requests[0]
+    assert req["method"] == "POST"
+    assert req["url"] == "https://api.openai.com/v1/audio/transcriptions"
+    assert req["headers"]["Authorization"] == "Bearer sk-test"
+    assert req["data"]["model"] == "gpt-4o-mini-transcribe"
+    assert req["data"]["language"] == "en"
+
+
+def test_voicemanager_auto_resolves_to_openai_remote(monkeypatch):
+    from abstractvoice import VoiceManager
+
+    session = _FakeSession()
+    session.queue(_FakeResponse(content=b'{"text":"auto remote transcript"}'))
+    monkeypatch.setattr("abstractvoice.adapters.openai_compatible_http.requests.Session", lambda: session)
+
+    vm = VoiceManager(
+        tts_engine="auto",
+        stt_engine="auto",
+        remote_api_key="sk-test",
+        allow_downloads=False,
+    )
+
+    assert getattr(vm.tts_adapter, "engine_id", "") == "openai"
+    assert vm._tts_engine_name == "openai"
+    assert vm.transcribe_from_bytes(_wav_bytes(), language="en") == "auto remote transcript"
+    assert session.requests[0]["url"] == "https://api.openai.com/v1/audio/transcriptions"
+
+
+def test_voicemanager_default_requires_openai_key(monkeypatch):
+    from abstractvoice import VoiceManager
+
+    for name in (
+        "ABSTRACTVOICE_OPENAI_API_KEY",
+        "OPENAI_API_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    with pytest.raises(ValueError, match="OpenAI audio requires OPENAI_API_KEY"):
+        VoiceManager(allow_downloads=False)
+
+
 def test_voicemanager_openai_tts_posts_to_speech_endpoint(monkeypatch):
     from abstractvoice import VoiceManager
 
@@ -74,6 +141,7 @@ def test_openai_tts_profiles_are_builtin_and_drive_voice_field(monkeypatch):
     from abstractvoice import VoiceManager
 
     session = _FakeSession()
+    session.queue(_FakeResponse(content=b'{"error":{"message":"not enabled"}}', status_code=404))
     session.queue(_FakeResponse(content=b"RIFFnovaWAVE", content_type="audio/wav"))
     monkeypatch.setattr("abstractvoice.adapters.openai_compatible_http.requests.Session", lambda: session)
 
@@ -91,9 +159,131 @@ def test_openai_tts_profiles_are_builtin_and_drive_voice_field(monkeypatch):
     out = vm.speak_to_bytes("Hello.", format="wav")
 
     assert out == b"RIFFnovaWAVE"
-    req = session.requests[0]
+    assert [r["url"] for r in session.requests] == [
+        "https://api.openai.com/v1/audio/voices",
+        "https://api.openai.com/v1/audio/speech",
+    ]
+    req = session.requests[-1]
     assert req["url"] == "https://api.openai.com/v1/audio/speech"
     assert req["json"]["voice"] == "nova"
+
+
+def test_openai_tts_lists_remote_models_and_builtin_profiles(monkeypatch):
+    from abstractvoice import VoiceManager
+
+    session = _FakeSession()
+    session.queue(
+        _FakeResponse(
+            content=b"""
+            {
+              "data": [
+                {"id": "gpt-4o-mini-tts"},
+                {"id": "tts-1-hd"},
+                {"id": "gpt-4o-mini-transcribe"}
+              ]
+            }
+            """,
+            content_type="application/json",
+        )
+    )
+    session.queue(
+        _FakeResponse(
+            content=b"""
+            {
+              "data": [
+                {"id": "voice_custom", "name": "Custom Voice"}
+              ]
+            }
+            """,
+            content_type="application/json",
+        )
+    )
+    monkeypatch.setattr("abstractvoice.adapters.openai_compatible_http.requests.Session", lambda: session)
+
+    vm = VoiceManager(
+        tts_engine="openai",
+        remote_api_key="sk-test",
+        allow_downloads=False,
+    )
+
+    catalog = vm.list_available_models()
+
+    assert [r["url"] for r in session.requests] == [
+        "https://api.openai.com/v1/models",
+        "https://api.openai.com/v1/audio/voices",
+    ]
+    assert "openai" in catalog
+    assert "alloy" in catalog["openai"]
+    assert "nova" in catalog["openai"]
+    assert "voice_custom" in catalog["openai"]
+    assert "gpt-4o-mini-tts" in catalog["openai"]["alloy"]["available_models"]
+    assert "tts-1-hd" in catalog["openai"]["alloy"]["available_models"]
+    assert "gpt-4o-mini-transcribe" not in catalog["openai"]["alloy"]["available_models"]
+    assert catalog["openai"]["alloy"]["remote"] is True
+    assert catalog["openai"]["alloy"]["model"] == "gpt-4o-mini-tts"
+
+
+@pytest.mark.integration
+def test_live_openai_default_lists_tts_models_and_voice_profiles(monkeypatch):
+    api_key = _live_openai_api_key()
+    if not api_key:
+        pytest.skip("Set OPENAI_API_KEY to run live OpenAI TTS discovery regression.")
+    if api_key.lower() in {"test", "sk-test"} or api_key.lower().startswith("sk-test"):
+        pytest.skip("Set a real OPENAI_API_KEY to run live OpenAI TTS discovery regression.")
+
+    from abstractvoice import VoiceManager
+
+    monkeypatch.setenv("OPENAI_API_KEY", api_key)
+    for name in (
+        "ABSTRACTVOICE_OPENAI_API_KEY",
+        "ABSTRACTVOICE_OPENAI_BASE_URL",
+        "OPENAI_BASE_URL",
+        "ABSTRACTVOICE_OPENAI_TTS_MODEL",
+        "ABSTRACTVOICE_OPENAI_TTS_VOICE",
+        "ABSTRACTVOICE_OPENAI_TTS_MODELS",
+        "ABSTRACTVOICE_OPENAI_TTS_VOICES",
+        "ABSTRACTVOICE_OPENAI_MODEL_PATHS",
+        "ABSTRACTVOICE_OPENAI_TTS_MODEL_PATHS",
+        "ABSTRACTVOICE_REMOTE_MODEL_PATHS",
+        "ABSTRACTVOICE_REMOTE_TTS_MODEL_PATHS",
+        "ABSTRACTVOICE_OPENAI_MODEL_PATH",
+        "ABSTRACTVOICE_OPENAI_TTS_MODEL_PATH",
+        "ABSTRACTVOICE_REMOTE_MODEL_PATH",
+        "ABSTRACTVOICE_REMOTE_TTS_MODEL_PATH",
+        "ABSTRACTVOICE_OPENAI_VOICE_PROFILE_PATHS",
+        "ABSTRACTVOICE_OPENAI_VOICE_LIST_PATHS",
+        "ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATHS",
+        "ABSTRACTVOICE_REMOTE_VOICE_LIST_PATHS",
+        "ABSTRACTVOICE_OPENAI_VOICE_PROFILE_PATH",
+        "ABSTRACTVOICE_OPENAI_VOICE_LIST_PATH",
+        "ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATH",
+        "ABSTRACTVOICE_REMOTE_VOICE_LIST_PATH",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    vm = VoiceManager(tts_engine="openai", allow_downloads=False, remote_timeout_s=30)
+    assert getattr(vm.tts_adapter, "engine_id", "") == "openai"
+    assert getattr(vm.tts_adapter, "base_url", "") == "https://api.openai.com/v1"
+
+    profiles = vm.get_profiles(kind="tts")
+    profile_ids = {p.profile_id for p in profiles}
+    assert {"alloy", "nova", "shimmer"}.issubset(profile_ids)
+
+    catalog = vm.list_available_models()
+    openai_catalog = catalog.get("openai")
+    assert openai_catalog
+    assert {"alloy", "nova", "shimmer"}.issubset(openai_catalog)
+
+    alloy = openai_catalog["alloy"]
+    assert alloy["remote"] is True
+    assert alloy["engine"] == "openai"
+    assert alloy["provider"] == "openai"
+    assert "gpt-4o-mini-tts" in alloy["available_models"]
+    assert any("tts" in model_id for model_id in alloy["available_models"])
+
+    remote_model_ids = getattr(vm.tts_adapter, "_remote_tts_models", [])
+    assert remote_model_ids
+    assert set(remote_model_ids).issubset(set(alloy["available_models"]))
 
 
 def test_openai_compatible_profiles_load_from_remote_voice_endpoint(monkeypatch):

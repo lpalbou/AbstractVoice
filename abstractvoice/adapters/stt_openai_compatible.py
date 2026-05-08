@@ -143,6 +143,7 @@ class OpenAICompatibleSTTAdapter(STTAdapter):
         audio_array: np.ndarray,
         sample_rate: int,
         language: Optional[str] = None,
+        **_kwargs: Any,
     ) -> str:
         wav_bytes = wav_bytes_from_array(np.asarray(audio_array, dtype=np.float32), int(sample_rate))
         return self.transcribe_from_bytes(wav_bytes, language=language)

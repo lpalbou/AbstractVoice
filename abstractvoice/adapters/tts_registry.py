@@ -2,9 +2,9 @@
 
 Design goals
 ------------
-- Keep AbstractVoice "Piper-first" by default (engine="auto" => Piper).
-- Allow opt-in engines (e.g. diffusion/LMM TTS) without importing heavy deps
-  unless explicitly selected.
+- Keep AbstractVoice remote-first by default (engine="auto" => OpenAI).
+- Allow opt-in local/heavy engines without importing heavy deps unless
+  explicitly selected.
 - Keep the API surface small and stable: VoiceManager routes engine selection
   through this module.
 """
@@ -27,10 +27,10 @@ def _normalize_engine_name(engine: str | None) -> str:
 
 
 def _resolve_auto_engine(engine: str) -> str:
-    # Policy: keep "auto" deterministic and lightweight.
-    # If users want a heavy engine, they must request it explicitly.
+    # Policy: keep "auto" deterministic and lightweight/remote.
+    # If users want local inference, they must request the local engine.
     if engine == "auto":
-        return "piper"
+        return "openai"
     return engine
 
 
@@ -218,7 +218,7 @@ def create_tts_adapter(
                 "TTS engine 'piper' requires optional dependencies.\n"
                 "Install with:\n"
                 "  pip install \"abstractvoice[piper]\"\n"
-                "  pip install \"abstractvoice[voice]\""
+                "  pip install \"abstractvoice[local]\""
             )
         raise RuntimeError(
             f"TTS engine '{requested}' is not available in this environment.\n"

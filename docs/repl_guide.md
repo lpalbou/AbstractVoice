@@ -1,27 +1,28 @@
 # REPL Guide
 
 The `abstractvoice` REPL is the fastest way to validate the package end to end:
-local TTS, optional microphone input, optional cloning engines, and an
-OpenAI-compatible chat endpoint.
+remote-first TTS/STT by default, optional microphone input, optional local
+engines, optional cloning engines, and an OpenAI-compatible chat endpoint.
 
 For production agent/server deployments in the AbstractFramework ecosystem,
 run AbstractCore Server and let AbstractVoice provide the audio capability
-backend. The REPL stays intentionally lightweight and local.
+backend. The REPL stays intentionally lightweight and avoids implicit model
+downloads.
 
 ## Start
 
 ```bash
-abstractvoice --verbose
+OPENAI_API_KEY=... abstractvoice --verbose
 
 # From a source checkout:
-python -m abstractvoice cli --verbose
+OPENAI_API_KEY=... python -m abstractvoice cli --verbose
 ```
 
 Microphone input is off by default. Enable it explicitly:
 
 ```bash
-abstractvoice --voice-mode stop
-python -m abstractvoice cli --voice-mode stop
+OPENAI_API_KEY=... abstractvoice --voice-mode stop
+OPENAI_API_KEY=... python -m abstractvoice cli --voice-mode stop
 ```
 
 Remote audio startup examples:
@@ -31,6 +32,13 @@ OPENAI_API_KEY=... abstractvoice --tts-engine openai --stt-engine openai
 abstractvoice --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
 ```
 
+Local/offline startup example:
+
+```bash
+pip install "abstractvoice[local]"
+abstractvoice --tts-engine piper --stt-engine faster_whisper --verbose
+```
+
 Useful startup flags:
 
 - `--verbose`: print compact timing and token/audio stats after each turn.
@@ -38,8 +46,8 @@ Useful startup flags:
 - `--voice-mode stop|wait|full|ptt|off`: choose the initial microphone mode.
 - `--provider <preset-or-url>`: choose an OpenAI-compatible LLM provider.
 - `--model <name>`: choose the LLM model.
-- `--tts-engine auto|piper|openai|openai-compatible|audiodit|omnivoice`: choose the initial TTS engine.
-- `--stt-engine auto|faster_whisper|openai|openai-compatible`: choose the initial STT engine.
+- `--tts-engine openai|openai-compatible|piper|audiodit|omnivoice|auto`: choose the initial TTS engine.
+- `--stt-engine openai|openai-compatible|faster_whisper|auto`: choose the initial STT engine.
 - `--tts-model <id>` / `--stt-model <id>`: model ids for remote audio engines.
 - `--remote-base-url <url>` / `--remote-api-key <key>`: OpenAI-compatible remote voice endpoint config. `--tts-engine openai` and `--stt-engine openai` default to OpenAI's hosted API and read `OPENAI_API_KEY`.
 
@@ -53,7 +61,8 @@ The default provider preset is Ollama at `http://localhost:11434`.
 /speak hello from AbstractVoice
 ```
 
-If Piper cannot speak, prefetch the default voice:
+The default TTS engine is OpenAI remote audio. If you select Piper for local
+speech, prefetch the default voice:
 
 ```bash
 python -m abstractvoice download --piper en
@@ -160,8 +169,8 @@ There is no separate top-level `/profiles` command; use `/voices profiles`.
 
 ## Languages And Engines
 
-Piper is the default reliable local TTS engine. It uses one cached voice per
-language:
+OpenAI remote audio is the default path. Piper is the reliable local TTS engine
+when you install local extras; it uses one cached voice per language:
 
 ```bash
 python -m abstractvoice download --piper fr
@@ -189,7 +198,7 @@ REPL commands:
 
 Engine notes:
 
-- `piper`: default local TTS path; install `abstractvoice[voice]` or
+- `piper`: local TTS path; install `abstractvoice[local]` or
   `abstractvoice[piper]`. Best first choice for reliable local speech.
 - `openai` / `openai-compatible`: remote TTS/STT endpoints. Configure
   `OPENAI_API_KEY` for OpenAI or `ABSTRACTVOICE_REMOTE_BASE_URL` for compatible
@@ -200,7 +209,7 @@ Engine notes:
   `0.8.1`, while AudioDiT cloning remains the better-validated AudioDiT path.
 - `omnivoice`: optional heavy engine for omnilingual TTS, voice design, and
   cloning. Stable reusable profiles are still being curated.
-- `faster_whisper`: default local STT path; install `abstractvoice[voice]` or
+- `faster_whisper`: local STT path; install `abstractvoice[local]` or
   `abstractvoice[stt]`.
 
 Current caveats are tracked in `docs/known-issues.md`.
@@ -349,7 +358,8 @@ More cache and reset details are in `docs/faq.md`.
 /transcribe /path/to/audio.wav
 ```
 
-The default path uses faster-whisper. Prefetch an STT model for offline REPL use:
+The default path uses OpenAI remote transcription. If you select
+`faster_whisper` for offline REPL use, prefetch an STT model:
 
 ```bash
 python -m abstractvoice download --stt small
@@ -434,7 +444,7 @@ org-gated and requires explicit consent configuration.
 
 STT:
 
-- `/stt_engine auto|faster_whisper|openai|openai-compatible|whisper`
+- `/stt_engine openai|openai-compatible|faster_whisper|auto`
 - `/whisper <model>`
 - `/transcribe <path>`
 

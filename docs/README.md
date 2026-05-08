@@ -18,13 +18,12 @@ the server/API surface; AbstractVoice is the capability plugin that backs
 voice/audio operations such as `/v1/audio/speech` and
 `/v1/audio/transcriptions`.
 
-For a local browser smoke test, install `abstractvoice[web]` and run
-`abstractvoice web`. That web UI is a small `VoiceManager` example with
+For a browser smoke test, install `abstractvoice[web]` and run
+`OPENAI_API_KEY=... abstractvoice web`. That web UI is a small `VoiceManager` example with
 assistant/user voice selection, browser voice cloning from uploaded or recorded
 reference audio, and an example-only local LLM dialogue bridge, not the
-production API server. Optional engine bundles such as
-`abstractvoice[web-omnivoice]` and `abstractvoice[web-full]` install the web UI
-plus the matching heavy local engines.
+production API server. Compose extras such as `abstractvoice[web,local]` or
+`abstractvoice[web,omnivoice]` when you want local engines in the same install.
 
 ## User-facing docs
 
@@ -33,7 +32,7 @@ plus the matching heavy local engines.
 - **Install & troubleshooting**: `docs/installation.md`
 - **REPL guide (voice assistant)**: `docs/repl_guide.md`
 - **Multilingual**: `docs/multilingual.md`
-- **Voice/model management (Piper-first)**: `docs/model-management.md`
+- **Voice/model management**: `docs/model-management.md`
 - **Dependencies & model sources**: `docs/dependencies.md`
 - **Licensing notes for models/voices**: `docs/voices-and-licenses.md`
 - **Benchmarks (TTS-only)**: `docs/benchmark.md`

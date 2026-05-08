@@ -20,7 +20,7 @@ Implementation map:
 ```python
 from abstractvoice import VoiceManager
 
-vm = VoiceManager(language="en", allow_downloads=True)
+vm = VoiceManager(language="en", remote_api_key="sk-...", allow_downloads=True)
 ```
 
 ## Constructor (most-used knobs)
@@ -33,8 +33,8 @@ VoiceManager(
     tts_model: str | None = None,
     whisper_model: str = "base",
     debug_mode: bool = False,
-    tts_engine: str = "auto",
-    stt_engine: str = "auto",
+    tts_engine: str = "openai",
+    stt_engine: str = "openai",
     allow_downloads: bool = True,
     cloned_tts_streaming: bool = True,
     cloning_engine: str = "f5_tts",
@@ -47,16 +47,17 @@ VoiceManager(
 ```
 
 Notes:
-- `allow_downloads` gates *implicit* model downloads in adapters. The REPL sets `False` (offline-first).
-- `whisper_model` controls the faster‑whisper model size used by `listen()` and `transcribe_*()`.
+- `VoiceManager()` and `auto` are remote-first. Hosted OpenAI audio requires `OPENAI_API_KEY` or `remote_api_key=...`.
+- `allow_downloads` gates *implicit* local model downloads in adapters. The REPL sets `False` (offline-first).
+- `whisper_model` controls the faster-whisper model size used by local `listen()` / `transcribe_*()` paths.
 - `tts_engine` supports:
-  - `auto` (deterministic default: resolves to `piper`)
-  - `piper` (default local TTS; requires `abstractvoice[voice]` or `abstractvoice[piper]`)
-  - `openai` (remote OpenAI `/v1/audio/speech`; requires `OPENAI_API_KEY`)
+  - `openai` (default; remote OpenAI `/v1/audio/speech`; requires `OPENAI_API_KEY`)
+  - `auto` (deterministic default: resolves to `openai`)
+  - `piper` (local TTS; requires `abstractvoice[local]` or `abstractvoice[piper]`)
   - `openai-compatible` (remote compatible `/v1/audio/speech`; configure `remote_base_url` or `ABSTRACTVOICE_REMOTE_BASE_URL`)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
-- `stt_engine` supports `auto|faster_whisper|openai|openai-compatible`. The local faster‑whisper path requires `abstractvoice[voice]` or `abstractvoice[stt]`. If the faster‑whisper adapter is unavailable (or disabled), `transcribe_*()` falls back to the legacy `abstractvoice.stt.Transcriber` (requires `abstractvoice[legacy-stt]`; see `abstractvoice/vm/stt_mixin.py`). Explicit remote STT failures raise actionable errors instead of falling back.
+- `stt_engine` supports `openai|auto|faster_whisper|openai-compatible`. `auto` resolves to `openai`. The local faster-whisper path requires `abstractvoice[local]` or `abstractvoice[stt]`. Missing credentials or missing explicit local dependencies raise actionable errors; the legacy OpenAI Whisper fallback was removed.
 - `tts_model` is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request `model`.
 - For remote STT, `stt_model` maps to the transcription `model`.
 - Remote configuration can be passed in the constructor or via env vars:
@@ -67,7 +68,7 @@ Notes:
   - `buffered`: synthesize full audio first (one payload)
   - `streamed`: deliver audio in chunks when available (lower time-to-first-audio)
 
-Supported language codes for the default Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
+Supported language codes for the Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
 For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `language` is treated as a pass-through hint and the engine decides what it supports.
 
 ## TTS (text → audio)
@@ -92,7 +93,7 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `lan
   - Profiles are **engine-local**: you select `tts_engine` first, then apply a profile id for that engine.
   - Engines without profiles return an empty list / False / None.
   - **Concurrency note**: profile selection mutates engine state. For servers, prefer one `VoiceManager` per session (or guard profile changes with a lock).
-  - **Remote OpenAI note**: built-in/custom provider voices are selected with profiles (for example `vm.set_profile("alloy")` or `vm.set_profile("voice_...")`). `tts_engine="openai"` defaults to `https://api.openai.com/v1` and reads `OPENAI_API_KEY`.
+  - **Remote OpenAI note**: hosted built-in voices are always exposed as profiles (for example `vm.set_profile("alloy")`), and the adapter also tries OpenAI voice discovery for account/org-specific voices such as `voice_...`. `tts_engine="openai"` defaults to `https://api.openai.com/v1` and reads `OPENAI_API_KEY`.
   - **Remote compatible note**: compatible endpoints may expose `GET /v1/audio/voices` (adapter path: `GET /audio/voices`) returning `profiles`, `voices`, `cloned_voices`, or OpenAI-style `data`. Returned ids are exposed as `VoiceProfile`s and used as the request `voice` for `/audio/speech`.
   - The `voice=` argument on `speak_to_bytes(...)` remains the cloned-voice handle path for backward compatibility; select base-provider voices with `set_profile(...)`.
   - **OmniVoice notes**:
@@ -129,7 +130,7 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `lan
 
 - `set_language(language: str) -> bool`
   - Switches the active language.
-  - For Piper (and `auto` before another engine is active), validation uses the curated Piper mapping in `abstractvoice/config/voice_catalog.py`.
+  - For explicit Piper, validation uses the curated Piper mapping in `abstractvoice/config/voice_catalog.py`.
   - For non-Piper engines such as OmniVoice, the language code is passed through to the adapter and the engine decides what it supports.
   - If microphone listening is active, the recognizer is recreated on the next `listen(...)` call so STT receives the updated language.
 
@@ -138,7 +139,9 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `lan
 - `get_supported_languages() -> list[str]`
 
 - `list_available_models(language: str | None = None) -> dict`
-  - Lists Piper voices/models for CLI display (see `abstractvoice/vm/tts_mixin.py`).
+  - Lists voice/model catalog entries for CLI/web display (see `abstractvoice/vm/tts_mixin.py`).
+  - Piper returns local voice cache status by language.
+  - OpenAI/OpenAI-compatible TTS returns remote voice profiles plus configured/discovered TTS model ids when the active adapter supports model listing.
   - Back-compat alias: `list_voices()`.
 
 - `set_voice(language: str, voice_id: str) -> bool`
@@ -300,7 +303,13 @@ Recommended pattern (server/process startup):
 from abstractvoice import VoiceManager
 
 # Load once, reuse for all requests.
-vm = VoiceManager(language="en", tts_engine="omnivoice", stt_engine="auto", allow_downloads=False)
+vm = VoiceManager(
+    language="en",
+    tts_engine="omnivoice",
+    stt_engine="openai",
+    remote_api_key="sk-...",
+    allow_downloads=False,
+)
 ```
 
 ## Integrations (AbstractFramework ecosystem)
@@ -325,7 +334,21 @@ The plugin registers:
 
 Audio outputs can optionally be stored into an AbstractRuntime-like `artifact_store` via the duck-typed adapter in `abstractvoice/artifacts.py`.
 
-Plugin configuration (owner `config` dict, best-effort):
+The voice backend also exposes thin catalog discovery methods for Core/Gateway
+integration code:
+- `list_profiles(kind="tts") -> list[dict]`
+- `list_tts_models() -> list[str]`
+- `voice_catalog() -> {kind, engine_id, active_profile, active_model, profiles, tts_models, catalog}`
+
+These methods delegate to the active `VoiceManager` and keep voice/profile/model
+semantics in AbstractVoice. AbstractCore still owns HTTP routing, auth, and
+browser/security policy.
+
+Plugin configuration (owner `config` dict, best-effort). In AbstractCore
+integrations, the env/default path uses OpenAI remote TTS/STT
+(`OPENAI_API_KEY`, optional `ABSTRACTVOICE_OPENAI_*` overrides) unless owner
+config or `ABSTRACTVOICE_TTS_ENGINE` / `ABSTRACTVOICE_STT_ENGINE` selects a
+different engine:
 - `voice_language`: default language (e.g. `"en"`)
 - `voice_allow_downloads`: allow on-demand downloads (bool)
 - `voice_tts_engine`: base TTS engine (`"auto"|"piper"|"openai"|"openai-compatible"|"audiodit"|"omnivoice"`)
@@ -341,6 +364,10 @@ Plugin configuration (owner `config` dict, best-effort):
 - `voice_tts_delivery_mode`: unified audio delivery mode for base + cloned voices (`"buffered"|"streamed"`). Takes precedence over `voice_cloned_tts_streaming`.
 - `voice_tts_streaming`: bool alias for `voice_tts_delivery_mode` (`true` → `"streamed"`, `false` → `"buffered"`).
 - `voice_debug_mode`: enable debug prints (bool)
+
+Boolean owner config/env values accept common strings such as `true`, `false`,
+`on`, `off`, `1`, and `0`; string values like `"false"` are not treated as
+truthy.
 
 Performance note:
 - The capability plugin caches `VoiceManager` instances **in-process** (keyed by the config above) so engines are **not reloaded per request**.
@@ -364,7 +391,7 @@ capability plugin:
 Example:
 
 ```bash
-python -m abstractcore.server.app
+OPENAI_API_KEY=... python -m abstractcore.server.app
 
 curl -X POST http://localhost:8000/v1/audio/speech \
   -H "Content-Type: application/json" \
@@ -381,8 +408,14 @@ the standard `Authorization: Bearer <key>` header. If the plugin is unavailable,
 AbstractCore returns `501` with install/config guidance instead of silently
 falling back.
 
+For `openai-compatible` plugin configuration, do not set `voice_remote_base_url`
+to the same AbstractCore Server instance that is currently routing the
+`/v1/audio/*` request. That configuration recurses through the plugin path; use
+an upstream compatible provider/gateway, or select local engines explicitly.
+
 The local `abstractvoice web` example exposes these smoke-test routes. They are
-example routes, not a replacement for AbstractCore Server:
+example routes, not a replacement for AbstractCore Server, and they do not
+inherit AbstractCore/Gateway authentication or browser-origin policy:
 
 ```bash
 abstractvoice web --tts-engine openai --stt-engine openai
@@ -464,7 +497,7 @@ Minimal sketch:
 from abstractvoice import VoiceManager
 from abstractvoice.integrations.abstractcore import make_voice_tools
 
-vm = VoiceManager()
+vm = VoiceManager(remote_api_key="sk-...")
 tools = make_voice_tools(voice_manager=vm, store=artifact_store)
 ```
 

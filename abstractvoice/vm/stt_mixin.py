@@ -33,18 +33,22 @@ class SttMixin:
         if stt is not None:
             return stt.transcribe(audio_path, language=language)
 
-        # Optional fallback to legacy Transcriber if present.
-        from ..stt import Transcriber
-
-        transcriber = Transcriber(model_name=self.whisper_model, debug_mode=self.debug_mode)
-        result = transcriber.transcribe(audio_path)
-        return result["text"] if result and "text" in result else ""
+        raise RuntimeError(
+            "No STT engine is available.\n"
+            "Default STT uses OpenAI remote audio; set OPENAI_API_KEY or pass remote_api_key=....\n"
+            "For local faster-whisper, install and select the local stack:\n"
+            "  pip install \"abstractvoice[local]\"\n"
+            "  VoiceManager(stt_engine=\"faster_whisper\", ...)"
+        )
 
     def _get_stt_adapter(self):
-        if self.stt_adapter is not None:
-            return self.stt_adapter if self.stt_adapter.is_available() else None
+        existing = getattr(self, "stt_adapter", None)
+        if existing is not None:
+            return existing if existing.is_available() else None
 
-        pref = str(getattr(self, "_stt_engine_preference", "auto") or "auto").strip().lower().replace("-", "_")
+        pref = str(getattr(self, "_stt_engine_preference", "openai") or "openai").strip().lower().replace("-", "_")
+        if pref == "auto":
+            pref = "openai"
         if pref in ("openai", "openai_compatible", "remote", "compatible"):
             try:
                 from ..adapters.stt_openai_compatible import OpenAICompatibleSTTAdapter
@@ -97,7 +101,7 @@ class SttMixin:
                     "Local STT engine 'faster-whisper' requires optional dependencies.\n"
                     "Install with:\n"
                     "  pip install \"abstractvoice[stt]\"\n"
-                    "  pip install \"abstractvoice[voice]\""
+                    "  pip install \"abstractvoice[local]\""
                 ) from e
             return None
 
@@ -127,6 +131,11 @@ class SttMixin:
                 if self._stop_callback:
                     self._stop_callback()
 
+            stt_adapter = None
+            pref = str(getattr(self, "_stt_engine_preference", "openai") or "openai").strip().lower().replace("-", "_")
+            if pref in ("auto", "openai", "openai_compatible", "remote", "compatible"):
+                stt_adapter = self._get_stt_adapter()
+
             VoiceRecognizer = import_voice_recognizer()
             self.voice_recognizer = VoiceRecognizer(
                 transcription_callback=_transcription_handler,
@@ -137,6 +146,7 @@ class SttMixin:
                 aec_stream_delay_ms=int(getattr(self, "_aec_stream_delay_ms", 0)),
                 language=getattr(self, "language", None),
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
+                stt_adapter=stt_adapter,
                 audio_level_callback=on_audio_level,
             )
             try:

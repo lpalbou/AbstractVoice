@@ -191,8 +191,8 @@ def test_voice_manager_integration():
     except ImportError as e:
         pytest.skip(f"AbstractVoice not installed: {e}")
     
-    # Initialize with auto engine selection (should try Piper first)
-    vm = VoiceManager(language='en', tts_engine='auto', debug_mode=False)
+    # Initialize with explicit local engine selection.
+    vm = VoiceManager(language='en', tts_engine='piper', debug_mode=False)
     
     # Check that we have a TTS engine (Piper or VITS)
     assert vm._tts_engine_name in ['piper', 'vits', None]

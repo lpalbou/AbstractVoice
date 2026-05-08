@@ -60,8 +60,8 @@ class VoiceREPL(cmd.Cmd):
         verbose_mode: bool = False,
         language="en",
         tts_model=None,
-        tts_engine: str = "auto",
-        stt_engine: str = "auto",
+        tts_engine: str = "openai",
+        stt_engine: str = "openai",
         stt_model: str | None = None,
         remote_base_url: str | None = None,
         remote_api_key: str | None = None,
@@ -102,8 +102,8 @@ class VoiceREPL(cmd.Cmd):
         self.current_language = language
         self._initial_tts_model = tts_model
         self._initial_stt_model = stt_model
-        self._initial_tts_engine = str(tts_engine or "auto").strip().lower().replace("_", "-") or "auto"
-        self._initial_stt_engine = str(stt_engine or "auto").strip().lower().replace("_", "-") or "auto"
+        self._initial_tts_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
+        self._initial_stt_engine = str(stt_engine or "openai").strip().lower().replace("_", "-") or "openai"
         self.remote_base_url = str(remote_base_url).strip() if isinstance(remote_base_url, str) and remote_base_url.strip() else None
         self.remote_api_key = str(remote_api_key).strip() if isinstance(remote_api_key, str) and remote_api_key.strip() else None
         self.remote_timeout_s = remote_timeout_s
@@ -305,7 +305,7 @@ class VoiceREPL(cmd.Cmd):
                     tts_engine = str(getattr(a, "engine_id", "") or "").strip().lower()
                 except Exception:
                     tts_engine = ""
-            tts_engine = tts_engine or "piper"
+            tts_engine = tts_engine or "openai"
             lang_label = f"{lang_name} ({lang_code})" if lang_code else str(lang_name)
             intro += (
                 f"Provider: {prov_label} | Model: {self.model} | "
@@ -1795,7 +1795,7 @@ class VoiceREPL(cmd.Cmd):
         Preferred grouped forms:
           /tts
           /tts on|off
-          /tts engine auto|piper|openai|openai-compatible|audiodit|omnivoice
+          /tts engine openai|openai-compatible|piper|audiodit|omnivoice|auto
           /tts quality low|standard|high
           /tts delivery buffered|streamed
           /tts speed <number>
@@ -1840,9 +1840,14 @@ class VoiceREPL(cmd.Cmd):
                     language=self.current_language,
                     tts_model=self._initial_tts_model,
                     debug_mode=self.debug_mode,
+                    tts_engine=self._initial_tts_engine,
+                    stt_engine=self._initial_stt_engine,
                     allow_downloads=False,
                     cloned_tts_streaming=False,
                     cloning_engine=self.cloning_engine,
+                    remote_base_url=self.remote_base_url,
+                    remote_api_key=self.remote_api_key,
+                    remote_timeout_s=self.remote_timeout_s,
                 )
             print("TTS enabled" if self.debug_mode else "")
             return
@@ -2202,9 +2207,10 @@ class VoiceREPL(cmd.Cmd):
     def do_tts_model(self, arg):
         """Deprecated: legacy TTS model switching.
 
-        AbstractVoice core is Piper-first; use `/setvoice` (Piper voices) or cloned voices.
+        AbstractVoice selects engines through `/tts engine`; use `/setvoice`
+        for raw Piper voices or cloned voices for stored voice handles.
         """
-        print("❌ /tts_model is not supported (Piper-first core).")
+        print("❌ /tts_model is not supported.")
         print("   Use /voices setvoice <language.voice_id> for Piper voices, or /voices clone <id> for cloned voices.")
     
     def do_whisper(self, arg):
@@ -2880,7 +2886,7 @@ class VoiceREPL(cmd.Cmd):
         if not vid:
             print(f"❌ Unknown cloned voice: {wanted}. Use /clones to list.")
             return
-        # If currently selected, switch back to Piper.
+        # If currently selected, switch back to the active base engine.
         if self.current_tts_voice == vid:
             self.current_tts_voice = None
         self.voice_manager.delete_cloned_voice(vid)
@@ -2909,7 +2915,7 @@ class VoiceREPL(cmd.Cmd):
             print("Re-run with: /clone_rm_all --yes")
             return
 
-        # If currently selected, switch back to Piper.
+        # If currently selected, switch back to the active base engine.
         self.current_tts_voice = None
 
         deleted = 0
@@ -3351,7 +3357,7 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager.unload_cloning_engines(keep_engine=str(eng or "").strip().lower() or None)
         except Exception:
             pass
-        # Piper is not needed while speaking with a cloned voice; unload it to reduce memory pressure.
+        # The base adapter is not needed while speaking with a cloned voice; unload it to reduce memory pressure when supported.
         try:
             if hasattr(self.voice_manager, "unload_piper_voice"):
                 self.voice_manager.unload_piper_voice()
@@ -3435,13 +3441,13 @@ class VoiceREPL(cmd.Cmd):
 
         if parts[0] in ("piper", "base", "engine", "tts"):
             self.current_tts_voice = None
-            # Free any heavy cloning engines when switching back to Piper.
+            # Free any heavy cloning engines when switching back to base TTS.
             try:
                 if hasattr(self.voice_manager, "unload_cloning_engines"):
                     self.voice_manager.unload_cloning_engines()
             except Exception:
                 pass
-            # If Piper was previously unloaded to save memory, reload it now (offline-first).
+            # If a local base adapter was unloaded to save memory, reload it now.
             try:
                 if self.voice_manager and getattr(self.voice_manager, "tts_adapter", None):
                     a = getattr(self.voice_manager, "tts_adapter", None)
@@ -3527,7 +3533,7 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager.unload_cloning_engines(keep_engine=str(eng or "").strip().lower() or None)
         except Exception:
             pass
-        # Piper is not needed while speaking with a cloned voice; unload it to reduce memory pressure.
+        # The base adapter is not needed while speaking with a cloned voice; unload it to reduce memory pressure when supported.
         try:
             if hasattr(self.voice_manager, "unload_piper_voice"):
                 self.voice_manager.unload_piper_voice()
@@ -4102,7 +4108,7 @@ class VoiceREPL(cmd.Cmd):
             return
 
     def do_tts_engine(self, arg):
-        """Select TTS engine: auto|piper|openai|openai-compatible|audiodit|omnivoice.
+        """Select TTS engine: openai|openai-compatible|piper|audiodit|omnivoice|auto.
 
         This recreates the internal VoiceManager instance.
         """
@@ -4110,7 +4116,7 @@ class VoiceREPL(cmd.Cmd):
         if engine in ("remote", "compatible", "proxy"):
             engine = "openai-compatible"
         if engine not in ("auto", "piper", "openai", "openai-compatible", "audiodit", "omnivoice"):
-            print("Usage: /tts_engine auto|piper|openai|openai-compatible|audiodit|omnivoice")
+            print("Usage: /tts_engine openai|openai-compatible|piper|audiodit|omnivoice|auto")
             return
 
         old = self.voice_manager
@@ -4432,15 +4438,15 @@ class VoiceREPL(cmd.Cmd):
             print(f"❌ AEC enable failed: {e}")
 
     def do_stt_engine(self, arg):
-        """Select STT engine: auto|faster_whisper|openai|openai-compatible|whisper.
+        """Select STT engine: openai|openai-compatible|faster_whisper|auto.
 
         This recreates the internal VoiceManager instance.
         """
         engine = arg.strip().lower().replace("-", "_")
         if engine in ("remote", "compatible", "proxy"):
             engine = "openai_compatible"
-        if engine not in ("auto", "faster_whisper", "openai", "openai_compatible", "whisper"):
-            print("Usage: /stt_engine auto|faster_whisper|openai|openai-compatible|whisper")
+        if engine not in ("auto", "faster_whisper", "openai", "openai_compatible"):
+            print("Usage: /stt_engine openai|openai-compatible|faster_whisper|auto")
             return
         display_engine = "openai-compatible" if engine == "openai_compatible" else engine
 
@@ -4450,7 +4456,7 @@ class VoiceREPL(cmd.Cmd):
 
         # Recreate VoiceManager preserving current TTS engine preference.
         # If the current engine is unknown, let it auto-select.
-        tts_engine = getattr(self.voice_manager, "_tts_engine_preference", "auto")
+        tts_engine = getattr(self.voice_manager, "_tts_engine_preference", "openai")
 
         try:
             self.voice_manager.cleanup()
@@ -4474,14 +4480,14 @@ class VoiceREPL(cmd.Cmd):
         print(f"✅ STT engine set to: {display_engine}")
 
     def do_transcribe(self, arg):
-        """Transcribe an audio file via the library STT path (faster-whisper by default).
+        """Transcribe an audio file via the configured STT path (OpenAI remote by default).
 
         Usage:
           /transcribe path/to/audio.wav
 
         Notes:
         - This is the simplest way to validate STT without requiring microphone capture.
-        - The default engine is faster-whisper; legacy openai-whisper remains optional.
+        - The default engine is OpenAI remote STT; select `faster_whisper` for local STT.
         """
         if not self.voice_manager:
             print("🔇 Voice features are disabled. Use '/tts on' to enable.")
@@ -4596,7 +4602,7 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             pass
 
-        # Reset voice selection back to Piper (default).
+        # Reset voice selection back to the active base engine.
         self.current_tts_voice = None
         # Free any heavy cloning engines as part of reset.
         try:
@@ -4604,7 +4610,7 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager.unload_cloning_engines()
         except Exception:
             pass
-        # Ensure Piper is ready (in case it was unloaded to save memory).
+        # Ensure the active base adapter is ready (best-effort).
         try:
             if self.voice_manager and getattr(self.voice_manager, "tts_adapter", None):
                 a = getattr(self.voice_manager, "tts_adapter", None)
@@ -4785,7 +4791,7 @@ class VoiceREPL(cmd.Cmd):
         print("TTS (speaking)")
         print("  /tts                  Show TTS status")
         print("  /tts on|off           Toggle TTS playback")
-        print("  /tts engine <engine>  Switch TTS engine: auto|piper|openai|openai-compatible|audiodit|omnivoice")
+        print("  /tts engine <engine>  Switch TTS engine: openai|openai-compatible|piper|audiodit|omnivoice|auto")
         print("  /tts quality <preset> Base TTS quality preset: low|standard|high")
         print("  /tts delivery <mode>  Delivery mode: buffered|streamed")
         print("  /tts speed <number>   Set speed (native when supported; otherwise time-stretch)")
@@ -4825,7 +4831,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /clone_import <path>                Import cloned voice bundle")
         print()
         print("STT / transcription")
-        print("  /stt_engine <engine>   auto|faster_whisper|openai|openai-compatible|whisper")
+        print("  /stt_engine <engine>   openai|openai-compatible|faster_whisper|auto")
         print("  /whisper <model>       tiny|base|small|medium|large")
         print("  /transcribe <path>     Transcribe an audio file")
         print()
@@ -5221,12 +5227,12 @@ def parse_args():
         "--lang",
         default="en",
         choices=["en", "fr", "de", "es", "ru", "zh"],
-        help="Voice language for default Piper TTS (en|fr|de|es|ru|zh).",
+        help="Voice language hint (local Piper mapping: en|fr|de|es|ru|zh).",
     )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
-    parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|piper|openai|openai-compatible|audiodit|omnivoice)")
-    parser.add_argument("--stt-engine", default="auto", help="Initial STT engine (auto|faster_whisper|openai|openai-compatible)")
+    parser.add_argument("--tts-engine", default="openai", help="Initial TTS engine (openai|openai-compatible|piper|audiodit|omnivoice|auto)")
+    parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|auto)")
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")

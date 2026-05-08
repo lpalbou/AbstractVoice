@@ -1,4 +1,4 @@
-"""TTS utilities (Piper-first)."""
+"""TTS playback utilities."""
 
 from .tts_engine import NonBlockingAudioPlayer, apply_speed_without_pitch_change
 

@@ -10,6 +10,30 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [0.9.1] - 2026-05-08
+
+### Added
+- AbstractCore capability plugin voice backends now expose public catalog discovery methods for profiles, TTS model ids, and combined voice catalog payloads.
+- `abstractvoice[local]` is now the full local stack extra: Piper, faster-whisper, microphone/playback/VAD, AEC where supported, and local cloning/TTS engines gated by Python-version markers.
+
+### Changed
+- `VoiceManager()` now defaults to OpenAI remote TTS/STT (`tts_engine="openai"`, `stt_engine="openai"`), and `auto` resolves to OpenAI remote audio instead of local Piper/faster-whisper.
+- CLI and web examples now default to OpenAI remote voice engines; fully local runs require `abstractvoice[local]` plus explicit local engine selection.
+- AbstractCore capability plugin defaults now align with the public `VoiceManager()` default and select OpenAI remote TTS/STT for lightweight server integrations.
+- AbstractCore server examples now show remote provider configuration instead of implying local Piper/faster-whisper engines are installed in the base package.
+- OpenAI remote TTS now reports hosted/custom voice profiles and configured/discovered TTS model ids through the existing voice/profile listing surfaces instead of falling back to Piper catalog display.
+- Documentation, llms indexes, dependency diagnostics, and install hints now present `abstractvoice[local]` as the local/offline install handle.
+
+### Removed
+- Removed legacy install extras without compatibility aliases: `abstractvoice[voice]`, `abstractvoice[voice-full]`, `abstractvoice[local-tts]`, `abstractvoice[local-stt]`, `abstractvoice[core-stt]`, `abstractvoice[audio-only]`, `abstractvoice[legacy-stt]`, `abstractvoice[all]`, and the `web-*` engine bundle extras.
+- Removed the legacy `abstractvoice.stt.Transcriber` / `openai-whisper` fallback path; local STT now uses the explicit faster-whisper adapter.
+
+### Fixed
+- AbstractCore plugin owner config now parses string boolean values such as `"false"` and `"0"` without treating them as truthy.
+- Documented the recursion risk when an OpenAI-compatible plugin base URL points back to the same server route that is resolving the plugin fallback.
+
 ## [0.9.0] - 2026-05-07
 
 ### Added

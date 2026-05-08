@@ -1,9 +1,9 @@
 """Faster-Whisper STT Adapter - High-performance speech recognition.
 
-Faster-Whisper is a reimplementation of OpenAI's Whisper using CTranslate2:
-- 4x faster inference than openai-whisper
+Faster-Whisper is a Whisper-family implementation using CTranslate2:
+- Fast local inference
 - 60% lower memory usage with INT8 quantization
-- Same accuracy as openai-whisper
+- Whisper-family model accuracy
 - Better CPU performance
 - Supports GPU acceleration (CUDA) if available
 """
@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 class FasterWhisperAdapter(STTAdapter):
     """Faster-Whisper STT adapter using faster-whisper package.
     
-    This adapter provides high-performance speech-to-text with same accuracy
-    as openai-whisper but 4x faster and 60% lower memory usage.
+    This adapter provides local speech-to-text with CTranslate2-backed
+    inference and low-memory quantized options.
     """
     
     # Supported models (size -> (parameters, speed, accuracy))
@@ -43,7 +43,7 @@ class FasterWhisperAdapter(STTAdapter):
     }
 
     # Friendly aliases (kept intentionally small).
-    # Many users expect openai-whisper style "large" to work; in faster-whisper this
+    # Many users expect Whisper-style "large" to work; in faster-whisper this
     # is typically best mapped to the latest `large-v3`.
     _MODEL_ALIASES = {
         "large": "large-v3",

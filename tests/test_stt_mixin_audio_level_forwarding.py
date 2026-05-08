@@ -11,6 +11,7 @@ class _DummyVoiceManager(SttMixin):
         self._aec_stream_delay_ms = 0
         self.language = None
         self.allow_downloads = True
+        self._stt_engine_preference = "faster_whisper"
         self._voice_mode = "stop"
         self._transcription_callback = None
         self._stop_callback = None

@@ -4,7 +4,7 @@ from abstractvoice import VoiceManager
 
 
 def test_open_tts_text_stream_pipes_text_deltas_to_playback_engine():
-    vm = VoiceManager()
+    vm = VoiceManager(remote_api_key="sk-test")
 
     class FakeAdapter:
         engine_id = "fake"
@@ -52,7 +52,7 @@ def test_open_tts_text_stream_pipes_text_deltas_to_playback_engine():
 
 
 def test_open_tts_text_stream_is_cancelled_by_stop_speaking():
-    vm = VoiceManager()
+    vm = VoiceManager(remote_api_key="sk-test")
 
     class FakeAdapter:
         engine_id = "fake"
@@ -90,4 +90,3 @@ def test_open_tts_text_stream_is_cancelled_by_stop_speaking():
     s = vm.open_tts_text_stream()
     vm.stop_speaking()
     assert s.join(timeout=2.0)
-

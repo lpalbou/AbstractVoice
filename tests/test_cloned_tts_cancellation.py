@@ -4,7 +4,7 @@ from abstractvoice import VoiceManager
 
 
 def test_stop_speaking_sets_cancel_token_for_cloned_tts(monkeypatch):
-    vm = VoiceManager()
+    vm = VoiceManager(remote_api_key="sk-test")
 
     # Fake minimal tts_engine surface needed by speak() streaming path.
     class FakeAudioPlayer:
@@ -45,4 +45,3 @@ def test_stop_speaking_sets_cancel_token_for_cloned_tts(monkeypatch):
     n_after_stop = produced["n"]
     time.sleep(0.05)
     assert produced["n"] <= n_after_stop + 2
-

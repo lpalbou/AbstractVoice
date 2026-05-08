@@ -6,7 +6,7 @@ from abstractvoice import VoiceManager
 
 
 def test_stop_speaking_cancels_base_streaming_worker(monkeypatch):
-    vm = VoiceManager()
+    vm = VoiceManager(remote_api_key="sk-test")
 
     produced = {"n": 0}
 
@@ -54,4 +54,3 @@ def test_stop_speaking_cancels_base_streaming_worker(monkeypatch):
 
     # Best-effort: allow 1-2 more chunks due to scheduling.
     assert produced["n"] <= n_after_stop + 2
-

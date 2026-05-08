@@ -1,5 +1,6 @@
-"""STT module for speech recognition using Whisper."""
+"""STT package namespace.
 
-from .transcriber import Transcriber
+The supported STT engines live in `abstractvoice.adapters`.
+"""
 
-__all__ = ['Transcriber'] 
+__all__: list[str] = []

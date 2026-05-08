@@ -86,29 +86,51 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
     pyproject = tomllib.loads(Path("pyproject.toml").read_text())
     extras = pyproject["project"]["optional-dependencies"]
 
-    for name in ("piper", "local-tts"):
-        assert "piper-tts>=1.2.0" in extras[name]
+    removed_aliases = {
+        "voice",
+        "voice-full",
+        "local-tts",
+        "local-stt",
+        "core-stt",
+        "audio-only",
+        "legacy-stt",
+        "all",
+        "web-cloning",
+        "web-audiodit",
+        "web-omnivoice",
+        "web-chroma",
+        "web-full",
+    }
+    assert removed_aliases.isdisjoint(extras)
 
-    for name in ("stt", "local-stt", "core-stt"):
-        assert "faster-whisper>=0.10.0" in extras[name]
-        assert "soundfile>=0.12.1" in extras[name]
+    assert "piper-tts>=1.2.0" in extras["piper"]
 
-    for name in ("audio-io", "audio-only"):
+    assert "faster-whisper>=0.10.0" in extras["stt"]
+    assert "soundfile>=0.12.1" in extras["stt"]
+
+    for name in ("audio-io",):
         assert "sounddevice>=0.4.6" in extras[name]
         assert "webrtcvad>=2.0.10" in extras[name]
         assert "soundfile>=0.12.1" in extras[name]
 
-    for name in ("voice", "local", "voice-full"):
-        assert "piper-tts>=1.2.0" in extras[name]
-        assert "faster-whisper>=0.10.0" in extras[name]
-        assert "sounddevice>=0.4.6" in extras[name]
-        assert "webrtcvad>=2.0.10" in extras[name]
-        assert "soundfile>=0.12.1" in extras[name]
-
-    assert "piper-tts>=1.2.0" in extras["all"]
-    assert "faster-whisper>=0.10.0" in extras["all"]
-    assert "sounddevice>=0.4.6" in extras["all"]
-    assert "librosa>=0.10.0" in extras["all"]
+    local = extras["local"]
+    for dep in (
+        "piper-tts>=1.2.0",
+        "faster-whisper>=0.10.0",
+        "sounddevice>=0.4.6",
+        "webrtcvad>=2.0.10",
+        "soundfile>=0.12.1",
+        "librosa>=0.10.0",
+        "huggingface_hub>=0.20.0",
+        "torch>=2.0.0",
+        "safetensors>=0.4.0",
+        "einops>=0.8.0",
+        "sentencepiece>=0.1.99",
+    ):
+        assert dep in local
+    assert _has_marked_dep(local, "f5-tts>=1.1.0", "python_version >= '3.10'")
+    assert _has_marked_dep(local, "omnivoice>=0.1.2", "python_version >= '3.10'")
+    assert _has_marked_dep(local, "aec-audio-processing>=1.0.1", "python_version >= '3.11'")
 
 
 def test_remote_and_heavy_engine_extras_are_self_contained() -> None:
@@ -123,11 +145,6 @@ def test_remote_and_heavy_engine_extras_are_self_contained() -> None:
         "audiodit",
         "omnivoice",
         "chroma",
-        "web-cloning",
-        "web-audiodit",
-        "web-omnivoice",
-        "web-chroma",
-        "web-full",
     ):
         assert _has_dep(extras[name], "soundfile>=0.12.1")
 
@@ -140,39 +157,33 @@ def test_python_support_contract_includes_39() -> None:
     assert "Programming Language :: Python :: 3.9" in classifiers
 
 
-def test_stt_extras_use_current_stack_and_keep_legacy_alias() -> None:
+def test_stt_extras_use_current_stack_and_remove_legacy_alias() -> None:
     pyproject = Path("pyproject.toml").read_text()
 
     stt_section = re.search(r"^stt = \[(.*?)^\]", pyproject, re.MULTILINE | re.DOTALL)
-    core_stt_section = re.search(r"^core-stt = \[(.*?)^\]", pyproject, re.MULTILINE | re.DOTALL)
     legacy_stt_section = re.search(r"^legacy-stt = \[(.*?)^\]", pyproject, re.MULTILINE | re.DOTALL)
+    core_stt_section = re.search(r"^core-stt = \[(.*?)^\]", pyproject, re.MULTILINE | re.DOTALL)
 
     assert stt_section is not None
-    assert core_stt_section is not None
-    assert legacy_stt_section is not None
     assert "faster-whisper>=0.10.0" in stt_section.group(1)
     assert "openai-whisper>=20230314" not in stt_section.group(1)
-    assert "faster-whisper>=0.10.0" in core_stt_section.group(1)
-    assert "openai-whisper>=20230314" in legacy_stt_section.group(1)
+    assert core_stt_section is None
+    assert legacy_stt_section is None
 
 
-def test_web_engine_extras_are_explicit_install_bundles() -> None:
+def test_web_extra_is_lightweight_and_composes_with_engine_extras() -> None:
     pyproject = tomllib.loads(Path("pyproject.toml").read_text())
     extras = pyproject["project"]["optional-dependencies"]
 
-    for name in ("web", "web-cloning", "web-audiodit", "web-omnivoice", "web-chroma", "web-full"):
-        assert name in extras
-        assert "fastapi>=0.100.0" in extras[name]
-        assert "uvicorn>=0.23.0" in extras[name]
-        assert "python-multipart>=0.0.9" in extras[name]
+    assert "fastapi>=0.100.0" in extras["web"]
+    assert "uvicorn>=0.23.0" in extras["web"]
+    assert "python-multipart>=0.0.9" in extras["web"]
 
     assert not _has_dep(extras["web"], "omnivoice>=0.1.2")
+    assert not _has_dep(extras["web"], "f5-tts>=1.1.0")
+    assert not _has_dep(extras["web"], "torch")
     assert _has_dep(extras["omnivoice"], "omnivoice>=0.1.2")
-    assert _has_dep(extras["web-omnivoice"], "omnivoice>=0.1.2")
-    assert _has_dep(extras["web-full"], "omnivoice>=0.1.2")
-    assert _has_marked_dep(extras["web-cloning"], "f5-tts>=1.1.0", "python_version >= '3.10'")
     assert not any(dep.startswith("torchvision") for dep in extras["omnivoice"])
-    assert not any(dep.startswith("torchvision") for dep in extras["web-omnivoice"])
 
 
 def test_python39_optional_engine_markers_are_resolver_safe() -> None:
@@ -185,12 +196,12 @@ def test_python39_optional_engine_markers_are_resolver_safe() -> None:
     assert "transformers>=4.55.4,<5; python_version < '3.10'" in extras["audiodit"]
     assert "transformers>=5.3.0; python_version >= '3.10'" in extras["audiodit"]
     assert _has_marked_dep(extras["cloning"], "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(extras["web-cloning"], "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(extras["web-full"], "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(extras["all"], "f5-tts>=1.1.0", "python_version >= '3.10'")
+    assert _has_marked_dep(extras["local"], "f5-tts>=1.1.0", "python_version >= '3.10'")
+    assert _has_marked_dep(extras["local"], "omnivoice>=0.1.2", "python_version >= '3.10'")
     assert all("python_version >= '3.10'" in dep for dep in extras["chroma"])
     assert all("python_version >= '3.10'" in dep for dep in extras["omnivoice"])
     assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["aec"]
+    assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["local"]
 
 
 def test_f5_runtime_guard_explains_python39(monkeypatch: pytest.MonkeyPatch) -> None:

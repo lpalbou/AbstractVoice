@@ -19,7 +19,7 @@ def print_examples():
     print("  simple         - Simple usage example")
     print("  check-deps     - Check dependency compatibility")
     print("\nUsage: abstractvoice <command> [--language <lang>] [args...]")
-    print("\nSupported languages (Piper default mapping): en, fr, es, de, ru, zh")
+    print("\nSupported local Piper language mapping: en, fr, es, de, ru, zh")
     print("Note: OmniVoice supports many additional language codes once selected via /tts engine omnivoice.")
     print("\nExamples:")
     print("  abstractvoice cli --language fr     # French CLI")
@@ -144,12 +144,12 @@ def parse_args():
         "--language",
         "--lang",
         default="en",
-        help="Voice language code (default Piper mapping: en/fr/es/de/ru/zh; OmniVoice supports many more after /tts engine omnivoice).",
+        help="Voice language code (local Piper mapping: en/fr/es/de/ru/zh; OmniVoice supports many more after /tts engine omnivoice).",
     )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
-    parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|piper|openai|openai-compatible|audiodit|omnivoice)")
-    parser.add_argument("--stt-engine", default="auto", help="Initial STT engine (auto|faster_whisper|openai|openai-compatible)")
+    parser.add_argument("--tts-engine", default="openai", help="Initial TTS engine (openai|openai-compatible|piper|audiodit|omnivoice|auto)")
+    parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|auto)")
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
@@ -323,7 +323,7 @@ def main():
         elif "importerror" in error_msg or "no module" in error_msg:
             print(f"❌ Missing dependencies")
             print(f"   Try running: abstractvoice check-deps")
-            print(f"   Or install extras: pip install \"abstractvoice[all]\"")
+            print(f"   Or install extras: pip install \"abstractvoice[local]\"")
         else:
             print(f"❌ Application error: {e}")
             print(f"   Try running with --debug for more details")

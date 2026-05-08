@@ -1199,7 +1199,7 @@ PAGE = r"""
       if (text.includes("OpenF5 artifacts")) text += " Prefetch: abstractvoice-prefetch --openf5, or REPL: /cloning_download f5_tts.";
       if (lower.includes("f5_tts") && lower.includes("not installed")) text += ' Install: pip install "abstractvoice[cloning]".';
       if (lower.includes("audiodit") && (lower.includes("not installed") || lower.includes("prefetch"))) text += ' Install: pip install "abstractvoice[audiodit]"; prefetch: abstractvoice-prefetch --audiodit.';
-      if (lower.includes("omnivoice") || text.includes("No module named 'omnivoice'")) text += ' Install: pip install "abstractvoice[web-omnivoice]"; prefetch: abstractvoice-prefetch --omnivoice.';
+      if (lower.includes("omnivoice") || text.includes("No module named 'omnivoice'")) text += ' Install: pip install "abstractvoice[web,omnivoice]"; prefetch: abstractvoice-prefetch --omnivoice.';
       if (lower.includes("chroma") && lower.includes("artifacts")) text += " Prefetch: abstractvoice-prefetch --chroma.";
       return text;
     }
@@ -1589,8 +1589,8 @@ class ExampleState:
         voice_manager_factory: Optional[Callable[["ExampleState"], Any]] = None,
     ) -> None:
         self.language = str(language or "en").strip().lower() or "en"
-        self.tts_engine = str(tts_engine or "auto").strip().lower().replace("_", "-") or "auto"
-        self.stt_engine = str(stt_engine or "auto").strip().lower().replace("_", "-") or "auto"
+        self.tts_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
+        self.stt_engine = str(stt_engine or "openai").strip().lower().replace("_", "-") or "openai"
         self.whisper_model = str(whisper_model or "base").strip() or "base"
         self.tts_model = str(tts_model).strip() if isinstance(tts_model, str) and tts_model.strip() else None
         self.stt_model = str(stt_model).strip() if isinstance(stt_model, str) and stt_model.strip() else None
@@ -2242,8 +2242,8 @@ def _load_uvicorn():
 def create_app(
     *,
     language: str = "en",
-    tts_engine: str = "auto",
-    stt_engine: str = "auto",
+    tts_engine: str = "openai",
+    stt_engine: str = "openai",
     whisper_model: str = "base",
     tts_model: Optional[str] = None,
     stt_model: Optional[str] = None,
@@ -2559,8 +2559,8 @@ def run_server(
     host: str = "127.0.0.1",
     port: int = 5000,
     language: str = "en",
-    tts_engine: str = "auto",
-    stt_engine: str = "auto",
+    tts_engine: str = "openai",
+    stt_engine: str = "openai",
     whisper_model: str = "base",
     tts_model: Optional[str] = None,
     stt_model: Optional[str] = None,
@@ -2597,8 +2597,8 @@ def parse_args(argv: Optional[list[str]] = None):
     parser.add_argument("--host", default="127.0.0.1", help="Host to listen on")
     parser.add_argument("--port", type=int, default=5000, help="Port to listen on")
     parser.add_argument("--language", "--lang", default="en", help="Default language code")
-    parser.add_argument("--tts-engine", default="auto", help="Default TTS engine")
-    parser.add_argument("--stt-engine", default="auto", help="Default STT engine")
+    parser.add_argument("--tts-engine", default="openai", help="Default TTS engine")
+    parser.add_argument("--stt-engine", default="openai", help="Default STT engine")
     parser.add_argument("--tts-model", default=None, help="Model id for remote TTS engines")
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
     parser.add_argument(
