@@ -12,6 +12,20 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 No unreleased changes yet.
 
+## [0.9.2] - 2026-05-08
+
+### Added
+- Added shared native install profiles:
+  `abstractvoice[apple]`, `abstractvoice[gpu]`,
+  `abstractvoice[all-apple]`, and `abstractvoice[all-gpu]`.
+
+### Changed
+- `abstractvoice[apple]` and `abstractvoice[gpu]` install the same local voice
+  stack as `abstractvoice[local]`; `all-apple` and `all-gpu` add the lightweight
+  web example dependencies.
+- The base package remains the lightweight remote/OpenAI-compatible voice
+  plugin path for Core and Gateway server profiles.
+
 ## [0.9.1] - 2026-05-08
 
 ### Added

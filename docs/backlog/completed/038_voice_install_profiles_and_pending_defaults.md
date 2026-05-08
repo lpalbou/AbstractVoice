@@ -64,7 +64,8 @@ before it could be treated as accepted work.
 
 - Do not move production OpenAI-compatible HTTP serving into AbstractVoice.
 - Do not add local voice engines to the base install.
-- Do not add fake Apple/GPU extras for symmetry.
+- Apple/GPU profile aliases, when present, must map to real Voice-owned local dependencies or be
+  documented compatibility aliases; they must not make the base install heavier.
 - Do not write outside this repository folder.
 - Treat unrelated pending changes as suspect and do not build on them.
 

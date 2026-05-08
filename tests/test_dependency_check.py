@@ -131,6 +131,15 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
     assert _has_marked_dep(local, "f5-tts>=1.1.0", "python_version >= '3.10'")
     assert _has_marked_dep(local, "omnivoice>=0.1.2", "python_version >= '3.10'")
     assert _has_marked_dep(local, "aec-audio-processing>=1.0.1", "python_version >= '3.11'")
+    assert extras["apple"] == local
+    assert extras["gpu"] == local
+
+    all_apple = extras["all-apple"]
+    for dep in local:
+        assert dep in all_apple
+    for dep in extras["web"]:
+        assert dep in all_apple
+    assert extras["all-gpu"] == all_apple
 
 
 def test_remote_and_heavy_engine_extras_are_self_contained() -> None:

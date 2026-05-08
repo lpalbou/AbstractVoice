@@ -17,6 +17,7 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 
 - **Remote audio (base install)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
 - **Local stack (`abstractvoice[local]`)**: Piper, faster-whisper, microphone/playback, AEC, and local cloning/TTS engines
+- **Hardware profile aliases**: `abstractvoice[apple]` and `abstractvoice[gpu]` install the local stack; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` add the lightweight web example dependencies.
 - **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`

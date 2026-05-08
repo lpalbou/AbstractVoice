@@ -44,6 +44,63 @@ openai = []
 openai-compatible = []
 remote = []
 
+# Native Apple Python install profile. This is intentionally a direct macOS
+# install profile, not a Docker profile; it keeps the local audio, STT, TTS,
+# and voice-engine stack available without NVIDIA-only dependencies.
+apple = [
+    "piper-tts>=1.2.0",
+    "faster-whisper>=0.10.0",
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "soundfile>=0.12.1",
+    "librosa>=0.10.0",
+    "librosa>=0.11.0; python_version >= '3.10'",
+    "huggingface_hub>=0.20.0",
+    "f5-tts>=1.1.0; python_version >= '3.10'",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0; python_version >= '3.10'",
+    "torchvision>=0.15.0; python_version >= '3.10'",
+    "transformers>=4.55.4,<5; python_version < '3.10'",
+    "transformers>=5.3.0; python_version >= '3.10'",
+    "accelerate>=1.0.0; python_version >= '3.10'",
+    "av>=14.0.0; python_version >= '3.10'",
+    "audioread>=3.0.0; python_version >= '3.10'",
+    "pillow>=11.0.0; python_version >= '3.10'",
+    "safetensors>=0.4.0",
+    "safetensors>=0.5.0; python_version >= '3.10'",
+    "einops>=0.8.0",
+    "sentencepiece>=0.1.99",
+    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "aec-audio-processing>=1.0.1; python_version >= '3.11'",
+]
+
+gpu = [
+    "piper-tts>=1.2.0",
+    "faster-whisper>=0.10.0",
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "soundfile>=0.12.1",
+    "librosa>=0.10.0",
+    "librosa>=0.11.0; python_version >= '3.10'",
+    "huggingface_hub>=0.20.0",
+    "f5-tts>=1.1.0; python_version >= '3.10'",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0; python_version >= '3.10'",
+    "torchvision>=0.15.0; python_version >= '3.10'",
+    "transformers>=4.55.4,<5; python_version < '3.10'",
+    "transformers>=5.3.0; python_version >= '3.10'",
+    "accelerate>=1.0.0; python_version >= '3.10'",
+    "av>=14.0.0; python_version >= '3.10'",
+    "audioread>=3.0.0; python_version >= '3.10'",
+    "pillow>=11.0.0; python_version >= '3.10'",
+    "safetensors>=0.4.0",
+    "safetensors>=0.5.0; python_version >= '3.10'",
+    "einops>=0.8.0",
+    "sentencepiece>=0.1.99",
+    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "aec-audio-processing>=1.0.1; python_version >= '3.11'",
+]
+
 # Full local stack: local TTS/STT, audio I/O, AEC, and all local cloning/TTS engines
 # that are resolver-safe on the current Python version.
 local = [
@@ -152,6 +209,68 @@ stt = [
 
 # Local FastAPI web example. Production HTTP audio endpoints live in AbstractCore Server.
 web = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.9",
+]
+
+# Full native Apple profile: local voice stack plus the lightweight local web
+# example, excluding NVIDIA/CUDA-specific dependencies.
+all-apple = [
+    "piper-tts>=1.2.0",
+    "faster-whisper>=0.10.0",
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "soundfile>=0.12.1",
+    "librosa>=0.10.0",
+    "librosa>=0.11.0; python_version >= '3.10'",
+    "huggingface_hub>=0.20.0",
+    "f5-tts>=1.1.0; python_version >= '3.10'",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0; python_version >= '3.10'",
+    "torchvision>=0.15.0; python_version >= '3.10'",
+    "transformers>=4.55.4,<5; python_version < '3.10'",
+    "transformers>=5.3.0; python_version >= '3.10'",
+    "accelerate>=1.0.0; python_version >= '3.10'",
+    "av>=14.0.0; python_version >= '3.10'",
+    "audioread>=3.0.0; python_version >= '3.10'",
+    "pillow>=11.0.0; python_version >= '3.10'",
+    "safetensors>=0.4.0",
+    "safetensors>=0.5.0; python_version >= '3.10'",
+    "einops>=0.8.0",
+    "sentencepiece>=0.1.99",
+    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "aec-audio-processing>=1.0.1; python_version >= '3.11'",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.9",
+]
+
+all-gpu = [
+    "piper-tts>=1.2.0",
+    "faster-whisper>=0.10.0",
+    "sounddevice>=0.4.6",
+    "webrtcvad>=2.0.10",
+    "soundfile>=0.12.1",
+    "librosa>=0.10.0",
+    "librosa>=0.11.0; python_version >= '3.10'",
+    "huggingface_hub>=0.20.0",
+    "f5-tts>=1.1.0; python_version >= '3.10'",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0; python_version >= '3.10'",
+    "torchvision>=0.15.0; python_version >= '3.10'",
+    "transformers>=4.55.4,<5; python_version < '3.10'",
+    "transformers>=5.3.0; python_version >= '3.10'",
+    "accelerate>=1.0.0; python_version >= '3.10'",
+    "av>=14.0.0; python_version >= '3.10'",
+    "audioread>=3.0.0; python_version >= '3.10'",
+    "pillow>=11.0.0; python_version >= '3.10'",
+    "safetensors>=0.4.0",
+    "safetensors>=0.5.0; python_version >= '3.10'",
+    "einops>=0.8.0",
+    "sentencepiece>=0.1.99",
+    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "aec-audio-processing>=1.0.1; python_version >= '3.11'",
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-multipart>=0.0.9",
