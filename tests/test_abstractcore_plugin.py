@@ -243,8 +243,25 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models():
                         "available_models": ["tts-1", "tts-1-hd"],
                         "remote": True,
                     },
+                    "lessac": {
+                        "model_filename": "en_US-lessac-medium.onnx",
+                        "remote": False,
+                    },
                 }
             }
+
+        stt_engine = "openai"
+        stt_model = "gpt-active-stt"
+
+        def list_cloned_voices(self):
+            return [
+                {
+                    "voice_id": "clone_laurent",
+                    "name": "Laurent",
+                    "backend": "xtts",
+                    "metadata": {"speaker_wav": "laurent.wav"},
+                }
+            ]
 
     class _Owner:
         def __init__(self):
@@ -256,13 +273,17 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models():
     assert [p["profile_id"] for p in profiles] == ["alloy", "dict_voice"]
     assert profiles[0]["params"] == {"voice": "alloy"}
 
-    assert cap.list_tts_models() == ["gpt-active-tts", "tts-1", "tts-1-hd"]
+    assert cap.list_tts_models() == ["gpt-active-tts", "tts-1", "tts-1-hd", "en_US-lessac-medium.onnx"]
+    assert cap.list_stt_models() == ["gpt-active-stt", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"]
 
     catalog = cap.voice_catalog()
     assert catalog["engine_id"] == "openai"
     assert catalog["active_profile"]["profile_id"] == "alloy"
     assert catalog["active_model"] == "gpt-active-tts"
-    assert catalog["tts_models"] == ["gpt-active-tts", "tts-1", "tts-1-hd"]
+    assert catalog["tts_models"] == ["gpt-active-tts", "tts-1", "tts-1-hd", "en_US-lessac-medium.onnx"]
+    assert catalog["stt_models"] == ["gpt-active-stt", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"]
+    assert catalog["cloned_voices"][0]["voice_id"] == "clone_laurent"
+    assert catalog["voices"][-1]["kind"] == "clone"
     assert catalog["catalog"]["openai"]["alloy"]["remote"] is True
 
 

@@ -10,7 +10,13 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
-No unreleased changes yet.
+## [0.9.3] - 2026-05-12
+
+### Added
+- Added STT model catalog discovery through the AbstractCore capability plugin with `list_stt_models()` and `voice_catalog()["stt_models"]`.
+
+### Changed
+- Voice catalog discovery now reports active and known OpenAI/OpenAI-compatible or faster-whisper STT models so Gateway/Assistant/Flow selectors can show real choices instead of a single default.
 
 ## [0.9.2] - 2026-05-08
 

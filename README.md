@@ -96,11 +96,13 @@ AbstractCore discovers AbstractVoice through the
 
 - `core.voice.tts(...)` / `llm.voice.tts(...)` for TTS
 - voice catalog discovery through the backend methods `list_profiles(...)`,
-  `list_tts_models()`, and `voice_catalog()`
+  `list_tts_models()`, `list_stt_models()`, and `voice_catalog()`
 - `core.audio.transcribe(...)` / `llm.audio.transcribe(...)` for STT
 - OpenAI-compatible server endpoints when AbstractCore Server is running:
   - `POST /v1/audio/speech`
   - `POST /v1/audio/transcriptions`
+  - `GET /v1/audio/voices`, `/v1/audio/speech/models`, and
+    `/v1/audio/transcriptions/models` for UI catalog discovery
 
 For a remote-first Gateway/Core deployment, the AbstractCore plugin defaults to
 OpenAI remote TTS/STT and reads `OPENAI_API_KEY`. Configure

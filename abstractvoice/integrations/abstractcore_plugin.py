@@ -125,7 +125,7 @@ def _extract_tts_model_ids(catalog: Any) -> list[str]:
         if isinstance(node, dict):
             for key in ("available_models", "tts_models", "speech_models", "audio_speech_models"):
                 add_many(node.get(key))
-            for key in ("model", "model_id"):
+            for key in ("model", "model_id", "model_filename"):
                 value = node.get(key)
                 if isinstance(value, str):
                     model_ids.append(value)
@@ -137,6 +137,39 @@ def _extract_tts_model_ids(catalog: Any) -> list[str]:
                 visit(item)
 
     visit(catalog)
+    return _dedupe_strings(model_ids)
+
+
+def _extract_stt_model_ids(vm: Any) -> list[str]:
+    model_ids: list[str] = []
+    for key in (
+        "ABSTRACTVOICE_STT_MODEL",
+        "ABSTRACTVOICE_OPENAI_STT_MODEL",
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_STT_MODEL",
+        "ABSTRACTVOICE_REMOTE_STT_MODEL",
+    ):
+        value = _env(key)
+        if isinstance(value, str) and value.strip():
+            model_ids.extend(value.split(","))
+
+    for target in (vm, getattr(vm, "stt_adapter", None)):
+        if target is None:
+            continue
+        for attr in ("stt_model", "model_id", "model", "model_size", "_model_size"):
+            value = getattr(target, attr, None)
+            if isinstance(value, str) and value.strip():
+                model_ids.append(value.strip())
+
+    engine = str(getattr(vm, "stt_engine", "") or _env("ABSTRACTVOICE_STT_ENGINE", "openai") or "").strip().lower()
+    if engine in {"openai", "openai-compatible", "remote"}:
+        model_ids.extend(["gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"])
+    if engine in {"faster_whisper", "faster-whisper", "whisper", "local"}:
+        try:
+            from ..adapters.stt_faster_whisper import FasterWhisperAdapter
+
+            model_ids.extend(list(getattr(FasterWhisperAdapter, "MODELS", {}).keys()))
+        except Exception:
+            model_ids.extend(["tiny", "base", "small", "medium", "large-v3"])
     return _dedupe_strings(model_ids)
 
 
@@ -445,6 +478,11 @@ class _VoiceCapability(_BaseVoice):
             catalog = vm.list_available_models()
         return _extract_tts_model_ids(catalog)
 
+    def list_stt_models(self) -> list[str]:
+        """List deduplicated STT model ids from the active VoiceManager configuration."""
+        vm = self._get_vm()
+        return _extract_stt_model_ids(vm)
+
     def voice_catalog(self) -> Dict[str, Any]:
         """Return JSON-safe profile/model discovery data for Core/Gateway."""
         vm = self._get_vm()
@@ -458,7 +496,42 @@ class _VoiceCapability(_BaseVoice):
         if hasattr(vm, "list_available_models"):
             catalog = vm.list_available_models()
         tts_models = _extract_tts_model_ids(catalog)
+        stt_models = _extract_stt_model_ids(vm)
         adapter = getattr(vm, "tts_adapter", None)
+        cloned_voices: list[Dict[str, Any]] = []
+        if hasattr(vm, "list_cloned_voices"):
+            try:
+                raw_clones = vm.list_cloned_voices()
+            except Exception:
+                raw_clones = []
+            if isinstance(raw_clones, list):
+                for item in raw_clones:
+                    if isinstance(item, dict):
+                        clone_id = item.get("voice_id") or item.get("id") or item.get("name")
+                        clone_name = item.get("name") or item.get("label") or clone_id
+                        if isinstance(clone_id, str) and clone_id.strip():
+                            cloned_voices.append(
+                                {
+                                    "id": clone_id.strip(),
+                                    "voice_id": clone_id.strip(),
+                                    "profile_id": clone_id.strip(),
+                                    "label": str(clone_name or clone_id).strip() or clone_id.strip(),
+                                    "kind": "clone",
+                                    "engine_id": "cloned",
+                                    "params": _json_safe(item),
+                                }
+                            )
+                    elif isinstance(item, str) and item.strip():
+                        cloned_voices.append(
+                            {
+                                "id": item.strip(),
+                                "voice_id": item.strip(),
+                                "profile_id": item.strip(),
+                                "label": item.strip(),
+                                "kind": "clone",
+                                "engine_id": "cloned",
+                            }
+                        )
 
         return {
             "kind": "tts",
@@ -466,7 +539,10 @@ class _VoiceCapability(_BaseVoice):
             "active_profile": _voice_profile_to_dict(active_profile) if active_profile is not None else None,
             "active_model": _active_tts_model(vm, catalog, tts_models),
             "profiles": profiles,
+            "voices": profiles + cloned_voices,
+            "cloned_voices": cloned_voices,
             "tts_models": tts_models,
+            "stt_models": stt_models,
             "catalog": _json_safe(catalog),
         }
 
