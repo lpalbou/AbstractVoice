@@ -10,6 +10,12 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-05-13
+
+### Fixed
+- AbstractCore voice/audio plugins now apply per-call TTS and STT model selectors to the active adapter for the duration of the request, then restore the previous adapter state.
+
+
 ## [0.9.3] - 2026-05-12
 
 ### Added

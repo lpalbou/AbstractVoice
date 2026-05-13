@@ -552,6 +552,7 @@ class _VoiceCapability(_BaseVoice):
         *,
         voice: Optional[str] = None,
         format: str = "wav",
+        model: Optional[str] = None,
         artifact_store: Any = None,
         run_id: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -561,7 +562,34 @@ class _VoiceCapability(_BaseVoice):
         vm = self._get_vm()
         lk = self._vm_lock(vm)
         with lk:
-            audio = vm.speak_to_bytes(str(text), format=str(format), voice=voice)
+            model_name = str(model or "").strip() if isinstance(model, str) else ""
+            sentinel = object()
+            old_vm_model = getattr(vm, "tts_model", sentinel)
+            adapter = getattr(vm, "tts_adapter", None)
+            old_adapter_model = getattr(adapter, "model_id", sentinel) if adapter is not None else sentinel
+            try:
+                if model_name:
+                    try:
+                        setattr(vm, "tts_model", model_name)
+                    except Exception:
+                        pass
+                    if adapter is not None:
+                        try:
+                            setattr(adapter, "model_id", model_name)
+                        except Exception:
+                            pass
+                audio = vm.speak_to_bytes(str(text), format=str(format), voice=voice)
+            finally:
+                if old_vm_model is not sentinel:
+                    try:
+                        setattr(vm, "tts_model", old_vm_model)
+                    except Exception:
+                        pass
+                if adapter is not None and old_adapter_model is not sentinel:
+                    try:
+                        setattr(adapter, "model_id", old_adapter_model)
+                    except Exception:
+                        pass
             tts_metrics = None
             try:
                 if hasattr(vm, "pop_last_tts_metrics"):
@@ -589,34 +617,64 @@ class _VoiceCapability(_BaseVoice):
         audio: Union[bytes, Dict[str, Any], str],
         *,
         language: Optional[str] = None,
+        model: Optional[str] = None,
         artifact_store: Any = None,
         metadata: Optional[Dict[str, Any]] = None,
         **_kwargs: Any,
     ) -> str:
         _ = metadata
         vm = self._get_vm()
-        if isinstance(audio, str):
-            return vm.transcribe_file(str(audio), language=language)
-
-        if isinstance(audio, dict):
-            import os
-            import tempfile
-
-            audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
-            suffix = self._suffix_for_audio_ref(audio, artifact_store=artifact_store)
-            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
-                tmp_file.write(bytes(audio_bytes))
-                tmp_path = tmp_file.name
+        lk = self._vm_lock(vm)
+        with lk:
+            model_name = str(model or "").strip() if isinstance(model, str) else ""
+            sentinel = object()
+            old_vm_model = getattr(vm, "stt_model", sentinel)
+            adapter = getattr(vm, "stt_adapter", None)
+            old_adapter_model = getattr(adapter, "model_id", sentinel) if adapter is not None else sentinel
             try:
-                return vm.transcribe_file(tmp_path, language=language)
-            finally:
-                try:
-                    os.unlink(tmp_path)
-                except Exception:
-                    pass
+                if model_name:
+                    try:
+                        setattr(vm, "stt_model", model_name)
+                    except Exception:
+                        pass
+                    if adapter is not None:
+                        try:
+                            setattr(adapter, "model_id", model_name)
+                        except Exception:
+                            pass
+                if isinstance(audio, str):
+                    return vm.transcribe_file(str(audio), language=language)
 
-        audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
-        return vm.transcribe_from_bytes(bytes(audio_bytes), language=language)
+                if isinstance(audio, dict):
+                    import os
+                    import tempfile
+
+                    audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
+                    suffix = self._suffix_for_audio_ref(audio, artifact_store=artifact_store)
+                    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
+                        tmp_file.write(bytes(audio_bytes))
+                        tmp_path = tmp_file.name
+                    try:
+                        return vm.transcribe_file(tmp_path, language=language)
+                    finally:
+                        try:
+                            os.unlink(tmp_path)
+                        except Exception:
+                            pass
+
+                audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
+                return vm.transcribe_from_bytes(bytes(audio_bytes), language=language)
+            finally:
+                if old_vm_model is not sentinel:
+                    try:
+                        setattr(vm, "stt_model", old_vm_model)
+                    except Exception:
+                        pass
+                if adapter is not None and old_adapter_model is not sentinel:
+                    try:
+                        setattr(adapter, "model_id", old_adapter_model)
+                    except Exception:
+                        pass
 
 
 class _AudioCapability(_BaseVoice):
@@ -627,34 +685,64 @@ class _AudioCapability(_BaseVoice):
         audio: Union[bytes, Dict[str, Any], str],
         *,
         language: Optional[str] = None,
+        model: Optional[str] = None,
         artifact_store: Any = None,
         metadata: Optional[Dict[str, Any]] = None,
         **_kwargs: Any,
     ) -> str:
         _ = metadata
         vm = self._get_vm()
-        if isinstance(audio, str):
-            return vm.transcribe_file(str(audio), language=language)
-
-        if isinstance(audio, dict):
-            import os
-            import tempfile
-
-            audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
-            suffix = self._suffix_for_audio_ref(audio, artifact_store=artifact_store)
-            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
-                tmp_file.write(bytes(audio_bytes))
-                tmp_path = tmp_file.name
+        lk = self._vm_lock(vm)
+        with lk:
+            model_name = str(model or "").strip() if isinstance(model, str) else ""
+            sentinel = object()
+            old_vm_model = getattr(vm, "stt_model", sentinel)
+            adapter = getattr(vm, "stt_adapter", None)
+            old_adapter_model = getattr(adapter, "model_id", sentinel) if adapter is not None else sentinel
             try:
-                return vm.transcribe_file(tmp_path, language=language)
-            finally:
-                try:
-                    os.unlink(tmp_path)
-                except Exception:
-                    pass
+                if model_name:
+                    try:
+                        setattr(vm, "stt_model", model_name)
+                    except Exception:
+                        pass
+                    if adapter is not None:
+                        try:
+                            setattr(adapter, "model_id", model_name)
+                        except Exception:
+                            pass
+                if isinstance(audio, str):
+                    return vm.transcribe_file(str(audio), language=language)
 
-        audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
-        return vm.transcribe_from_bytes(bytes(audio_bytes), language=language)
+                if isinstance(audio, dict):
+                    import os
+                    import tempfile
+
+                    audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
+                    suffix = self._suffix_for_audio_ref(audio, artifact_store=artifact_store)
+                    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
+                        tmp_file.write(bytes(audio_bytes))
+                        tmp_path = tmp_file.name
+                    try:
+                        return vm.transcribe_file(tmp_path, language=language)
+                    finally:
+                        try:
+                            os.unlink(tmp_path)
+                        except Exception:
+                            pass
+
+                audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
+                return vm.transcribe_from_bytes(bytes(audio_bytes), language=language)
+            finally:
+                if old_vm_model is not sentinel:
+                    try:
+                        setattr(vm, "stt_model", old_vm_model)
+                    except Exception:
+                        pass
+                if adapter is not None and old_adapter_model is not sentinel:
+                    try:
+                        setattr(adapter, "model_id", old_adapter_model)
+                    except Exception:
+                        pass
 
 
 def register(registry: Any) -> None:
