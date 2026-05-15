@@ -37,7 +37,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         stt_engine: str = "openai",
         allow_downloads: bool = True,
         cloned_tts_streaming: bool = True,
-        cloning_engine: str = "f5_tts",
+        cloning_engine: str = "omnivoice",
         tts_delivery_mode: str | None = None,
         stt_model: str | None = None,
         remote_base_url: str | None = None,
@@ -64,7 +64,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
             from ..tts.delivery_mode import normalize_audio_delivery_mode
 
             self.tts_delivery_mode = normalize_audio_delivery_mode(tts_delivery_mode)
-        self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower()
+        self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower()
 
         requested_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
 

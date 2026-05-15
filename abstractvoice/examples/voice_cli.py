@@ -121,9 +121,9 @@ def parse_args():
     )
     parser.add_argument(
         "--cloning-engine",
-        default="f5_tts",
-        choices=["f5_tts", "chroma", "audiodit", "omnivoice", "openai", "openai-compatible"],
-        help="Default cloning backend for new voices (f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible).",
+        default="omnivoice",
+        choices=["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+        help="Default cloning backend for new voices (default: omnivoice; choices: omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible).",
     )
     parser.add_argument(
         "--voice-mode",

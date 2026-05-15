@@ -16,6 +16,7 @@ def test_web_ui_status_is_lightweight():
     assert data["status"] == "ok"
     assert data["voice_manager_initialized"] is False
     assert data["allow_downloads"] is False
+    assert data["defaults"]["cloning_engine"] == "omnivoice"
     assert "optional_dependencies" in data
     assert "omnivoice" in data["optional_dependencies"]
     assert fastapi is not None
@@ -44,6 +45,7 @@ def test_web_ui_page_has_role_voice_controls_and_busy_overlay():
     assert 'id="clone-file"' in response.text
     assert 'id="record-clone"' in response.text
     assert 'id="clone-voice"' in response.text
+    assert '<option value="omnivoice" selected>OmniVoice</option>' in response.text
     assert 'className = "message-spinner"' in response.text
     assert 'id="read-next"' not in response.text
     assert 'id="read-all"' not in response.text

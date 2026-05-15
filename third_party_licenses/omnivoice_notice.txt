@@ -1,0 +1,19 @@
+OmniVoice notice
+
+AbstractVoice can optionally use OmniVoice for local omnilingual TTS, voice
+design, and prompt-audio voice cloning.
+
+Upstream sources:
+  https://github.com/k2-fsa/OmniVoice
+  https://huggingface.co/k2-fsa/OmniVoice
+
+The optional OmniVoice Python package, model weights, tokenizer files, and
+related assets are not vendored into this repository. They are installed or
+downloaded only when users select the `abstractvoice[omnivoice]` extra and run
+an explicit prefetch command, or when downloads are otherwise enabled by the
+application.
+
+Before deploying or redistributing OmniVoice assets, review the upstream
+license and model-card terms for the exact version/revision in use:
+  https://github.com/k2-fsa/OmniVoice/blob/master/LICENSE
+  https://huggingface.co/k2-fsa/OmniVoice

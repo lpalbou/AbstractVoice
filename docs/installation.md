@@ -49,10 +49,10 @@ pip install "abstractvoice[piper]"     # Local Piper TTS only
 pip install "abstractvoice[supertonic]" # Local Supertonic 3 ONNX TTS only
 pip install "abstractvoice[stt]"       # Local faster-whisper STT
 pip install "abstractvoice[audio-io]"  # Microphone/playback/VAD dependencies
-pip install "abstractvoice[cloning]"   # OpenF5-based cloning (heavy; Python 3.10+)
+pip install "abstractvoice[cloning]"   # explicit OpenF5-based cloning (heavy; Python 3.10+)
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
 pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transformers)
-pip install "abstractvoice[omnivoice]" # OmniVoice (very heavy; torch/transformers)
+pip install "abstractvoice[omnivoice]" # recommended/default local cloning + OmniVoice TTS/design (very heavy; Python 3.10+)
 pip install "abstractvoice[openai]"    # Hosted OpenAI intent extra (no extra deps today)
 pip install "abstractvoice[openai-compatible]" # Generic compatible provider intent extra
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
@@ -108,6 +108,8 @@ Python-version notes:
 
 - Python 3.9 supports the lightweight base, local Piper/faster-whisper extras,
   local Supertonic 3 ONNX TTS, the web example, and AudioDiT TTS/prompt-audio cloning.
+- Supertonic is the recommended local base TTS path. OmniVoice is the
+  recommended/default local cloning backend.
 - OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
   upstream runtimes do.
 - AEC requires Python 3.11+ because `aec-audio-processing` declares that floor.
@@ -195,7 +197,7 @@ Usually works out of the box. If device access fails, check OS microphone permis
 
 - **Piper model not available locally**: run `python -m abstractvoice download --piper <lang>`.
 - **Supertonic model not available locally**: run `python -m abstractvoice download --supertonic`.
-- **Cloning runtime not ready**: run `/cloning_status` then `/cloning_download f5_tts|chroma|audiodit|omnivoice` in the REPL (or use `python -m abstractvoice download ...`).
+- **Cloning runtime not ready**: for the default OmniVoice cloning path, run `/cloning_status` then `/cloning_download omnivoice` in the REPL (or use `python -m abstractvoice download --omnivoice`). Use `/cloning_download f5_tts|chroma|audiodit` only when selecting those engines explicitly.
 - **LLM API not reachable (REPL only)**: the default provider preset is Ollama at `http://localhost:11434` (OpenAI-compatible `POST /v1/chat/completions`). Start it with `ollama serve`, or point the REPL at a different `--provider`/`--api` base URL.
 - **Sanity-check your environment**: run `python -m abstractvoice check-deps` (or `abstractvoice check-deps`) to print a dependency report.
 

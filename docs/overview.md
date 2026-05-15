@@ -5,7 +5,8 @@ AbstractVoice is a Python library for **voice I/O** around AI applications:
 - **TTS (text -> audio)**: default engine is **OpenAI remote audio** from the base install.
 - **STT (audio -> text)**: default engine is **OpenAI remote transcription** from the base install.
 - **Streaming TTS**: chunked speech output for LLM streaming pipelines.
-- **Voice cloning (optional)**: prompt-audio cloning engines (engine-bound clones).
+- **Voice cloning (optional)**: OmniVoice is the recommended/default local
+  prompt-audio cloning engine; alternatives remain engine-bound clones.
 
 The main entry point for integrators is `abstractvoice.VoiceManager`.
 
@@ -42,6 +43,8 @@ Next reads:
   `abstractvoice[gpu]`, or granular extras such as
   `abstractvoice[supertonic,stt]`, then select `tts_engine="supertonic"` /
   `stt_engine="faster_whisper"`.
+  Supertonic is the preferred local base TTS path; OmniVoice is the default
+  local cloning backend for new clones.
 
 ### 2) Backend/server code (headless)
 

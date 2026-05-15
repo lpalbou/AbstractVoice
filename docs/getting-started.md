@@ -48,6 +48,10 @@ on OpenAI; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` start on
 Supertonic. If the status line says `openai (remote)`, set `OPENAI_API_KEY` or
 switch to a local engine.
 
+For local voice generation, prefer Supertonic. For new voice clones, the
+default local cloning backend is OmniVoice; install `abstractvoice[omnivoice]`
+or a platform/full profile before using clone commands without `--engine`.
+
 For local/offline TTS instead:
 
 ```bash

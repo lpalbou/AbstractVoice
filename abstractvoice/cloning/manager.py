@@ -32,7 +32,7 @@ class VoiceCloner:
         whisper_model: str = "tiny",
         reference_text_whisper_model: str = "small",
         allow_downloads: bool = True,
-        default_engine: str = "f5_tts",
+        default_engine: str = "omnivoice",
         remote_base_url: str | None = None,
         remote_api_key: str | None = None,
         remote_timeout_s: float | None = None,
@@ -44,7 +44,7 @@ class VoiceCloner:
         self._whisper_model = whisper_model
         self._reference_text_whisper_model = reference_text_whisper_model
         self._allow_downloads = bool(allow_downloads)
-        self._default_engine = _normalize_cloning_engine(default_engine) or "f5_tts"
+        self._default_engine = _normalize_cloning_engine(default_engine) or "omnivoice"
         self._remote_base_url = str(remote_base_url).strip() if remote_base_url else None
         self._remote_api_key = str(remote_api_key).strip() if remote_api_key else None
         self._remote_timeout_s = remote_timeout_s
@@ -172,10 +172,12 @@ class VoiceCloner:
 
     def get_runtime_info(self) -> Dict[str, Any]:
         # Keep backward compatibility: return a single flat dict.
-        # Prefer F5 when available, otherwise return any loaded engine info.
-        if "f5_tts" in self._engines:
+        # Prefer the configured default engine when loaded, otherwise return any
+        # loaded engine info.
+        preferred = str(getattr(self, "_default_engine", "") or "").strip().lower()
+        if preferred in self._engines:
             try:
-                return dict(self._engines["f5_tts"].runtime_info())
+                return dict(self._engines[preferred].runtime_info())
             except Exception:
                 return {}
         for eng in self._engines.values():
@@ -205,7 +207,7 @@ class VoiceCloner:
 
         engine_name = _normalize_cloning_engine(engine or self._default_engine)
         if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", *_REMOTE_CLONING_ENGINES):
-            raise ValueError("engine must be one of: f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible")
+            raise ValueError("engine must be one of: omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible")
         if engine_name in _REMOTE_CLONING_ENGINES:
             supported = supported | {".mp3", ".mpeg", ".mpga", ".m4a", ".webm", ".aac"}
 
@@ -265,7 +267,7 @@ class VoiceCloner:
 
         engine_name = _normalize_cloning_engine(engine or self._default_engine)
         if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", *_REMOTE_CLONING_ENGINES):
-            raise ValueError("engine must be one of: f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible")
+            raise ValueError("engine must be one of: omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible")
 
         meta_out = dict(meta or {})
         meta_out.setdefault("source", "bytes")
@@ -466,6 +468,8 @@ class VoiceCloner:
             raise ValueError("Voice cloning currently supports WAV output only.")
 
         voice = self.store.get_voice(voice_id)
+        # Voices created before engine-bound metadata used OpenF5 semantics.
+        # Keep that legacy fallback for old stores; new clones default to OmniVoice.
         engine_name = _normalize_cloning_engine(getattr(voice, "engine", None) or "f5_tts")
         if engine_name in _REMOTE_CLONING_ENGINES:
             eng = self._get_engine(engine_name)
@@ -505,6 +509,8 @@ class VoiceCloner:
         language: Optional[str] = None,
     ):
         voice = self.store.get_voice(voice_id)
+        # Voices created before engine-bound metadata used OpenF5 semantics.
+        # Keep that legacy fallback for old stores; new clones default to OmniVoice.
         engine_name = _normalize_cloning_engine(getattr(voice, "engine", None) or "f5_tts")
         if engine_name in _REMOTE_CLONING_ENGINES:
             eng = self._get_engine(engine_name)

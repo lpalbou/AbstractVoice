@@ -69,7 +69,7 @@ class VoiceREPL(cmd.Cmd):
         remote_timeout_s: float | None = None,
         voice_mode: str = "off",
         disable_tts=False,
-        cloning_engine: str = "f5_tts",
+        cloning_engine: str = "omnivoice",
         provider: str | None = None,
     ):
         super().__init__()
@@ -109,7 +109,7 @@ class VoiceREPL(cmd.Cmd):
         self.remote_base_url = str(remote_base_url).strip() if isinstance(remote_base_url, str) and remote_base_url.strip() else None
         self.remote_api_key = str(remote_api_key).strip() if isinstance(remote_api_key, str) and remote_api_key.strip() else None
         self.remote_timeout_s = remote_timeout_s
-        self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower().replace("_", "-")
+        self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower().replace("_", "-")
 
         # Initialize voice manager with language support
         if disable_tts:
@@ -2740,7 +2740,7 @@ class VoiceREPL(cmd.Cmd):
         """Pick a sensible default cloning engine for mic-driven cloning.
 
         Prefer the currently selected TTS engine *when it is also a cloning backend*,
-        otherwise fall back to the configured cloning default (usually f5_tts).
+        otherwise fall back to the configured cloning default (usually omnivoice).
         """
         eng = ""
         try:
@@ -2760,7 +2760,7 @@ class VoiceREPL(cmd.Cmd):
         if eng in ("omnivoice", "audiodit", "openai-compatible"):
             return eng
 
-        fallback = str(getattr(self, "cloning_engine", "") or "f5_tts").strip().lower() or "f5_tts"
+        fallback = str(getattr(self, "cloning_engine", "") or "omnivoice").strip().lower() or "omnivoice"
         return fallback
 
     def _default_mic_clone_prompt(self, *, language: str) -> str:
@@ -3025,7 +3025,7 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice from a reference file or folder.
 
         Usage:
-          /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text "reference transcript"]
+          /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text "reference transcript"]
 
         Special source:
           /clone myvoice [name] [...]   # record from mic (SPACE start/stop, ESC cancel)
@@ -3038,12 +3038,12 @@ class VoiceREPL(cmd.Cmd):
             parts = shlex.split(arg.strip())
         except ValueError as e:
             print(
-                f"Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text \"...\"]  (parse error: {e})"
+                f"Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]  (parse error: {e})"
             )
             return
 
         if not parts:
-            print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text \"...\"]")
+            print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
             return
 
         engine = None
@@ -3054,14 +3054,14 @@ class VoiceREPL(cmd.Cmd):
             tok = parts[i]
             if tok in ("--engine",):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text \"...\"]")
+                    print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
                     return
                 engine = parts[i + 1]
                 i += 2
                 continue
             if tok in ("--text", "--reference-text", "--reference_text"):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text \"...\"]")
+                    print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
                     return
                 reference_text = parts[i + 1]
                 i += 2
@@ -3070,7 +3070,7 @@ class VoiceREPL(cmd.Cmd):
             i += 1
 
         if not pos:
-            print("Usage: /clone <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text \"...\"]")
+            print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
             return
 
         path = pos[0]
@@ -3197,7 +3197,7 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice (or reuse an existing one) and immediately select it.
 
         Usage:
-          /clone_use <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text "reference transcript"]
+          /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text "reference transcript"]
 
         Shortcut:
           - Paste a WAV/FLAC/OGG path directly (optionally: `path.wav | transcript`).
@@ -3213,12 +3213,12 @@ class VoiceREPL(cmd.Cmd):
             parts = shlex.split(arg.strip())
         except ValueError as e:
             print(
-                f"Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text \"...\"]  (parse error: {e})"
+                f"Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]  (parse error: {e})"
             )
             return
 
         if not parts:
-            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit|omnivoice|openai-compatible] [--text \"...\"]")
+            print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
             return
 
         engine = None
@@ -3229,14 +3229,14 @@ class VoiceREPL(cmd.Cmd):
             tok = parts[i]
             if tok in ("--engine",):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
+                    print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
                     return
                 engine = parts[i + 1]
                 i += 2
                 continue
             if tok in ("--text", "--reference-text", "--reference_text"):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
+                    print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
                     return
                 reference_text = parts[i + 1]
                 i += 2
@@ -3245,7 +3245,7 @@ class VoiceREPL(cmd.Cmd):
             i += 1
 
         if not pos:
-            print("Usage: /clone_use <path> [name] [--engine f5_tts|chroma|audiodit] [--text \"...\"]")
+            print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
             return
 
         path = pos[0]
@@ -3253,7 +3253,7 @@ class VoiceREPL(cmd.Cmd):
         is_mic = self._is_mic_clone_keyword(path)
         mic_audio_s = None
 
-        engine_name = str(engine or "").strip().lower() or (self._default_mic_clone_engine() if is_mic else str(self.cloning_engine or "f5_tts").strip().lower())
+        engine_name = str(engine or "").strip().lower() or (self._default_mic_clone_engine() if is_mic else str(self.cloning_engine or "omnivoice").strip().lower())
 
         # If name isn't provided, use something stable for UX.
         if not name:
@@ -3976,7 +3976,7 @@ class VoiceREPL(cmd.Cmd):
             print("   Configure ABSTRACTVOICE_REMOTE_BASE_URL (or OPENAI_API_KEY for OpenAI) and use /clone --engine openai-compatible.")
             return
         else:
-            print("Usage: /cloning_download [f5_tts|chroma|audiodit|omnivoice|openai-compatible]")
+            print("Usage: /cloning_download [omnivoice|f5_tts|chroma|audiodit|openai-compatible]")
             return
 
         try:
@@ -4140,7 +4140,7 @@ class VoiceREPL(cmd.Cmd):
             except Exception:
                 eng = ""
         if not eng:
-            eng = str(getattr(self, "cloning_engine", "f5_tts") or "f5_tts").strip().lower()
+            eng = str(getattr(self, "cloning_engine", "omnivoice") or "omnivoice").strip().lower()
 
         if eng == "audiodit":
             return (
@@ -4923,7 +4923,7 @@ class VoiceREPL(cmd.Cmd):
         print()
         print("Voice cloning (optional)")
         print("  /cloning_status        Check local readiness (no downloads)")
-        print("  /cloning_download <e>  Download artifacts: f5_tts|chroma|audiodit|omnivoice")
+        print("  /cloning_download <e>  Download artifacts: omnivoice|f5_tts|chroma|audiodit")
         print("                         Remote engines (openai-compatible) do not need downloads")
         print("  /clone <path> [name] [--engine ...] [--text \"...\"]")
         print("  /clone_use <path> ...  Clone (or reuse existing) and select it")
@@ -5327,9 +5327,9 @@ def parse_args():
                       help="LLM model name")
     parser.add_argument(
         "--cloning-engine",
-        default="f5_tts",
-        choices=["f5_tts", "chroma", "audiodit", "omnivoice", "openai", "openai-compatible"],
-        help="Default cloning backend for new voices (f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible)",
+        default="omnivoice",
+        choices=["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+        help="Default cloning backend for new voices (default: omnivoice; choices: omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible)",
     )
     parser.add_argument(
         "--voice-mode",

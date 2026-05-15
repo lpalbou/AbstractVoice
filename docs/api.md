@@ -37,7 +37,7 @@ VoiceManager(
     stt_engine: str = "openai",
     allow_downloads: bool = True,
     cloned_tts_streaming: bool = True,
-    cloning_engine: str = "f5_tts",
+    cloning_engine: str = "omnivoice",
     tts_delivery_mode: str | None = None,  # buffered|streamed (override)
     stt_model: str | None = None,
     remote_base_url: str | None = None,
@@ -74,6 +74,10 @@ Notes:
 - `tts_delivery_mode` is an optional override that applies consistently to both base TTS and cloned voices:
   - `buffered`: synthesize full audio first (one payload)
   - `streamed`: deliver audio in chunks when available (lower time-to-first-audio)
+- `cloning_engine` defaults to `omnivoice` for new local clones. Install
+  `abstractvoice[omnivoice]` or a platform/full profile for that default, or
+  pass `f5_tts`, `chroma`, `audiodit`, `openai`, or `openai-compatible`
+  explicitly.
 
 Supported language codes for the Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
 Supertonic supports fixed-style local TTS for `ar, bg, cs, da, de, el, en, es, et, fi, fr, hi, hr, hu, id, it, ja, ko, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi`.
@@ -83,7 +87,7 @@ For other non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines)
 
 - `speak(text: str, speed: float = 1.0, callback=None, voice: str | None = None, *, sanitize_syntax: bool = True) -> bool`
   - Plays audio locally (non-blocking playback; synthesis time depends on backend).
-  - If `voice` is provided, it is treated as a cloned `voice_id` (requires `abstractvoice[cloning]`).
+  - If `voice` is provided, it is treated as a cloned `voice_id` (requires a cloning backend extra such as `abstractvoice[omnivoice]`; `abstractvoice[cloning]` is the explicit OpenF5 backend).
   - By default, common Markdown syntax is stripped from spoken output (headers + emphasis). Set `sanitize_syntax=False` to speak raw text.
 
 - `set_speed(speed: float) -> bool`, `get_speed() -> float`
@@ -222,12 +226,17 @@ The REPL defaults to **mic input off**, and recommends `--voice-mode stop` for h
 
 ## Voice cloning (optional; heavy)
 
-Requires installing at least one cloning backend extra (and explicit artifact downloads; see `docs/installation.md`):
+Requires installing at least one cloning backend extra (and explicit artifact
+downloads; see `docs/installation.md`). The recommended/default local backend
+is OmniVoice:
 
+- `abstractvoice[omnivoice]` → `omnivoice` (default for new clones)
 - `abstractvoice[cloning]` → `f5_tts`
 - `abstractvoice[chroma]` → `chroma`
 - `abstractvoice[audiodit]` → `audiodit`
-- `abstractvoice[omnivoice]` → `omnivoice`
+
+Supertonic is not listed here because it is fixed-profile base TTS, not a
+voice-cloning engine.
 
 Remote clone-compatible endpoints can also be used without local cloning model
 weights by selecting `cloning_engine="openai-compatible"` (or
@@ -375,7 +384,7 @@ different engine:
 - `voice_remote_api_key`: optional bearer key for remote audio endpoints
 - `voice_remote_timeout_s`: request timeout for remote audio endpoints
 - `voice_whisper_model`: faster-whisper model size (e.g. `"base"`, `"small"`)
-- `voice_cloning_engine`: default cloning backend (`"f5_tts"|"chroma"|"audiodit"|"omnivoice"|"openai"|"openai-compatible"`)
+- `voice_cloning_engine`: default cloning backend (`"omnivoice"` by default; also `"f5_tts"|"chroma"|"audiodit"|"openai"|"openai-compatible"`)
 - `voice_cloned_tts_streaming`: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when `voice_tts_delivery_mode` is unset.
 - `voice_tts_delivery_mode`: unified audio delivery mode for base + cloned voices (`"buffered"|"streamed"`). Takes precedence over `voice_cloned_tts_streaming`.
 - `voice_tts_streaming`: bool alias for `voice_tts_delivery_mode` (`true` → `"streamed"`, `false` → `"buffered"`).
@@ -464,7 +473,7 @@ curl -X POST http://127.0.0.1:5000/api/voices/select \
 # Browser-example cloned voice creation.
 curl -X POST http://127.0.0.1:5000/api/voices/clone \
   -F "name=my_voice" \
-  -F "engine=f5_tts" \
+  -F "engine=omnivoice" \
   -F "reference_text=Exact transcript of the reference audio." \
   -F "file=@reference.wav"
 

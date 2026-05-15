@@ -16,16 +16,16 @@ This file lists the notable third-party libraries that AbstractVoice uses (see `
 
 These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`):
 
-- Piper / `piper-tts` (`abstractvoice[piper]` / `abstractvoice[local]`) for local neural TTS: https://github.com/rhasspy/piper
-- Supertone Supertonic 3 (`abstractvoice[supertonic]` / platform local extras) for fixed-profile local ONNX TTS: https://huggingface.co/Supertone/supertonic-3
+- Piper / `piper-tts` (`abstractvoice[piper]` / platform local extras) for local neural TTS: https://github.com/rhasspy/piper
+- Supertone Supertonic 3 (`abstractvoice[supertonic]` / platform local extras) for recommended fixed-profile local ONNX TTS: https://huggingface.co/Supertone/supertonic-3
 - ONNX Runtime (`onnxruntime`) for Supertonic ONNX inference and Piper execution-provider introspection: https://github.com/microsoft/onnxruntime
-- faster-whisper (`abstractvoice[stt]` / `abstractvoice[local]`) for local STT: https://github.com/SYSTRAN/faster-whisper
+- faster-whisper (`abstractvoice[stt]` / platform local extras) for local STT: https://github.com/SYSTRAN/faster-whisper
   - CTranslate2 (inference runtime used by faster-whisper): https://github.com/OpenNMT/CTranslate2
 - Hugging Face Hub (`huggingface_hub`) (artifact downloads): https://github.com/huggingface/huggingface_hub
-- SoundDevice + PortAudio (`abstractvoice[audio-io]` / `abstractvoice[local]`) for audio I/O: https://github.com/spatialaudio/python-sounddevice and http://www.portaudio.com/
+- SoundDevice + PortAudio (`abstractvoice[audio-io]` / platform local extras) for audio I/O: https://github.com/spatialaudio/python-sounddevice and http://www.portaudio.com/
 - SoundFile (WAV/FLAC/OGG I/O): https://github.com/bastibe/python-soundfile
 - WebRTC VAD (`webrtcvad`) for voice activity detection: https://github.com/wiseman/py-webrtcvad
-- F5-TTS (`abstractvoice[cloning]`) for cloning backends: https://github.com/SWivid/F5-TTS
+- F5-TTS (`abstractvoice[cloning]`) for the explicit OpenF5 cloning backend: https://github.com/SWivid/F5-TTS
   - Hydra (used by F5-TTS runtime): https://github.com/facebookresearch/hydra
   - OmegaConf (used by F5-TTS runtime): https://github.com/omry/omegaconf
 - Chroma runtime deps (`abstractvoice[chroma]`) for Chroma-4B inference: https://huggingface.co/FlashLabs/Chroma-4B
@@ -40,7 +40,7 @@ These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`)
   - einops (used by the model blocks): https://github.com/arogozhnikov/einops
   - sentencepiece (tokenizer runtime): https://github.com/google/sentencepiece
   - safetensors (weight format): https://github.com/huggingface/safetensors
-- OmniVoice runtime deps (`abstractvoice[omnivoice]`) for omnilingual TTS + prompt-audio cloning + voice design:
+- OmniVoice runtime deps (`abstractvoice[omnivoice]`) for the recommended/default local prompt-audio cloning backend, omnilingual TTS, and voice design:
   - Model + weights: https://huggingface.co/k2-fsa/OmniVoice
   - Upstream repo (code): https://github.com/k2-fsa/OmniVoice
   - PyTorch + audio/vision extensions (`torch`, `torchaudio`, `torchvision`): https://github.com/pytorch/pytorch
@@ -74,6 +74,11 @@ and is needed to avoid `trust_remote_code`.
   - We include a HuggingFace-compatible derived implementation under `abstractvoice/audiodit/*`.
   - License text: `third_party_licenses/longcat_audiodit_license.txt`.
 
+No Supertonic or OmniVoice model weights are vendored in this repository.
+AbstractVoice downloads those optional artifacts into local caches only when
+the user runs an explicit prefetch command or constructs an adapter with
+downloads allowed.
+
 ## Models and voices
 
 AbstractVoice may download model weights and voice files at runtime (explicitly or on demand, depending on `allow_downloads`).
@@ -85,5 +90,8 @@ AbstractVoice may download model weights and voice files at runtime (explicitly 
 - AudioDiT weights use the Hugging Face cache by default (see `abstractvoice/audiodit/runtime.py`).
   - AudioDiT also downloads a text-encoder model (default: `google/umt5-base`) via Hugging Face.
 - OmniVoice weights use the Hugging Face cache by default (see `abstractvoice/omnivoice/runtime.py`).
+- Supertonic is fixed-profile local TTS, not voice cloning. For local cloning,
+  AbstractVoice recommends and defaults new clones to OmniVoice when no engine
+  is specified; OpenF5 remains available explicitly through `engine="f5_tts"`.
 
 Always verify upstream licenses/usage terms for the specific models/voices you deploy or redistribute. See `docs/voices-and-licenses.md`.

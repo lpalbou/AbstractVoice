@@ -79,6 +79,7 @@ def test_voice_capability_defaults_to_openai_env_for_abstractcore(monkeypatch):
 
     assert seen["tts_engine"] == "openai"
     assert seen["stt_engine"] == "openai"
+    assert seen["cloning_engine"] == "omnivoice"
     assert seen["remote_api_key"] == "sk-test"
 
 
@@ -113,6 +114,7 @@ def test_voice_capability_env_overrides_openai_defaults(monkeypatch):
     assert seen["remote_base_url"] == "http://remote.test/v1"
     assert seen["remote_api_key"] == "remote-key"
     assert seen["allow_downloads"] is False
+    assert seen["cloning_engine"] == "omnivoice"
     assert seen["cloned_tts_streaming"] is False
     assert seen["debug_mode"] is True
 

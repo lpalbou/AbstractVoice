@@ -14,7 +14,7 @@ For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 - `abstractvoice.VoiceManager` is the orchestration façade (`abstractvoice/vm/*`).
 - **TTS (default)**: TTS adapter registry resolves `openai` / `auto` to `OpenAICompatibleTTSAdapter`; local opt-in engines include Piper and Supertonic 3; playback uses `AdapterTTSEngine` -> `NonBlockingAudioPlayer` when local audio output is requested.
 - **STT (default)**: `openai` / `auto` routes `transcribe_*()` and `listen()` recognition to `OpenAICompatibleSTTAdapter`. Local microphone capture still uses `VoiceRecognizer` → `VoiceDetector` and can pass captured audio to the selected STT adapter.
-- **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible`).
+- **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible`); new local clones default to OmniVoice.
 - Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (`abstractvoice/vm/core.py`).
 
 ## Component diagram

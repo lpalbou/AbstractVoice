@@ -11,7 +11,7 @@ Positioning:
 - REPL/web base TTS switching uses `VoiceManager.set_tts_engine(...)` and resets the base profile to the engine/language default.
 - Plain `abstractvoice` is remote/OpenAI by default; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` include Supertonic and the REPL/web examples default to Supertonic via their install-aware `auto` resolver.
 - Library `VoiceManager()` remains remote-first unless an engine is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
-- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"`.
+- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"`. Supertonic is the recommended local base TTS path; OmniVoice is the recommended/default local cloning backend.
 - The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, local `/api/*` routes, and compatible extension routes `/v1/audio/voices` + `/v1/voice/clone`; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
 - Web extras compose directly: `abstractvoice[web]` is lightweight; use `abstractvoice[all-apple]` / `abstractvoice[all-gpu]` for the full platform local lab or `abstractvoice[web,supertonic]` / `abstractvoice[web,omnivoice]` for narrower engine installs.
 
@@ -91,6 +91,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [License](LICENSE)
 - [LongCat AudioDiT license](third_party_licenses/longcat_audiodit_license.txt)
 - [Supertonic model notice](third_party_licenses/supertone_supertonic_notice.txt)
+- [OmniVoice notice](third_party_licenses/omnivoice_notice.txt)
 
 ## Optional
 - [Full index](llms-full.txt): expanded repo map + workflows

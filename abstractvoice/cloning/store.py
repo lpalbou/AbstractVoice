@@ -69,7 +69,7 @@ class ClonedVoice:
     created_at: float
     reference_files: List[str]  # relative to voice directory
     reference_text: Optional[str] = None
-    engine: str = "f5_tts"
+    engine: str = "omnivoice"
     meta: Dict[str, Any] = None
 
 
@@ -179,7 +179,7 @@ class VoiceCloneStore:
         *,
         name: Optional[str] = None,
         reference_text: Optional[str] = None,
-        engine: str = "f5_tts",
+        engine: str = "omnivoice",
         meta: Optional[Dict[str, Any]] = None,
     ) -> str:
         paths = [Path(p) for p in reference_paths]
@@ -246,7 +246,7 @@ class VoiceCloneStore:
         *,
         name: Optional[str] = None,
         reference_text: Optional[str] = None,
-        engine: str = "f5_tts",
+        engine: str = "omnivoice",
         meta: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Create a cloned voice from an in-memory WAV payload.
@@ -282,7 +282,7 @@ class VoiceCloneStore:
             created_at=time.time(),
             reference_files=[dest.name],
             reference_text=reference_text,
-            engine=str(engine or "f5_tts"),
+            engine=str(engine or "omnivoice"),
             meta=meta_out,
         )
 

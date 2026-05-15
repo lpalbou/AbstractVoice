@@ -10,19 +10,19 @@ In practice, this almost certainly means **voice cloning is an optional extra** 
 
 ## Current status (implementation)
 
-This document started as a feasibility note (Jan 2026). The **current status** below reflects the shipped implementation as of v0.8.x.
+This document started as a feasibility note (Jan 2026). The **current status** below reflects the shipped implementation as of v0.10.x.
 
-- `abstractvoice[cloning]` → `f5_tts` engine (OpenF5 artifacts)
+- `abstractvoice[omnivoice]` → `omnivoice` engine (recommended/default local cloning backend; omnilingual; prompt-audio cloning + voice design)
+- `abstractvoice[cloning]` → `f5_tts` engine (explicit OpenF5 artifacts)
 - `abstractvoice[chroma]` → `chroma` engine (Chroma-4B; GPU-heavy)
 - `abstractvoice[audiodit]` → `audiodit` engine (LongCat-AudioDiT-1B; prompt-audio cloning)
-- `abstractvoice[omnivoice]` → `omnivoice` engine (OmniVoice; omnilingual; prompt-audio cloning + voice design)
 
 Operational notes:
 
 - Cloned voices are **engine-bound** (`f5_tts` vs `chroma` vs `audiodit` vs `omnivoice`); selecting a cloned voice uses its stored engine.
 - The REPL is offline-first; downloads are explicit via:
   - `python -m abstractvoice download --openf5|--chroma|--audiodit|--omnivoice`
-  - REPL: `/cloning_download f5_tts|chroma|audiodit|omnivoice`
+  - REPL: `/cloning_download omnivoice|f5_tts|chroma|audiodit`
 - `reference_text` is **optional**:
   - If missing, AbstractVoice auto-generates it via STT (3-pass consensus) on first speak and persists it for the voice.
   - In offline-first contexts, this requires a cached STT model (prefetch: `python -m abstractvoice download --stt small`).

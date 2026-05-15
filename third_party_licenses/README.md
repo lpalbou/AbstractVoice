@@ -4,6 +4,7 @@ This folder contains license texts for third-party **code vendored into this rep
 
 - `longcat_audiodit_license.txt`: LongCat-AudioDiT upstream license (MIT). Applies to the derived implementation under `abstractvoice/audiodit/*`.
 - `supertone_supertonic_notice.txt`: notice for optional Supertonic 3 model artifacts downloaded from Hugging Face. The model files are not vendored into this repo.
+- `omnivoice_notice.txt`: notice for optional OmniVoice package/model artifacts downloaded from upstream sources. The model files are not vendored into this repo.
 
 Notes:
 - Runtime dependencies installed via pip are not vendored here; see `ACKNOWLEDGMENTS.md` and `docs/dependencies.md`.

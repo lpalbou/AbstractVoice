@@ -13,6 +13,10 @@ def _run_blocked_import_smoke(code: str) -> subprocess.CompletedProcess[str]:
         "soundfile",
         "webrtcvad",
         "onnxruntime",
+        "omnivoice",
+        "torch",
+        "torchaudio",
+        "transformers",
     )
     harness = f"""
 import importlib.abc
@@ -74,6 +78,7 @@ def test_remote_voicemanager_constructs_without_local_voice_deps() -> None:
         )
         assert vm.tts_adapter is not None
         assert getattr(vm.tts_adapter, "engine_id", "") == "openai-compatible"
+        assert vm.cloning_engine == "omnivoice"
         print("ok")
         """
     )
@@ -93,6 +98,7 @@ def test_default_voicemanager_constructs_without_local_voice_deps() -> None:
         )
         assert vm.tts_adapter is not None
         assert getattr(vm.tts_adapter, "engine_id", "") == "openai"
+        assert vm.cloning_engine == "omnivoice"
         print("ok")
         """
     )

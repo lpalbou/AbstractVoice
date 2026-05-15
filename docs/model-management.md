@@ -4,7 +4,7 @@ AbstractVoice core is **remote-first**:
 
 - **OpenAI remote audio (default)**: no local model download in the base install.
 - **Piper (local)**: small ONNX voices downloaded/managed by `abstractvoice/adapters/tts_piper.py` when you select `tts_engine="piper"`.
-- **Supertonic 3 (local)**: fixed-profile ONNX TTS downloaded/managed by `abstractvoice/supertonic/runtime.py` when you select `tts_engine="supertonic"` or prefetch `--supertonic`.
+- **Supertonic 3 (local)**: recommended fixed-profile ONNX TTS downloaded/managed by `abstractvoice/supertonic/runtime.py` when you select `tts_engine="supertonic"` or prefetch `--supertonic`.
 - There is **no legacy Coqui model management** in core.
 - Heavier engines (torch/transformers) are **opt-in** via extras (e.g. `abstractvoice[chroma]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`).
 
@@ -37,7 +37,7 @@ Some optional engines download weights via Hugging Face and cache under `~/.cach
 
 - **Chroma cloning**: `python -m abstractvoice download --chroma` (requires `abstractvoice[chroma]`)
 - **AudioDiT (LongCat-AudioDiT-1B)**: `python -m abstractvoice download --audiodit` (requires `abstractvoice[audiodit]`)
-- **OmniVoice**: `python -m abstractvoice download --omnivoice` (requires `abstractvoice[omnivoice]`)
+- **OmniVoice**: `python -m abstractvoice download --omnivoice` (requires `abstractvoice[omnivoice]`; recommended/default local cloning backend)
 
 In offline-first mode (`allow_downloads=False`) these engines will **not** fetch missing weights implicitly.
 

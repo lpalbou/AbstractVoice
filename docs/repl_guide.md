@@ -80,10 +80,12 @@ The default provider preset is Ollama at `http://localhost:11434`.
 ```
 
 For local speech, prefetch the model artifacts explicitly. Supertonic is the
-preferred fixed-profile local TTS engine:
+preferred fixed-profile local TTS engine, and OmniVoice is the
+recommended/default local voice-cloning engine:
 
 ```bash
 python -m abstractvoice download --supertonic
+python -m abstractvoice download --omnivoice
 ```
 
 Piper is the smaller fallback and uses one cached voice per language:
@@ -333,10 +335,10 @@ Readiness and downloads from inside the REPL:
 
 ```text
 /cloning_status
+/cloning_download omnivoice
 /cloning_download f5_tts
 /cloning_download chroma
 /cloning_download audiodit
-/cloning_download omnivoice
 ```
 
 Clone from a file:
@@ -350,8 +352,8 @@ Clone from a file:
 Interactive microphone cloning:
 
 ```text
-/clone myvoice my_voice --engine f5_tts
-/clone_use myvoice my_voice --engine f5_tts
+/clone myvoice my_voice --text "I am recording a short clear reference sample for my AbstractVoice clone."
+/clone_use myvoice my_voice --text "I am recording a short clear reference sample for my AbstractVoice clone."
 ```
 
 Clone management:

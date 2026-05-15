@@ -582,10 +582,10 @@ PAGE = r"""
             </label>
             <label>Engine
               <select id="clone-engine">
+                <option value="omnivoice" selected>OmniVoice</option>
                 <option value="f5_tts">OpenF5</option>
                 <option value="chroma">Chroma</option>
                 <option value="audiodit">AudioDiT</option>
-                <option value="omnivoice">OmniVoice</option>
                 <option value="openai-compatible">OpenAI-compatible Remote</option>
                 <option value="openai">OpenAI Remote</option>
               </select>
@@ -1555,7 +1555,7 @@ PAGE = r"""
       const form = new FormData();
       form.append("file", file, file.name || "reference.wav");
       form.append("name", cloneNameInput.value.trim() || "web_voice");
-      form.append("engine", cloneEngineInput.value || "f5_tts");
+      form.append("engine", cloneEngineInput.value || "omnivoice");
       form.append("reference_text", cloneReferenceTextInput.value.trim());
       form.append("validate", "true");
 
@@ -1564,7 +1564,7 @@ PAGE = r"""
       try {
         const data = await withBusy(
           "Cloning voice",
-          "Storing and validating the reference audio with " + (cloneEngineInput.value || "f5_tts") + ".",
+          "Storing and validating the reference audio with " + (cloneEngineInput.value || "omnivoice") + ".",
           () => fetchJson("/api/voices/clone", {method: "POST", body: form})
         );
         await refreshVoices();
@@ -1642,7 +1642,7 @@ class ExampleState:
         whisper_model: str,
         tts_model: Optional[str] = None,
         stt_model: Optional[str] = None,
-        cloning_engine: str = "f5_tts",
+        cloning_engine: str = "omnivoice",
         remote_base_url: Optional[str] = None,
         remote_api_key: Optional[str] = None,
         remote_timeout_s: Optional[float] = None,
@@ -1657,7 +1657,7 @@ class ExampleState:
         self.whisper_model = str(whisper_model or "base").strip() or "base"
         self.tts_model = str(tts_model).strip() if isinstance(tts_model, str) and tts_model.strip() else None
         self.stt_model = str(stt_model).strip() if isinstance(stt_model, str) and stt_model.strip() else None
-        self.cloning_engine = str(cloning_engine or "f5_tts").strip().lower().replace("_", "-") or "f5_tts"
+        self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower().replace("_", "-") or "omnivoice"
         self.remote_base_url = (
             str(remote_base_url).strip() if isinstance(remote_base_url, str) and remote_base_url.strip() else None
         )
@@ -2337,7 +2337,7 @@ def create_app(
     whisper_model: str = "base",
     tts_model: Optional[str] = None,
     stt_model: Optional[str] = None,
-    cloning_engine: str = "f5_tts",
+    cloning_engine: str = "omnivoice",
     remote_base_url: Optional[str] = None,
     remote_api_key: Optional[str] = None,
     remote_timeout_s: Optional[float] = None,
@@ -2511,7 +2511,7 @@ def create_app(
         name: Optional[str] = Form(None, description="Friendly cloned voice name.", examples=["my_voice"]),
         engine: Optional[str] = Form(
             None,
-            description="Optional clone engine id, for example f5_tts, omnivoice, audiodit, chroma, openai, or openai-compatible.",
+            description="Optional clone engine id, for example omnivoice, f5_tts, audiodit, chroma, openai, or openai-compatible.",
             examples=["openai-compatible"],
         ),
         reference_text: Optional[str] = Form(
@@ -2668,7 +2668,7 @@ def run_server(
     whisper_model: str = "base",
     tts_model: Optional[str] = None,
     stt_model: Optional[str] = None,
-    cloning_engine: str = "f5_tts",
+    cloning_engine: str = "omnivoice",
     remote_base_url: Optional[str] = None,
     remote_api_key: Optional[str] = None,
     remote_timeout_s: Optional[float] = None,
@@ -2707,9 +2707,9 @@ def parse_args(argv: Optional[list[str]] = None):
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
     parser.add_argument(
         "--cloning-engine",
-        default="f5_tts",
-        choices=["f5_tts", "chroma", "audiodit", "omnivoice", "openai", "openai-compatible"],
-        help="Default cloning backend for new voices",
+        default="omnivoice",
+        choices=["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+        help="Default cloning backend for new voices (default: omnivoice)",
     )
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")

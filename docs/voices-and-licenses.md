@@ -64,7 +64,7 @@ AbstractVoice supports voice cloning behind optional extras:
 - `abstractvoice[cloning]` (OpenF5-based; large artifacts)
 - `abstractvoice[chroma]` (Chroma-4B; very large; GPU-heavy)
 - `abstractvoice[audiodit]` (LongCat-AudioDiT-1B; large weights via HF)
-- `abstractvoice[omnivoice]` (OmniVoice; very large; torch/transformers)
+- `abstractvoice[omnivoice]` (OmniVoice; recommended/default local cloning backend; very large; torch/transformers)
 
 Licensing is engine- and model-dependent; verify:
 
@@ -88,6 +88,11 @@ For OmniVoice specifically, verify the model card/source for:
 ```bash
 python -m abstractvoice download --omnivoice
 ```
+
+Local notices:
+
+- Supertonic notice: `third_party_licenses/supertone_supertonic_notice.txt`
+- OmniVoice notice: `third_party_licenses/omnivoice_notice.txt`
 
 ## Practical guidance
 

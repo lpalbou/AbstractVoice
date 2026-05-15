@@ -21,7 +21,7 @@ Positioning:
 - REPL voice selection is centered on `/voices`; `/profile`, `/tts_voice`, and `/setvoice` remain compatibility/direct commands.
 - Plain `abstractvoice` is remote/OpenAI by default; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` include Supertonic and the REPL/web examples default to Supertonic via their install-aware `auto` resolver.
 - Library `VoiceManager()` remains remote-first unless an engine is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
-- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"`.
+- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"`. Supertonic is the recommended local base TTS path; OmniVoice is the recommended/default local cloning backend.
 - The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, local `/api/*` routes, and compatible extension routes `/v1/audio/voices` + `/v1/voice/clone`; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
 - Web extras compose directly: `abstractvoice[web]` is lightweight; use `abstractvoice[all-apple]` / `abstractvoice[all-gpu]` for the full platform local lab or `abstractvoice[web,supertonic]` / `abstractvoice[web,omnivoice]` for narrower engine installs.
 
@@ -78,10 +78,10 @@ Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[supertonic]`: local Supertonic 3 ONNX TTS only
 - `abstractvoice[stt]`: local faster-whisper STT path
 - `abstractvoice[audio-io]`: microphone/playback/VAD dependencies
-- `abstractvoice[cloning]`: F5‑TTS cloning backend (still requires explicit OpenF5 artifact downloads)
+- `abstractvoice[cloning]`: explicit F5‑TTS cloning backend (still requires explicit OpenF5 artifact downloads)
 - `abstractvoice[chroma]`: Chroma-4B runtime deps (GPU-heavy; artifacts still prefetched explicitly)
 - `abstractvoice[audiodit]`: LongCat-AudioDiT TTS + prompt-audio cloning backend (heavy; artifacts still prefetched explicitly)
-- `abstractvoice[omnivoice]`: OmniVoice omnilingual TTS + cloning backend (very heavy; artifacts still prefetched explicitly)
+- `abstractvoice[omnivoice]`: OmniVoice omnilingual TTS + recommended/default cloning backend (very heavy; artifacts still prefetched explicitly)
 - `abstractvoice[aec]`: optional acoustic echo cancellation (true barge-in)
 - `abstractvoice[audio-fx]`: speed change without pitch change (librosa)
 - `abstractvoice[openai]`: no-op intent extra for remote OpenAI/OpenAI-compatible audio (uses core requests)
@@ -196,6 +196,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [License](LICENSE)
 - [LongCat AudioDiT license](third_party_licenses/longcat_audiodit_license.txt)
 - [Supertonic model notice](third_party_licenses/supertone_supertonic_notice.txt)
+- [OmniVoice notice](third_party_licenses/omnivoice_notice.txt)
 
 ## Optional
 - [Model / voice management](docs/model-management.md)

@@ -77,7 +77,7 @@ class TtsMixin:
                 whisper_model=getattr(self, "whisper_model", "tiny"),
                 reference_text_whisper_model="small",
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
-                default_engine=str(getattr(self, "cloning_engine", "f5_tts") or "f5_tts"),
+                default_engine=str(getattr(self, "cloning_engine", "omnivoice") or "omnivoice"),
                 remote_base_url=getattr(self, "remote_base_url", None),
                 remote_api_key=getattr(self, "remote_api_key", None),
                 remote_timeout_s=getattr(self, "remote_timeout_s", None),
@@ -1061,7 +1061,9 @@ class TtsMixin:
         """Synthesize to bytes.
 
         - If `voice` is None: use the active TTS engine/adapter (default: Piper).
-        - If `voice` is provided: treat as a cloned voice_id (requires `abstractvoice[cloning]`).
+        - If `voice` is provided: treat as a cloned voice_id (requires a cloning
+          backend extra such as `abstractvoice[omnivoice]`; `abstractvoice[cloning]`
+          is the explicit OpenF5 backend).
         """
         # Clear prior metrics for this new utterance.
         self._set_last_tts_metrics(None)

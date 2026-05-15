@@ -21,7 +21,7 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 - **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[supertonic]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`
-- **Voice cloning / heavier TTS (optional)**: OpenF5, Chroma, AudioDiT, OmniVoice; Supertonic is fixed-profile TTS, not cloning
+- **Voice cloning / heavier TTS (optional)**: OmniVoice is the recommended/default local cloning backend; OpenF5, Chroma, and AudioDiT remain explicit alternatives. Supertonic is fixed-profile TTS, not cloning.
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
 
@@ -36,8 +36,10 @@ fallback. This keeps plain `abstractvoice` remote/OpenAI by default, while
 `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` start on Supertonic.
 Use an explicit local engine such as `--tts-engine supertonic` when you require
 no remote TTS.
-Optional cloning and torch-based engines are heavier and should be validated on
-your target hardware. The supported integrator surface is documented in
+For new local voice clones, the default cloning backend is OmniVoice; install
+`abstractvoice[omnivoice]` or a platform/full profile before using clone
+commands without `--engine`. Optional cloning and torch-based engines are
+heavier and should be validated on your target hardware. The supported integrator surface is documented in
 `docs/api.md`, and current engine caveats are tracked in
 `docs/known-issues.md`.
 
@@ -180,11 +182,15 @@ pip install "abstractvoice[web]"               # local FastAPI web example
 pip install "abstractvoice[piper]"             # local Piper TTS only
 pip install "abstractvoice[supertonic]"        # local Supertonic 3 ONNX TTS only
 pip install "abstractvoice[stt]"               # local faster-whisper STT only
+pip install "abstractvoice[omnivoice]"         # recommended/default local cloning engine
+pip install "abstractvoice[cloning]"           # explicit OpenF5 cloning engine
 ```
 
 Notes:
 - `abstractvoice[apple]` and `abstractvoice[gpu]` are platform install profiles for the local voice stack: Piper, Supertonic 3, faster-whisper, audio I/O, AEC where supported, and local cloning/TTS engines gated by Python-version markers.
 - `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` install the full platform stack plus the web example dependencies.
+- Local base TTS should prefer Supertonic (`--tts-engine supertonic`), while
+  local cloning defaults to OmniVoice (`--cloning-engine omnivoice`).
 - Python 3.9 supports the lightweight base, web UI, local Piper/Supertonic/faster-whisper, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
 - For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
@@ -220,6 +226,9 @@ abstractvoice-prefetch --omnivoice
 pip install "abstractvoice[chroma]"
 abstractvoice-prefetch --chroma
 ```
+
+OmniVoice is the default local cloning backend for new clones. Supertonic is not
+a cloning engine; use it for fixed-profile base TTS.
 
 Equivalent `python -m` form:
 
@@ -326,12 +335,17 @@ environment. For offline/local inference:
 ```python
 from abstractvoice import VoiceManager
 
-vm = VoiceManager(tts_engine="supertonic", stt_engine="faster_whisper")
+vm = VoiceManager(
+    tts_engine="supertonic",
+    stt_engine="faster_whisper",
+    cloning_engine="omnivoice",
+)
 vm.speak("Hello from the local stack.")
 ```
 
 Install local support first with `pip install "abstractvoice[supertonic]"`
-or a platform profile such as `abstractvoice[apple]` / `abstractvoice[gpu]`.
+and `pip install "abstractvoice[omnivoice]"`, or a platform profile such as
+`abstractvoice[apple]` / `abstractvoice[gpu]`.
 
 ---
 

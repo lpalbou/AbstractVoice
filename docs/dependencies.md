@@ -105,7 +105,7 @@ Models/weights:
   - **Prefetch**: `python -m abstractvoice download --supertonic` or `abstractvoice-prefetch --supertonic`
   - **Profiles**: built-in fixed styles `M1`-`M5` and `F1`-`F5`
 
-### `abstractvoice[cloning]`, `[chroma]`, `[audiodit]`, `[omnivoice]` — model prefetch support
+### `abstractvoice[omnivoice]`, `[cloning]`, `[chroma]`, `[audiodit]` — model prefetch support
 
 - **huggingface_hub**
   - **Why**: download and cache optional engine model weights/artifacts.
@@ -170,10 +170,14 @@ Vendored code:
   - **License**: `https://github.com/meituan-longcat/LongCat-AudioDiT/blob/main/LICENSE`
   - **What we ship**: a HuggingFace-compatible derived implementation under `abstractvoice/audiodit/*` to avoid `trust_remote_code`.
 
-### `abstractvoice[omnivoice]` — OmniVoice (omnilingual TTS + cloning / design)
+### `abstractvoice[omnivoice]` — OmniVoice (default local cloning + omnilingual TTS / design)
 
 Requires Python 3.10+ because the upstream `omnivoice` package declares that
 Python floor.
+
+OmniVoice is the recommended/default local cloning backend for new AbstractVoice
+clones. Install this extra, or a platform/full profile that includes it, before
+using clone commands without `--engine`.
 
 Python packages:
 
@@ -242,6 +246,10 @@ Requires Python 3.10+ because current upstream `f5-tts` packages import
 Python 3.10-only annotations during inference. On Python 3.9, use
 `abstractvoice[audiodit]` with the `audiodit` cloning engine for tested
 prompt-audio cloning.
+
+This extra remains the explicit OpenF5 backend. It is not the default local
+cloning path; new clones default to OmniVoice unless you pass
+`engine="f5_tts"` or `--engine f5_tts`.
 
 - **f5-tts**
   - **Why**: cloning engine (`f5_tts`) backend.

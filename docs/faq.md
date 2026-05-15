@@ -319,8 +319,8 @@ python -m abstractvoice download --piper fr
   `abstractvoice[piper]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`.
 - faster-whisper is the local STT path; install `abstractvoice[stt]`,
   `abstractvoice[apple]`, or `abstractvoice[gpu]`.
-- OpenF5, Chroma, AudioDiT, and OmniVoice are optional heavier engines for
-  cloning, research, or richer voice experiments.
+- OmniVoice is the recommended/default local cloning backend. OpenF5, Chroma,
+  and AudioDiT remain optional heavier alternatives for explicit selection.
 - AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine
   in this integration.
 - OmniVoice is the main optional path for omnilingual speech and voice design,
@@ -354,7 +354,7 @@ No. Voice cloning is optional:
 pip install "abstractvoice[cloning]"   # OpenF5
 pip install "abstractvoice[chroma]"    # Chroma, GPU-heavy
 pip install "abstractvoice[audiodit]"  # AudioDiT
-pip install "abstractvoice[omnivoice]" # OmniVoice
+pip install "abstractvoice[omnivoice]" # OmniVoice, recommended/default
 ```
 
 Artifacts are still downloaded explicitly with `python -m abstractvoice download ...`

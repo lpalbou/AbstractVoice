@@ -10,6 +10,17 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-05-15
+
+### Changed
+- Default new local voice clones to OmniVoice across `VoiceManager`, the CLI
+  REPL, the web example, and the AbstractCore plugin configuration path; OpenF5
+  remains available explicitly with `engine="f5_tts"` / `--engine f5_tts`.
+- Updated docs, REPL/web help, acknowledgments, and third-party notices to
+  recommend Supertonic for local base TTS and OmniVoice for local voice cloning,
+  while clarifying that Supertonic is fixed-profile TTS and not a cloning
+  engine.
+
 ## [0.10.0] - 2026-05-15
 
 ### Added

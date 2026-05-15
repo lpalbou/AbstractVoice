@@ -68,6 +68,28 @@ def test_voice_cloner_clone_from_wav_bytes_sets_engine(tmp_path: Path):
     assert voice.engine == "chroma"
 
 
+def test_voice_cloner_defaults_new_clones_to_omnivoice(tmp_path: Path):
+    import numpy as np
+    import soundfile as sf
+
+    from abstractvoice.cloning.manager import VoiceCloner
+    from abstractvoice.cloning.store import VoiceCloneStore
+
+    ref = tmp_path / "ref.wav"
+    sf.write(str(ref), np.zeros((24000,), dtype=np.float32), 24000, subtype="PCM_16")
+
+    class DummyEngine:
+        def prepare_voice(self, reference_paths, *, reference_text=None, voice_dir=None, name=None):
+            return None
+
+    store = VoiceCloneStore(base_dir=tmp_path / "store")
+    cloner = VoiceCloner(store=store, allow_downloads=False)
+    cloner._engines["omnivoice"] = DummyEngine()
+
+    voice_id = cloner.clone_voice(str(ref), name="v", reference_text="hello.")
+    assert store.get_voice(voice_id).engine == "omnivoice"
+
+
 def test_omnivoice_clone_high_quality_uses_stable_step_count():
     from abstractvoice.cloning.engine_omnivoice import OmniVoiceVoiceCloningEngine
 
