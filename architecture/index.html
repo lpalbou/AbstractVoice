@@ -1287,7 +1287,7 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>AbstractVoice <code>0.9.x</code> is built around a small public facade and engine adapters
+<p>AbstractVoice <code>0.10.x</code> is built around a small public facade and engine adapters
 that keep optional heavy runtimes out of the default path.</p>
 <p>Use <code>docs/api.md</code> for the supported integrator contract, <code>docs/repl_guide.md</code>
 for REPL behavior and commands, and <code>docs/known-issues.md</code> for current release
@@ -1296,7 +1296,7 @@ caveats.</p>
 <h2 id="tldr">TL;DR<a class="headerlink" href="#tldr" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>abstractvoice.VoiceManager</code> is the orchestration façade (<code>abstractvoice/vm/*</code>).</li>
-<li><strong>TTS (default)</strong>: TTS adapter registry resolves <code>openai</code> / <code>auto</code> to <code>OpenAICompatibleTTSAdapter</code>; playback uses <code>AdapterTTSEngine</code> → <code>NonBlockingAudioPlayer</code> when local audio output is requested.</li>
+<li><strong>TTS (default)</strong>: TTS adapter registry resolves <code>openai</code> / <code>auto</code> to <code>OpenAICompatibleTTSAdapter</code>; local opt-in engines include Piper and Supertonic 3; playback uses <code>AdapterTTSEngine</code> -&gt; <code>NonBlockingAudioPlayer</code> when local audio output is requested.</li>
 <li><strong>STT (default)</strong>: <code>openai</code> / <code>auto</code> routes <code>transcribe_*()</code> and <code>listen()</code> recognition to <code>OpenAICompatibleSTTAdapter</code>. Local microphone capture still uses <code>VoiceRecognizer</code> → <code>VoiceDetector</code> and can pass captured audio to the selected STT adapter.</li>
 <li><strong>Voice cloning (optional)</strong>: <code>VoiceCloner</code> + clone store + engine backends (<code>f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible</code>).</li>
 <li>Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (<code>abstractvoice/vm/core.py</code>).</li>
@@ -1308,6 +1308,7 @@ caveats.</p>
   VM --&gt;|speak()*| TTSEngine[AdapterTTSEngine]
   TTSEngine --&gt;|synthesize| TTSAdapter[TTSAdapter]
   TTSAdapter --&gt; Piper[PiperTTSAdapter]
+  TTSAdapter --&gt; Supertonic[SupertonicTTSAdapter]
   TTSAdapter --&gt; RemoteTTS[OpenAICompatibleTTSAdapter]
   TTSAdapter --&gt; AudioDiT[AudioDiTTTSAdapter]
   TTSAdapter --&gt; OmniVoice[OmniVoiceTTSAdapter]
@@ -1334,6 +1335,7 @@ caveats.</p>
 <ul>
 <li>TTS adapter interface: <code>abstractvoice/adapters/base.py</code></li>
 <li>Piper adapter: <code>abstractvoice/adapters/tts_piper.py</code></li>
+<li>Supertonic adapter/runtime: <code>abstractvoice/adapters/tts_supertonic.py</code>, <code>abstractvoice/supertonic/runtime.py</code></li>
 <li>Remote OpenAI-compatible TTS adapter: <code>abstractvoice/adapters/tts_openai_compatible.py</code> + <code>abstractvoice/adapters/openai_compatible_http.py</code></li>
 <li>TTS engine selection (registry): <code>abstractvoice/adapters/tts_registry.py</code></li>
 <li>AudioDiT adapter/runtime: <code>abstractvoice/adapters/tts_audiodit.py</code>, <code>abstractvoice/audiodit/runtime.py</code></li>
@@ -1401,12 +1403,31 @@ caveats.</p>
 <h2 id="remote-first-and-offline-model-policy">Remote-first and offline model policy<a class="headerlink" href="#remote-first-and-offline-model-policy" title="Permanent link">&para;</a></h2>
 <p>The library default uses OpenAI remote audio and requires <code>OPENAI_API_KEY</code> or
 <code>remote_api_key=...</code>; it does not download local model weights. Local engines
-are explicit (<code>tts_engine="piper"</code>, <code>stt_engine="faster_whisper"</code>, etc.) and
+are explicit (<code>tts_engine="piper"</code>, <code>tts_engine="supertonic"</code>,
+<code>stt_engine="faster_whisper"</code>, etc.) and
 respect <code>allow_downloads</code>. The REPL creates <code>VoiceManager(...,
-allow_downloads=False)</code> so local engines never fetch weights implicitly.</p>
+allow_downloads=False)</code> so local engines never fetch weights implicitly.
+The CLI and web examples use an additional install-aware TTS resolver:
+installed Supertonic first, installed Piper second, then OpenAI remote. That
+keeps plain <code>abstractvoice</code> remote/OpenAI while full local install profiles
+such as <code>abstractvoice[all-apple]</code> and <code>abstractvoice[all-gpu]</code> launch on
+Supertonic without changing the library/server <code>VoiceManager()</code> default.</p>
+<p>Runtime base-TTS switching goes through <code>VoiceManager.set_tts_engine(...)</code>.
+That replaces the adapter, rewires the playback wrapper, and resets the active
+profile to the default for the engine/language so stale Piper/Supertonic/remote
+voice selections do not bleed across engine changes.
+<code>AdapterTTSEngine.warmup_audio_output()</code> can open the playback stream before
+the first utterance; <code>NonBlockingAudioPlayer</code> prefers the hardware default
+output sample rate and resamples synthesized audio when needed, avoiding slow
+first-call CoreAudio negotiation on macOS.</p>
 <p>Explicit prefetch entry points:
 - <code>python -m abstractvoice download ...</code> (<code>abstractvoice/__main__.py</code>)
 - <code>abstractvoice-prefetch ...</code> (<code>abstractvoice/prefetch.py</code>)</p>
+<p>Supertonic 3 is implemented as an internal ONNX adapter, not through
+Supertone's Python SDK. Its artifacts are fetched from
+<code>Supertone/supertonic-3</code> into <code>~/.cache/abstractvoice/supertonic-3</code> with
+<code>--supertonic</code>; profile metadata (<code>M1</code>-<code>M5</code>, <code>F1</code>-<code>F5</code>) is available without
+loading or downloading the model.</p>
 <p>See <code>docs/installation.md</code> and <code>docs/model-management.md</code>.</p>
 <h2 id="optional-abstractcore-plugin-integration">Optional: AbstractCore plugin integration<a class="headerlink" href="#optional-abstractcore-plugin-integration" title="Permanent link">&para;</a></h2>
 <p>When installed alongside <code>abstractcore</code>, AbstractVoice exposes a capability plugin via the entry point:</p>

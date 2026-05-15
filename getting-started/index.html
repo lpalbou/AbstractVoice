@@ -1275,38 +1275,48 @@
 
 
 <h1 id="getting-started">Getting started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<p>Start here after <code>README.md</code> when you want to confirm the default remote path
-works, then optionally switch to local/offline engines.</p>
+<p>Start here after <code>README.md</code> when you want to confirm the package works, then
+choose either the lightweight remote path or local/offline engines.</p>
 <p>Use <code>docs/api.md</code> for the supported integrator contract, <code>docs/architecture.md</code>
 for the implementation map, and <code>docs/faq.md</code> for cache/history reset and common
 troubleshooting.</p>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Python <code>&gt;=3.9</code> (see <code>pyproject.toml</code>)</li>
-<li><code>OPENAI_API_KEY</code> for the default <code>VoiceManager()</code> / REPL path</li>
+<li><code>OPENAI_API_KEY</code> for <code>VoiceManager()</code> defaults or explicit remote REPL/web TTS</li>
 <li>For microphone input: OS-level microphone permissions for your terminal/IDE</li>
 </ul>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice
-<span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...
 </code></pre></div>
 <p>The plain install is lightweight and remote/plugin oriented. For fully local
-inference, listening, and cloning engines, install <code>abstractvoice[local]</code> and
-select local engines explicitly. Optional extras are documented in
+inference, listening, Supertonic/Piper TTS, and cloning engines, install
+<code>abstractvoice[apple]</code> or <code>abstractvoice[gpu]</code>, or compose granular extras such
+as <code>abstractvoice[supertonic,stt,audio-io]</code>. Optional extras are documented in
 <code>docs/installation.md</code>.</p>
 <h2 id="60-second-smoke-test-no-mic-required">60-second smoke test (no mic required)<a class="headerlink" href="#60-second-smoke-test-no-mic-required" title="Permanent link">&para;</a></h2>
 <p>Start the REPL:</p>
-<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>abstractvoice<span class="w"> </span>--verbose
+<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--verbose
 </code></pre></div>
 <p>From a source checkout (without installing the console script), use:
-<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--verbose
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--verbose
 </code></pre></div></p>
 <p>In the REPL, run:</p>
 <ul>
 <li><code>/speak hello</code> (tests TTS without calling an LLM)</li>
 </ul>
+<p>The interactive REPL default is <code>--tts-engine auto</code>: installed Supertonic first,
+installed Piper second, then OpenAI remote. A plain lightweight install starts
+on OpenAI; <code>abstractvoice[all-apple]</code> and <code>abstractvoice[all-gpu]</code> start on
+Supertonic. If the status line says <code>openai (remote)</code>, set <code>OPENAI_API_KEY</code> or
+switch to a local engine.</p>
 <p>For local/offline TTS instead:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[local]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[supertonic]&quot;</span>
+abstractvoice-prefetch<span class="w"> </span>--supertonic
+abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>supertonic<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
+</code></pre></div>
+<p>For the smaller Piper fallback:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[piper]&quot;</span>
 abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
 </code></pre></div>
@@ -1317,18 +1327,26 @@ transcription, and a tiny optional LLM dialogue panel for OpenAI-compatible
 local providers such as Ollama. It is not the production server surface; use
 AbstractCore Server for production OpenAI-compatible HTTP endpoints.</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span>
-abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
+abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span>
 </code></pre></div>
-<p>For a local web lab with Piper/faster-whisper instead:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,local]&quot;</span>
-abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--tts-engine<span class="w"> </span>piper<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper
+<p>For a local web lab with Supertonic/faster-whisper:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,supertonic,stt]&quot;</span>
+abstractvoice-prefetch<span class="w"> </span>--supertonic
+abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--tts-engine<span class="w"> </span>supertonic<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper
+</code></pre></div>
+<p>For a remote OpenAI-compatible web smoke test:</p>
+<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
 </code></pre></div>
 <p>If you want the browser UI and a smaller optional engine install, compose
-extras directly, such as <code>abstractvoice[web,omnivoice]</code>.</p>
+extras directly, such as <code>abstractvoice[web,supertonic]</code> or
+<code>abstractvoice[web,omnivoice]</code>.</p>
 <p>Then open <code>http://127.0.0.1:5000</code>.</p>
-<p>The web example is offline-first by default. Prefetch models first, or start it with
-<code>--allow-downloads</code> when you explicitly want web requests to download missing
-models. Selecting a cloned voice can take a while on first use because the
+<p>The web example is offline-first by default. Its <code>auto</code> TTS default has the same
+interactive behavior as the REPL: installed Supertonic, installed Piper, then
+remote OpenAI. Prefetch models first, or start it with <code>--allow-downloads</code> when
+you explicitly want web requests to download missing models. The Voice panel
+includes a base TTS engine selector; switching engines resets the base profile
+to that engine/language default. Selecting a cloned voice can take a while on first use because the
 cloning backend loads weights and builds prompt/runtime caches; the browser UI
 shows a busy overlay while that work is happening.</p>
 <p>The browser voice-cloning action validates a new clone by synthesizing a short
@@ -1348,9 +1366,12 @@ server only forwards one <code>/v1/chat/completions</code> request.</p>
 <p>This uses OpenAI remote audio and reads <code>OPENAI_API_KEY</code>. For local inference:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;piper&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;faster_whisper&quot;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;supertonic&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;faster_whisper&quot;</span><span class="p">)</span>
 <span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello from the local stack.&quot;</span><span class="p">)</span>
 </code></pre></div>
+<p>For Supertonic fixed-profile local TTS, install <code>abstractvoice[supertonic]</code>,
+prefetch with <code>abstractvoice-prefetch --supertonic</code>, and use
+<code>VoiceManager(tts_engine="supertonic")</code>.</p>
 <p>The public entry point is <code>abstractvoice.VoiceManager</code> (<code>abstractvoice/voice_manager.py</code>).</p>
 <h2 id="recommended-in-abstractframework-use-abstractcore">Recommended in AbstractFramework: use AbstractCore<a class="headerlink" href="#recommended-in-abstractframework-use-abstractcore" title="Permanent link">&para;</a></h2>
 <p>If you’re using AbstractVoice inside the AbstractFramework ecosystem, the intended architecture is:</p>
@@ -1401,6 +1422,7 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 <p>The REPL runs with <code>allow_downloads=False</code>, so prefetch explicitly:</p>
 <div class="highlight"><pre><span></span><code>abstractvoice-prefetch<span class="w"> </span>--stt<span class="w"> </span>small
 abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
+abstractvoice-prefetch<span class="w"> </span>--supertonic
 </code></pre></div>
 <p>For cloning engines (optional / large), see <code>docs/installation.md</code> and <code>docs/voices-and-licenses.md</code>.</p>
 <p>Current engine caveats, including AudioDiT direct TTS quality and OmniVoice

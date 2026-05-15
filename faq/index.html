@@ -1939,17 +1939,19 @@
 <h3 id="what-python-versions-are-supported">What Python versions are supported?<a class="headerlink" href="#what-python-versions-are-supported" title="Permanent link">&para;</a></h3>
 <p>AbstractVoice supports Python <code>&gt;=3.9</code>. The lightweight base install and the
 remote/OpenAI-compatible path are supported on Python 3.9. Local
-Piper/faster-whisper extras and the web example are also supported on
-Python 3.9. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because
-their upstream runtimes do; AEC requires Python 3.11+.</p>
+Piper/faster-whisper extras, Supertonic 3, and the web example are also
+supported on Python 3.9. OpenF5/F5-TTS, Chroma, and OmniVoice require Python
+3.10+ because their upstream runtimes do; AEC requires Python 3.11+.</p>
 <h3 id="do-i-need-system-speech-dependencies">Do I need system speech dependencies?<a class="headerlink" href="#do-i-need-system-speech-dependencies" title="Permanent link">&para;</a></h3>
 <p>The bare package install does not require local speech engines. Install
-<code>abstractvoice[local]</code> for the full local Piper/faster-whisper/cloning path.
+<code>abstractvoice[apple]</code> or <code>abstractvoice[gpu]</code> for the platform local
+Piper/Supertonic/faster-whisper/cloning path, or compose granular extras such as
+<code>abstractvoice[supertonic,stt,audio-io]</code>.
 Piper runs
 through ONNX Runtime, so it does not require system packages such as
 <code>espeak-ng</code>.</p>
 <p>Microphone and speaker I/O use <code>sounddevice</code> / PortAudio and are installed by
-<code>abstractvoice[local]</code> or <code>abstractvoice[audio-io]</code>. On some Linux systems you
+<code>abstractvoice[audio-io]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>. On some Linux systems you
 may need PortAudio packages from the OS package manager. See
 <code>docs/installation.md</code> for platform notes.</p>
 <h3 id="i-installed-the-package-but-abstractvoice-is-not-found-what-should-i-check">I installed the package but <code>abstractvoice</code> is not found. What should I check?<a class="headerlink" href="#i-installed-the-package-but-abstractvoice-is-not-found-what-should-i-check" title="Permanent link">&para;</a></h3>
@@ -2001,6 +2003,7 @@ small readline history file so the up/down arrows work across sessions.</p>
 <p>Default local state:</p>
 <ul>
 <li>Piper voices: <code>~/.piper/models</code></li>
+<li>Supertonic 3: <code>~/.cache/abstractvoice/supertonic-3</code></li>
 <li>faster-whisper models: Hugging Face cache, usually <code>~/.cache/huggingface</code></li>
 <li>OpenF5 artifacts: <code>~/.cache/abstractvoice/openf5</code></li>
 <li>Chroma artifacts and prompt cache: <code>~/.cache/abstractvoice/chroma</code></li>
@@ -2014,6 +2017,7 @@ small readline history file so the up/down arrows work across sessions.</p>
 purge.</p>
 <p>For a full local reset on macOS/Linux:</p>
 <div class="highlight"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span>~/.piper/models
+rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/abstractvoice/supertonic-3
 rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/abstractvoice/openf5
 rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/abstractvoice/chroma
 python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
@@ -2038,6 +2042,7 @@ removing the whole cache unless you really want to reset everything.</p>
 <p>The REPL starts <code>VoiceManager(..., allow_downloads=False)</code>. Interactive sessions
 should not surprise you with multi-GB downloads. Prefetch what you need:</p>
 <div class="highlight"><pre><span></span><code>abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
+abstractvoice-prefetch<span class="w"> </span>--supertonic
 abstractvoice-prefetch<span class="w"> </span>--stt<span class="w"> </span>small
 </code></pre></div>
 <p>The library default is remote-first: <code>VoiceManager()</code> uses OpenAI audio and
@@ -2046,6 +2051,7 @@ when you explicitly select them.</p>
 <h3 id="what-should-i-prefetch-first">What should I prefetch first?<a class="headerlink" href="#what-should-i-prefetch-first" title="Permanent link">&para;</a></h3>
 <p>Most users should start with:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--supertonic
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--stt<span class="w"> </span>small
 </code></pre></div>
 <p>Optional heavy engines:</p>
@@ -2095,8 +2101,8 @@ speaking an assistant response. This keeps spoken output clean.</p>
 <span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">&quot;hello.wav&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p><code>VoiceManager()</code> reads <code>OPENAI_API_KEY</code> by default. For local/offline use,
-install <code>abstractvoice[local]</code> and create
-<code>VoiceManager(tts_engine="piper", stt_engine="faster_whisper")</code>.</p>
+install <code>abstractvoice[supertonic,stt]</code> or a platform profile, then create
+<code>VoiceManager(tts_engine="supertonic", stt_engine="faster_whisper")</code>.</p>
 <p>For long-lived apps and servers, create one <code>VoiceManager</code> per configuration and
 reuse it. Heavy engines are expensive to load repeatedly.</p>
 <h3 id="does-abstractvoice-ship-an-http-server">Does AbstractVoice ship an HTTP server?<a class="headerlink" href="#does-abstractvoice-ship-an-http-server" title="Permanent link">&para;</a></h3>
@@ -2141,10 +2147,14 @@ OpenAI-compatible audio endpoints such as:</p>
 <ul>
 <li>Remote OpenAI-compatible engines are the lightest path for server and plugin
   deployments, and hosted OpenAI is the default <code>VoiceManager()</code> path.</li>
-<li>Piper is the recommended reliable path for local TTS; install
-  <code>abstractvoice[local]</code> or <code>abstractvoice[piper]</code>.</li>
-<li>faster-whisper is the local STT path; install <code>abstractvoice[local]</code>
-  or <code>abstractvoice[stt]</code>.</li>
+<li>Supertonic is the recommended fixed-profile local ONNX TTS path; install
+  <code>abstractvoice[supertonic]</code>, <code>abstractvoice[apple]</code>, or
+  <code>abstractvoice[gpu]</code>, prefetch <code>--supertonic</code>, then select
+  <code>tts_engine="supertonic"</code>.</li>
+<li>Piper remains available as a smaller local TTS fallback; install
+  <code>abstractvoice[piper]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>.</li>
+<li>faster-whisper is the local STT path; install <code>abstractvoice[stt]</code>,
+  <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>.</li>
 <li>OpenF5, Chroma, AudioDiT, and OmniVoice are optional heavier engines for
   cloning, research, or richer voice experiments.</li>
 <li>AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine

@@ -1220,7 +1220,7 @@
 
 <h2 id="adr-0001-local-voice-assistant-works-out-of-the-box">ADR 0001: Local Voice Assistant Works Out-of-the-Box<a class="headerlink" href="#adr-0001-local-voice-assistant-works-out-of-the-box" title="Permanent link">&para;</a></h2>
 <p><strong>Date</strong>: 2026-01-23<br />
-<strong>Status</strong>: Superseded for the base install; local profile retained</p>
+<strong>Status</strong>: Superseded for the base install; platform/granular profiles retained</p>
 <hr />
 <h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
 <p>AbstractVoice must support a local “voice assistant” experience via the <code>abstractvoice</code> command:</p>
@@ -1236,9 +1236,10 @@
 <p>2026-05-08 refinement for AbstractVoice <code>0.9.1</code>: the base install is
 remote-first. Bare <code>abstractvoice</code> / <code>VoiceManager()</code> selects OpenAI remote
 TTS/STT and requires <code>OPENAI_API_KEY</code> or <code>remote_api_key=...</code>. This ADR now
-applies only to the explicit local assistant profile:
-<code>pip install "abstractvoice[local]"</code> plus <code>tts_engine="piper"</code> and
-<code>stt_engine="faster_whisper"</code>.</p>
+applies only to explicit local assistant installs such as
+<code>pip install "abstractvoice[apple]"</code>, <code>pip install "abstractvoice[gpu]"</code>, or
+granular compositions like <code>pip install "abstractvoice[supertonic,stt,audio-io]"</code>,
+plus explicit local engine selection.</p>
 <hr />
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1246,8 +1247,8 @@ applies only to the explicit local assistant profile:
 <li>Use <strong>webrtcvad</strong> for low-latency VAD (pip-installable).</li>
 <li>Use <strong>faster-whisper</strong> for local STT in the local assistant profile.</li>
 <li>Remove the legacy OpenAI Whisper fallback from the public install contract.</li>
-<li>Keep local assistant UX available through <code>abstractvoice[local]</code> and explicit
-  local engines.</li>
+<li>Keep local assistant UX available through platform or granular extras and
+  explicit local engines.</li>
 <li>Default direct <code>VoiceManager()</code> and AbstractCore/Gateway capability-plugin
   usage to remote OpenAI/OpenAI-compatible TTS/STT.</li>
 </ul>
@@ -1265,7 +1266,8 @@ applies only to the explicit local assistant profile:
 <li>PortAudio availability can still be an issue on some Linux setups.</li>
 <li>Mitigation: document common system packages in <code>README.md</code> and <code>docs/installation.md</code>.</li>
 <li>Existing callers that relied on implicit local <code>auto</code> behavior must select
-  <code>piper</code> / <code>faster_whisper</code> explicitly and install <code>abstractvoice[local]</code>.</li>
+  local engines explicitly and install either a platform profile or the needed
+  granular extras.</li>
 </ul>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
 <ul>

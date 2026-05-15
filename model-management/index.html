@@ -1149,6 +1149,7 @@
 <ul>
 <li><strong>OpenAI remote audio (default)</strong>: no local model download in the base install.</li>
 <li><strong>Piper (local)</strong>: small ONNX voices downloaded/managed by <code>abstractvoice/adapters/tts_piper.py</code> when you select <code>tts_engine="piper"</code>.</li>
+<li><strong>Supertonic 3 (local)</strong>: fixed-profile ONNX TTS downloaded/managed by <code>abstractvoice/supertonic/runtime.py</code> when you select <code>tts_engine="supertonic"</code> or prefetch <code>--supertonic</code>.</li>
 <li>There is <strong>no legacy Coqui model management</strong> in core.</li>
 <li>Heavier engines (torch/transformers) are <strong>opt-in</strong> via extras (e.g. <code>abstractvoice[chroma]</code>, <code>abstractvoice[audiodit]</code>, <code>abstractvoice[omnivoice]</code>).</li>
 </ul>
@@ -1157,16 +1158,25 @@
 <ul>
 <li><code>~/.piper/models</code></li>
 </ul>
+<p>Supertonic 3 artifacts are stored under:</p>
+<ul>
+<li><code>~/.cache/abstractvoice/supertonic-3</code></li>
+</ul>
 <p>Downloads are controlled by <code>allow_downloads</code>:</p>
 <ul>
-<li><strong>Library default</strong>: <code>VoiceManager()</code> uses OpenAI remote audio and does not download Piper models.</li>
+<li><strong>Library default</strong>: <code>VoiceManager()</code> uses OpenAI remote audio and does not download local models.</li>
 <li><strong>Local Piper</strong>: <code>VoiceManager(tts_engine="piper", allow_downloads=True)</code> may download Piper models on-demand.</li>
+<li><strong>Local Supertonic</strong>: <code>VoiceManager(tts_engine="supertonic", allow_downloads=True)</code> may download Supertonic ONNX artifacts on first synthesis. Profile listing does not download.</li>
 <li>
-<p><strong>REPL default</strong>: <code>python -m abstractvoice cli</code> runs with <code>allow_downloads=False</code> (offline-first), so it will <strong>not</strong> download implicitly.</p>
+<p><strong>REPL/web default</strong>: <code>python -m abstractvoice cli</code> and <code>abstractvoice web</code>
+  run with <code>allow_downloads=False</code> (offline-first), so they will <strong>not</strong>
+  download implicitly. Their interactive TTS <code>auto</code> resolver selects installed
+  Supertonic first, installed Piper second, then OpenAI remote.</p>
 </li>
 <li>
 <p>Typical voice size: tens of MB per language</p>
 </li>
+<li>Supertonic 3 cache size: roughly 400 MB for the shared ONNX graphs plus all built-in voice styles</li>
 </ul>
 <h2 id="opt-in-engines-hf-cache">Opt-in engines (HF cache)<a class="headerlink" href="#opt-in-engines-hf-cache" title="Permanent link">&para;</a></h2>
 <p>Some optional engines download weights via Hugging Face and cache under <code>~/.cache/huggingface</code> by default:</p>
@@ -1178,16 +1188,20 @@
 <p>In offline-first mode (<code>allow_downloads=False</code>) these engines will <strong>not</strong> fetch missing weights implicitly.</p>
 <h2 id="programmatic-introspection">Programmatic introspection<a class="headerlink" href="#programmatic-introspection" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>vm.list_available_models()</code> returns a dict of known Piper voices and whether they are cached.</li>
-<li><code>vm.set_language("&lt;lang&gt;")</code> loads the voice if cached; it will download only if <code>allow_downloads=True</code>.</li>
+<li><code>vm.list_available_models()</code> returns a dict of known Piper voices or Supertonic styles, including cache status when the active adapter exposes it.</li>
+<li><code>vm.get_profiles()</code> returns active-engine profiles. Supertonic exposes <code>M1</code>-<code>M5</code> and <code>F1</code>-<code>F5</code> without requiring cached weights.</li>
+<li><code>vm.set_language("&lt;lang&gt;")</code> loads the voice if cached; it will download only if <code>allow_downloads=True</code> and the selected adapter supports on-demand downloads.</li>
+<li><code>vm.set_tts_engine("&lt;engine&gt;")</code> switches the active base TTS adapter and resets the base profile to that engine/language default. This is the path used by the CLI and web example.</li>
 </ul>
 <h2 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Use <code>python -m abstractvoice cli</code> and <code>/voices models</code> to view available Piper
-  voices (and cache status). <code>/setvoice</code> still works as a compatibility command.</li>
+<li>Use <code>python -m abstractvoice cli</code> and <code>/voices models</code> to view available
+  active-engine catalog entries, including Piper voices or Supertonic styles
+  with cache status. <code>/setvoice</code> still works as a Piper compatibility command.</li>
 <li>Prefetch explicitly (offline-first):</li>
 </ul>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--supertonic
 </code></pre></div>
 
 

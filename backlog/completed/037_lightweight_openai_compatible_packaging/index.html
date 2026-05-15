@@ -1586,7 +1586,8 @@
 <h2 id="secondary-goals">Secondary goals<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Preserve the public <code>VoiceManager</code> API and AbstractCore plugin entry point.</li>
-<li>Preserve local-first desktop/REPL behavior through a clear <code>abstractvoice[voice]</code> or <code>abstractvoice[local]</code> install.</li>
+<li>Preserve local-first desktop/REPL behavior through explicit platform or
+  granular local extras.</li>
 <li>Keep Python 3.9 support for the lightweight remote/plugin path where practical.</li>
 <li>Keep optional local engines first-class but explicit.</li>
 <li>Avoid implicit model downloads and surprise network/model runtime weight.</li>
@@ -1763,8 +1764,8 @@ hosted OpenAI and generic compatible providers into one ambiguous extra.</p>
 <li><code>webrtcvad&gt;=2.0.10</code></li>
 <li><code>abstractvoice[voice]</code></li>
 <li>local TTS + local STT + audio I/O</li>
-<li><code>abstractvoice[local]</code></li>
-<li>alias for <code>voice</code></li>
+<li>Platform profiles</li>
+<li>full local stack for Apple/GPU installs</li>
 </ul>
 <h3 id="compatibility-aliases">Compatibility aliases<a class="headerlink" href="#compatibility-aliases" title="Permanent link">&para;</a></h3>
 <p>Keep these working for at least one release cycle:</p>

@@ -629,6 +629,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#supertonic-3-fixed-profile-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supertonic 3 fixed-profile TTS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#voice-cloning-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1103,6 +1114,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#supertonic-3-fixed-profile-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supertonic 3 fixed-profile TTS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#voice-cloning-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1167,6 +1189,23 @@ Licensing is model-dependent (e.g. Whisper variants).</p>
 <p>For offline deployments, prefetch explicitly:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--stt<span class="w"> </span>small
 </code></pre></div>
+<h2 id="supertonic-3-fixed-profile-tts">Supertonic 3 fixed-profile TTS<a class="headerlink" href="#supertonic-3-fixed-profile-tts" title="Permanent link">&para;</a></h2>
+<p>Supertonic is optional local TTS (<code>abstractvoice[supertonic]</code>,
+<code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>). It is not a voice-cloning
+engine. AbstractVoice exposes the built-in style profiles <code>M1</code>-<code>M5</code> and
+<code>F1</code>-<code>F5</code> through the standard <code>VoiceProfile</code> API.</p>
+<ul>
+<li>Model source: <code>https://huggingface.co/Supertone/supertonic-3</code></li>
+<li>License file: <code>https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE</code></li>
+<li>Default cache: <code>~/.cache/abstractvoice/supertonic-3</code></li>
+<li>Local notice: <code>third_party_licenses/supertone_supertonic_notice.txt</code></li>
+</ul>
+<p>Prefetch explicitly for offline-first use:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--supertonic
+</code></pre></div>
+<p>The AbstractVoice adapter/runtime code is internal and does not depend on
+Supertone's external Python SDK. The downloaded model weights and style files
+remain third-party assets with their own license terms.</p>
 <h2 id="voice-cloning-optional">Voice cloning (optional)<a class="headerlink" href="#voice-cloning-optional" title="Permanent link">&para;</a></h2>
 <p>AbstractVoice supports voice cloning behind optional extras:</p>
 <ul>

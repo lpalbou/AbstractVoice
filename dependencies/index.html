@@ -602,10 +602,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#abstractvoicelocal-full-local-stack" class="md-nav__link">
+  <a href="#abstractvoiceapple-abstractvoicegpu-platform-local-stacks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        abstractvoice[local] — full local stack
+        abstractvoice[apple] / abstractvoice[gpu] — platform local stacks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicesupertonic-supertonic-3-fixed-profile-onnx-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[supertonic] — Supertonic 3 fixed-profile ONNX TTS
       
     </span>
   </a>
@@ -717,10 +728,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notable-transitive-runtimes-debugging-oriented" class="md-nav__link">
+  <a href="#notable-runtimes-debugging-oriented" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notable transitive runtimes (debugging-oriented)
+        Notable runtimes (debugging-oriented)
       
     </span>
   </a>
@@ -1220,10 +1231,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#abstractvoicelocal-full-local-stack" class="md-nav__link">
+  <a href="#abstractvoiceapple-abstractvoicegpu-platform-local-stacks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        abstractvoice[local] — full local stack
+        abstractvoice[apple] / abstractvoice[gpu] — platform local stacks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoicesupertonic-supertonic-3-fixed-profile-onnx-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[supertonic] — Supertonic 3 fixed-profile ONNX TTS
       
     </span>
   </a>
@@ -1335,10 +1357,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notable-transitive-runtimes-debugging-oriented" class="md-nav__link">
+  <a href="#notable-runtimes-debugging-oriented" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notable transitive runtimes (debugging-oriented)
+        Notable runtimes (debugging-oriented)
       
     </span>
   </a>
@@ -1414,11 +1436,13 @@
 </ul>
 <hr />
 <h2 id="optional-extras-opt-in">Optional extras (opt-in)<a class="headerlink" href="#optional-extras-opt-in" title="Permanent link">&para;</a></h2>
-<h3 id="abstractvoicelocal-full-local-stack"><code>abstractvoice[local]</code> — full local stack<a class="headerlink" href="#abstractvoicelocal-full-local-stack" title="Permanent link">&para;</a></h3>
-<p>This is the full local/offline handle. It includes local Piper TTS,
-faster-whisper STT, microphone/playback/VAD dependencies, AEC where supported,
-and the optional local cloning/TTS engine dependencies that are resolver-safe on
-the current Python version. Use granular extras below for smaller installs.</p>
+<h3 id="abstractvoiceapple-abstractvoicegpu-platform-local-stacks"><code>abstractvoice[apple]</code> / <code>abstractvoice[gpu]</code> — platform local stacks<a class="headerlink" href="#abstractvoiceapple-abstractvoicegpu-platform-local-stacks" title="Permanent link">&para;</a></h3>
+<p>These are the platform local/offline profiles. They include local Piper TTS,
+Supertonic 3 ONNX TTS, faster-whisper STT, microphone/playback/VAD
+dependencies, AEC where supported, and the optional local cloning/TTS engine
+dependencies that are resolver-safe on the current Python version. Use granular
+extras below for smaller installs, or <code>abstractvoice[all-apple]</code> /
+<code>abstractvoice[all-gpu]</code> when you also want the web example.</p>
 <ul>
 <li><strong>piper-tts</strong></li>
 <li><strong>Why</strong>: local neural TTS backend.</li>
@@ -1426,6 +1450,15 @@ the current Python version. Use granular extras below for smaller installs.</p>
 <li><strong>Repo</strong>: <code>https://github.com/rhasspy/piper</code></li>
 <li>
 <p><strong>License</strong>: <code>https://github.com/rhasspy/piper/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>onnxruntime</strong></p>
+</li>
+<li><strong>Why</strong>: ONNX inference runtime for Supertonic 3 and Piper execution-provider introspection.</li>
+<li><strong>Where</strong>: <code>abstractvoice/supertonic/runtime.py</code>, <code>abstractvoice/adapters/tts_piper.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/microsoft/onnxruntime</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/microsoft/onnxruntime/blob/main/LICENSE</code></p>
 </li>
 <li>
 <p><strong>faster-whisper</strong></p>
@@ -1461,6 +1494,27 @@ the current Python version. Use granular extras below for smaller installs.</p>
 <li><strong>Where</strong>: <code>abstractvoice/vad/voice_detector.py</code>, <code>abstractvoice/recognition.py</code></li>
 <li><strong>Repo</strong>: <code>https://github.com/wiseman/py-webrtcvad</code></li>
 <li><strong>License</strong>: <code>https://github.com/wiseman/py-webrtcvad/blob/master/LICENSE.txt</code></li>
+</ul>
+<h3 id="abstractvoicesupertonic-supertonic-3-fixed-profile-onnx-tts"><code>abstractvoice[supertonic]</code> — Supertonic 3 fixed-profile ONNX TTS<a class="headerlink" href="#abstractvoicesupertonic-supertonic-3-fixed-profile-onnx-tts" title="Permanent link">&para;</a></h3>
+<p>Supertonic is local TTS only, not voice cloning. AbstractVoice integrates the
+published ONNX files through an internal adapter and does not depend on the
+external <code>supertonic</code> Python SDK.</p>
+<p>Python packages:</p>
+<ul>
+<li><strong>onnxruntime</strong></li>
+<li><strong>Why</strong>: executes the Supertonic ONNX graphs.</li>
+<li><strong>Where</strong>: <code>abstractvoice/supertonic/runtime.py</code>, <code>abstractvoice/adapters/tts_supertonic.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/microsoft/onnxruntime</code></li>
+<li><strong>License</strong>: <code>https://github.com/microsoft/onnxruntime/blob/main/LICENSE</code></li>
+</ul>
+<p>Models/weights:</p>
+<ul>
+<li><strong>Supertone Supertonic 3</strong></li>
+<li><strong>Model</strong>: <code>https://huggingface.co/Supertone/supertonic-3</code></li>
+<li><strong>License file</strong>: <code>https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE</code></li>
+<li><strong>Cache</strong>: <code>~/.cache/abstractvoice/supertonic-3</code> by default</li>
+<li><strong>Prefetch</strong>: <code>python -m abstractvoice download --supertonic</code> or <code>abstractvoice-prefetch --supertonic</code></li>
+<li><strong>Profiles</strong>: built-in fixed styles <code>M1</code>-<code>M5</code> and <code>F1</code>-<code>F5</code></li>
 </ul>
 <h3 id="abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support"><code>abstractvoice[cloning]</code>, <code>[chroma]</code>, <code>[audiodit]</code>, <code>[omnivoice]</code> — model prefetch support<a class="headerlink" href="#abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1656,8 +1710,10 @@ floor.</p>
 </ul>
 <h3 id="abstractvoiceweb-local-web-example"><code>abstractvoice[web]</code> — Local web example<a class="headerlink" href="#abstractvoiceweb-local-web-example" title="Permanent link">&para;</a></h3>
 <p>The base web extra installs only the browser server stack. Compose it with
-<code>abstractvoice[local]</code> for the full local lab, or with granular engine extras
-such as <code>abstractvoice[omnivoice]</code> for smaller installs.</p>
+<code>abstractvoice[all-apple]</code> / <code>abstractvoice[all-gpu]</code> for the full platform
+local lab, with <code>abstractvoice[supertonic]</code> for the browser UI plus Supertonic,
+or with other granular engine extras such as <code>abstractvoice[omnivoice]</code> for
+smaller installs.</p>
 <ul>
 <li><strong>FastAPI</strong></li>
 <li><strong>Why</strong>: local browser example routes for TTS, transcription, assistant/user voice selection, voice cloning upload forms, and discussion playback (<code>abstractvoice web</code>).</li>
@@ -1691,7 +1747,7 @@ such as <code>abstractvoice[omnivoice]</code> for smaller installs.</p>
 <li><strong>Repo</strong>: <code>https://github.com/SYSTRAN/faster-whisper</code></li>
 <li><strong>License</strong>: <code>https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE</code></li>
 </ul>
-<h2 id="notable-transitive-runtimes-debugging-oriented">Notable transitive runtimes (debugging-oriented)<a class="headerlink" href="#notable-transitive-runtimes-debugging-oriented" title="Permanent link">&para;</a></h2>
+<h2 id="notable-runtimes-debugging-oriented">Notable runtimes (debugging-oriented)<a class="headerlink" href="#notable-runtimes-debugging-oriented" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>CTranslate2</strong> (used by <code>faster-whisper</code>)</li>
 <li>Repo: <code>https://github.com/OpenNMT/CTranslate2</code></li>
@@ -1699,7 +1755,7 @@ such as <code>abstractvoice[omnivoice]</code> for smaller installs.</p>
 <p>License: <code>https://github.com/OpenNMT/CTranslate2/blob/master/LICENSE</code></p>
 </li>
 <li>
-<p><strong>ONNX Runtime</strong> (used by Piper)</p>
+<p><strong>ONNX Runtime</strong> (used directly by Supertonic and inspected by Piper)</p>
 </li>
 <li>Repo: <code>https://github.com/microsoft/onnxruntime</code></li>
 <li>License: <code>https://github.com/microsoft/onnxruntime/blob/main/LICENSE</code></li>

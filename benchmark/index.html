@@ -1390,7 +1390,8 @@
 <h2 id="engines-covered">Engines covered<a class="headerlink" href="#engines-covered" title="Permanent link">&para;</a></h2>
 <p>TTS engines in this repo (see <code>abstractvoice/adapters/tts_registry.py</code>):</p>
 <ul>
-<li><strong>Piper</strong> (<code>tts_engine="piper"</code>) — default, lightweight, deterministic voice model selection</li>
+<li><strong>Piper</strong> (<code>tts_engine="piper"</code>) — lightweight, deterministic voice model selection</li>
+<li><strong>Supertonic</strong> (<code>tts_engine="supertonic"</code>) — fixed-profile ONNX TTS (<code>M1</code>-<code>M5</code>, <code>F1</code>-<code>F5</code>); not included in the historical tables below yet</li>
 <li><strong>AudioDiT</strong> (<code>tts_engine="audiodit"</code>) — torch/transformers (LongCat-AudioDiT-1B by default)</li>
 <li><strong>OmniVoice</strong> (<code>tts_engine="omnivoice"</code>) — torch/transformers (k2-fsa/OmniVoice)</li>
 </ul>

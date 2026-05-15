@@ -551,10 +551,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tts-remote-default-piper-local" class="md-nav__link">
+  <a href="#tts-remote-default-piper-and-supertonic-local" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TTS (remote default, Piper local)
+        TTS (remote default, Piper and Supertonic local)
       
     </span>
   </a>
@@ -1092,10 +1092,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tts-remote-default-piper-local" class="md-nav__link">
+  <a href="#tts-remote-default-piper-and-supertonic-local" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TTS (remote default, Piper local)
+        TTS (remote default, Piper and Supertonic local)
       
     </span>
   </a>
@@ -1167,7 +1167,7 @@
 
 
 <h1 id="multilingual-support">Multilingual support<a class="headerlink" href="#multilingual-support" title="Permanent link">&para;</a></h1>
-<h2 id="tts-remote-default-piper-local">TTS (remote default, Piper local)<a class="headerlink" href="#tts-remote-default-piper-local" title="Permanent link">&para;</a></h2>
+<h2 id="tts-remote-default-piper-and-supertonic-local">TTS (remote default, Piper and Supertonic local)<a class="headerlink" href="#tts-remote-default-piper-and-supertonic-local" title="Permanent link">&para;</a></h2>
 <p><code>VoiceManager()</code> uses OpenAI remote audio by default and treats <code>language</code> as a
 provider hint. The local Piper engine ships a small curated mapping for these
 language codes:</p>
@@ -1187,6 +1187,22 @@ language codes:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>fr
 </code></pre></div>
+<p>Supertonic 3 is the broader fixed-profile local ONNX TTS option. It supports:</p>
+<ul>
+<li><code>ar</code>, <code>bg</code>, <code>cs</code>, <code>da</code>, <code>de</code>, <code>el</code>, <code>en</code>, <code>es</code>, <code>et</code>, <code>fi</code>, <code>fr</code>, <code>hi</code>,
+  <code>hr</code>, <code>hu</code>, <code>id</code>, <code>it</code>, <code>ja</code>, <code>ko</code>, <code>lt</code>, <code>lv</code>, <code>nl</code>, <code>pl</code>, <code>pt</code>, <code>ro</code>,
+  <code>ru</code>, <code>sk</code>, <code>sl</code>, <code>sv</code>, <code>tr</code>, <code>uk</code>, <code>vi</code></li>
+</ul>
+<p>Prefetch once for all built-in styles:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--supertonic
+</code></pre></div>
+<p>Programmatic usage:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;fr&quot;</span><span class="p">,</span> <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;supertonic&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_profile</span><span class="p">(</span><span class="s2">&quot;F1&quot;</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Bonjour&quot;</span><span class="p">)</span>
+</code></pre></div>
 <h2 id="stt-openai-default-faster-whisper-local">STT (OpenAI default, faster-whisper local)<a class="headerlink" href="#stt-openai-default-faster-whisper-local" title="Permanent link">&para;</a></h2>
 <p>OpenAI remote transcription is the default. Local faster-whisper supports many
 languages when selected explicitly. You can pass a language hint when
@@ -1198,8 +1214,11 @@ transcribing:</p>
 </code></pre></div>
 <h2 id="repl">REPL<a class="headerlink" href="#repl" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Use <code>/language &lt;lang&gt;</code> to switch (<code>en/fr/de/es/ru/zh</code>).</li>
+<li>Use <code>/language &lt;lang&gt;</code> to switch (<code>en/fr/de/es/ru/zh</code> for Piper; the
+  Supertonic list above when <code>tts_engine=supertonic</code>).</li>
 <li>If a Piper model isn’t cached, the REPL will tell you to run <code>python -m abstractvoice download --piper &lt;lang&gt;</code>.</li>
+<li>If Supertonic isn’t cached, run <code>python -m abstractvoice download --supertonic</code>
+  or <code>/tts_download supertonic</code>.</li>
 </ul>
 <h2 id="audiodit-optional-longcat-audiodit">AudioDiT (optional; LongCat-AudioDiT)<a class="headerlink" href="#audiodit-optional-longcat-audiodit" title="Permanent link">&para;</a></h2>
 <p>AudioDiT is an opt-in torch/transformers engine (<code>abstractvoice[audiodit]</code>). It uses the model <code>meituan-longcat/LongCat-AudioDiT-1B</code> and operates at <strong>24 kHz</strong>.</p>
@@ -1208,7 +1227,8 @@ transcribing:</p>
 <li>Upstream examples and published benchmark results focus on <strong>Chinese (ZH)</strong> and <strong>English (EN)</strong>.</li>
 <li>You can still pass other languages (e.g. French) as plain text, but <strong>pronunciation/intelligibility is not guaranteed</strong> because AudioDiT does not expose a dedicated multilingual text frontend in this integration.</li>
 </ul>
-<p>If you need reliable French TTS today, prefer <strong>Piper</strong> (<code>/tts_engine piper</code> + <code>/language fr</code>).</p>
+<p>If you need reliable French TTS today, start with <strong>Piper</strong> for the smallest
+local footprint or <strong>Supertonic</strong> for broader fixed-profile multilingual TTS.</p>
 <h2 id="omnivoice-optional-k2-fsaomnivoice">OmniVoice (optional; k2-fsa/OmniVoice)<a class="headerlink" href="#omnivoice-optional-k2-fsaomnivoice" title="Permanent link">&para;</a></h2>
 <p>OmniVoice is an opt-in torch/transformers engine (<code>abstractvoice[omnivoice]</code>). It operates at <strong>24 kHz</strong> and upstream is designed for <strong>omnilingual</strong> TTS (600+ languages) as well as voice cloning.</p>
 <p>Offline-first prefetch:</p>

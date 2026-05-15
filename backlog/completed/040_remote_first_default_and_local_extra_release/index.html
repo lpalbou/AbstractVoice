@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#task-040-remote-first-default-install-and-local-stack-extra-for-091" class="md-skip">
+        <a href="#task-040-remote-first-default-install-and-platform-local-profiles-for-091" class="md-skip">
           Skip to content
         </a>
       
@@ -982,15 +982,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#task-040-remote-first-default-install-and-local-stack-extra-for-091" class="md-nav__link">
+  <a href="#task-040-remote-first-default-install-and-platform-local-profiles-for-091" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Task 040: Remote-first default install and local stack extra for 0.9.1
+        Task 040: Remote-first default install and platform local profiles for 0.9.1
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Task 040: Remote-first default install and local stack extra for 0.9.1">
+    <nav class="md-nav" aria-label="Task 040: Remote-first default install and platform local profiles for 0.9.1">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1064,7 +1064,7 @@
 
   <h1>040 remote first default and local extra release</h1>
 
-<h2 id="task-040-remote-first-default-install-and-local-stack-extra-for-091">Task 040: Remote-first default install and local stack extra for 0.9.1<a class="headerlink" href="#task-040-remote-first-default-install-and-local-stack-extra-for-091" title="Permanent link">&para;</a></h2>
+<h2 id="task-040-remote-first-default-install-and-platform-local-profiles-for-091">Task 040: Remote-first default install and platform local profiles for 0.9.1<a class="headerlink" href="#task-040-remote-first-default-install-and-platform-local-profiles-for-091" title="Permanent link">&para;</a></h2>
 <p><strong>Date</strong>: 2026-05-08<br />
 <strong>Status</strong>: Completed<br />
 <strong>Priority</strong>: P1</p>
@@ -1076,13 +1076,13 @@ remaining persona split: the default library constructor still selected local
 <code>auto</code> engines while the plugin selected remote OpenAI engines.</p>
 <p>For <code>0.9.1</code>, the release decision is to make the default install remote-first
 throughout AbstractVoice. Local inference, microphone listening dependencies,
-AEC, and local cloning/TTS engines move behind one explicit handle:
-<code>abstractvoice[local]</code>.</p>
+AEC, and local cloning/TTS engines move behind explicit platform or granular
+extras.</p>
 <h3 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>VoiceManager()</code> defaults to <code>tts_engine="openai"</code> and <code>stt_engine="openai"</code>.</li>
 <li><code>auto</code> resolves to OpenAI remote audio for both TTS and STT.</li>
-<li><code>abstractvoice[local]</code> installs the full local stack, including Piper,
+<li>Platform profiles install the full local stack, including Piper,
   faster-whisper, audio I/O, AEC where supported, and optional local
   cloning/TTS engines gated by Python-version markers.</li>
 <li>Legacy compatibility extras are removed without aliases:

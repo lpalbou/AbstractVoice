@@ -1121,8 +1121,10 @@ embedded into:</p>
 <ul>
 <li><code>speak()</code> plays to speakers</li>
 <li><code>pause_speaking()/resume_speaking()</code> control playback</li>
-<li>For offline/local inference, install <code>abstractvoice[local]</code> and select
-  <code>tts_engine="piper"</code> / <code>stt_engine="faster_whisper"</code>.</li>
+<li>For offline/local inference, install <code>abstractvoice[apple]</code>,
+  <code>abstractvoice[gpu]</code>, or granular extras such as
+  <code>abstractvoice[supertonic,stt]</code>, then select <code>tts_engine="supertonic"</code> /
+  <code>stt_engine="faster_whisper"</code>.</li>
 </ul>
 <h3 id="2-backendserver-code-headless">2) Backend/server code (headless)<a class="headerlink" href="#2-backendserver-code-headless" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1142,8 +1144,13 @@ capability backend discovered through <code>abstractcore.capabilities_plugins</c
 <ul>
 <li><code>python -m abstractvoice cli</code> is the fastest end‑to‑end smoke test.</li>
 <li>The REPL is offline-first: no implicit model downloads.</li>
-<li>Default voice engines are remote OpenAI; local engines are explicit.</li>
-<li>Optional engines are opt-in via extras (e.g. <code>abstractvoice[audiodit]</code>, <code>abstractvoice[omnivoice]</code>, <code>abstractvoice[chroma]</code>) and require explicit prefetch.</li>
+<li>Interactive TTS <code>auto</code> prefers installed Supertonic, then installed Piper,
+    then OpenAI remote. Plain <code>abstractvoice</code> starts on OpenAI; full local
+    profiles such as <code>abstractvoice[all-apple]</code> and <code>abstractvoice[all-gpu]</code>
+    start on Supertonic.</li>
+<li>STT remains OpenAI remote by default unless you select
+    <code>stt_engine="faster_whisper"</code>.</li>
+<li>Optional engines are opt-in via extras (e.g. <code>abstractvoice[supertonic]</code>, <code>abstractvoice[audiodit]</code>, <code>abstractvoice[omnivoice]</code>, <code>abstractvoice[chroma]</code>) and require explicit prefetch.</li>
 <li>The REPL is a <strong>demonstrator</strong>: it includes a minimal OpenAI-compatible LLM HTTP client for convenience (<code>abstractvoice/examples/llm_provider.py</code>), but production agent/server use should be done via AbstractCore.</li>
 </ul>
 <h3 id="5-local-browser-smoke-test">5) Local browser smoke test<a class="headerlink" href="#5-local-browser-smoke-test" title="Permanent link">&para;</a></h3>
@@ -1151,6 +1158,8 @@ capability backend discovered through <code>abstractcore.capabilities_plugins</c
 <li><code>abstractvoice web</code> starts a small FastAPI example around <code>VoiceManager</code>.</li>
 <li>It has local <code>/api/*</code> routes for status, voices, TTS, and transcription, plus
   <code>/v1/audio/*</code> smoke-test aliases.</li>
+<li>Its browser Voice panel can switch the base TTS engine through the same
+  <code>VoiceManager.set_tts_engine(...)</code> abstraction used by the REPL.</li>
 <li>It is still an example; AbstractCore remains the production server/API path.</li>
 </ul>
 
