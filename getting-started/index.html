@@ -1310,6 +1310,9 @@ installed Piper second, then OpenAI remote. A plain lightweight install starts
 on OpenAI; <code>abstractvoice[all-apple]</code> and <code>abstractvoice[all-gpu]</code> start on
 Supertonic. If the status line says <code>openai (remote)</code>, set <code>OPENAI_API_KEY</code> or
 switch to a local engine.</p>
+<p>For local voice generation, prefer Supertonic. For new voice clones, the
+default local cloning backend is OmniVoice; install <code>abstractvoice[omnivoice]</code>
+or a platform/full profile before using clone commands without <code>--engine</code>.</p>
 <p>For local/offline TTS instead:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[supertonic]&quot;</span>
 abstractvoice-prefetch<span class="w"> </span>--supertonic

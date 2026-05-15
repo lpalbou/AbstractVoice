@@ -624,10 +624,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support" class="md-nav__link">
+  <a href="#abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support" class="md-nav__link">
     <span class="md-ellipsis">
       
-        abstractvoice[cloning], [chroma], [audiodit], [omnivoice] — model prefetch support
+        abstractvoice[omnivoice], [cloning], [chroma], [audiodit] — model prefetch support
       
     </span>
   </a>
@@ -646,10 +646,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#abstractvoiceomnivoice-omnivoice-omnilingual-tts-cloning-design" class="md-nav__link">
+  <a href="#abstractvoiceomnivoice-omnivoice-default-local-cloning-omnilingual-tts-design" class="md-nav__link">
     <span class="md-ellipsis">
       
-        abstractvoice[omnivoice] — OmniVoice (omnilingual TTS + cloning / design)
+        abstractvoice[omnivoice] — OmniVoice (default local cloning + omnilingual TTS / design)
       
     </span>
   </a>
@@ -1253,10 +1253,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support" class="md-nav__link">
+  <a href="#abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support" class="md-nav__link">
     <span class="md-ellipsis">
       
-        abstractvoice[cloning], [chroma], [audiodit], [omnivoice] — model prefetch support
+        abstractvoice[omnivoice], [cloning], [chroma], [audiodit] — model prefetch support
       
     </span>
   </a>
@@ -1275,10 +1275,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#abstractvoiceomnivoice-omnivoice-omnilingual-tts-cloning-design" class="md-nav__link">
+  <a href="#abstractvoiceomnivoice-omnivoice-default-local-cloning-omnilingual-tts-design" class="md-nav__link">
     <span class="md-ellipsis">
       
-        abstractvoice[omnivoice] — OmniVoice (omnilingual TTS + cloning / design)
+        abstractvoice[omnivoice] — OmniVoice (default local cloning + omnilingual TTS / design)
       
     </span>
   </a>
@@ -1516,7 +1516,7 @@ external <code>supertonic</code> Python SDK.</p>
 <li><strong>Prefetch</strong>: <code>python -m abstractvoice download --supertonic</code> or <code>abstractvoice-prefetch --supertonic</code></li>
 <li><strong>Profiles</strong>: built-in fixed styles <code>M1</code>-<code>M5</code> and <code>F1</code>-<code>F5</code></li>
 </ul>
-<h3 id="abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support"><code>abstractvoice[cloning]</code>, <code>[chroma]</code>, <code>[audiodit]</code>, <code>[omnivoice]</code> — model prefetch support<a class="headerlink" href="#abstractvoicecloning-chroma-audiodit-omnivoice-model-prefetch-support" title="Permanent link">&para;</a></h3>
+<h3 id="abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support"><code>abstractvoice[omnivoice]</code>, <code>[cloning]</code>, <code>[chroma]</code>, <code>[audiodit]</code> — model prefetch support<a class="headerlink" href="#abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>huggingface_hub</strong></li>
 <li><strong>Why</strong>: download and cache optional engine model weights/artifacts.</li>
@@ -1594,9 +1594,12 @@ external <code>supertonic</code> Python SDK.</p>
 <li><strong>License</strong>: <code>https://github.com/meituan-longcat/LongCat-AudioDiT/blob/main/LICENSE</code></li>
 <li><strong>What we ship</strong>: a HuggingFace-compatible derived implementation under <code>abstractvoice/audiodit/*</code> to avoid <code>trust_remote_code</code>.</li>
 </ul>
-<h3 id="abstractvoiceomnivoice-omnivoice-omnilingual-tts-cloning-design"><code>abstractvoice[omnivoice]</code> — OmniVoice (omnilingual TTS + cloning / design)<a class="headerlink" href="#abstractvoiceomnivoice-omnivoice-omnilingual-tts-cloning-design" title="Permanent link">&para;</a></h3>
+<h3 id="abstractvoiceomnivoice-omnivoice-default-local-cloning-omnilingual-tts-design"><code>abstractvoice[omnivoice]</code> — OmniVoice (default local cloning + omnilingual TTS / design)<a class="headerlink" href="#abstractvoiceomnivoice-omnivoice-default-local-cloning-omnilingual-tts-design" title="Permanent link">&para;</a></h3>
 <p>Requires Python 3.10+ because the upstream <code>omnivoice</code> package declares that
 Python floor.</p>
+<p>OmniVoice is the recommended/default local cloning backend for new AbstractVoice
+clones. Install this extra, or a platform/full profile that includes it, before
+using clone commands without <code>--engine</code>.</p>
 <p>Python packages:</p>
 <ul>
 <li><strong>omnivoice</strong></li>
@@ -1683,6 +1686,9 @@ Transformers 5.x.</p>
 Python 3.10-only annotations during inference. On Python 3.9, use
 <code>abstractvoice[audiodit]</code> with the <code>audiodit</code> cloning engine for tested
 prompt-audio cloning.</p>
+<p>This extra remains the explicit OpenF5 backend. It is not the default local
+cloning path; new clones default to OmniVoice unless you pass
+<code>engine="f5_tts"</code> or <code>--engine f5_tts</code>.</p>
 <ul>
 <li><strong>f5-tts</strong></li>
 <li><strong>Why</strong>: cloning engine (<code>f5_tts</code>) backend.</li>

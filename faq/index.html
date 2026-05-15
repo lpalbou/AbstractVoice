@@ -2155,8 +2155,8 @@ OpenAI-compatible audio endpoints such as:</p>
   <code>abstractvoice[piper]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>.</li>
 <li>faster-whisper is the local STT path; install <code>abstractvoice[stt]</code>,
   <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>.</li>
-<li>OpenF5, Chroma, AudioDiT, and OmniVoice are optional heavier engines for
-  cloning, research, or richer voice experiments.</li>
+<li>OmniVoice is the recommended/default local cloning backend. OpenF5, Chroma,
+  and AudioDiT remain optional heavier alternatives for explicit selection.</li>
 <li>AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine
   in this integration.</li>
 <li>OmniVoice is the main optional path for omnilingual speech and voice design,
@@ -2178,7 +2178,7 @@ torch 2.8 family this is typically:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="w">   </span><span class="c1"># OpenF5</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[chroma]&quot;</span><span class="w">    </span><span class="c1"># Chroma, GPU-heavy</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audiodit]&quot;</span><span class="w">  </span><span class="c1"># AudioDiT</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span><span class="w"> </span><span class="c1"># OmniVoice</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span><span class="w"> </span><span class="c1"># OmniVoice, recommended/default</span>
 </code></pre></div>
 <p>Artifacts are still downloaded explicitly with <code>python -m abstractvoice download ...</code>
 or <code>abstractvoice-prefetch ...</code>.</p>

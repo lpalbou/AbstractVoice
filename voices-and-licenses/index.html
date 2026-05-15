@@ -1212,7 +1212,7 @@ remain third-party assets with their own license terms.</p>
 <li><code>abstractvoice[cloning]</code> (OpenF5-based; large artifacts)</li>
 <li><code>abstractvoice[chroma]</code> (Chroma-4B; very large; GPU-heavy)</li>
 <li><code>abstractvoice[audiodit]</code> (LongCat-AudioDiT-1B; large weights via HF)</li>
-<li><code>abstractvoice[omnivoice]</code> (OmniVoice; very large; torch/transformers)</li>
+<li><code>abstractvoice[omnivoice]</code> (OmniVoice; recommended/default local cloning backend; very large; torch/transformers)</li>
 </ul>
 <p>Licensing is engine- and model-dependent; verify:</p>
 <ul>
@@ -1231,6 +1231,11 @@ remain third-party assets with their own license terms.</p>
 <p>For OmniVoice specifically, verify the model card/source for:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--omnivoice
 </code></pre></div>
+<p>Local notices:</p>
+<ul>
+<li>Supertonic notice: <code>third_party_licenses/supertone_supertonic_notice.txt</code></li>
+<li>OmniVoice notice: <code>third_party_licenses/omnivoice_notice.txt</code></li>
+</ul>
 <h2 id="practical-guidance">Practical guidance<a class="headerlink" href="#practical-guidance" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Treat <strong>model weights</strong> as third-party assets with their own compliance requirements.</li>

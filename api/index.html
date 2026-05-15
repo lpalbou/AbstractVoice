@@ -1572,7 +1572,7 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
     <span class="n">stt_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;openai&quot;</span><span class="p">,</span>
     <span class="n">allow_downloads</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">cloned_tts_streaming</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">cloning_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;f5_tts&quot;</span><span class="p">,</span>
+    <span class="n">cloning_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;omnivoice&quot;</span><span class="p">,</span>
     <span class="n">tts_delivery_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># buffered|streamed (override)</span>
     <span class="n">stt_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">remote_base_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1607,7 +1607,11 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
   - OpenAI-compatible profile discovery: <code>GET /audio/voices</code> is tried by default for compatible endpoints; override with <code>ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATH</code> or <code>ABSTRACTVOICE_REMOTE_VOICE_PROFILE_PATHS</code>. Static voice/profile ids can also be supplied with <code>ABSTRACTVOICE_REMOTE_TTS_VOICES</code>.
 - <code>tts_delivery_mode</code> is an optional override that applies consistently to both base TTS and cloned voices:
   - <code>buffered</code>: synthesize full audio first (one payload)
-  - <code>streamed</code>: deliver audio in chunks when available (lower time-to-first-audio)</p>
+  - <code>streamed</code>: deliver audio in chunks when available (lower time-to-first-audio)
+- <code>cloning_engine</code> defaults to <code>omnivoice</code> for new local clones. Install
+  <code>abstractvoice[omnivoice]</code> or a platform/full profile for that default, or
+  pass <code>f5_tts</code>, <code>chroma</code>, <code>audiodit</code>, <code>openai</code>, or <code>openai-compatible</code>
+  explicitly.</p>
 <p>Supported language codes for the Piper mapping: <code>en, fr, de, es, ru, zh</code> (see <code>abstractvoice/config/voice_catalog.py</code> and <code>abstractvoice/adapters/tts_piper.py</code>).
 Supertonic supports fixed-style local TTS for <code>ar, bg, cs, da, de, el, en, es, et, fi, fr, hi, hr, hu, id, it, ja, ko, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi</code>.
 For other non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), <code>language</code> is treated as a pass-through hint and the engine decides what it supports.</p>
@@ -1615,7 +1619,7 @@ For other non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines)
 <ul>
 <li><code>speak(text: str, speed: float = 1.0, callback=None, voice: str | None = None, *, sanitize_syntax: bool = True) -&gt; bool</code></li>
 <li>Plays audio locally (non-blocking playback; synthesis time depends on backend).</li>
-<li>If <code>voice</code> is provided, it is treated as a cloned <code>voice_id</code> (requires <code>abstractvoice[cloning]</code>).</li>
+<li>If <code>voice</code> is provided, it is treated as a cloned <code>voice_id</code> (requires a cloning backend extra such as <code>abstractvoice[omnivoice]</code>; <code>abstractvoice[cloning]</code> is the explicit OpenF5 backend).</li>
 <li>
 <p>By default, common Markdown syntax is stripped from spoken output (headers + emphasis). Set <code>sanitize_syntax=False</code> to speak raw text.</p>
 </li>
@@ -1811,13 +1815,17 @@ For other non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines)
 <li>Playback audio chunks are fed to the recognizer via <code>abstractvoice/vm/core.py</code> → <code>VoiceRecognizer.feed_far_end_audio()</code> in <code>abstractvoice/recognition.py</code>.</li>
 </ul>
 <h2 id="voice-cloning-optional-heavy">Voice cloning (optional; heavy)<a class="headerlink" href="#voice-cloning-optional-heavy" title="Permanent link">&para;</a></h2>
-<p>Requires installing at least one cloning backend extra (and explicit artifact downloads; see <code>docs/installation.md</code>):</p>
+<p>Requires installing at least one cloning backend extra (and explicit artifact
+downloads; see <code>docs/installation.md</code>). The recommended/default local backend
+is OmniVoice:</p>
 <ul>
+<li><code>abstractvoice[omnivoice]</code> → <code>omnivoice</code> (default for new clones)</li>
 <li><code>abstractvoice[cloning]</code> → <code>f5_tts</code></li>
 <li><code>abstractvoice[chroma]</code> → <code>chroma</code></li>
 <li><code>abstractvoice[audiodit]</code> → <code>audiodit</code></li>
-<li><code>abstractvoice[omnivoice]</code> → <code>omnivoice</code></li>
 </ul>
+<p>Supertonic is not listed here because it is fixed-profile base TTS, not a
+voice-cloning engine.</p>
 <p>Remote clone-compatible endpoints can also be used without local cloning model
 weights by selecting <code>cloning_engine="openai-compatible"</code> (or
 <code>engine="openai-compatible"</code> per call). Configure <code>remote_base_url</code> or
@@ -1939,7 +1947,7 @@ different engine:
 - <code>voice_remote_api_key</code>: optional bearer key for remote audio endpoints
 - <code>voice_remote_timeout_s</code>: request timeout for remote audio endpoints
 - <code>voice_whisper_model</code>: faster-whisper model size (e.g. <code>"base"</code>, <code>"small"</code>)
-- <code>voice_cloning_engine</code>: default cloning backend (<code>"f5_tts"|"chroma"|"audiodit"|"omnivoice"|"openai"|"openai-compatible"</code>)
+- <code>voice_cloning_engine</code>: default cloning backend (<code>"omnivoice"</code> by default; also <code>"f5_tts"|"chroma"|"audiodit"|"openai"|"openai-compatible"</code>)
 - <code>voice_cloned_tts_streaming</code>: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when <code>voice_tts_delivery_mode</code> is unset.
 - <code>voice_tts_delivery_mode</code>: unified audio delivery mode for base + cloned voices (<code>"buffered"|"streamed"</code>). Takes precedence over <code>voice_cloned_tts_streaming</code>.
 - <code>voice_tts_streaming</code>: bool alias for <code>voice_tts_delivery_mode</code> (<code>true</code> → <code>"streamed"</code>, <code>false</code> → <code>"buffered"</code>).
@@ -2013,7 +2021,7 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 <span class="c1"># Browser-example cloned voice creation.</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/voices/clone<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;name=my_voice&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;engine=f5_tts&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;engine=omnivoice&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;reference_text=Exact transcript of the reference audio.&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;file=@reference.wav&quot;</span>
 

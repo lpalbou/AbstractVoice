@@ -1149,7 +1149,7 @@
 <ul>
 <li><strong>OpenAI remote audio (default)</strong>: no local model download in the base install.</li>
 <li><strong>Piper (local)</strong>: small ONNX voices downloaded/managed by <code>abstractvoice/adapters/tts_piper.py</code> when you select <code>tts_engine="piper"</code>.</li>
-<li><strong>Supertonic 3 (local)</strong>: fixed-profile ONNX TTS downloaded/managed by <code>abstractvoice/supertonic/runtime.py</code> when you select <code>tts_engine="supertonic"</code> or prefetch <code>--supertonic</code>.</li>
+<li><strong>Supertonic 3 (local)</strong>: recommended fixed-profile ONNX TTS downloaded/managed by <code>abstractvoice/supertonic/runtime.py</code> when you select <code>tts_engine="supertonic"</code> or prefetch <code>--supertonic</code>.</li>
 <li>There is <strong>no legacy Coqui model management</strong> in core.</li>
 <li>Heavier engines (torch/transformers) are <strong>opt-in</strong> via extras (e.g. <code>abstractvoice[chroma]</code>, <code>abstractvoice[audiodit]</code>, <code>abstractvoice[omnivoice]</code>).</li>
 </ul>
@@ -1183,7 +1183,7 @@
 <ul>
 <li><strong>Chroma cloning</strong>: <code>python -m abstractvoice download --chroma</code> (requires <code>abstractvoice[chroma]</code>)</li>
 <li><strong>AudioDiT (LongCat-AudioDiT-1B)</strong>: <code>python -m abstractvoice download --audiodit</code> (requires <code>abstractvoice[audiodit]</code>)</li>
-<li><strong>OmniVoice</strong>: <code>python -m abstractvoice download --omnivoice</code> (requires <code>abstractvoice[omnivoice]</code>)</li>
+<li><strong>OmniVoice</strong>: <code>python -m abstractvoice download --omnivoice</code> (requires <code>abstractvoice[omnivoice]</code>; recommended/default local cloning backend)</li>
 </ul>
 <p>In offline-first mode (<code>allow_downloads=False</code>) these engines will <strong>not</strong> fetch missing weights implicitly.</p>
 <h2 id="programmatic-introspection">Programmatic introspection<a class="headerlink" href="#programmatic-introspection" title="Permanent link">&para;</a></h2>

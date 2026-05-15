@@ -1092,7 +1092,8 @@
 <li><strong>TTS (text -&gt; audio)</strong>: default engine is <strong>OpenAI remote audio</strong> from the base install.</li>
 <li><strong>STT (audio -&gt; text)</strong>: default engine is <strong>OpenAI remote transcription</strong> from the base install.</li>
 <li><strong>Streaming TTS</strong>: chunked speech output for LLM streaming pipelines.</li>
-<li><strong>Voice cloning (optional)</strong>: prompt-audio cloning engines (engine-bound clones).</li>
+<li><strong>Voice cloning (optional)</strong>: OmniVoice is the recommended/default local
+  prompt-audio cloning engine; alternatives remain engine-bound clones.</li>
 </ul>
 <p>The main entry point for integrators is <code>abstractvoice.VoiceManager</code>.</p>
 <p>AbstractVoice does <strong>not</strong> implement an agent loop or a standalone LLM server.
@@ -1124,7 +1125,9 @@ embedded into:</p>
 <li>For offline/local inference, install <code>abstractvoice[apple]</code>,
   <code>abstractvoice[gpu]</code>, or granular extras such as
   <code>abstractvoice[supertonic,stt]</code>, then select <code>tts_engine="supertonic"</code> /
-  <code>stt_engine="faster_whisper"</code>.</li>
+  <code>stt_engine="faster_whisper"</code>.
+  Supertonic is the preferred local base TTS path; OmniVoice is the default
+  local cloning backend for new clones.</li>
 </ul>
 <h3 id="2-backendserver-code-headless">2) Backend/server code (headless)<a class="headerlink" href="#2-backendserver-code-headless" title="Permanent link">&para;</a></h3>
 <ul>

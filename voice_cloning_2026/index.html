@@ -1395,19 +1395,19 @@
 - <strong>Simple installs</strong> for the base package (<code>pip install abstractvoice</code>)</p>
 <p>In practice, this almost certainly means <strong>voice cloning is an optional extra</strong> (GPU/torch-heavy), while the base install stays lightweight and cross‑platform.</p>
 <h2 id="current-status-implementation">Current status (implementation)<a class="headerlink" href="#current-status-implementation" title="Permanent link">&para;</a></h2>
-<p>This document started as a feasibility note (Jan 2026). The <strong>current status</strong> below reflects the shipped implementation as of v0.8.x.</p>
+<p>This document started as a feasibility note (Jan 2026). The <strong>current status</strong> below reflects the shipped implementation as of v0.10.x.</p>
 <ul>
-<li><code>abstractvoice[cloning]</code> → <code>f5_tts</code> engine (OpenF5 artifacts)</li>
+<li><code>abstractvoice[omnivoice]</code> → <code>omnivoice</code> engine (recommended/default local cloning backend; omnilingual; prompt-audio cloning + voice design)</li>
+<li><code>abstractvoice[cloning]</code> → <code>f5_tts</code> engine (explicit OpenF5 artifacts)</li>
 <li><code>abstractvoice[chroma]</code> → <code>chroma</code> engine (Chroma-4B; GPU-heavy)</li>
 <li><code>abstractvoice[audiodit]</code> → <code>audiodit</code> engine (LongCat-AudioDiT-1B; prompt-audio cloning)</li>
-<li><code>abstractvoice[omnivoice]</code> → <code>omnivoice</code> engine (OmniVoice; omnilingual; prompt-audio cloning + voice design)</li>
 </ul>
 <p>Operational notes:</p>
 <ul>
 <li>Cloned voices are <strong>engine-bound</strong> (<code>f5_tts</code> vs <code>chroma</code> vs <code>audiodit</code> vs <code>omnivoice</code>); selecting a cloned voice uses its stored engine.</li>
 <li>The REPL is offline-first; downloads are explicit via:</li>
 <li><code>python -m abstractvoice download --openf5|--chroma|--audiodit|--omnivoice</code></li>
-<li>REPL: <code>/cloning_download f5_tts|chroma|audiodit|omnivoice</code></li>
+<li>REPL: <code>/cloning_download omnivoice|f5_tts|chroma|audiodit</code></li>
 <li><code>reference_text</code> is <strong>optional</strong>:</li>
 <li>If missing, AbstractVoice auto-generates it via STT (3-pass consensus) on first speak and persists it for the voice.</li>
 <li>In offline-first contexts, this requires a cached STT model (prefetch: <code>python -m abstractvoice download --stt small</code>).</li>

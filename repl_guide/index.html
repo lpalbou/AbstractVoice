@@ -1476,8 +1476,10 @@ abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<s
 <div class="highlight"><pre><span></span><code>/speak hello from AbstractVoice
 </code></pre></div>
 <p>For local speech, prefetch the model artifacts explicitly. Supertonic is the
-preferred fixed-profile local TTS engine:</p>
+preferred fixed-profile local TTS engine, and OmniVoice is the
+recommended/default local voice-cloning engine:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--supertonic
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--omnivoice
 </code></pre></div>
 <p>Piper is the smaller fallback and uses one cached voice per language:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
@@ -1670,10 +1672,10 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 </code></pre></div>
 <p>Readiness and downloads from inside the REPL:</p>
 <div class="highlight"><pre><span></span><code>/cloning_status
+/cloning_download omnivoice
 /cloning_download f5_tts
 /cloning_download chroma
 /cloning_download audiodit
-/cloning_download omnivoice
 </code></pre></div>
 <p>Clone from a file:</p>
 <div class="highlight"><pre><span></span><code>/clone /path/to/reference.wav my_voice --engine omnivoice --text &quot;Exact transcript of the reference audio.&quot;
@@ -1681,8 +1683,8 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 /speak This is my cloned voice.
 </code></pre></div>
 <p>Interactive microphone cloning:</p>
-<div class="highlight"><pre><span></span><code>/clone myvoice my_voice --engine f5_tts
-/clone_use myvoice my_voice --engine f5_tts
+<div class="highlight"><pre><span></span><code>/clone myvoice my_voice --text &quot;I am recording a short clear reference sample for my AbstractVoice clone.&quot;
+/clone_use myvoice my_voice --text &quot;I am recording a short clear reference sample for my AbstractVoice clone.&quot;
 </code></pre></div>
 <p>Clone management:</p>
 <div class="highlight"><pre><span></span><code>/clones
