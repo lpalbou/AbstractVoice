@@ -28,7 +28,8 @@ Where it’s defined:
 
 TTS engines in this repo (see `abstractvoice/adapters/tts_registry.py`):
 
-- **Piper** (`tts_engine="piper"`) — default, lightweight, deterministic voice model selection
+- **Piper** (`tts_engine="piper"`) — lightweight, deterministic voice model selection
+- **Supertonic** (`tts_engine="supertonic"`) — fixed-profile ONNX TTS (`M1`-`M5`, `F1`-`F5`); not included in the historical tables below yet
 - **AudioDiT** (`tts_engine="audiodit"`) — torch/transformers (LongCat-AudioDiT-1B by default)
 - **OmniVoice** (`tts_engine="omnivoice"`) — torch/transformers (k2-fsa/OmniVoice)
 
@@ -144,4 +145,3 @@ Interpretation:
 This benchmark does **not** measure voice cloning.
 
 Maintainer note (subjective): for **voice cloning**, OmniVoice tends to produce **impressively high quality** in practice and is often the best choice when cloning is the priority.
-

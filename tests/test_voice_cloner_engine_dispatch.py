@@ -68,6 +68,18 @@ def test_voice_cloner_clone_from_wav_bytes_sets_engine(tmp_path: Path):
     assert voice.engine == "chroma"
 
 
+def test_omnivoice_clone_high_quality_uses_stable_step_count():
+    from abstractvoice.cloning.engine_omnivoice import OmniVoiceVoiceCloningEngine
+
+    engine = OmniVoiceVoiceCloningEngine(allow_downloads=False)
+    engine.set_quality_preset("high")
+    info = engine.runtime_info()
+
+    assert info["quality_preset"] == "high"
+    assert info["num_step"] == 16
+    assert info["guidance_scale"] == 2.0
+
+
 def test_voice_cloner_rejects_unsupported_reference_file(tmp_path: Path):
     from abstractvoice.cloning.manager import VoiceCloner
     from abstractvoice.cloning.store import VoiceCloneStore

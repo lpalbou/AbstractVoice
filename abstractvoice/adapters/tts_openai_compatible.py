@@ -490,6 +490,23 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
         except Exception:
             return False
 
+    def get_unavailable_reason(self) -> str | None:
+        try:
+            require_provider_ready(self.provider, base_url=self.base_url, api_key=self.api_key)
+            return None
+        except Exception as e:
+            if self.provider == "openai":
+                return (
+                    "OpenAI TTS is not configured.\n"
+                    "Set OPENAI_API_KEY or pass remote_api_key=...\n"
+                    f"Original error: {e}"
+                )
+            return (
+                "OpenAI-compatible TTS is not configured.\n"
+                "Set remote_base_url=... or ABSTRACTVOICE_REMOTE_BASE_URL.\n"
+                f"Original error: {e}"
+            )
+
     def get_profiles(self) -> list[VoiceProfile]:
         profiles: list[VoiceProfile] = []
         voices: list[str] = []
@@ -573,6 +590,11 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
             return False
         self.voice = voice
         return True
+
+    def get_default_profile_id(self, language: str | None = None) -> str | None:
+        _ = language
+        default = _default_voice(self.provider, None)
+        return str(default).strip() if default else None
 
     def refresh_profiles(self) -> bool:
         self._remote_profiles_loaded = False

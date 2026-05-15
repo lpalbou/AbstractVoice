@@ -41,7 +41,7 @@ Observed behavior:
 
 Recommended workaround:
 
-- Use Piper for reliable direct local TTS.
+- Use Supertonic for reliable direct local TTS.
 - Use AudioDiT cloning only after validating the target voice and hardware.
 - Use OmniVoice or OpenF5/Chroma where those engines match the voice-cloning
   requirement better.

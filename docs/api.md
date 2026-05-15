@@ -47,17 +47,24 @@ VoiceManager(
 ```
 
 Notes:
-- `VoiceManager()` and `auto` are remote-first. Hosted OpenAI audio requires `OPENAI_API_KEY` or `remote_api_key=...`.
+- `VoiceManager()` and library `auto` are remote-first. Hosted OpenAI audio requires `OPENAI_API_KEY` or `remote_api_key=...`.
+- The CLI and web examples deliberately wrap this with an interactive TTS
+  resolver: installed Supertonic, installed Piper, then OpenAI remote. Plain
+  `abstractvoice` starts on OpenAI; `abstractvoice[all-apple]` and
+  `abstractvoice[all-gpu]` start on Supertonic. That behavior lives in
+  `abstractvoice/examples/tts_defaults.py` and does not change the library
+  constructor.
 - `allow_downloads` gates *implicit* local model downloads in adapters. The REPL sets `False` (offline-first).
 - `whisper_model` controls the faster-whisper model size used by local `listen()` / `transcribe_*()` paths.
 - `tts_engine` supports:
   - `openai` (default; remote OpenAI `/v1/audio/speech`; requires `OPENAI_API_KEY`)
   - `auto` (deterministic default: resolves to `openai`)
-  - `piper` (local TTS; requires `abstractvoice[local]` or `abstractvoice[piper]`)
+  - `piper` (local TTS; requires `abstractvoice[piper]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`)
+  - `supertonic` (local fixed-profile ONNX TTS; requires `abstractvoice[supertonic]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`)
   - `openai-compatible` (remote compatible `/v1/audio/speech`; configure `remote_base_url` or `ABSTRACTVOICE_REMOTE_BASE_URL`)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
-- `stt_engine` supports `openai|auto|faster_whisper|openai-compatible`. `auto` resolves to `openai`. The local faster-whisper path requires `abstractvoice[local]` or `abstractvoice[stt]`. Missing credentials or missing explicit local dependencies raise actionable errors; the legacy OpenAI Whisper fallback was removed.
+- `stt_engine` supports `openai|auto|faster_whisper|openai-compatible`. `auto` resolves to `openai`. The local faster-whisper path requires `abstractvoice[stt]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`. Missing credentials or missing explicit local dependencies raise actionable errors; the legacy OpenAI Whisper fallback was removed.
 - `tts_model` is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request `model`.
 - For remote STT, `stt_model` maps to the transcription `model`.
 - Remote configuration can be passed in the constructor or via env vars:
@@ -69,7 +76,8 @@ Notes:
   - `streamed`: deliver audio in chunks when available (lower time-to-first-audio)
 
 Supported language codes for the Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
-For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `language` is treated as a pass-through hint and the engine decides what it supports.
+Supertonic supports fixed-style local TTS for `ar, bg, cs, da, de, el, en, es, et, fi, fr, hi, hr, hu, id, it, ja, ko, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi`.
+For other non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `language` is treated as a pass-through hint and the engine decides what it supports.
 
 ## TTS (text → audio)
 
@@ -85,17 +93,21 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `lan
   - Engine-agnostic speed/quality knob (`low|standard|high`). Back-compat aliases: `fast`→`low`, `balanced`→`standard`.
   - Engines that don’t support quality tuning may return `False` / `None` (Piper is typically a no-op).
   - For AudioDiT this primarily maps to diffusion `steps` (and a small guidance-strength tweak).
+  - For Supertonic this maps to ONNX vector-estimator steps: low `5`, standard `8`, high `12`.
 
 - `get_profiles(*, kind: str = "tts") -> list[VoiceProfile]`
 - `set_profile(profile_id: str, *, kind: str = "tts") -> bool`
 - `get_active_profile(*, kind: str = "tts") -> VoiceProfile | None`
+- `set_tts_engine(engine: str, *, tts_model: str | None = None) -> str`
   - Cross-engine **voice profile** abstraction (preset packs).
-  - Profiles are **engine-local**: you select `tts_engine` first, then apply a profile id for that engine.
+  - Profiles are **engine-local**: select `tts_engine` first, then apply a profile id for that engine.
+  - Runtime engine switching should use `set_tts_engine(...)`; it rebuilds the base TTS adapter, rewires playback callbacks, and resets the active profile to the engine/language default (for example Piper `en` -> `amy`, Supertonic -> `M1`, OpenAI -> `alloy`).
   - Engines without profiles return an empty list / False / None.
   - **Concurrency note**: profile selection mutates engine state. For servers, prefer one `VoiceManager` per session (or guard profile changes with a lock).
   - **Remote OpenAI note**: hosted built-in voices are always exposed as profiles (for example `vm.set_profile("alloy")`), and the adapter also tries OpenAI voice discovery for account/org-specific voices such as `voice_...`. `tts_engine="openai"` defaults to `https://api.openai.com/v1` and reads `OPENAI_API_KEY`.
   - **Remote compatible note**: compatible endpoints may expose `GET /v1/audio/voices` (adapter path: `GET /audio/voices`) returning `profiles`, `voices`, `cloned_voices`, or OpenAI-style `data`. Returned ids are exposed as `VoiceProfile`s and used as the request `voice` for `/audio/speech`.
   - The `voice=` argument on `speak_to_bytes(...)` remains the cloned-voice handle path for backward compatibility; select base-provider voices with `set_profile(...)`.
+  - **Supertonic note**: `tts_engine="supertonic"` exposes fixed local profiles `M1`-`M5` and `F1`-`F5`. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or `allow_downloads=True`.
   - **OmniVoice notes**:
     - Some profiles may enable **persistent prompt caching** (a tokenized `voice_clone_prompt`). The first `set_profile(...)` can pay a one-time build cost; later synthesis reuses cached tokens for stable voice identity. Prompt-conditioned synthesis can be heavier than pure voice design; use `/tts quality low|standard|high` (or `VoiceManager.set_tts_quality_preset(...)`) to tune the trade-off.
     - On macOS / Apple Silicon, OmniVoice uses **MPS (Metal)** by default when `device="auto"`.
@@ -126,11 +138,12 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `lan
 - `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, sanitize_syntax: bool = True) -> str`
   - Writes an audio file and returns the path.
 
-### Language & voice selection (Piper path)
+### Language & voice selection
 
 - `set_language(language: str) -> bool`
   - Switches the active language.
   - For explicit Piper, validation uses the curated Piper mapping in `abstractvoice/config/voice_catalog.py`.
+  - For Supertonic, validation uses the adapter's 31-language ONNX text frontend list.
   - For non-Piper engines such as OmniVoice, the language code is passed through to the adapter and the engine decides what it supports.
   - If microphone listening is active, the recognizer is recreated on the next `listen(...)` call so STT receives the updated language.
 
@@ -141,6 +154,7 @@ For non-Piper engines (e.g. OmniVoice or remote OpenAI-compatible engines), `lan
 - `list_available_models(language: str | None = None) -> dict`
   - Lists voice/model catalog entries for CLI/web display (see `abstractvoice/vm/tts_mixin.py`).
   - Piper returns local voice cache status by language.
+  - Supertonic returns the 10 fixed styles for the active language plus shared cache status.
   - OpenAI/OpenAI-compatible TTS returns remote voice profiles plus configured/discovered TTS model ids when the active adapter supports model listing.
   - Back-compat alias: `list_voices()`.
 
@@ -268,6 +282,7 @@ For offline deployments, prefetch explicitly (cross-platform):
 ```bash
 python -m abstractvoice download --stt small
 python -m abstractvoice download --piper en
+python -m abstractvoice download --supertonic # optional; requires abstractvoice[supertonic]
 python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
 python -m abstractvoice download --chroma   # optional; requires abstractvoice[chroma] (GPU-heavy)
 python -m abstractvoice download --audiodit # optional; requires abstractvoice[audiodit]
@@ -279,6 +294,7 @@ Or use the convenience entrypoint:
 ```bash
 abstractvoice-prefetch --stt small
 abstractvoice-prefetch --piper en
+abstractvoice-prefetch --supertonic         # optional; requires abstractvoice[supertonic]
 abstractvoice-prefetch --openf5            # optional; requires abstractvoice[cloning]
 abstractvoice-prefetch --chroma            # optional; requires abstractvoice[chroma] (GPU-heavy)
 abstractvoice-prefetch --audiodit          # optional; requires abstractvoice[audiodit]
@@ -351,7 +367,7 @@ config or `ABSTRACTVOICE_TTS_ENGINE` / `ABSTRACTVOICE_STT_ENGINE` selects a
 different engine:
 - `voice_language`: default language (e.g. `"en"`)
 - `voice_allow_downloads`: allow on-demand downloads (bool)
-- `voice_tts_engine`: base TTS engine (`"auto"|"piper"|"openai"|"openai-compatible"|"audiodit"|"omnivoice"`)
+- `voice_tts_engine`: base TTS engine (`"auto"|"piper"|"supertonic"|"openai"|"openai-compatible"|"audiodit"|"omnivoice"`)
 - `voice_stt_engine`: STT engine (`"auto"|"faster_whisper"|"openai"|"openai-compatible"`)
 - `voice_tts_model`: model id for remote TTS engines
 - `voice_stt_model`: model id for remote STT engines
@@ -418,6 +434,7 @@ example routes, not a replacement for AbstractCore Server, and they do not
 inherit AbstractCore/Gateway authentication or browser-origin policy:
 
 ```bash
+abstractvoice web
 abstractvoice web --tts-engine openai --stt-engine openai
 abstractvoice web --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
 ```
@@ -425,6 +442,7 @@ abstractvoice web --tts-engine openai-compatible --stt-engine openai-compatible 
 - `GET /api/status` -> lightweight server/config status
 - `GET /api/voices` -> `VoiceManager.get_profiles()`, `list_available_models()`, `list_cloned_voices()`
 - `GET /v1/audio/voices` -> compatible extension for remote profile/voice discovery (`VoiceManager.get_profiles()` + `list_cloned_voices()`)
+- `POST /api/tts/engine` -> switch the browser example's base TTS engine through `VoiceManager.set_tts_engine(...)`; resets the base profile/voice to the engine/language default and clears local role clone selections
 - `POST /api/voices/select` -> select base TTS, a cloned voice, or a TTS profile; optional local `role="assistant"|"user"` stores browser-example defaults; optional `preload=true` warms a cloned voice by calling a tiny `VoiceManager.speak_to_bytes(...)`
 - `POST /api/voices/clone` -> example-only multipart upload for browser voice cloning; stores the uploaded/recorded reference with `VoiceManager.clone_voice(...)` and validates by synthesizing a short sample by default (`validate=false` skips validation)
 - `POST /v1/voice/clone` -> compatible extension for remote clone creation; returns `voice_id`/`id` for later `/v1/audio/speech` `voice`
@@ -455,6 +473,11 @@ curl -X POST http://127.0.0.1:5000/api/tts \
   -H "Content-Type: application/json" \
   -d '{"input":"Hello.","role":"assistant","response_format":"wav"}' \
   --output hello.wav
+
+# Switch the browser example to Supertonic and its default profile.
+curl -X POST http://127.0.0.1:5000/api/tts/engine \
+  -H "Content-Type: application/json" \
+  -d '{"engine":"supertonic"}'
 
 # Compatible extension: discover profiles/cloned voices from another
 # AbstractVoice client configured with remote_base_url=http://127.0.0.1:5000/v1.

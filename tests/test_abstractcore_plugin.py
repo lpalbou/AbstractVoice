@@ -193,8 +193,18 @@ def test_voice_capability_default_openai_without_api_key_has_clear_error(monkeyp
         cap._get_vm()
 
 
-def test_voice_capability_catalog_surface_serializes_profiles_and_models():
+def test_voice_capability_catalog_surface_serializes_profiles_and_models(monkeypatch):
     from abstractvoice.voice_profiles import VoiceProfile
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.delenv("ABSTRACTGATEWAY_VOICE_TTS_ENGINE", raising=False)
+    monkeypatch.delenv("ABSTRACTVOICE_OPENAI_TTS_MODELS", raising=False)
+    monkeypatch.delenv("ABSTRACTVOICE_OPENAI_TTS_VOICE", raising=False)
+    monkeypatch.delenv("ABSTRACTVOICE_OPENAI_TTS_VOICES", raising=False)
+    monkeypatch.setattr(
+        "abstractvoice.integrations.abstractcore_plugin._catalog_safe_local_tts_engines",
+        lambda: [],
+    )
 
     class _Adapter:
         engine_id = "openai"
@@ -274,17 +284,189 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models():
     assert profiles[0]["params"] == {"voice": "alloy"}
 
     assert cap.list_tts_models() == ["gpt-active-tts", "tts-1", "tts-1-hd", "en_US-lessac-medium.onnx"]
-    assert cap.list_stt_models() == ["gpt-active-stt", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"]
+    expected_stt_models = ["gpt-active-stt", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"]
+    assert cap.list_stt_models()[: len(expected_stt_models)] == expected_stt_models
 
     catalog = cap.voice_catalog()
     assert catalog["engine_id"] == "openai"
     assert catalog["active_profile"]["profile_id"] == "alloy"
     assert catalog["active_model"] == "gpt-active-tts"
+    assert catalog["active_tts_provider"] == "openai"
+    assert catalog["active_stt_provider"] == "openai"
+    assert catalog["tts_providers"] == ["openai"]
+    assert catalog["stt_providers"][0] == "openai"
     assert catalog["tts_models"] == ["gpt-active-tts", "tts-1", "tts-1-hd", "en_US-lessac-medium.onnx"]
-    assert catalog["stt_models"] == ["gpt-active-stt", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"]
+    assert catalog["stt_models"][: len(expected_stt_models)] == expected_stt_models
     assert catalog["cloned_voices"][0]["voice_id"] == "clone_laurent"
     assert catalog["voices"][-1]["kind"] == "clone"
     assert catalog["catalog"]["openai"]["alloy"]["remote"] is True
+
+
+def test_voice_capability_catalog_includes_configured_openai_when_piper_active(monkeypatch):
+    from abstractvoice.voice_profiles import VoiceProfile
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    class _PiperAdapter:
+        engine_id = "piper"
+        model_id = "en_US-amy-medium"
+
+    class _PiperVM:
+        tts_adapter = _PiperAdapter()
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return [
+                VoiceProfile(
+                    engine_id="piper",
+                    profile_id="amy",
+                    label="Piper amy",
+                    params={"voice": "amy", "model": "en_US-amy-medium"},
+                    tags={"provider": "piper"},
+                )
+            ]
+
+        def get_active_profile(self, *, kind="tts"):
+            return self.get_profiles(kind=kind)[0]
+
+        def list_available_models(self):
+            return {"en": {"amy": {"model_filename": "en_US-amy-medium", "cached": True}}}
+
+        stt_engine = "openai"
+
+    class _OpenAIAdapter:
+        engine_id = "openai"
+        model_id = "gpt-4o-mini-tts"
+
+    class _OpenAIVM:
+        tts_adapter = _OpenAIAdapter()
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return [
+                VoiceProfile(
+                    engine_id="openai",
+                    profile_id="alloy",
+                    label="Alloy",
+                    params={"voice": "alloy"},
+                    tags={"provider": "openai"},
+                )
+            ]
+
+        def list_available_models(self):
+            return {"openai": {"alloy": {"available_models": ["gpt-4o-mini-tts"], "remote": True}}}
+
+    class _Owner:
+        config = {"voice_manager_instance": _PiperVM()}
+
+    cap = _VoiceCapability(_Owner())
+    cap._get_vm_for_provider = lambda **kwargs: _OpenAIVM() if kwargs.get("tts_provider") == "openai" else _PiperVM()
+
+    catalog = cap.voice_catalog()
+
+    assert catalog["active_tts_provider"] == "piper"
+    assert "piper" in catalog["tts_providers"]
+    assert "openai" in catalog["tts_providers"]
+    assert "gpt-4o-mini-tts" in catalog["tts_models"]
+    ids = {p.get("profile_id") for p in catalog["profiles"]}
+    assert {"amy", "alloy"} <= ids
+
+
+def test_voice_capability_tts_treats_active_profile_voice_as_profile_not_clone():
+    from abstractvoice.voice_profiles import VoiceProfile
+
+    calls = {"profiles": [], "speak_voice": []}
+
+    class _VM:
+        def get_active_profile(self, *, kind="tts"):
+            return VoiceProfile(engine_id="piper", profile_id="old", label="Old")
+
+        def set_profile(self, profile_id: str, *, kind="tts"):
+            calls["profiles"].append(profile_id)
+            return profile_id in {"amy", "old"}
+
+        def speak_to_bytes(self, text: str, format: str = "wav", voice=None):
+            calls["speak_voice"].append(voice)
+            return b"RIFF....WAVE"
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    out = _VoiceCapability(_Owner()).tts("hello", voice="amy")
+
+    assert out.startswith(b"RIFF")
+    assert calls["profiles"] == ["amy", "old"]
+    assert calls["speak_voice"] == [None]
+
+
+def test_voice_capability_tts_does_not_apply_cloned_voice_as_profile():
+    from abstractvoice.voice_profiles import VoiceProfile
+
+    calls = {"profiles": [], "speak_voice": [], "clone_quality": []}
+
+    class _VM:
+        def get_active_profile(self, *, kind="tts"):
+            return VoiceProfile(engine_id="omnivoice", profile_id="default", label="Default")
+
+        def set_profile(self, profile_id: str, *, kind="tts"):
+            calls["profiles"].append(profile_id)
+            return True
+
+        def get_cloned_voice(self, voice_id: str):
+            if voice_id == "clone-1":
+                return {"voice_id": "clone-1", "engine": "omnivoice"}
+            return None
+
+        def get_cloned_tts_quality_preset(self):
+            return "standard"
+
+        def set_cloned_tts_quality(self, preset: str):
+            calls["clone_quality"].append(preset)
+            return True
+
+        def speak_to_bytes(self, text: str, format: str = "wav", voice=None):
+            calls["speak_voice"].append(voice)
+            return b"RIFF....WAVE"
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    out = _VoiceCapability(_Owner()).tts("hello", voice="clone-1", profile="clone-1", quality_preset="high")
+
+    assert out.startswith(b"RIFF")
+    assert calls["profiles"] == []
+    assert calls["clone_quality"] == ["high", "standard"]
+    assert calls["speak_voice"] == ["clone-1"]
+
+
+def test_voice_capability_tts_applies_explicit_profile_when_not_clone():
+    from abstractvoice.voice_profiles import VoiceProfile
+
+    calls = {"profiles": [], "speak_voice": []}
+
+    class _VM:
+        def get_active_profile(self, *, kind="tts"):
+            return VoiceProfile(engine_id="omnivoice", profile_id="default", label="Default")
+
+        def set_profile(self, profile_id: str, *, kind="tts"):
+            calls["profiles"].append(profile_id)
+            return profile_id in {"female_01", "default"}
+
+        def get_cloned_voice(self, voice_id: str):
+            return None
+
+        def speak_to_bytes(self, text: str, format: str = "wav", voice=None):
+            calls["speak_voice"].append(voice)
+            return b"RIFF....WAVE"
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    out = _VoiceCapability(_Owner()).tts("hello", profile="female_01")
+
+    assert out.startswith(b"RIFF")
+    assert calls["profiles"] == ["female_01", "default"]
+    assert calls["speak_voice"] == [None]
 
 
 def test_voice_capability_injection_bytes_and_artifact():

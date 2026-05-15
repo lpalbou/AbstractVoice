@@ -36,8 +36,10 @@ class SttMixin:
         raise RuntimeError(
             "No STT engine is available.\n"
             "Default STT uses OpenAI remote audio; set OPENAI_API_KEY or pass remote_api_key=....\n"
-            "For local faster-whisper, install and select the local stack:\n"
-            "  pip install \"abstractvoice[local]\"\n"
+            "For local faster-whisper, install and select the STT engine:\n"
+            "  pip install \"abstractvoice[stt]\"\n"
+            "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+            "  pip install \"abstractvoice[gpu]\"    # GPU profile\n"
             "  VoiceManager(stt_engine=\"faster_whisper\", ...)"
         )
 
@@ -101,7 +103,8 @@ class SttMixin:
                     "Local STT engine 'faster-whisper' requires optional dependencies.\n"
                     "Install with:\n"
                     "  pip install \"abstractvoice[stt]\"\n"
-                    "  pip install \"abstractvoice[local]\""
+                    "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+                    "  pip install \"abstractvoice[gpu]\"    # GPU profile"
                 ) from e
             return None
 

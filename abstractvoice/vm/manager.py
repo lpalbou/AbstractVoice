@@ -69,15 +69,22 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         requested_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
 
         # Language normalization:
-        # - For Piper/local explicit engines, keep the historical catalog validation so
-        #   we don't try to load non-existent voices.
-        # - For other engines (e.g. OmniVoice), allow arbitrary language codes
-        #   and let the engine decide (some engines support 100s of languages).
+        # - Piper has a small curated voice mapping and should validate against
+        #   that adapter's own supported languages.
+        # - Other engines (e.g. Supertonic, OmniVoice) can support broader
+        #   language sets; pass the code through and let the engine decide.
         language = str(language or "en").strip().lower() or "en"
         if requested_engine in ("piper",):
-            if language not in self.LANGUAGES:
+            piper_languages = set()
+            try:
+                from ..adapters.tts_piper import PiperTTSAdapter
+
+                piper_languages = set(PiperTTSAdapter.PIPER_MODELS.keys())
+            except Exception:
+                piper_languages = {"en", "fr", "de", "es", "ru", "zh"}
+            if language not in piper_languages:
                 if debug_mode:
-                    available = ", ".join(self.LANGUAGES.keys())
+                    available = ", ".join(sorted(piper_languages))
                     print(f"⚠️ Unsupported language '{language}', using English. Available: {available}")
                 language = "en"
         self.language = language

@@ -9,7 +9,8 @@ This document is for contributors. User-facing docs live in:
 ## Layout
 
 - `abstractvoice/vm/` — `VoiceManager` façade + mixins (TTS/STT/cloning orchestration)
-- `abstractvoice/adapters/` — adapter implementations (Piper / AudioDiT / OmniVoice TTS; Faster-Whisper STT)
+- `abstractvoice/adapters/` — adapter implementations (Piper / Supertonic / AudioDiT / OmniVoice TTS; Faster-Whisper STT)
+- `abstractvoice/supertonic/` — internal Supertonic 3 ONNX runtime; no external Supertonic SDK dependency
 - `abstractvoice/audiodit/` — AudioDiT runtime + HF model implementation (vendored code; avoids `trust_remote_code`)
 - `abstractvoice/omnivoice/` — OmniVoice runtime wrapper (offline-first + device/dtype policy glue)
 - `abstractvoice/tts/` — audio playback utilities (`NonBlockingAudioPlayer`)
@@ -27,6 +28,7 @@ This document is for contributors. User-facing docs live in:
 Implementation points:
 
 - Piper downloads are gated in `abstractvoice/adapters/tts_piper.py`.
+- Supertonic downloads are gated in `abstractvoice/supertonic/runtime.py` and exposed via `--supertonic`.
 - Faster-Whisper offline mode is enforced in `abstractvoice/adapters/stt_faster_whisper.py`.
 - Torch engine snapshots are resolved offline-first in their runtimes (`abstractvoice/audiodit/runtime.py`, `abstractvoice/omnivoice/runtime.py`).
 - Cloning downloads are explicit per engine (`abstractvoice/cloning/engine_f5.py`, `abstractvoice/cloning/engine_chroma.py`, `abstractvoice/cloning/engine_audiodit.py`, `abstractvoice/cloning/engine_omnivoice.py`).

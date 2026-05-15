@@ -68,7 +68,14 @@ class OmniVoiceVoiceCloningEngine:
             self._num_step = 12
             self._guidance_scale = 2.0
         else:
-            self._num_step = 24
+            # Prompt-conditioned OmniVoice cloning does not behave like a simple
+            # "more steps is always cleaner" diffusion path. On Apple/MPS in
+            # particular, 24 steps has produced longer tails, low-level
+            # whispering, and occasional silence for otherwise healthy cloned
+            # voices. Keep "high" above standard, but within the stable
+            # clone-prompt regime. Users who need experimental higher step
+            # counts can still configure engine-specific parameters directly.
+            self._num_step = 16
             self._guidance_scale = 2.0
 
     def _get_runtime(self):
@@ -219,4 +226,3 @@ class OmniVoiceVoiceCloningEngine:
                 except Exception:
                     pass
             yield mono, int(sr_out)
-

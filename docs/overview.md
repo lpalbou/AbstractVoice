@@ -38,8 +38,10 @@ Next reads:
 
 - `speak()` plays to speakers
 - `pause_speaking()/resume_speaking()` control playback
-- For offline/local inference, install `abstractvoice[local]` and select
-  `tts_engine="piper"` / `stt_engine="faster_whisper"`.
+- For offline/local inference, install `abstractvoice[apple]`,
+  `abstractvoice[gpu]`, or granular extras such as
+  `abstractvoice[supertonic,stt]`, then select `tts_engine="supertonic"` /
+  `stt_engine="faster_whisper"`.
 
 ### 2) Backend/server code (headless)
 
@@ -61,8 +63,13 @@ capability backend discovered through `abstractcore.capabilities_plugins`.
 
 - `python -m abstractvoice cli` is the fastest end‑to‑end smoke test.
   - The REPL is offline-first: no implicit model downloads.
-  - Default voice engines are remote OpenAI; local engines are explicit.
-  - Optional engines are opt-in via extras (e.g. `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`) and require explicit prefetch.
+  - Interactive TTS `auto` prefers installed Supertonic, then installed Piper,
+    then OpenAI remote. Plain `abstractvoice` starts on OpenAI; full local
+    profiles such as `abstractvoice[all-apple]` and `abstractvoice[all-gpu]`
+    start on Supertonic.
+  - STT remains OpenAI remote by default unless you select
+    `stt_engine="faster_whisper"`.
+  - Optional engines are opt-in via extras (e.g. `abstractvoice[supertonic]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`) and require explicit prefetch.
   - The REPL is a **demonstrator**: it includes a minimal OpenAI-compatible LLM HTTP client for convenience (`abstractvoice/examples/llm_provider.py`), but production agent/server use should be done via AbstractCore.
 
 ### 5) Local browser smoke test
@@ -70,4 +77,6 @@ capability backend discovered through `abstractcore.capabilities_plugins`.
 - `abstractvoice web` starts a small FastAPI example around `VoiceManager`.
 - It has local `/api/*` routes for status, voices, TTS, and transcription, plus
   `/v1/audio/*` smoke-test aliases.
+- Its browser Voice panel can switch the base TTS engine through the same
+  `VoiceManager.set_tts_engine(...)` abstraction used by the REPL.
 - It is still an example; AbstractCore remains the production server/API path.

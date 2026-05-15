@@ -232,3 +232,33 @@ def test_voice_manager_network_methods():
 if __name__ == '__main__':
     # Run tests with verbose output
     pytest.main([__file__, '-v', '-s'])
+def test_piper_profiles_select_voice_id_without_clone_path(tmp_path):
+    from abstractvoice.adapters.tts_piper import PiperTTSAdapter
+
+    adapter = PiperTTSAdapter.__new__(PiperTTSAdapter)
+    adapter._model_dir = tmp_path
+    adapter._current_language = "en"
+    adapter.PIPER_MODELS = {
+        "en": ("en/en_US/amy/medium", "en_US-amy-medium"),
+        "fr": ("fr/fr_FR/siwis/medium", "fr_FR-siwis-medium"),
+    }
+    adapter.MODEL_SIZES = {"en": "50MB", "fr": "45MB"}
+
+    selected: list[str] = []
+
+    def _set_language(language: str) -> bool:
+        selected.append(language)
+        adapter._current_language = language
+        return True
+
+    adapter.set_language = _set_language
+    adapter.synthesize_to_bytes = lambda text, format="wav": f"{adapter._current_language}:{text}:{format}".encode()
+
+    profiles = adapter.get_profiles()
+    assert {p.profile_id for p in profiles} == {"amy", "siwis"}
+    assert adapter.set_profile("amy") is True
+    assert selected[-1] == "en"
+    assert adapter.set_profile("fr_FR-siwis-medium.onnx") is True
+    assert selected[-1] == "fr"
+    assert adapter.get_active_profile().profile_id == "siwis"
+    assert adapter.synthesize_to_bytes_with_voice("bonjour", voice="amy", format="wav") == b"en:bonjour:wav"

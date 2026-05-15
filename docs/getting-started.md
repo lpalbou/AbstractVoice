@@ -1,7 +1,7 @@
 # Getting started
 
-Start here after `README.md` when you want to confirm the default remote path
-works, then optionally switch to local/offline engines.
+Start here after `README.md` when you want to confirm the package works, then
+choose either the lightweight remote path or local/offline engines.
 
 Use `docs/api.md` for the supported integrator contract, `docs/architecture.md`
 for the implementation map, and `docs/faq.md` for cache/history reset and common
@@ -10,19 +10,19 @@ troubleshooting.
 ## Requirements
 
 - Python `>=3.9` (see `pyproject.toml`)
-- `OPENAI_API_KEY` for the default `VoiceManager()` / REPL path
+- `OPENAI_API_KEY` for `VoiceManager()` defaults or explicit remote REPL/web TTS
 - For microphone input: OS-level microphone permissions for your terminal/IDE
 
 ## Install
 
 ```bash
 pip install abstractvoice
-export OPENAI_API_KEY=...
 ```
 
 The plain install is lightweight and remote/plugin oriented. For fully local
-inference, listening, and cloning engines, install `abstractvoice[local]` and
-select local engines explicitly. Optional extras are documented in
+inference, listening, Supertonic/Piper TTS, and cloning engines, install
+`abstractvoice[apple]` or `abstractvoice[gpu]`, or compose granular extras such
+as `abstractvoice[supertonic,stt,audio-io]`. Optional extras are documented in
 `docs/installation.md`.
 
 ## 60-second smoke test (no mic required)
@@ -30,22 +30,36 @@ select local engines explicitly. Optional extras are documented in
 Start the REPL:
 
 ```bash
-OPENAI_API_KEY=... abstractvoice --verbose
+abstractvoice --verbose
 ```
 
 From a source checkout (without installing the console script), use:
 ```bash
-OPENAI_API_KEY=... python -m abstractvoice cli --verbose
+python -m abstractvoice cli --verbose
 ```
 
 In the REPL, run:
 
 - `/speak hello` (tests TTS without calling an LLM)
 
+The interactive REPL default is `--tts-engine auto`: installed Supertonic first,
+installed Piper second, then OpenAI remote. A plain lightweight install starts
+on OpenAI; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` start on
+Supertonic. If the status line says `openai (remote)`, set `OPENAI_API_KEY` or
+switch to a local engine.
+
 For local/offline TTS instead:
 
 ```bash
-pip install "abstractvoice[local]"
+pip install "abstractvoice[supertonic]"
+abstractvoice-prefetch --supertonic
+abstractvoice --tts-engine supertonic --stt-engine faster_whisper --verbose
+```
+
+For the smaller Piper fallback:
+
+```bash
+pip install "abstractvoice[piper]"
 abstractvoice-prefetch --piper en
 abstractvoice --tts-engine piper --stt-engine faster_whisper --verbose
 ```
@@ -60,24 +74,35 @@ AbstractCore Server for production OpenAI-compatible HTTP endpoints.
 
 ```bash
 pip install "abstractvoice[web]"
+abstractvoice web --port 5000
+```
+
+For a local web lab with Supertonic/faster-whisper:
+
+```bash
+pip install "abstractvoice[web,supertonic,stt]"
+abstractvoice-prefetch --supertonic
+abstractvoice web --port 5000 --tts-engine supertonic --stt-engine faster_whisper
+```
+
+For a remote OpenAI-compatible web smoke test:
+
+```bash
 abstractvoice web --port 5000 --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
 ```
 
-For a local web lab with Piper/faster-whisper instead:
-
-```bash
-pip install "abstractvoice[web,local]"
-abstractvoice web --port 5000 --tts-engine piper --stt-engine faster_whisper
-```
-
 If you want the browser UI and a smaller optional engine install, compose
-extras directly, such as `abstractvoice[web,omnivoice]`.
+extras directly, such as `abstractvoice[web,supertonic]` or
+`abstractvoice[web,omnivoice]`.
 
 Then open `http://127.0.0.1:5000`.
 
-The web example is offline-first by default. Prefetch models first, or start it with
-`--allow-downloads` when you explicitly want web requests to download missing
-models. Selecting a cloned voice can take a while on first use because the
+The web example is offline-first by default. Its `auto` TTS default has the same
+interactive behavior as the REPL: installed Supertonic, installed Piper, then
+remote OpenAI. Prefetch models first, or start it with `--allow-downloads` when
+you explicitly want web requests to download missing models. The Voice panel
+includes a base TTS engine selector; switching engines resets the base profile
+to that engine/language default. Selecting a cloned voice can take a while on first use because the
 cloning backend loads weights and builds prompt/runtime caches; the browser UI
 shows a busy overlay while that work is happening.
 
@@ -105,9 +130,13 @@ This uses OpenAI remote audio and reads `OPENAI_API_KEY`. For local inference:
 ```python
 from abstractvoice import VoiceManager
 
-vm = VoiceManager(tts_engine="piper", stt_engine="faster_whisper")
+vm = VoiceManager(tts_engine="supertonic", stt_engine="faster_whisper")
 vm.speak("Hello from the local stack.")
 ```
+
+For Supertonic fixed-profile local TTS, install `abstractvoice[supertonic]`,
+prefetch with `abstractvoice-prefetch --supertonic`, and use
+`VoiceManager(tts_engine="supertonic")`.
 
 The public entry point is `abstractvoice.VoiceManager` (`abstractvoice/voice_manager.py`).
 
@@ -176,6 +205,7 @@ The REPL runs with `allow_downloads=False`, so prefetch explicitly:
 ```bash
 abstractvoice-prefetch --stt small
 abstractvoice-prefetch --piper en
+abstractvoice-prefetch --supertonic
 ```
 
 For cloning engines (optional / large), see `docs/installation.md` and `docs/voices-and-licenses.md`.

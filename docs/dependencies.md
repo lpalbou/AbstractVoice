@@ -37,18 +37,26 @@ These are always installed with `pip install abstractvoice`.
 
 ## Optional extras (opt-in)
 
-### `abstractvoice[local]` — full local stack
+### `abstractvoice[apple]` / `abstractvoice[gpu]` — platform local stacks
 
-This is the full local/offline handle. It includes local Piper TTS,
-faster-whisper STT, microphone/playback/VAD dependencies, AEC where supported,
-and the optional local cloning/TTS engine dependencies that are resolver-safe on
-the current Python version. Use granular extras below for smaller installs.
+These are the platform local/offline profiles. They include local Piper TTS,
+Supertonic 3 ONNX TTS, faster-whisper STT, microphone/playback/VAD
+dependencies, AEC where supported, and the optional local cloning/TTS engine
+dependencies that are resolver-safe on the current Python version. Use granular
+extras below for smaller installs, or `abstractvoice[all-apple]` /
+`abstractvoice[all-gpu]` when you also want the web example.
 
 - **piper-tts**
   - **Why**: local neural TTS backend.
   - **Where**: `abstractvoice/adapters/tts_piper.py`
   - **Repo**: `https://github.com/rhasspy/piper`
   - **License**: `https://github.com/rhasspy/piper/blob/master/LICENSE`
+
+- **onnxruntime**
+  - **Why**: ONNX inference runtime for Supertonic 3 and Piper execution-provider introspection.
+  - **Where**: `abstractvoice/supertonic/runtime.py`, `abstractvoice/adapters/tts_piper.py`
+  - **Repo**: `https://github.com/microsoft/onnxruntime`
+  - **License**: `https://github.com/microsoft/onnxruntime/blob/main/LICENSE`
 
 - **faster-whisper**
   - **Why**: local STT backend (fast Whisper inference).
@@ -73,6 +81,29 @@ the current Python version. Use granular extras below for smaller installs.
   - **Where**: `abstractvoice/vad/voice_detector.py`, `abstractvoice/recognition.py`
   - **Repo**: `https://github.com/wiseman/py-webrtcvad`
   - **License**: `https://github.com/wiseman/py-webrtcvad/blob/master/LICENSE.txt`
+
+### `abstractvoice[supertonic]` — Supertonic 3 fixed-profile ONNX TTS
+
+Supertonic is local TTS only, not voice cloning. AbstractVoice integrates the
+published ONNX files through an internal adapter and does not depend on the
+external `supertonic` Python SDK.
+
+Python packages:
+
+- **onnxruntime**
+  - **Why**: executes the Supertonic ONNX graphs.
+  - **Where**: `abstractvoice/supertonic/runtime.py`, `abstractvoice/adapters/tts_supertonic.py`
+  - **Repo**: `https://github.com/microsoft/onnxruntime`
+  - **License**: `https://github.com/microsoft/onnxruntime/blob/main/LICENSE`
+
+Models/weights:
+
+- **Supertone Supertonic 3**
+  - **Model**: `https://huggingface.co/Supertone/supertonic-3`
+  - **License file**: `https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE`
+  - **Cache**: `~/.cache/abstractvoice/supertonic-3` by default
+  - **Prefetch**: `python -m abstractvoice download --supertonic` or `abstractvoice-prefetch --supertonic`
+  - **Profiles**: built-in fixed styles `M1`-`M5` and `F1`-`F5`
 
 ### `abstractvoice[cloning]`, `[chroma]`, `[audiodit]`, `[omnivoice]` — model prefetch support
 
@@ -240,8 +271,10 @@ floor.
 ### `abstractvoice[web]` — Local web example
 
 The base web extra installs only the browser server stack. Compose it with
-`abstractvoice[local]` for the full local lab, or with granular engine extras
-such as `abstractvoice[omnivoice]` for smaller installs.
+`abstractvoice[all-apple]` / `abstractvoice[all-gpu]` for the full platform
+local lab, with `abstractvoice[supertonic]` for the browser UI plus Supertonic,
+or with other granular engine extras such as `abstractvoice[omnivoice]` for
+smaller installs.
 
 - **FastAPI**
   - **Why**: local browser example routes for TTS, transcription, assistant/user voice selection, voice cloning upload forms, and discussion playback (`abstractvoice web`).
@@ -269,13 +302,13 @@ such as `abstractvoice[omnivoice]` for smaller installs.
   - **Repo**: `https://github.com/SYSTRAN/faster-whisper`
   - **License**: `https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE`
 
-## Notable transitive runtimes (debugging-oriented)
+## Notable runtimes (debugging-oriented)
 
 - **CTranslate2** (used by `faster-whisper`)
   - Repo: `https://github.com/OpenNMT/CTranslate2`
   - License: `https://github.com/OpenNMT/CTranslate2/blob/master/LICENSE`
 
-- **ONNX Runtime** (used by Piper)
+- **ONNX Runtime** (used directly by Supertonic and inspected by Piper)
   - Repo: `https://github.com/microsoft/onnxruntime`
   - License: `https://github.com/microsoft/onnxruntime/blob/main/LICENSE`
 

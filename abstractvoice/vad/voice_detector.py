@@ -22,7 +22,8 @@ def _import_webrtcvad():
         raise ImportError(
             "Voice activity detection requires optional dependencies. Install with:\n"
             "  pip install abstractvoice[audio-io]  # For audio I/O only\n"
-            "  pip install abstractvoice[local]     # For the full local stack\n"
+            "  pip install abstractvoice[apple]     # Apple profile\n"
+            "  pip install abstractvoice[gpu]       # GPU profile\n"
             f"Original error: {e}"
         ) from e
 

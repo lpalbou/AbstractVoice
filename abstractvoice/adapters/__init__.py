@@ -11,6 +11,7 @@ __all__ = [
     'TTSAdapter',
     'STTAdapter',
     'PiperTTSAdapter',
+    'SupertonicTTSAdapter',
     'FasterWhisperAdapter',
     'OpenAICompatibleTTSAdapter',
     'OpenAICompatibleSTTAdapter',
@@ -22,6 +23,10 @@ def __getattr__(name: str):
         from .tts_piper import PiperTTSAdapter
 
         return PiperTTSAdapter
+    if name == "SupertonicTTSAdapter":
+        from .tts_supertonic import SupertonicTTSAdapter
+
+        return SupertonicTTSAdapter
     if name == "FasterWhisperAdapter":
         from .stt_faster_whisper import FasterWhisperAdapter
 

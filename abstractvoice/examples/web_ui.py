@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from abstractvoice.examples.llm_provider import DEFAULT_MODEL, DEFAULT_PROVIDER, resolve_provider
+from abstractvoice.examples.tts_defaults import normalize_tts_engine_name, resolve_interactive_tts_engine
 
 
 LOCAL_ROUTES = [
@@ -35,6 +36,11 @@ LOCAL_ROUTES = [
         "method": "GET",
         "path": "/api/voices",
         "maps_to": "VoiceManager.get_profiles(), list_available_models(), list_cloned_voices()",
+    },
+    {
+        "method": "POST",
+        "path": "/api/tts/engine",
+        "maps_to": "VoiceManager.set_tts_engine(); resets base profile to the engine/language default",
     },
     {
         "method": "GET",
@@ -528,6 +534,24 @@ PAGE = r"""
         <div class="panel-head"><h2>Voice</h2></div>
         <div class="panel-body stack">
           <div class="grid2">
+            <label>TTS Engine
+              <select id="tts-engine-choice">
+                <option value="auto">Auto</option>
+                <option value="supertonic">Supertonic</option>
+                <option value="piper">Piper</option>
+                <option value="openai">OpenAI</option>
+                <option value="openai-compatible">OpenAI-compatible</option>
+                <option value="audiodit">AudioDiT</option>
+                <option value="omnivoice">OmniVoice</option>
+              </select>
+            </label>
+            <label>Base TTS Profile
+              <select id="profile-choice">
+                <option value="">Default</option>
+              </select>
+            </label>
+          </div>
+          <div class="grid2">
             <label>Assistant Voice
               <select id="assistant-voice-choice">
                 <option value="base">Base TTS</option>
@@ -539,11 +563,6 @@ PAGE = r"""
               </select>
             </label>
           </div>
-          <label>Base TTS Profile
-            <select id="profile-choice">
-              <option value="">Default</option>
-            </select>
-          </label>
           <label>Speed
             <input id="speed" type="number" min="0.5" max="2" step="0.05" value="1">
           </label>
@@ -647,6 +666,7 @@ PAGE = r"""
     const conversationToggle = document.getElementById("conversation-toggle");
     const assistantVoiceChoice = document.getElementById("assistant-voice-choice");
     const userVoiceChoice = document.getElementById("user-voice-choice");
+    const ttsEngineChoice = document.getElementById("tts-engine-choice");
     const profileChoice = document.getElementById("profile-choice");
     const languageInput = document.getElementById("language");
     const speedInput = document.getElementById("speed");
@@ -824,6 +844,17 @@ PAGE = r"""
     }
 
     function updateOptionalEngineUi() {
+      for (const opt of ttsEngineChoice.options) {
+        const installed = optionEngineInstalled(opt.value);
+        opt.disabled = !installed;
+        const base = opt.dataset.baseLabel || opt.textContent.replace(" (not installed)", "");
+        opt.dataset.baseLabel = base;
+        opt.textContent = installed ? base : base + " (not installed)";
+      }
+      if (ttsEngineChoice.selectedOptions[0] && ttsEngineChoice.selectedOptions[0].disabled) {
+        const firstReady = Array.from(ttsEngineChoice.options).find((opt) => !opt.disabled);
+        if (firstReady) ttsEngineChoice.value = firstReady.value;
+      }
       for (const opt of cloneEngineInput.options) {
         const installed = optionEngineInstalled(opt.value);
         opt.disabled = !installed;
@@ -1095,6 +1126,10 @@ PAGE = r"""
         statusEl.textContent = data.voice_manager_initialized ? "VoiceManager loaded" : "Ready";
         statusEl.classList.add("ok");
         if (data.defaults && data.defaults.language) languageInput.value = data.defaults.language;
+        const currentEngine = (data.current && data.current.tts_engine) || (data.defaults && data.defaults.tts_engine) || "";
+        if (currentEngine && Array.from(ttsEngineChoice.options).some((o) => o.value === currentEngine)) {
+          ttsEngineChoice.value = currentEngine;
+        }
         optionalDependencies = data.optional_dependencies || {};
         updateOptionalEngineUi();
         updateProfileEngineUi();
@@ -1122,6 +1157,10 @@ PAGE = r"""
     async function refreshVoices() {
       try {
         const data = await fetchJson("/api/voices");
+        const currentEngine = data.current && data.current.tts_engine;
+        if (currentEngine && Array.from(ttsEngineChoice.options).some((o) => o.value === currentEngine)) {
+          ttsEngineChoice.value = currentEngine;
+        }
         const roleVoices = (data.current && data.current.role_voices) || {};
         const assistantSelected = roleVoices.assistant || assistantVoiceChoice.value || "base";
         const userSelected = roleVoices.user || userVoiceChoice.value || "base";
@@ -1199,9 +1238,31 @@ PAGE = r"""
       if (text.includes("OpenF5 artifacts")) text += " Prefetch: abstractvoice-prefetch --openf5, or REPL: /cloning_download f5_tts.";
       if (lower.includes("f5_tts") && lower.includes("not installed")) text += ' Install: pip install "abstractvoice[cloning]".';
       if (lower.includes("audiodit") && (lower.includes("not installed") || lower.includes("prefetch"))) text += ' Install: pip install "abstractvoice[audiodit]"; prefetch: abstractvoice-prefetch --audiodit.';
+      if (lower.includes("supertonic") || lower.includes("supertonic 3")) text += ' Install: pip install "abstractvoice[supertonic]"; prefetch: abstractvoice-prefetch --supertonic.';
       if (lower.includes("omnivoice") || text.includes("No module named 'omnivoice'")) text += ' Install: pip install "abstractvoice[web,omnivoice]"; prefetch: abstractvoice-prefetch --omnivoice.';
       if (lower.includes("chroma") && lower.includes("artifacts")) text += " Prefetch: abstractvoice-prefetch --chroma.";
       return text;
+    }
+
+    async function selectTtsEngine() {
+      const engine = ttsEngineChoice.value;
+      if (!engine) return;
+      try {
+        const detail = "Switching base TTS engine and loading its default profile.";
+        setMessage(voiceMessage, detail, "");
+        const data = await withBusy("Switching TTS engine", detail, () => fetchJson("/api/tts/engine", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({engine})
+        }));
+        const profile = data.current && data.current.profile;
+        const suffix = profile && profile.profile_id ? " Profile: " + profile.profile_id + "." : "";
+        await refreshVoices();
+        setMessage(voiceMessage, "TTS engine set to " + (data.tts_engine || engine) + "." + suffix, "ok");
+      } catch (err) {
+        await refreshVoices();
+        setMessage(voiceMessage, voiceSelectionErrorText(err.message || String(err), "assistant"), "error");
+      }
     }
 
     async function selectProfile() {
@@ -1554,6 +1615,7 @@ PAGE = r"""
     document.getElementById("transcribe").addEventListener("click", transcribe);
     document.getElementById("refresh-models").addEventListener("click", refreshModels);
     document.getElementById("refresh-voices").addEventListener("click", () => withBusy("Loading TTS voices", "Reading local profiles and cloned voices; the first run may initialize the TTS engine.", refreshVoices));
+    ttsEngineChoice.addEventListener("change", selectTtsEngine);
     assistantVoiceChoice.addEventListener("change", () => selectRoleVoice("assistant"));
     userVoiceChoice.addEventListener("change", () => selectRoleVoice("user"));
     profileChoice.addEventListener("change", selectProfile);
@@ -1589,7 +1651,8 @@ class ExampleState:
         voice_manager_factory: Optional[Callable[["ExampleState"], Any]] = None,
     ) -> None:
         self.language = str(language or "en").strip().lower() or "en"
-        self.tts_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
+        requested_tts_engine = normalize_tts_engine_name(tts_engine)
+        self.tts_engine = resolve_interactive_tts_engine(requested_tts_engine, language=self.language)
         self.stt_engine = str(stt_engine or "openai").strip().lower().replace("_", "-") or "openai"
         self.whisper_model = str(whisper_model or "base").strip() or "base"
         self.tts_model = str(tts_model).strip() if isinstance(tts_model, str) and tts_model.strip() else None
@@ -1888,6 +1951,29 @@ class ExampleState:
                 return {"ok": True, "current": self.status_dict()["current"]}
         raise ValueError("Voice kind must be base, clone, or profile.")
 
+    def set_tts_engine(self, engine: str) -> dict[str, Any]:
+        requested = str(engine or "").strip().lower().replace("_", "-")
+        if requested in ("remote", "compatible", "proxy"):
+            requested = "openai-compatible"
+        if requested not in {"openai", "openai-compatible", "piper", "supertonic", "audiodit", "omnivoice", "auto"}:
+            raise ValueError("TTS engine must be auto, supertonic, piper, openai, openai-compatible, audiodit, or omnivoice.")
+        requested = resolve_interactive_tts_engine(requested, language=self.language)
+
+        with self.lock:
+            vm = self.get_voice_manager()
+            switch = getattr(vm, "set_tts_engine", None)
+            if not callable(switch):
+                raise RuntimeError("The active VoiceManager does not support TTS engine switching.")
+            resolved = str(switch(requested, tts_model=self.tts_model) or requested)
+            self.tts_engine = resolved
+            try:
+                self.language = str(vm.get_language())
+            except Exception:
+                pass
+            self.current_voice = None
+            self.role_voices = {"assistant": None, "user": None}
+            return {"ok": True, "tts_engine": resolved, "current": self.status_dict()["current"]}
+
     def synthesize(
         self,
         *,
@@ -2135,12 +2221,16 @@ def optional_dependency_status() -> dict[str, dict[str, Any]]:
     """Report optional runtime imports without importing heavy engines."""
     out: dict[str, dict[str, Any]] = {}
     modules = {
+        "piper": "piper",
+        "supertonic": "onnxruntime",
         "omnivoice": "omnivoice",
         "f5_tts": "f5_tts",
         "chroma": "transformers",
         "audiodit": "torch",
     }
     packages = {
+        "piper": "piper-tts",
+        "supertonic": "onnxruntime",
         "omnivoice": "omnivoice",
         "f5_tts": "f5-tts",
         "chroma": "transformers",
@@ -2242,7 +2332,7 @@ def _load_uvicorn():
 def create_app(
     *,
     language: str = "en",
-    tts_engine: str = "openai",
+    tts_engine: str = "auto",
     stt_engine: str = "openai",
     whisper_model: str = "base",
     tts_model: Optional[str] = None,
@@ -2296,6 +2386,13 @@ def create_app(
         profile: Optional[str] = Field(None, description="Base TTS profile id.", examples=["female_01"])
         role: Optional[str] = Field(None, description="Browser example role default: assistant or user.", examples=["assistant"])
         preload: bool = Field(False, description="Warm the cloned voice before committing the selection.")
+
+    class TTSEngineRequest(BaseModel):
+        engine: str = Field(
+            "auto",
+            description="Base TTS engine: auto, supertonic, piper, openai, openai-compatible, audiodit, or omnivoice.",
+            examples=["supertonic"],
+        )
 
     class ChatRequest(BaseModel):
         provider: Optional[str] = Field(None, description="Provider preset or base URL.", examples=["ollama"])
@@ -2391,6 +2488,13 @@ def create_app(
     async def openai_voice_profiles():
         try:
             return state.voice_profile_payload()
+        except Exception as e:
+            http_error(e)
+
+    @app.post("/api/tts/engine", summary="Switch the base TTS engine")
+    async def set_tts_engine(payload: TTSEngineRequest):
+        try:
+            return state.set_tts_engine(payload.engine)
         except Exception as e:
             http_error(e)
 
@@ -2559,7 +2663,7 @@ def run_server(
     host: str = "127.0.0.1",
     port: int = 5000,
     language: str = "en",
-    tts_engine: str = "openai",
+    tts_engine: str = "auto",
     stt_engine: str = "openai",
     whisper_model: str = "base",
     tts_model: Optional[str] = None,
@@ -2597,7 +2701,7 @@ def parse_args(argv: Optional[list[str]] = None):
     parser.add_argument("--host", default="127.0.0.1", help="Host to listen on")
     parser.add_argument("--port", type=int, default=5000, help="Port to listen on")
     parser.add_argument("--language", "--lang", default="en", help="Default language code")
-    parser.add_argument("--tts-engine", default="openai", help="Default TTS engine")
+    parser.add_argument("--tts-engine", default="auto", help="Default TTS engine (auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice)")
     parser.add_argument("--stt-engine", default="openai", help="Default STT engine")
     parser.add_argument("--tts-model", default=None, help="Model id for remote TTS engines")
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")

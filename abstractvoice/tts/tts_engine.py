@@ -82,7 +82,8 @@ def _import_sounddevice():
         raise ImportError(
             "Audio playback requires sounddevice. Install with:\n"
             "  pip install \"abstractvoice[audio-io]\"\n"
-            "  pip install \"abstractvoice[local]\"\n"
+            "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+            "  pip install \"abstractvoice[gpu]\"    # GPU profile\n"
             f"Original error: {e}"
         ) from e
 
@@ -138,6 +139,7 @@ class NonBlockingAudioPlayer:
 
         self.audio_queue: "queue.Queue[np.ndarray]" = queue.Queue()
         self.stream = None
+        self._stream_lock = threading.RLock()
         self.is_playing = False
 
         # Track which output device the stream is pinned to.
@@ -329,157 +331,164 @@ class NonBlockingAudioPlayer:
             outdata.fill(0)
 
     def start_stream(self):
-        if self.stream is not None:
-            return
-        sd = _import_sounddevice()
+        with self._stream_lock:
+            if self.stream is not None:
+                return
+            sd = _import_sounddevice()
 
-        desired_sr = int(self.sample_rate)
+            desired_sr = int(self.sample_rate)
 
-        # Device candidates: default first, then explicit indices as fallback.
-        device_candidates: list[int | None] = [None]
-        try:
-            dev = sd.query_devices(None, "output")  # default output device
-            idx = dev.get("index", None)
-            if isinstance(idx, int) and idx not in device_candidates:
-                device_candidates.append(idx)
-        except Exception:
-            pass
-        try:
-            for i, dev in enumerate(sd.query_devices()):  # all devices
-                if int(dev.get("max_output_channels", 0) or 0) <= 0:
-                    continue
-                if i not in device_candidates:
-                    device_candidates.append(i)
-        except Exception:
-            pass
-
-        # Common output rates (keep short; we already prefer device default + desired).
-        common_rates = (48000, 44100, 24000, 22050, 16000)
-
-        last_err: Exception | None = None
-        for device in device_candidates:
-            # Build per-device candidate sample rates (desired first, then device default, then common).
-            sr_candidates: list[int] = []
+            # Device candidates: system default first, then explicit non-default
+            # output devices as fallback. Avoid retrying the default by index; on
+            # macOS that can repeat a slow CoreAudio open path.
+            device_candidates: list[int | None] = [None]
+            default_idx: int | None = None
             try:
-                dev = sd.query_devices(device, "output") if device is not None else sd.query_devices(None, "output")
-                default_sr = int(round(float(dev.get("default_samplerate", 0) or 0)))
-                max_ch = int(dev.get("max_output_channels", 0) or 0)
+                dev = sd.query_devices(None, "output")  # default output device
+                idx = dev.get("index", None)
+                default_idx = int(idx) if isinstance(idx, int) else None
             except Exception:
-                default_sr = 0
-                max_ch = 0
+                default_idx = None
+            try:
+                for i, dev in enumerate(sd.query_devices()):  # all devices
+                    if int(dev.get("max_output_channels", 0) or 0) <= 0:
+                        continue
+                    if default_idx is not None and int(i) == int(default_idx):
+                        continue
+                    if i not in device_candidates:
+                        device_candidates.append(i)
+            except Exception:
+                pass
 
-            # Prefer opening the stream at the audio's natural rate to avoid resampling
-            # (e.g. 24 kHz for AudioDiT). If the device rejects it, we fall back.
-            if desired_sr:
-                sr_candidates.append(int(desired_sr))
-            if default_sr and int(default_sr) not in sr_candidates:
-                sr_candidates.append(int(default_sr))
+            # Common output rates (keep short; we already prefer device default + desired).
+            common_rates = (48000, 44100, 24000, 22050, 16000)
 
-            for sr in common_rates:
-                if sr not in sr_candidates:
-                    sr_candidates.append(sr)
+            last_err: Exception | None = None
+            for device in device_candidates:
+                # Build per-device candidate sample rates. Prefer the hardware
+                # default first. Some CoreAudio devices take several seconds to
+                # reject uncommon rates (24 kHz/22.05 kHz); resampling is cheaper
+                # and avoids a slow first `/speak`.
+                sr_candidates: list[int] = []
+                try:
+                    dev = sd.query_devices(device, "output") if device is not None else sd.query_devices(None, "output")
+                    default_sr = int(round(float(dev.get("default_samplerate", 0) or 0)))
+                    max_ch = int(dev.get("max_output_channels", 0) or 0)
+                except Exception:
+                    default_sr = 0
+                    max_ch = 0
 
-            # Prefer stereo devices (most macOS outputs are 2ch); fall back to mono.
-            ch_order = (2, 1) if max_ch >= 2 else (1,)
-            # Prefer PortAudio-chosen blocksize first (often most compatible).
-            block_order = (0, 1024)
+                if default_sr:
+                    sr_candidates.append(int(default_sr))
+                if desired_sr and int(desired_sr) not in sr_candidates:
+                    sr_candidates.append(int(desired_sr))
 
-            for sr in sr_candidates:
-                for blocksize in block_order:
-                    for channels in ch_order:
-                        if max_ch and channels > max_ch:
-                            continue
-                        stream = None
-                        try:
-                            with _SilenceStderrFD(enabled=not self.debug_mode):
-                                stream = sd.OutputStream(
-                                    samplerate=int(sr),
-                                    channels=int(channels),
-                                    callback=self._audio_callback,
-                                    blocksize=int(blocksize),
-                                    dtype=np.float32,
-                                    device=int(device) if device is not None else None,
-                                )
-                                stream.start()
-                            self.stream = stream
-                            self.sample_rate = int(sr)
-                            # Record which device we pinned to at open time.
+                for sr in common_rates:
+                    if sr not in sr_candidates:
+                        sr_candidates.append(sr)
+
+                # Prefer stereo devices (most macOS outputs are 2ch); fall back to mono.
+                ch_order = (2, 1) if max_ch >= 2 else (1,)
+                # Prefer PortAudio-chosen blocksize first (often most compatible).
+                block_order = (0, 1024)
+
+                for sr in sr_candidates:
+                    for blocksize in block_order:
+                        for channels in ch_order:
+                            if max_ch and channels > max_ch:
+                                continue
+                            stream = None
                             try:
-                                opened_info = (
-                                    sd.query_devices(int(device), "output")
-                                    if device is not None
-                                    else sd.query_devices(None, "output")
-                                )
-                            except Exception:
-                                opened_info = None
-                            try:
-                                if isinstance(opened_info, dict):
-                                    self._opened_output_device_index = (
-                                        int(opened_info.get("index")) if isinstance(opened_info.get("index"), int) else None
+                                with _SilenceStderrFD(enabled=not self.debug_mode):
+                                    stream = sd.OutputStream(
+                                        samplerate=int(sr),
+                                        channels=int(channels),
+                                        callback=self._audio_callback,
+                                        blocksize=int(blocksize),
+                                        dtype=np.float32,
+                                        device=int(device) if device is not None else None,
                                     )
-                                    self._opened_output_device_name = str(opened_info.get("name", "") or "").strip() or None
-                                else:
+                                    stream.start()
+                                self.stream = stream
+                                self.sample_rate = int(sr)
+                                # Record which device we pinned to at open time.
+                                try:
+                                    opened_info = (
+                                        sd.query_devices(int(device), "output")
+                                        if device is not None
+                                        else sd.query_devices(None, "output")
+                                    )
+                                except Exception:
+                                    opened_info = None
+                                try:
+                                    if isinstance(opened_info, dict):
+                                        self._opened_output_device_index = (
+                                            int(opened_info.get("index")) if isinstance(opened_info.get("index"), int) else None
+                                        )
+                                        self._opened_output_device_name = str(opened_info.get("name", "") or "").strip() or None
+                                    else:
+                                        self._opened_output_device_index = int(device) if device is not None else None
+                                        self._opened_output_device_name = None
+                                except Exception:
                                     self._opened_output_device_index = int(device) if device is not None else None
                                     self._opened_output_device_name = None
-                            except Exception:
-                                self._opened_output_device_index = int(device) if device is not None else None
-                                self._opened_output_device_name = None
-                            try:
-                                self._opened_output_channels = int(channels)
-                            except Exception:
-                                self._opened_output_channels = None
-                            try:
-                                # Cache the system default output at open time so we can detect changes later.
-                                cur_default = self._default_output_device_index()
-                                self._last_seen_default_output_device_index = (
-                                    int(cur_default) if cur_default is not None else self._last_seen_default_output_device_index
-                                )
-                            except Exception:
-                                pass
-                            if self.debug_mode:
                                 try:
-                                    name = str(getattr(self, "_opened_output_device_name", None) or "").strip() or "(unknown)"
-                                    idx_txt = (
-                                        str(int(self._opened_output_device_index))
-                                        if isinstance(getattr(self, "_opened_output_device_index", None), int)
-                                        else "?"
+                                    self._opened_output_channels = int(channels)
+                                except Exception:
+                                    self._opened_output_channels = None
+                                try:
+                                    # Cache the system default output at open time so we can detect changes later.
+                                    cur_default = self._default_output_device_index()
+                                    self._last_seen_default_output_device_index = (
+                                        int(cur_default) if cur_default is not None else self._last_seen_default_output_device_index
                                     )
-                                    ch_txt = (
-                                        str(int(self._opened_output_channels))
-                                        if isinstance(getattr(self, "_opened_output_channels", None), int)
-                                        else "?"
-                                    )
-                                    print(f"Audio output device: {name} (index={idx_txt}, channels={ch_txt}, sr={int(sr)}Hz)")
                                 except Exception:
                                     pass
-                            if self.debug_mode and int(sr) != desired_sr:
-                                print(f"⚠️  Output device rejected {desired_sr}Hz; using {sr}Hz (resampling)")
-                            return
-                        except Exception as e:
-                            last_err = e
-                            try:
-                                if stream is not None:
-                                    stream.close()
-                            except Exception:
-                                pass
-                            continue
+                                if self.debug_mode:
+                                    try:
+                                        name = str(getattr(self, "_opened_output_device_name", None) or "").strip() or "(unknown)"
+                                        idx_txt = (
+                                            str(int(self._opened_output_device_index))
+                                            if isinstance(getattr(self, "_opened_output_device_index", None), int)
+                                            else "?"
+                                        )
+                                        ch_txt = (
+                                            str(int(self._opened_output_channels))
+                                            if isinstance(getattr(self, "_opened_output_channels", None), int)
+                                            else "?"
+                                        )
+                                        print(f"Audio output device: {name} (index={idx_txt}, channels={ch_txt}, sr={int(sr)}Hz)")
+                                    except Exception:
+                                        pass
+                                if self.debug_mode and int(sr) != desired_sr:
+                                    print(f"ℹ️  Audio output opened at {sr}Hz; playback will resample from {desired_sr}Hz")
+                                return
+                            except Exception as e:
+                                last_err = e
+                                try:
+                                    if stream is not None:
+                                        stream.close()
+                                except Exception:
+                                    pass
+                                continue
 
-        # If we couldn't start, surface the last error.
-        if last_err is not None:
-            raise last_err
-        raise RuntimeError("Failed to start audio output stream")
+            # If we couldn't start, surface the last error.
+            if last_err is not None:
+                raise last_err
+            raise RuntimeError("Failed to start audio output stream")
 
     def stop_stream(self):
-        if self.stream:
-            try:
-                self.stream.stop()
-            except Exception:
-                pass
-            try:
-                self.stream.close()
-            except Exception:
-                pass
-            self.stream = None
+        with self._stream_lock:
+            if self.stream:
+                try:
+                    self.stream.stop()
+                except Exception:
+                    pass
+                try:
+                    self.stream.close()
+                except Exception:
+                    pass
+                self.stream = None
 
         # Clear device tracking (we will repopulate on next start).
         self._opened_output_device_index = None

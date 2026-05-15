@@ -20,6 +20,7 @@ from typing import Optional, Dict, Any
 import wave
 import struct
 
+from ..voice_profiles import VoiceProfile
 from .base import TTSAdapter
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,7 @@ class PiperTTSAdapter(TTSAdapter):
         self._piper_available = False
         self._voice = None
         self._current_language = None
+        self._requested_language = str(language or "en").strip().lower() or "en"
         self._sample_rate = 22050  # Piper default
         self._allow_downloads = bool(allow_downloads)
         # Track whether we requested CUDA for ONNX runtime (best-effort).
@@ -150,6 +152,69 @@ class PiperTTSAdapter(TTSAdapter):
         if forced is not None:
             return bool(forced)
         return bool(self._onnx_cuda_available())
+
+    @staticmethod
+    def _voice_id_from_hf_path(hf_path: str) -> str:
+        # e.g. "en/en_US/amy/medium" -> "amy"
+        parts = (hf_path or "").split("/")
+        return parts[2] if len(parts) >= 3 else str(hf_path or "")
+
+    def _profile_for_language(self, language: str) -> Optional[VoiceProfile]:
+        model_info = self.PIPER_MODELS.get(str(language or ""))
+        if not model_info:
+            return None
+
+        hf_path, model_filename = model_info
+        voice_id = self._voice_id_from_hf_path(hf_path)
+        if not voice_id:
+            return None
+
+        cached = False
+        try:
+            model_path, config_path = self._get_model_path(str(language))
+            cached = model_path.exists() and config_path.exists()
+        except Exception:
+            cached = False
+
+        return VoiceProfile(
+            engine_id="piper",
+            profile_id=voice_id,
+            label=f"Piper {voice_id}",
+            description=f"Default Piper voice for {language}",
+            params={
+                "provider": "piper",
+                "language": str(language),
+                "voice": voice_id,
+                "model": model_filename,
+                "model_filename": model_filename,
+            },
+            tags={
+                "provider": "piper",
+                "engine_id": "piper",
+                "kind": "profile",
+                "cached": "true" if cached else "false",
+            },
+        )
+
+    def _profile_candidates_for_language(self, language: str) -> set[str]:
+        model_info = self.PIPER_MODELS.get(str(language or ""))
+        if not model_info:
+            return set()
+        hf_path, model_filename = model_info
+        voice_id = self._voice_id_from_hf_path(hf_path)
+        values = {
+            str(language),
+            str(voice_id),
+            str(model_filename),
+            f"{model_filename}.onnx",
+            f"{language}:{voice_id}",
+            f"{language}/{voice_id}",
+            f"{language}.{voice_id}",
+            f"{language}:{model_filename}",
+            f"{language}/{model_filename}",
+            f"{language}.{model_filename}",
+        }
+        return {v.strip().lower() for v in values if str(v or "").strip()}
 
     def _get_model_path(self, language: str) -> tuple[Path, Path]:
         """Get paths for model and config files.
@@ -494,6 +559,8 @@ class PiperTTSAdapter(TTSAdapter):
         if language not in self.PIPER_MODELS:
             logger.warning(f"⚠️  Language {language} not supported by Piper adapter")
             return False
+
+        self._requested_language = str(language)
         
         # Don't reload if already loaded
         if self._current_language == language and self._voice is not None:
@@ -526,6 +593,28 @@ class PiperTTSAdapter(TTSAdapter):
             True if Piper can be used, False otherwise
         """
         return self._piper_available and self._voice is not None
+
+    def get_unavailable_reason(self) -> str | None:
+        """Return an actionable reason when Piper cannot synthesize."""
+        if not bool(getattr(self, "_piper_available", False)):
+            return (
+                "Piper TTS is not installed.\n"
+                "Install with:\n"
+                '  pip install "abstractvoice[piper]"\n'
+                '  pip install "abstractvoice[apple]"  # Apple profile\n'
+                '  pip install "abstractvoice[gpu]"    # GPU profile'
+            )
+
+        lang = str(
+            getattr(self, "_current_language", None)
+            or getattr(self, "_requested_language", None)
+            or "en"
+        ).strip().lower() or "en"
+        return (
+            f"Piper voice model for '{lang}' is not available locally.\n"
+            f"Run: python -m abstractvoice download --piper {lang}\n"
+            f"Or in the REPL: /tts_download piper {lang}"
+        )
     
     def get_info(self) -> Dict[str, Any]:
         """Get metadata about Piper TTS engine.
@@ -552,6 +641,56 @@ class PiperTTSAdapter(TTSAdapter):
             pass
         return info
 
+    def get_profiles(self) -> list[VoiceProfile]:
+        """Expose Piper voices as selectable TTS profiles.
+
+        The profile id is the Piper voice id (for example "amy"), while the
+        backing model filename is preserved in params for catalog consumers.
+        """
+        profiles: list[VoiceProfile] = []
+        for language in self.PIPER_MODELS:
+            profile = self._profile_for_language(str(language))
+            if profile is not None:
+                profiles.append(profile)
+        return profiles
+
+    def set_profile(self, profile_id: str) -> bool:
+        """Select a Piper voice/profile by voice id, language, or model id."""
+        requested = str(profile_id or "").strip().lower()
+        if not requested:
+            return False
+        requested_no_ext = requested[: -len(".onnx")] if requested.endswith(".onnx") else requested
+
+        for language in self.PIPER_MODELS:
+            candidates = self._profile_candidates_for_language(str(language))
+            if requested in candidates or requested_no_ext in candidates:
+                return bool(self.set_language(str(language)))
+        return False
+
+    def get_default_profile_id(self, language: str | None = None) -> str | None:
+        lang = str(
+            language
+            or getattr(self, "_current_language", None)
+            or getattr(self, "_requested_language", None)
+            or "en"
+        ).strip().lower() or "en"
+        profile = self._profile_for_language(lang)
+        return str(profile.profile_id) if profile is not None else None
+
+    def get_active_profile(self) -> VoiceProfile | None:
+        language = str(
+            getattr(self, "_current_language", None)
+            or getattr(self, "_requested_language", None)
+            or "en"
+        ).strip()
+        return self._profile_for_language(language)
+
+    def synthesize_to_bytes_with_voice(self, text: str, *, format: str = "wav", voice: str | None = None, **_kwargs: Any) -> bytes:
+        """Core/Gateway compatibility hook for profile-style voice selection."""
+        if voice and not self.set_profile(str(voice)):
+            raise ValueError(f"Unknown Piper voice/profile: {voice}")
+        return self.synthesize_to_bytes(text, format=format)
+
     def list_available_models(self, language: Optional[str] = None) -> Dict[str, Any]:
         """List available Piper voices with cache status.
 
@@ -564,11 +703,6 @@ class PiperTTSAdapter(TTSAdapter):
             except Exception:
                 return 0
 
-        def _voice_id_from_hf_path(hf_path: str) -> str:
-            # e.g. "en/en_US/amy/medium" -> "amy"
-            parts = (hf_path or "").split("/")
-            return parts[2] if len(parts) >= 3 else hf_path
-
         models: Dict[str, Any] = {}
         languages = [language] if language else list(self.PIPER_MODELS.keys())
 
@@ -577,7 +711,7 @@ class PiperTTSAdapter(TTSAdapter):
                 continue
 
             hf_path, model_filename = self.PIPER_MODELS[lang]
-            voice_id = _voice_id_from_hf_path(hf_path)
+            voice_id = self._voice_id_from_hf_path(hf_path)
             model_path, config_path = self._get_model_path(lang)
             cached = model_path.exists() and config_path.exists()
 

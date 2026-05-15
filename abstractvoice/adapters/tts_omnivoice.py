@@ -507,6 +507,10 @@ class OmniVoiceTTSAdapter(TTSAdapter):
         # If never explicitly set, treat "default" (when present) as the baseline.
         return find_voice_profile(profiles, "default")
 
+    def get_default_profile_id(self, language: str | None = None) -> str | None:
+        _ = language
+        return "default" if find_voice_profile(self.get_profiles(), "default") is not None else None
+
     def _coerce_bool(self, value: Any) -> bool:
         if isinstance(value, bool):
             return bool(value)
@@ -727,7 +731,9 @@ class OmniVoiceTTSAdapter(TTSAdapter):
         # IMPORTANT:
         # OmniVoice can be *dramatically* slower on MPS in practice (see
         # `omnivoice/runtime.py` for rationale). Prefer conservative step counts
-        # here; users can always raise them explicitly via engine params.
+        # here; users can always raise them explicitly via engine params. Higher
+        # values are not monotonically better for OmniVoice and can add audible
+        # tails/noise on Apple Silicon.
         if p == "low":
             self._settings.num_step = 8
             self._settings.guidance_scale = 2.0
@@ -735,10 +741,9 @@ class OmniVoiceTTSAdapter(TTSAdapter):
             self._settings.num_step = 12
             self._settings.guidance_scale = 2.0
         else:
-            self._settings.num_step = 24
+            self._settings.num_step = 16
             self._settings.guidance_scale = 2.0
         return True
 
     def get_quality_preset(self) -> str | None:
         return str(getattr(self, "_quality_preset", None) or "standard")
-

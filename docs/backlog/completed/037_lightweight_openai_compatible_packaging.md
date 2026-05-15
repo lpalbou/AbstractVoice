@@ -20,7 +20,8 @@
 ## Secondary goals
 
 - Preserve the public `VoiceManager` API and AbstractCore plugin entry point.
-- Preserve local-first desktop/REPL behavior through a clear `abstractvoice[voice]` or `abstractvoice[local]` install.
+- Preserve local-first desktop/REPL behavior through explicit platform or
+  granular local extras.
 - Keep Python 3.9 support for the lightweight remote/plugin path where practical.
 - Keep optional local engines first-class but explicit.
 - Avoid implicit model downloads and surprise network/model runtime weight.
@@ -230,8 +231,8 @@ hosted OpenAI and generic compatible providers into one ambiguous extra.
   - `webrtcvad>=2.0.10`
 - `abstractvoice[voice]`
   - local TTS + local STT + audio I/O
-- `abstractvoice[local]`
-  - alias for `voice`
+- Platform profiles
+  - full local stack for Apple/GPU installs
 
 ### Compatibility aliases
 

@@ -1,4 +1,4 @@
-## Task 040: Remote-first default install and local stack extra for 0.9.1
+## Task 040: Remote-first default install and platform local profiles for 0.9.1
 
 **Date**: 2026-05-08  
 **Status**: Completed  
@@ -14,14 +14,14 @@ remaining persona split: the default library constructor still selected local
 
 For `0.9.1`, the release decision is to make the default install remote-first
 throughout AbstractVoice. Local inference, microphone listening dependencies,
-AEC, and local cloning/TTS engines move behind one explicit handle:
-`abstractvoice[local]`.
+AEC, and local cloning/TTS engines move behind explicit platform or granular
+extras.
 
 ### Decision
 
 - `VoiceManager()` defaults to `tts_engine="openai"` and `stt_engine="openai"`.
 - `auto` resolves to OpenAI remote audio for both TTS and STT.
-- `abstractvoice[local]` installs the full local stack, including Piper,
+- Platform profiles install the full local stack, including Piper,
   faster-whisper, audio I/O, AEC where supported, and optional local
   cloning/TTS engines gated by Python-version markers.
 - Legacy compatibility extras are removed without aliases:

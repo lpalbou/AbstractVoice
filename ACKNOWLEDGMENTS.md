@@ -17,6 +17,8 @@ This file lists the notable third-party libraries that AbstractVoice uses (see `
 These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`):
 
 - Piper / `piper-tts` (`abstractvoice[piper]` / `abstractvoice[local]`) for local neural TTS: https://github.com/rhasspy/piper
+- Supertone Supertonic 3 (`abstractvoice[supertonic]` / platform local extras) for fixed-profile local ONNX TTS: https://huggingface.co/Supertone/supertonic-3
+- ONNX Runtime (`onnxruntime`) for Supertonic ONNX inference and Piper execution-provider introspection: https://github.com/microsoft/onnxruntime
 - faster-whisper (`abstractvoice[stt]` / `abstractvoice[local]`) for local STT: https://github.com/SYSTRAN/faster-whisper
   - CTranslate2 (inference runtime used by faster-whisper): https://github.com/OpenNMT/CTranslate2
 - Hugging Face Hub (`huggingface_hub`) (artifact downloads): https://github.com/huggingface/huggingface_hub
@@ -61,7 +63,7 @@ These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`)
 
 These may be installed as dependencies of the packages above:
 
-- ONNX Runtime (used by Piper for inference): https://github.com/microsoft/onnxruntime
+- CTranslate2 (used by faster-whisper): https://github.com/OpenNMT/CTranslate2
 
 ## Vendored third-party code
 
@@ -77,6 +79,7 @@ and is needed to avoid `trust_remote_code`.
 AbstractVoice may download model weights and voice files at runtime (explicitly or on demand, depending on `allow_downloads`).
 
 - Piper voices are cached under `~/.piper/models` (see `abstractvoice/adapters/tts_piper.py`).
+- Supertonic 3 artifacts are cached under `~/.cache/abstractvoice/supertonic-3` (see `abstractvoice/supertonic/runtime.py`).
 - faster-whisper models use the Hugging Face cache by default (see `abstractvoice/adapters/stt_faster_whisper.py`).
 - Cloning artifacts are cached under `~/.cache/abstractvoice/*` (see `abstractvoice/cloning/engine_f5.py` and `abstractvoice/cloning/engine_chroma.py`).
 - AudioDiT weights use the Hugging Face cache by default (see `abstractvoice/audiodit/runtime.py`).

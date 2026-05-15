@@ -35,6 +35,7 @@ def test_web_ui_page_has_role_voice_controls_and_busy_overlay():
     assert response.status_code == 200
     assert 'id="assistant-voice-choice"' in response.text
     assert 'id="user-voice-choice"' in response.text
+    assert 'id="tts-engine-choice"' in response.text
     assert 'id="busy-overlay"' in response.text
     assert 'id="conversation-toggle"' in response.text
     assert 'id="clear-chat"' in response.text
@@ -74,6 +75,7 @@ def test_web_ui_openapi_documents_request_bodies_and_audio_responses():
 
     for path in (
         "/api/voices/select",
+        "/api/tts/engine",
         "/api/voices/clone",
         "/v1/voice/clone",
         "/api/tts",
@@ -210,6 +212,10 @@ def test_web_ui_all_declared_routes_smoke(monkeypatch):
         def get_profiles(self, kind="tts"):
             return [DummyProfile()]
 
+        def set_tts_engine(self, engine, tts_model=None):
+            self.tts_engine = engine
+            return engine
+
         def list_cloned_voices(self):
             return [{"voice_id": "clone_a", "name": "Alice", "engine": "dummy"}]
 
@@ -258,6 +264,7 @@ def test_web_ui_all_declared_routes_smoke(monkeypatch):
     assert {r["path"] for r in routes} >= {
         "/api/status",
         "/api/voices",
+        "/api/tts/engine",
         "/v1/audio/voices",
         "/api/voices/select",
         "/api/voices/clone",
@@ -271,6 +278,7 @@ def test_web_ui_all_declared_routes_smoke(monkeypatch):
         "/v1/audio/transcriptions",
     }
     assert client.get("/api/voices").status_code == 200
+    assert client.post("/api/tts/engine", json={"engine": "piper"}).status_code == 200
     assert client.get("/v1/audio/voices").status_code == 200
     assert client.get("/api/llm/models?provider=ollama").json()["models"] == ["dummy-model"]
     assert client.post("/api/chat", json={"messages": [{"role": "user", "content": "Hi"}]}).status_code == 200
@@ -444,6 +452,79 @@ def test_web_ui_role_voice_selection_preloads_and_drives_tts():
     assert response.status_code == 200
     assert dummy.calls[-1]["text"] == "Role line."
     assert dummy.calls[-1]["voice"] == "clone_a"
+
+
+def test_web_ui_tts_engine_switch_resets_role_voice_and_default_profile():
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from abstractvoice.examples.web_ui import create_app
+
+    class DummyProfile:
+        engine_id = "supertonic"
+        profile_id = "M1"
+        label = "Supertonic M1"
+        description = ""
+
+    class DummyVoiceManager:
+        def __init__(self):
+            self.engine = "piper"
+            self.switches = []
+
+        def set_tts_engine(self, engine, tts_model=None):
+            self.switches.append({"engine": engine, "tts_model": tts_model})
+            self.engine = engine
+            return engine
+
+        def list_cloned_voices(self):
+            return [{"voice_id": "clone_a", "name": "Alice", "engine": "dummy"}]
+
+        def get_profiles(self, kind="tts"):
+            return [DummyProfile()]
+
+        def get_active_profile(self, kind="tts"):
+            return DummyProfile()
+
+        def list_available_models(self, language=None):
+            return {}
+
+        def get_supported_languages(self):
+            return ["en"]
+
+        def get_language(self):
+            return "en"
+
+        def get_speed(self):
+            return 1.0
+
+        def speak_to_bytes(self, text, format="wav", voice=None, sanitize_syntax=True):
+            return b"RIFFdummy"
+
+        def pop_last_tts_metrics(self):
+            return None
+
+        def cleanup(self):
+            return True
+
+    dummy = DummyVoiceManager()
+    app = create_app(voice_manager_factory=lambda _state: dummy)
+    client = TestClient(app)
+
+    selected = client.post(
+        "/api/voices/select",
+        json={"role": "assistant", "kind": "clone", "voice": "Alice", "preload": False},
+    )
+    assert selected.status_code == 200
+    assert selected.json()["current"]["role_voices"]["assistant"] == "clone_a"
+
+    switched = client.post("/api/tts/engine", json={"engine": "supertonic"})
+
+    assert switched.status_code == 200
+    payload = switched.json()
+    assert dummy.switches == [{"engine": "supertonic", "tts_model": None}]
+    assert payload["tts_engine"] == "supertonic"
+    assert payload["current"]["role_voices"]["assistant"] is None
+    assert payload["current"]["profile"]["profile_id"] == "M1"
 
 
 def test_web_ui_failed_role_voice_preload_keeps_previous_selection():

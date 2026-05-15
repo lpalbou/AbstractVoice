@@ -17,10 +17,21 @@ class _FakeAdapter:
     def __init__(self, *, engine_id: str = "piper") -> None:
         self.engine_id = engine_id
         self.language = None
+        self.reset_languages = []
 
     def set_language(self, language: str) -> bool:
         self.language = language
         return True
+
+    def get_sample_rate(self) -> int:
+        return 24000
+
+    def is_available(self) -> bool:
+        return True
+
+    def reset_profile(self, *, language: str | None = None):
+        self.reset_languages.append(language)
+        return None
 
 
 class _DummyVoiceManager(TtsMixin):
@@ -66,6 +77,7 @@ def test_set_language_discards_stopped_recognizer_so_listen_rebuilds_with_new_la
     assert vm.voice_recognizer is None
     assert adapter.language == "fr"
     assert vm.language == "fr"
+    assert adapter.reset_languages == ["fr"]
 
 
 def test_set_language_same_non_catalog_language_debug_message_does_not_crash(capsys) -> None:
@@ -94,3 +106,25 @@ def test_set_language_allows_non_catalog_language_for_explicit_non_piper_engine(
     assert vm.set_language("eo") is True
     assert adapter.language == "eo"
     assert vm.language == "eo"
+
+
+def test_set_tts_engine_routes_through_registry_and_resets_default_profile(monkeypatch) -> None:
+    adapter = _FakeAdapter(engine_id="supertonic")
+    vm = _DummyVoiceManager(adapter=_FakeAdapter(engine_id="piper"), tts_engine_preference="piper")
+
+    def fake_create_tts_adapter(**kwargs):
+        assert kwargs["engine"] == "supertonic"
+        assert kwargs["language"] == "en"
+        assert kwargs["allow_downloads"] is False
+        assert kwargs["auto_load"] is True
+        return adapter, "supertonic"
+
+    monkeypatch.setattr(tts_mixin_module, "create_tts_adapter", fake_create_tts_adapter)
+
+    resolved = vm.set_tts_engine("supertonic")
+
+    assert resolved == "supertonic"
+    assert vm.tts_adapter is adapter
+    assert vm._tts_engine_name == "supertonic"
+    assert vm._tts_engine_preference == "supertonic"
+    assert adapter.reset_languages == ["en"]

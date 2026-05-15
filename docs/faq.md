@@ -6,20 +6,22 @@
 
 AbstractVoice supports Python `>=3.9`. The lightweight base install and the
 remote/OpenAI-compatible path are supported on Python 3.9. Local
-Piper/faster-whisper extras and the web example are also supported on
-Python 3.9. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because
-their upstream runtimes do; AEC requires Python 3.11+.
+Piper/faster-whisper extras, Supertonic 3, and the web example are also
+supported on Python 3.9. OpenF5/F5-TTS, Chroma, and OmniVoice require Python
+3.10+ because their upstream runtimes do; AEC requires Python 3.11+.
 
 ### Do I need system speech dependencies?
 
 The bare package install does not require local speech engines. Install
-`abstractvoice[local]` for the full local Piper/faster-whisper/cloning path.
+`abstractvoice[apple]` or `abstractvoice[gpu]` for the platform local
+Piper/Supertonic/faster-whisper/cloning path, or compose granular extras such as
+`abstractvoice[supertonic,stt,audio-io]`.
 Piper runs
 through ONNX Runtime, so it does not require system packages such as
 `espeak-ng`.
 
 Microphone and speaker I/O use `sounddevice` / PortAudio and are installed by
-`abstractvoice[local]` or `abstractvoice[audio-io]`. On some Linux systems you
+`abstractvoice[audio-io]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`. On some Linux systems you
 may need PortAudio packages from the OS package manager. See
 `docs/installation.md` for platform notes.
 
@@ -99,6 +101,7 @@ Common locations:
 Default local state:
 
 - Piper voices: `~/.piper/models`
+- Supertonic 3: `~/.cache/abstractvoice/supertonic-3`
 - faster-whisper models: Hugging Face cache, usually `~/.cache/huggingface`
 - OpenF5 artifacts: `~/.cache/abstractvoice/openf5`
 - Chroma artifacts and prompt cache: `~/.cache/abstractvoice/chroma`
@@ -116,6 +119,7 @@ For a full local reset on macOS/Linux:
 
 ```bash
 rm -rf ~/.piper/models
+rm -rf ~/.cache/abstractvoice/supertonic-3
 rm -rf ~/.cache/abstractvoice/openf5
 rm -rf ~/.cache/abstractvoice/chroma
 python - <<'PY'
@@ -146,6 +150,7 @@ should not surprise you with multi-GB downloads. Prefetch what you need:
 
 ```bash
 abstractvoice-prefetch --piper en
+abstractvoice-prefetch --supertonic
 abstractvoice-prefetch --stt small
 ```
 
@@ -159,6 +164,7 @@ Most users should start with:
 
 ```bash
 python -m abstractvoice download --piper en
+python -m abstractvoice download --supertonic
 python -m abstractvoice download --stt small
 ```
 
@@ -235,8 +241,8 @@ text = vm.transcribe_file("hello.wav")
 ```
 
 `VoiceManager()` reads `OPENAI_API_KEY` by default. For local/offline use,
-install `abstractvoice[local]` and create
-`VoiceManager(tts_engine="piper", stt_engine="faster_whisper")`.
+install `abstractvoice[supertonic,stt]` or a platform profile, then create
+`VoiceManager(tts_engine="supertonic", stt_engine="faster_whisper")`.
 
 For long-lived apps and servers, create one `VoiceManager` per configuration and
 reuse it. Heavy engines are expensive to load repeatedly.
@@ -305,10 +311,14 @@ python -m abstractvoice download --piper fr
 
 - Remote OpenAI-compatible engines are the lightest path for server and plugin
   deployments, and hosted OpenAI is the default `VoiceManager()` path.
-- Piper is the recommended reliable path for local TTS; install
-  `abstractvoice[local]` or `abstractvoice[piper]`.
-- faster-whisper is the local STT path; install `abstractvoice[local]`
-  or `abstractvoice[stt]`.
+- Supertonic is the recommended fixed-profile local ONNX TTS path; install
+  `abstractvoice[supertonic]`, `abstractvoice[apple]`, or
+  `abstractvoice[gpu]`, prefetch `--supertonic`, then select
+  `tts_engine="supertonic"`.
+- Piper remains available as a smaller local TTS fallback; install
+  `abstractvoice[piper]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`.
+- faster-whisper is the local STT path; install `abstractvoice[stt]`,
+  `abstractvoice[apple]`, or `abstractvoice[gpu]`.
 - OpenF5, Chroma, AudioDiT, and OmniVoice are optional heavier engines for
   cloning, research, or richer voice experiments.
 - AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine

@@ -107,6 +107,39 @@ def _omnivoice_factory(
     )
 
 
+def _supertonic_factory(
+    *,
+    language: str,
+    allow_downloads: bool,
+    auto_load: bool,
+    debug_mode: bool = False,
+    **kwargs: Any,
+) -> TTSAdapter | None:
+    try:
+        from .tts_supertonic import SupertonicTTSAdapter
+    except Exception as e:
+        raise RuntimeError(
+            "Supertonic engine requires optional dependencies.\n"
+            "Install with:\n"
+            "  pip install \"abstractvoice[supertonic]\""
+        ) from e
+    try:
+        adapter = SupertonicTTSAdapter(
+            language=str(language),
+            allow_downloads=bool(allow_downloads),
+            auto_load=bool(auto_load),
+            debug_mode=bool(debug_mode),
+            model_id=kwargs.get("model_id"),
+            revision=kwargs.get("revision"),
+            cache_dir=kwargs.get("cache_dir"),
+        )
+        return adapter if bool(getattr(adapter, "_onnx_available", False)) else None
+    except RuntimeError:
+        raise
+    except Exception:
+        return None
+
+
 def _openai_factory(
     *,
     language: str,
@@ -161,6 +194,7 @@ _TTS_ADAPTER_FACTORIES: dict[str, _Factory] = {
     "openai": _openai_factory,
     "openai-compatible": _openai_compatible_factory,
     "piper": _piper_factory,
+    "supertonic": _supertonic_factory,
     "audiodit": _audiodit_factory,
     "omnivoice": _omnivoice_factory,
 }
@@ -218,7 +252,18 @@ def create_tts_adapter(
                 "TTS engine 'piper' requires optional dependencies.\n"
                 "Install with:\n"
                 "  pip install \"abstractvoice[piper]\"\n"
-                "  pip install \"abstractvoice[local]\""
+                "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+                "  pip install \"abstractvoice[gpu]\"    # GPU profile"
+            )
+        if requested == "supertonic":
+            raise RuntimeError(
+                "TTS engine 'supertonic' requires optional dependencies.\n"
+                "Install with:\n"
+                "  pip install \"abstractvoice[supertonic]\"\n"
+                "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+                "  pip install \"abstractvoice[gpu]\"    # GPU profile\n"
+                "  pip install \"abstractvoice[all-apple]\"  # Apple profile + web\n"
+                "  pip install \"abstractvoice[all-gpu]\"    # GPU profile + web"
             )
         raise RuntimeError(
             f"TTS engine '{requested}' is not available in this environment.\n"

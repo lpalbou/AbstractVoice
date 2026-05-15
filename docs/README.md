@@ -22,8 +22,9 @@ For a browser smoke test, install `abstractvoice[web]` and run
 `OPENAI_API_KEY=... abstractvoice web`. That web UI is a small `VoiceManager` example with
 assistant/user voice selection, browser voice cloning from uploaded or recorded
 reference audio, and an example-only local LLM dialogue bridge, not the
-production API server. Compose extras such as `abstractvoice[web,local]` or
-`abstractvoice[web,omnivoice]` when you want local engines in the same install.
+production API server. Compose extras such as `abstractvoice[web,supertonic]`
+or use `abstractvoice[all-apple]` / `abstractvoice[all-gpu]` when you want
+local engines in the same install.
 
 ## User-facing docs
 

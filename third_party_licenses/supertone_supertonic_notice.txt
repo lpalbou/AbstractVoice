@@ -1,0 +1,15 @@
+Supertone Supertonic 3 model notice
+
+AbstractVoice can optionally download the Supertonic 3 ONNX model artifacts
+from:
+
+  https://huggingface.co/Supertone/supertonic-3
+
+Those model weights and voice-style files are not part of the default
+AbstractVoice package and are licensed separately by Supertone under the
+BigScience Open RAIL-M license published in that model repository:
+
+  https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE
+
+The minimal AbstractVoice runtime/adapter code is internal to this repository
+and does not depend on the external supertonic Python SDK.

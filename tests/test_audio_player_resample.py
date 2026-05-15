@@ -40,3 +40,47 @@ def test_tts_engine_stop_can_keep_stream_open():
     ok = engine.stop(close_stream=False)
     assert ok is True
     assert engine.audio_player.stream is dummy_stream
+
+
+def test_audio_player_prefers_device_default_rate_on_stream_open(monkeypatch):
+    from abstractvoice.tts import tts_engine as tts_engine_module
+    from abstractvoice.tts.tts_engine import NonBlockingAudioPlayer
+
+    opened = []
+
+    class FakeStream:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            opened.append(kwargs)
+
+        def start(self):
+            return None
+
+        def stop(self):
+            return None
+
+        def close(self):
+            return None
+
+    class FakeSoundDevice:
+        OutputStream = FakeStream
+
+        @staticmethod
+        def query_devices(device=None, kind=None):
+            if device is None and kind == "output":
+                return {"index": 0, "name": "Default Output", "default_samplerate": 48000, "max_output_channels": 2}
+            if isinstance(device, int) and kind == "output":
+                return {"index": device, "name": f"Output {device}", "default_samplerate": 44100, "max_output_channels": 2}
+            return [
+                {"index": 0, "name": "Default Output", "default_samplerate": 48000, "max_output_channels": 2},
+                {"index": 1, "name": "Other Output", "default_samplerate": 44100, "max_output_channels": 2},
+            ]
+
+    monkeypatch.setattr(tts_engine_module, "_import_sounddevice", lambda: FakeSoundDevice)
+
+    player = NonBlockingAudioPlayer(sample_rate=24000, debug_mode=False)
+    player.start_stream()
+
+    assert opened
+    assert opened[0]["samplerate"] == 48000
+    assert player.sample_rate == 48000

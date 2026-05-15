@@ -28,6 +28,7 @@ from abstractvoice.examples.llm_provider import (
     DEFAULT_MODEL,
     strip_think_blocks,
 )
+from abstractvoice.examples.tts_defaults import normalize_tts_engine_name, resolve_interactive_tts_engine
 
 
 # ANSI color codes
@@ -60,7 +61,7 @@ class VoiceREPL(cmd.Cmd):
         verbose_mode: bool = False,
         language="en",
         tts_model=None,
-        tts_engine: str = "openai",
+        tts_engine: str = "auto",
         stt_engine: str = "openai",
         stt_model: str | None = None,
         remote_base_url: str | None = None,
@@ -102,7 +103,8 @@ class VoiceREPL(cmd.Cmd):
         self.current_language = language
         self._initial_tts_model = tts_model
         self._initial_stt_model = stt_model
-        self._initial_tts_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
+        self._requested_tts_engine = normalize_tts_engine_name(tts_engine)
+        self._initial_tts_engine = resolve_interactive_tts_engine(self._requested_tts_engine, language=language)
         self._initial_stt_engine = str(stt_engine or "openai").strip().lower().replace("_", "-") or "openai"
         self.remote_base_url = str(remote_base_url).strip() if isinstance(remote_base_url, str) and remote_base_url.strip() else None
         self.remote_api_key = str(remote_api_key).strip() if isinstance(remote_api_key, str) and remote_api_key.strip() else None
@@ -130,7 +132,7 @@ class VoiceREPL(cmd.Cmd):
             )
 
         # Current speaking voice:
-        # - None => Piper (default, language-driven)
+        # - None => active base TTS engine/profile
         # - str  => cloned voice_id
         self.current_tts_voice: str | None = None
 
@@ -144,6 +146,7 @@ class VoiceREPL(cmd.Cmd):
         
         # Settings
         self.use_tts = not bool(disable_tts)
+        self._warm_tts_audio_output_async()
         # Voice input mode (mic). Default: OFF for fast startup + offline-first.
         # Use `--voice-mode stop` (or `/voice stop`) to enable hands-free.
         self.voice_mode = (voice_mode or "off").strip().lower()  # off, full, wait, stop, ptt
@@ -282,6 +285,29 @@ class VoiceREPL(cmd.Cmd):
         except Exception:
             pass
         
+    def _warm_tts_audio_output_async(self) -> None:
+        """Open the output stream in the background to avoid slow first `/speak`."""
+        if not getattr(self, "voice_manager", None):
+            return
+        try:
+            engine = getattr(self.voice_manager, "tts_engine", None)
+            warm = getattr(engine, "warmup_audio_output", None)
+            if not callable(warm):
+                return
+        except Exception:
+            return
+
+        def _worker() -> None:
+            try:
+                warm()
+            except Exception:
+                pass
+
+        try:
+            threading.Thread(target=_worker, daemon=True, name="abstractvoice-audio-warmup").start()
+        except Exception:
+            pass
+
     def _get_intro(self):
         """Generate intro message with help."""
         intro = f"\n{Colors.BOLD}Welcome to AbstractVoice CLI REPL{Colors.END}\n"
@@ -306,10 +332,16 @@ class VoiceREPL(cmd.Cmd):
                 except Exception:
                     tts_engine = ""
             tts_engine = tts_engine or "openai"
+            if tts_engine in ("openai", "openai-compatible"):
+                tts_label = f"{tts_engine} (remote)"
+            elif tts_engine in ("piper", "supertonic", "audiodit", "omnivoice"):
+                tts_label = f"{tts_engine} (local)"
+            else:
+                tts_label = tts_engine
             lang_label = f"{lang_name} ({lang_code})" if lang_code else str(lang_name)
             intro += (
                 f"Provider: {prov_label} | Model: {self.model} | "
-                f"TTS: {tts_engine} | Language: {lang_label} | Mic: {mic} | Cloning: {self.cloning_engine}\n"
+                f"TTS: {tts_label} | Language: {lang_label} | Mic: {mic} | Cloning: {self.cloning_engine}\n"
             )
         else:
             intro += f"Provider: {prov_label} | Model: {self.model} | Voice: Disabled\n"
@@ -317,11 +349,11 @@ class VoiceREPL(cmd.Cmd):
         intro += "  • Type messages to chat with the LLM\n"
         intro += "  • Voice input (mic): off by default. Enable: /voice stop  (or start with --voice-mode stop)\n"
         intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
-        intro += "  • TTS engine: /tts engine piper|openai|openai-compatible|audiodit|omnivoice\n"
+        intro += "  • TTS engine: /tts engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice\n"
         intro += "  • Base TTS quality: /tts quality low|standard|high\n"
         intro += "  • Voices: /voices  (profiles, base/cloned voice selection, and compatibility commands)\n"
         intro += "  • OmniVoice design/params: /omnivoice  (advanced; only when OmniVoice is active)\n"
-        intro += "  • Language: /language <code>  (Piper: en/fr/de/es/ru/zh; OmniVoice: many)\n"
+        intro += "  • Language: /language <code>  (Piper: en/fr/de/es/ru/zh; Supertonic: 31; OmniVoice: many)\n"
         intro += "  • Cloning: /clone <ref.wav> my_voice --engine omnivoice --text \"...\"  then /voices clone my_voice\n"
         intro += "  • Type /help for full command list\n"
         intro += "  • Type /exit or /q to quit\n"
@@ -1132,8 +1164,18 @@ class VoiceREPL(cmd.Cmd):
                 print("Language codes:")
                 print("  - OmniVoice engine: pass-through (example: /language fr)")
                 print("  - Piper mapping: en, fr, es, de, ru, zh")
-            else:
+            elif engine == "supertonic":
+                print("Available languages (Supertonic 3):")
+                for code in self.voice_manager.get_supported_languages():
+                    name = self.voice_manager.get_language_name(code)
+                    print(f"  {code} - {name}")
+            elif engine == "piper":
                 print("Available languages (Piper mapping):")
+                for code in self.voice_manager.get_supported_languages():
+                    name = self.voice_manager.get_language_name(code)
+                    print(f"  {code} - {name}")
+            else:
+                print("Supported languages:")
                 for code in self.voice_manager.get_supported_languages():
                     name = self.voice_manager.get_language_name(code)
                     print(f"  {code} - {name}")
@@ -1152,6 +1194,7 @@ class VoiceREPL(cmd.Cmd):
         old_lang = self.current_language
         if self.voice_manager.set_language(language):
             self.current_language = language
+            self.current_tts_voice = None
             old_name = self.voice_manager.get_language_name(old_lang)
             new_name = self.voice_manager.get_language_name(language)
             print(f"🌍 Language changed: {old_name} → {new_name}")
@@ -1795,7 +1838,7 @@ class VoiceREPL(cmd.Cmd):
         Preferred grouped forms:
           /tts
           /tts on|off
-          /tts engine openai|openai-compatible|piper|audiodit|omnivoice|auto
+          /tts engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice
           /tts quality low|standard|high
           /tts delivery buffered|streamed
           /tts speed <number>
@@ -1849,6 +1892,7 @@ class VoiceREPL(cmd.Cmd):
                     remote_api_key=self.remote_api_key,
                     remote_timeout_s=self.remote_timeout_s,
                 )
+                self._warm_tts_audio_output_async()
             print("TTS enabled" if self.debug_mode else "")
             return
 
@@ -2313,16 +2357,16 @@ class VoiceREPL(cmd.Cmd):
             return
 
         if not is_clone:
-            # Offline-first: Piper voices must be explicitly cached. Provide a clear
-            # message instead of hanging on implicit downloads.
+            # Offline-first: local base TTS artifacts must be explicitly cached.
+            # Ask the active adapter for the engine-specific recovery message.
             try:
                 a = getattr(self.voice_manager, "tts_adapter", None)
                 if a is not None and hasattr(a, "is_available") and not bool(a.is_available()):
-                    lang = str(getattr(self, "current_language", "en") or "en").strip().lower()
-                    raise RuntimeError(
-                        f"Piper voice model for '{lang}' is not available locally.\n"
-                        f"Run: python -m abstractvoice download --piper {lang}"
-                    )
+                    get_reason = getattr(a, "get_unavailable_reason", None)
+                    reason = get_reason() if callable(get_reason) else None
+                    if not reason and hasattr(self.voice_manager, "_tts_adapter_unavailable_message"):
+                        reason = self.voice_manager._tts_adapter_unavailable_message(a)
+                    raise RuntimeError(str(reason or "No TTS adapter available"))
             except RuntimeError:
                 raise
             except Exception:
@@ -3960,6 +4004,58 @@ class VoiceREPL(cmd.Cmd):
         except Exception as e:
             print(f"❌ Download failed: {e}")
 
+    def do_tts_download(self, arg):
+        """Explicitly download base TTS artifacts (this may take a long time).
+
+        Usage:
+          /tts_download piper [lang]
+          /tts_download supertonic
+          /tts_download audiodit
+          /tts_download omnivoice
+        """
+        raw = str(arg or "").strip().lower()
+        parts = raw.split()
+        target = parts[0] if parts else ""
+        if not target:
+            try:
+                adapter = getattr(self.voice_manager, "tts_adapter", None) if self.voice_manager else None
+                target = str(getattr(adapter, "engine_id", "") or getattr(self.voice_manager, "_tts_engine_name", "") or "").strip().lower()
+            except Exception:
+                target = ""
+        target = target or "piper"
+
+        try:
+            if target == "piper":
+                from abstractvoice.adapters.tts_piper import PiperTTSAdapter
+
+                lang = parts[1] if len(parts) > 1 else str(getattr(self, "current_language", "en") or "en")
+                lang = str(lang or "en").strip().lower() or "en"
+                print(f"Downloading Piper voice model: {lang}")
+                adapter = PiperTTSAdapter(language=lang, allow_downloads=True, auto_load=False)
+                if not adapter.ensure_model_downloaded(lang):
+                    raise RuntimeError("Piper model download failed.")
+            elif target == "supertonic":
+                from abstractvoice.supertonic.runtime import prefetch_supertonic
+
+                print("Downloading Supertonic 3 ONNX weights + built-in voice styles (~386MB).")
+                prefetch_supertonic()
+            elif target == "audiodit":
+                from abstractvoice.audiodit.runtime import prefetch_audiodit
+
+                print("Downloading AudioDiT weights + tokenizer (very large; requires HF access).")
+                prefetch_audiodit()
+            elif target == "omnivoice":
+                from abstractvoice.omnivoice.runtime import prefetch_omnivoice
+
+                print("Downloading OmniVoice weights + tokenizer (very large; requires HF access).")
+                prefetch_omnivoice()
+            else:
+                print("Usage: /tts_download [piper [lang]|supertonic|audiodit|omnivoice]")
+                return
+            print("✅ Download complete.")
+        except Exception as e:
+            print(f"❌ Download failed: {e}")
+
     def _is_audiodit_cached(self) -> bool:
         """Heuristic local check that avoids importing huggingface_hub."""
         from pathlib import Path
@@ -4108,50 +4204,59 @@ class VoiceREPL(cmd.Cmd):
             return
 
     def do_tts_engine(self, arg):
-        """Select TTS engine: openai|openai-compatible|piper|audiodit|omnivoice|auto.
+        """Select TTS engine: auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice.
 
-        This recreates the internal VoiceManager instance.
+        Switching resets the base TTS profile to that engine/language default.
         """
         engine = arg.strip().lower().replace("_", "-")
         if engine in ("remote", "compatible", "proxy"):
             engine = "openai-compatible"
-        if engine not in ("auto", "piper", "openai", "openai-compatible", "audiodit", "omnivoice"):
-            print("Usage: /tts_engine openai|openai-compatible|piper|audiodit|omnivoice|auto")
+        if engine not in ("auto", "piper", "supertonic", "openai", "openai-compatible", "audiodit", "omnivoice"):
+            print("Usage: /tts_engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice")
             return
+        engine = resolve_interactive_tts_engine(engine, language=self.current_language)
 
-        old = self.voice_manager
-        stt_engine = getattr(old, "_stt_engine_preference", self._initial_stt_engine) if old else self._initial_stt_engine
         try:
-            new_vm = VoiceManager(
-                language=self.current_language,
-                tts_model=self._initial_tts_model,
-                stt_model=self._initial_stt_model,
-                debug_mode=self.debug_mode,
-                tts_engine=engine,
-                stt_engine=stt_engine,
-                allow_downloads=False,
-                cloned_tts_streaming=False,
-                cloning_engine=self.cloning_engine,
-                remote_base_url=self.remote_base_url,
-                remote_api_key=self.remote_api_key,
-                remote_timeout_s=self.remote_timeout_s,
-            )
+            if self.voice_manager is None:
+                self.voice_manager = VoiceManager(
+                    language=self.current_language,
+                    tts_model=self._initial_tts_model,
+                    stt_model=self._initial_stt_model,
+                    debug_mode=self.debug_mode,
+                    tts_engine=engine,
+                    stt_engine=self._initial_stt_engine,
+                    allow_downloads=False,
+                    cloned_tts_streaming=False,
+                    cloning_engine=self.cloning_engine,
+                    remote_base_url=self.remote_base_url,
+                    remote_api_key=self.remote_api_key,
+                    remote_timeout_s=self.remote_timeout_s,
+                )
+                resolved = str(getattr(self.voice_manager, "_tts_engine_name", "") or engine)
+            else:
+                resolved = str(self.voice_manager.set_tts_engine(engine, tts_model=self._initial_tts_model))
         except Exception as e:
             print(f"❌ Failed to switch TTS engine to {engine}: {e}")
-            print("   Tip: run /cloning_status then /cloning_download (or `python -m abstractvoice download ...`) to prefetch weights.")
+            print("   Tip: prefetch base TTS with /tts_download, or cloning weights with /cloning_download.")
             return
 
-        self.voice_manager = new_vm
-        # Switching the base TTS engine recreates the VoiceManager (and its loaded
-        # cloning runtimes). Reset to base voice to avoid confusing situations
-        # where a previously-selected cloned voice silently fails after a switch.
-        self.current_tts_voice = None
+        self._initial_tts_engine = str(engine)
         try:
-            if old:
-                old.cleanup()
+            self.current_language = str(self.voice_manager.get_language())
         except Exception:
             pass
-        print(f"✅ TTS engine set to: {engine}")
+        self._warm_tts_audio_output_async()
+        # Switching the base TTS engine resets the active base profile. Reset any
+        # cloned voice selection so `/speak` uses that engine/profile immediately.
+        self.current_tts_voice = None
+        profile_text = ""
+        try:
+            p = self.voice_manager.get_active_profile(kind="tts") if self.voice_manager else None
+            if p is not None:
+                profile_text = f" (profile: {p.profile_id})"
+        except Exception:
+            profile_text = ""
+        print(f"✅ TTS engine set to: {resolved}{profile_text}")
 
     def do_profile(self, arg):
         """List/apply voice profiles for the active base TTS engine.
@@ -4791,7 +4896,8 @@ class VoiceREPL(cmd.Cmd):
         print("TTS (speaking)")
         print("  /tts                  Show TTS status")
         print("  /tts on|off           Toggle TTS playback")
-        print("  /tts engine <engine>  Switch TTS engine: openai|openai-compatible|piper|audiodit|omnivoice|auto")
+        print("  /tts engine <engine>  Switch TTS engine: auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice")
+        print("  /tts_download <e>     Download base TTS artifacts: piper|supertonic|audiodit|omnivoice")
         print("  /tts quality <preset> Base TTS quality preset: low|standard|high")
         print("  /tts delivery <mode>  Delivery mode: buffered|streamed")
         print("  /tts speed <number>   Set speed (native when supported; otherwise time-stretch)")
@@ -4806,8 +4912,8 @@ class VoiceREPL(cmd.Cmd):
         print("  /voices profile <id>   Apply a profile")
         print("  /voices base           Use the base TTS engine")
         print("  /voices clone <id>     Use a cloned voice")
-        print("  /voices models         List raw Piper model/catalog entries")
-        print("  /language <code>       Switch language (Piper: en/fr/de/es/ru/zh; OmniVoice: many ISO codes)")
+        print("  /voices models         List active base TTS model/catalog entries")
+        print("  /language <code>       Switch language (Piper: en/fr/de/es/ru/zh; Supertonic: 31; OmniVoice: many)")
         print("  /omnivoice ...         OmniVoice voice design + parameters (only when OmniVoice is active)")
         print()
         print("Voice input (mic)")
@@ -4861,6 +4967,14 @@ class VoiceREPL(cmd.Cmd):
         print("  /tts_model             Deprecated legacy TTS model command")
         print()
         print("Examples")
+        print("  Supertonic TTS (31-language local ONNX):")
+        print("    /tts_download supertonic")
+        print("    /tts engine supertonic")
+        print("    /voices profiles")
+        print("    /voices profile F1")
+        print("    /language fr")
+        print("    /speak Bonjour. Ceci est un test.")
+        print()
         print("  OmniVoice TTS (French):")
         print("    /tts engine omnivoice")
         print("    /voices profile female_01    # optional (demo preset; use /voices profiles)")
@@ -4877,7 +4991,8 @@ class VoiceREPL(cmd.Cmd):
         print()
         print("Notes")
         print("  - Commands start with '/'. Any other line is sent to the LLM as a message.")
-        print("  - Offline-first: the REPL will not download large weights implicitly; use /cloning_download or `python -m abstractvoice download ...`.")
+        print("  - Offline-first: the REPL will not download large weights implicitly; use /tts_download, /cloning_download, or `python -m abstractvoice download ...`.")
+        print("  - Switching TTS engines resets the base profile to that engine/language default and clears cloned voice selection.")
         print("  - Voice-mode STOP: when using /voice stop, you can say \"stop\" to interrupt TTS without exiting voice mode.")
     
     def emptyline(self):
@@ -5227,11 +5342,11 @@ def parse_args():
         "--lang",
         default="en",
         choices=["en", "fr", "de", "es", "ru", "zh"],
-        help="Voice language hint (local Piper mapping: en|fr|de|es|ru|zh).",
+        help="Voice language hint (Piper: en|fr|de|es|ru|zh; Supertonic: 31 languages; OmniVoice: many).",
     )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
-    parser.add_argument("--tts-engine", default="openai", help="Initial TTS engine (openai|openai-compatible|piper|audiodit|omnivoice|auto)")
+    parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|openai|openai-compatible|supertonic|piper|audiodit|omnivoice)")
     parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|auto)")
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")

@@ -10,6 +10,46 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-15
+
+### Added
+- Added `tts_engine="supertonic"` for Supertone Supertonic 3 fixed-profile ONNX
+  TTS, implemented through AbstractVoice's internal adapter/runtime rather than
+  the external Supertonic Python SDK.
+- Added `abstractvoice[supertonic]` plus `--supertonic` prefetch/download
+  commands, with Supertonic included in `abstractvoice[apple]`,
+  `abstractvoice[gpu]`, `abstractvoice[all-apple]`, and
+  `abstractvoice[all-gpu]`.
+- Exposed Supertonic built-in voice profiles (`M1`-`M5`, `F1`-`F5`) through the
+  existing `VoiceProfile` abstraction and REPL/web profile surfaces.
+
+### Changed
+- Expanded local TTS language/catalog handling so Piper keeps its curated voice
+  mapping while Supertonic exposes its 31-language text frontend.
+- CLI and web example `auto` TTS defaults are now install-aware: plain
+  `abstractvoice` stays OpenAI/remote, while local/full installs that include
+  Supertonic such as `abstractvoice[all-apple]` and
+  `abstractvoice[all-gpu]` start on Supertonic.
+- TTS engine switches now go through `VoiceManager.set_tts_engine(...)`, reset
+  the active base voice/profile to that engine's default for the current
+  language, and clear stale cloned-voice selections in the CLI/web examples.
+- REPL playback now warms the output stream in the background, and the audio
+  player prefers the hardware default output sample rate before resampling
+  synthesized audio, avoiding slow first local `/speak` startup on macOS audio
+  devices that reject uncommon sample rates.
+- Updated dependency checks, REPL/web help, install docs, model-management docs,
+  and licensing notices for the Supertonic optional model artifacts.
+
+### Removed
+- Removed the `abstractvoice[local]` install alias. Use `abstractvoice[apple]`
+  or `abstractvoice[gpu]` for platform local stacks, `abstractvoice[all-apple]`
+  or `abstractvoice[all-gpu]` for those stacks plus the web example, or compose
+  granular extras such as `abstractvoice[supertonic,stt,audio-io]`.
+
+### Fixed
+- Fixed the REPL base-TTS availability check so selecting Supertonic reports the
+  Supertonic install/prefetch hint instead of a Piper voice-model error.
+
 ## [0.9.4] - 2026-05-13
 
 ### Fixed
@@ -150,6 +190,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Hardened microphone recognition startup/shutdown so input stream failures surface through `start()`, stop closes streams before joining, and integration callback exceptions do not replay completed utterances.
 - Piper `synthesize_to_file()` now treats extensionless output paths as WAV instead of rejecting them with an empty format.
 - Made core tests portable across Python 3.10 and headless CI environments without requiring optional torch or PortAudio runtime availability.
+- Stabilized OmniVoice `high` quality for base and cloned speech by using a safer step count on Apple/MPS-class local runs, avoiding the silence/whisper tails seen when blindly raising diffusion steps.
+- Fixed AbstractCore/Gateway voice routing so cloned voice ids are not also applied as TTS profiles.
 
 ### Known Issues
 - AudioDiT direct/base TTS can sound distorted in this release; AudioDiT cloning is the better-validated AudioDiT path for `0.8.1`.

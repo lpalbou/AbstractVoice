@@ -12,6 +12,7 @@ def _run_blocked_import_smoke(code: str) -> subprocess.CompletedProcess[str]:
         "sounddevice",
         "soundfile",
         "webrtcvad",
+        "onnxruntime",
     )
     harness = f"""
 import importlib.abc

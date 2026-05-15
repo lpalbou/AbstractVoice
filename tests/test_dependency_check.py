@@ -29,6 +29,7 @@ def test_dependency_checker_tracks_lightweight_base_and_local_profiles() -> None
 
     for package in (
         "piper-tts",
+        "onnxruntime",
     ):
         assert package in checker.LOCAL_TTS_DEPS
         assert package not in checker.CORE_DEPS
@@ -73,6 +74,7 @@ def test_base_dependencies_exclude_local_runtime_stacks() -> None:
         "torchvision",
         "f5-tts",
         "omnivoice",
+        "onnxruntime",
     )
 
     assert "numpy>=1.24.0" in deps
@@ -100,10 +102,12 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
         "web-omnivoice",
         "web-chroma",
         "web-full",
+        "local",
     }
     assert removed_aliases.isdisjoint(extras)
 
     assert "piper-tts>=1.2.0" in extras["piper"]
+    assert "onnxruntime>=1.19.0" in extras["supertonic"]
 
     assert "faster-whisper>=0.10.0" in extras["stt"]
     assert "soundfile>=0.12.1" in extras["stt"]
@@ -113,9 +117,10 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
         assert "webrtcvad>=2.0.10" in extras[name]
         assert "soundfile>=0.12.1" in extras[name]
 
-    local = extras["local"]
+    platform = extras["apple"]
     for dep in (
         "piper-tts>=1.2.0",
+        "onnxruntime>=1.19.0",
         "faster-whisper>=0.10.0",
         "sounddevice>=0.4.6",
         "webrtcvad>=2.0.10",
@@ -127,15 +132,14 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
         "einops>=0.8.0",
         "sentencepiece>=0.1.99",
     ):
-        assert dep in local
-    assert _has_marked_dep(local, "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(local, "omnivoice>=0.1.2", "python_version >= '3.10'")
-    assert _has_marked_dep(local, "aec-audio-processing>=1.0.1", "python_version >= '3.11'")
-    assert extras["apple"] == local
-    assert extras["gpu"] == local
+        assert dep in platform
+    assert _has_marked_dep(platform, "f5-tts>=1.1.0", "python_version >= '3.10'")
+    assert _has_marked_dep(platform, "omnivoice>=0.1.2", "python_version >= '3.10'")
+    assert _has_marked_dep(platform, "aec-audio-processing>=1.0.1", "python_version >= '3.11'")
+    assert extras["gpu"] == platform
 
     all_apple = extras["all-apple"]
-    for dep in local:
+    for dep in platform:
         assert dep in all_apple
     for dep in extras["web"]:
         assert dep in all_apple
@@ -156,6 +160,7 @@ def test_remote_and_heavy_engine_extras_are_self_contained() -> None:
         "chroma",
     ):
         assert _has_dep(extras[name], "soundfile>=0.12.1")
+    assert _has_dep(extras["supertonic"], "onnxruntime>=1.19.0")
 
 
 def test_python_support_contract_includes_39() -> None:
@@ -205,12 +210,13 @@ def test_python39_optional_engine_markers_are_resolver_safe() -> None:
     assert "transformers>=4.55.4,<5; python_version < '3.10'" in extras["audiodit"]
     assert "transformers>=5.3.0; python_version >= '3.10'" in extras["audiodit"]
     assert _has_marked_dep(extras["cloning"], "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(extras["local"], "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(extras["local"], "omnivoice>=0.1.2", "python_version >= '3.10'")
+    assert _has_marked_dep(extras["apple"], "f5-tts>=1.1.0", "python_version >= '3.10'")
+    assert _has_marked_dep(extras["apple"], "omnivoice>=0.1.2", "python_version >= '3.10'")
     assert all("python_version >= '3.10'" in dep for dep in extras["chroma"])
     assert all("python_version >= '3.10'" in dep for dep in extras["omnivoice"])
     assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["aec"]
-    assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["local"]
+    assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["apple"]
+    assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["gpu"]
 
 
 def test_f5_runtime_guard_explains_python39(monkeypatch: pytest.MonkeyPatch) -> None:

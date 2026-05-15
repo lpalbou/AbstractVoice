@@ -1,6 +1,6 @@
 # Architecture
 
-AbstractVoice `0.9.x` is built around a small public facade and engine adapters
+AbstractVoice `0.10.x` is built around a small public facade and engine adapters
 that keep optional heavy runtimes out of the default path.
 
 Use `docs/api.md` for the supported integrator contract, `docs/repl_guide.md`
@@ -12,7 +12,7 @@ For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 ## TL;DR
 
 - `abstractvoice.VoiceManager` is the orchestration façade (`abstractvoice/vm/*`).
-- **TTS (default)**: TTS adapter registry resolves `openai` / `auto` to `OpenAICompatibleTTSAdapter`; playback uses `AdapterTTSEngine` → `NonBlockingAudioPlayer` when local audio output is requested.
+- **TTS (default)**: TTS adapter registry resolves `openai` / `auto` to `OpenAICompatibleTTSAdapter`; local opt-in engines include Piper and Supertonic 3; playback uses `AdapterTTSEngine` -> `NonBlockingAudioPlayer` when local audio output is requested.
 - **STT (default)**: `openai` / `auto` routes `transcribe_*()` and `listen()` recognition to `OpenAICompatibleSTTAdapter`. Local microphone capture still uses `VoiceRecognizer` → `VoiceDetector` and can pass captured audio to the selected STT adapter.
 - **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`f5_tts|chroma|audiodit|omnivoice|openai|openai-compatible`).
 - Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (`abstractvoice/vm/core.py`).
@@ -26,6 +26,7 @@ flowchart LR
   VM -->|speak()*| TTSEngine[AdapterTTSEngine]
   TTSEngine -->|synthesize| TTSAdapter[TTSAdapter]
   TTSAdapter --> Piper[PiperTTSAdapter]
+  TTSAdapter --> Supertonic[SupertonicTTSAdapter]
   TTSAdapter --> RemoteTTS[OpenAICompatibleTTSAdapter]
   TTSAdapter --> AudioDiT[AudioDiTTTSAdapter]
   TTSAdapter --> OmniVoice[OmniVoiceTTSAdapter]
@@ -54,6 +55,7 @@ TTS implementation:
 
 - TTS adapter interface: `abstractvoice/adapters/base.py`
 - Piper adapter: `abstractvoice/adapters/tts_piper.py`
+- Supertonic adapter/runtime: `abstractvoice/adapters/tts_supertonic.py`, `abstractvoice/supertonic/runtime.py`
 - Remote OpenAI-compatible TTS adapter: `abstractvoice/adapters/tts_openai_compatible.py` + `abstractvoice/adapters/openai_compatible_http.py`
 - TTS engine selection (registry): `abstractvoice/adapters/tts_registry.py`
 - AudioDiT adapter/runtime: `abstractvoice/adapters/tts_audiodit.py`, `abstractvoice/audiodit/runtime.py`
@@ -131,13 +133,34 @@ Design decisions behind these modes:
 
 The library default uses OpenAI remote audio and requires `OPENAI_API_KEY` or
 `remote_api_key=...`; it does not download local model weights. Local engines
-are explicit (`tts_engine="piper"`, `stt_engine="faster_whisper"`, etc.) and
+are explicit (`tts_engine="piper"`, `tts_engine="supertonic"`,
+`stt_engine="faster_whisper"`, etc.) and
 respect `allow_downloads`. The REPL creates `VoiceManager(...,
 allow_downloads=False)` so local engines never fetch weights implicitly.
+The CLI and web examples use an additional install-aware TTS resolver:
+installed Supertonic first, installed Piper second, then OpenAI remote. That
+keeps plain `abstractvoice` remote/OpenAI while full local install profiles
+such as `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` launch on
+Supertonic without changing the library/server `VoiceManager()` default.
+
+Runtime base-TTS switching goes through `VoiceManager.set_tts_engine(...)`.
+That replaces the adapter, rewires the playback wrapper, and resets the active
+profile to the default for the engine/language so stale Piper/Supertonic/remote
+voice selections do not bleed across engine changes.
+`AdapterTTSEngine.warmup_audio_output()` can open the playback stream before
+the first utterance; `NonBlockingAudioPlayer` prefers the hardware default
+output sample rate and resamples synthesized audio when needed, avoiding slow
+first-call CoreAudio negotiation on macOS.
 
 Explicit prefetch entry points:
 - `python -m abstractvoice download ...` (`abstractvoice/__main__.py`)
 - `abstractvoice-prefetch ...` (`abstractvoice/prefetch.py`)
+
+Supertonic 3 is implemented as an internal ONNX adapter, not through
+Supertone's Python SDK. Its artifacts are fetched from
+`Supertone/supertonic-3` into `~/.cache/abstractvoice/supertonic-3` with
+`--supertonic`; profile metadata (`M1`-`M5`, `F1`-`F5`) is available without
+loading or downloading the model.
 
 See `docs/installation.md` and `docs/model-management.md`.
 

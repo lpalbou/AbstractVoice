@@ -329,6 +329,144 @@ class TtsMixin:
         except Exception:
             return False
         return False
+
+    def _tts_adapter_unavailable_message(self, adapter=None) -> str:
+        adapter = adapter if adapter is not None else getattr(self, "tts_adapter", None)
+        try:
+            get_reason = getattr(adapter, "get_unavailable_reason", None)
+            reason = get_reason() if callable(get_reason) else None
+            if reason:
+                return str(reason)
+        except Exception:
+            pass
+        engine = ""
+        try:
+            engine = str(getattr(adapter, "engine_id", "") or "").strip().lower()
+        except Exception:
+            engine = ""
+        if not engine:
+            try:
+                engine = str(getattr(self, "_tts_engine_name", "") or "").strip().lower()
+            except Exception:
+                engine = ""
+        if not engine:
+            try:
+                engine = str(getattr(self, "_tts_engine_preference", "") or "").strip().lower()
+            except Exception:
+                engine = ""
+        if engine:
+            return f"TTS engine '{engine}' is not available."
+        return "No TTS adapter available"
+
+    def reset_tts_profile(self, *, language: str | None = None):
+        """Reset the active TTS adapter to its engine/language default profile."""
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None:
+            return None
+        lang = str(language or getattr(self, "language", None) or "en").strip().lower() or "en"
+        try:
+            reset = getattr(adapter, "reset_profile", None)
+            if callable(reset):
+                return reset(language=lang)
+        except Exception:
+            pass
+
+        default_id = None
+        try:
+            getter = getattr(adapter, "get_default_profile_id", None)
+            default_id = getter(lang) if callable(getter) else None
+        except Exception:
+            default_id = None
+        if default_id:
+            try:
+                adapter.set_profile(str(default_id))
+            except Exception:
+                pass
+        try:
+            return adapter.get_active_profile()
+        except Exception:
+            return None
+
+    def set_tts_engine(
+        self,
+        engine: str,
+        *,
+        tts_model: str | None = None,
+        allow_downloads: bool | None = None,
+        auto_load: bool = True,
+    ) -> str:
+        """Switch the base TTS engine and reset to that engine's default profile."""
+        requested = str(engine or "").strip().lower().replace("_", "-") or "auto"
+        if requested in ("remote", "compatible", "proxy"):
+            requested = "openai-compatible"
+
+        old_engine = getattr(self, "tts_engine", None)
+        old_adapter = getattr(self, "tts_adapter", None)
+
+        try:
+            self.stop_speaking()
+        except Exception:
+            pass
+
+        model_id = tts_model if tts_model is not None else getattr(self, "tts_model", None)
+        adapter, resolved_engine = create_tts_adapter(
+            engine=requested,
+            language=str(getattr(self, "language", "en") or "en"),
+            allow_downloads=bool(getattr(self, "allow_downloads", True) if allow_downloads is None else allow_downloads),
+            auto_load=bool(auto_load),
+            debug_mode=bool(getattr(self, "debug_mode", False)),
+            model_id=model_id,
+            base_url=getattr(self, "remote_base_url", None),
+            api_key=getattr(self, "remote_api_key", None),
+            timeout_s=getattr(self, "remote_timeout_s", None),
+        )
+        if adapter is None:
+            raise RuntimeError(f"TTS engine '{requested}' is not available in this environment.")
+
+        target_language = str(getattr(self, "language", "en") or "en").strip().lower() or "en"
+        try:
+            supported = list(adapter.get_supported_languages() or [])
+        except Exception:
+            supported = []
+        language_changed = False
+        if supported and target_language not in supported:
+            fallback_language = "en" if "en" in supported else str(supported[0])
+            try:
+                adapter.set_language(str(fallback_language))
+            except Exception:
+                pass
+            self.language = str(fallback_language)
+            language_changed = str(fallback_language) != target_language
+        if language_changed and getattr(self, "voice_recognizer", None):
+            try:
+                self.voice_recognizer.stop()
+            except Exception:
+                pass
+            self.voice_recognizer = None
+
+        from ..tts.adapter_tts_engine import AdapterTTSEngine
+
+        new_engine = AdapterTTSEngine(adapter, debug_mode=bool(getattr(self, "debug_mode", False)))
+        self.tts_adapter = adapter
+        self.tts_engine = new_engine
+        self._tts_engine_name = str(resolved_engine)
+        self._tts_engine_preference = str(requested)
+        if tts_model is not None:
+            self.tts_model = tts_model
+        self.reset_tts_profile(language=str(getattr(self, "language", "en") or "en"))
+        self._wire_tts_callbacks()
+
+        if old_engine is not None and old_engine is not new_engine:
+            try:
+                if hasattr(old_engine, "cleanup"):
+                    old_engine.cleanup()
+                elif hasattr(old_engine, "audio_player") and old_engine.audio_player:
+                    old_engine.audio_player.cleanup()
+            except Exception:
+                pass
+        _ = old_adapter
+        return str(resolved_engine)
+
     def speak(
         self,
         text,
@@ -689,7 +827,7 @@ class TtsMixin:
         # Base TTS chunks (best-effort).
         adapter = getattr(self, "tts_adapter", None)
         if adapter is None or (hasattr(adapter, "is_available") and not bool(adapter.is_available())):
-            raise RuntimeError("No TTS adapter available")
+            raise RuntimeError(self._tts_adapter_unavailable_message(adapter))
 
         engine_id = ""
         try:
@@ -879,7 +1017,7 @@ class TtsMixin:
                 )
         else:
             if adapter is None or (hasattr(adapter, "is_available") and not bool(adapter.is_available())):
-                raise RuntimeError("No TTS adapter available")
+                raise RuntimeError(self._tts_adapter_unavailable_message(adapter))
 
             def _iter_chunks(seg_text: str):
                 txt = str(seg_text or "")
@@ -1036,7 +1174,7 @@ class TtsMixin:
                 pass
             self._set_last_tts_metrics(metrics)
             return out
-        raise NotImplementedError("speak_to_bytes() requires a functional TTS adapter.")
+        raise RuntimeError(self._tts_adapter_unavailable_message(getattr(self, "tts_adapter", None)))
 
     def speak_to_file(
         self,
@@ -1136,7 +1274,7 @@ class TtsMixin:
             self._set_last_tts_metrics(metrics)
             return str(out_path)
 
-        raise NotImplementedError("speak_to_file() requires a functional TTS adapter.")
+        raise RuntimeError(self._tts_adapter_unavailable_message(getattr(self, "tts_adapter", None)))
 
     def stop_speaking(self):
         if not self.tts_engine:
@@ -1234,6 +1372,14 @@ class TtsMixin:
             return None
 
     def get_supported_languages(self):
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is not None and hasattr(adapter, "get_supported_languages"):
+            try:
+                langs = list(adapter.get_supported_languages() or [])
+                if langs:
+                    return langs
+            except Exception:
+                pass
         return list(self.LANGUAGES.keys())
 
     def list_available_models(self, language: str | None = None) -> dict:
@@ -1290,9 +1436,25 @@ class TtsMixin:
             validate_against_catalog = active_engine == "piper"
         else:
             validate_against_catalog = pref in ("piper",)
-        if validate_against_catalog and language not in self.LANGUAGES:
+        if validate_against_catalog:
+            supported = set()
+            try:
+                if self.tts_adapter is not None:
+                    supported = set(self.tts_adapter.get_supported_languages())
+            except Exception:
+                supported = set()
+            if not supported:
+                try:
+                    from ..adapters.tts_piper import PiperTTSAdapter
+
+                    supported = set(PiperTTSAdapter.PIPER_MODELS.keys())
+                except Exception:
+                    supported = {"en", "fr", "de", "es", "ru", "zh"}
+        else:
+            supported = set()
+        if validate_against_catalog and language not in supported:
             if self.debug_mode:
-                available = ", ".join(self.LANGUAGES.keys())
+                available = ", ".join(sorted(supported))
                 print(f"⚠️ Unsupported language '{language}'. Available: {available}")
             return False
 
@@ -1347,6 +1509,7 @@ class TtsMixin:
 
             self.language = language
             self.speed = 1.0
+            self.reset_tts_profile(language=language)
             return True
         except Exception as e:
             if self.debug_mode:

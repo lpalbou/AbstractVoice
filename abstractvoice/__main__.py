@@ -147,6 +147,11 @@ def main():
             help="Prefetch Piper voice model for a language (e.g. en/fr/de).",
         )
         dl.add_argument(
+            "--supertonic",
+            action="store_true",
+            help="Prefetch Supertonic 3 ONNX weights + built-in voice styles (requires abstractvoice[supertonic])",
+        )
+        dl.add_argument(
             "--audiodit",
             action="store_true",
             help="Prefetch LongCat-AudioDiT-1B weights + tokenizer (requires abstractvoice[audiodit])",
@@ -163,6 +168,7 @@ def main():
             and not dl_args.openf5
             and not dl_args.chroma
             and not dl_args.piper_language
+            and not dl_args.supertonic
             and not dl_args.audiodit
             and not dl_args.omnivoice
         ):
@@ -171,6 +177,7 @@ def main():
             print("  python -m abstractvoice download --openf5")
             print("  python -m abstractvoice download --chroma")
             print("  python -m abstractvoice download --piper en")
+            print("  python -m abstractvoice download --supertonic")
             print("  python -m abstractvoice download --audiodit")
             print("  python -m abstractvoice download --omnivoice")
             return
@@ -222,6 +229,16 @@ def main():
                 print("✅ Piper model ready.")
             except Exception as e:
                 print(f"❌ Piper download failed: {e}")
+
+        if dl_args.supertonic:
+            try:
+                from abstractvoice.supertonic.runtime import prefetch_supertonic
+
+                print("Downloading Supertonic 3 ONNX weights + voice styles…")
+                path = prefetch_supertonic()
+                print(f"✅ Supertonic ready (cached at {path}).")
+            except Exception as e:
+                print(f"❌ Supertonic download failed: {e}")
 
         if dl_args.audiodit:
             try:

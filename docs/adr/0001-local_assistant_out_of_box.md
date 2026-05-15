@@ -1,7 +1,7 @@
 ## ADR 0001: Local Voice Assistant Works Out-of-the-Box
 
 **Date**: 2026-01-23  
-**Status**: Superseded for the base install; local profile retained
+**Status**: Superseded for the base install; platform/granular profiles retained
 
 ---
 
@@ -22,9 +22,10 @@ Historically we relied on `PyAudio`, which is a frequent installation failure po
 2026-05-08 refinement for AbstractVoice `0.9.1`: the base install is
 remote-first. Bare `abstractvoice` / `VoiceManager()` selects OpenAI remote
 TTS/STT and requires `OPENAI_API_KEY` or `remote_api_key=...`. This ADR now
-applies only to the explicit local assistant profile:
-`pip install "abstractvoice[local]"` plus `tts_engine="piper"` and
-`stt_engine="faster_whisper"`.
+applies only to explicit local assistant installs such as
+`pip install "abstractvoice[apple]"`, `pip install "abstractvoice[gpu]"`, or
+granular compositions like `pip install "abstractvoice[supertonic,stt,audio-io]"`,
+plus explicit local engine selection.
 
 ---
 
@@ -34,8 +35,8 @@ applies only to the explicit local assistant profile:
 - Use **webrtcvad** for low-latency VAD (pip-installable).
 - Use **faster-whisper** for local STT in the local assistant profile.
 - Remove the legacy OpenAI Whisper fallback from the public install contract.
-- Keep local assistant UX available through `abstractvoice[local]` and explicit
-  local engines.
+- Keep local assistant UX available through platform or granular extras and
+  explicit local engines.
 - Default direct `VoiceManager()` and AbstractCore/Gateway capability-plugin
   usage to remote OpenAI/OpenAI-compatible TTS/STT.
 
@@ -55,7 +56,8 @@ applies only to the explicit local assistant profile:
 - PortAudio availability can still be an issue on some Linux setups.
   - Mitigation: document common system packages in `README.md` and `docs/installation.md`.
 - Existing callers that relied on implicit local `auto` behavior must select
-  `piper` / `faster_whisper` explicitly and install `abstractvoice[local]`.
+  local engines explicitly and install either a platform profile or the needed
+  granular extras.
 
 ## Related
 

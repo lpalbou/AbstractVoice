@@ -167,6 +167,43 @@ class TTSAdapter(ABC):
         """Return the active profile, if known (best-effort)."""
         return None
 
+    def get_default_profile_id(self, language: str | None = None) -> str | None:
+        """Return the engine-local default profile id for a language.
+
+        Engines with language-specific defaults should override this. The base
+        implementation falls back to the first listed profile, which keeps the
+        contract useful for simple static profile catalogs.
+        """
+        _ = language
+        try:
+            profiles = list(self.get_profiles() or [])
+        except Exception:
+            profiles = []
+        if not profiles:
+            return None
+        return str(getattr(profiles[0], "profile_id", "") or "").strip() or None
+
+    def reset_profile(self, *, language: str | None = None) -> VoiceProfile | None:
+        """Reset to the adapter's default profile and return the active profile."""
+        default_id = None
+        try:
+            default_id = self.get_default_profile_id(language)
+        except Exception:
+            default_id = None
+        if default_id:
+            try:
+                self.set_profile(str(default_id))
+            except Exception:
+                pass
+        try:
+            return self.get_active_profile()
+        except Exception:
+            return None
+
+    def get_unavailable_reason(self) -> str | None:
+        """Return an actionable reason when `is_available()` is false."""
+        return None
+
     # ---------------------------------------------------------------------
     # Optional quality preset (engine-agnostic knob)
     # ---------------------------------------------------------------------

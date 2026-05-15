@@ -68,10 +68,28 @@ class AdapterTTSEngine:
 
         self.audio_player.sample_rate = sr
 
+    def warmup_audio_output(self) -> bool:
+        """Best-effort open the playback stream before the first utterance."""
+        try:
+            self._sync_sample_rate()
+            if getattr(self.audio_player, "stream", None) is None:
+                self.audio_player.start_stream()
+            return True
+        except Exception as e:
+            if self.debug_mode:
+                print(f"⚠️  Audio output warmup failed: {e}")
+            return False
+
     def speak(self, text: str, speed: float = 1.0, callback=None) -> bool:
         """Synthesize and enqueue audio for playback (non-blocking)."""
         if not self.adapter or not self.adapter.is_available():
-            raise RuntimeError("No TTS adapter available")
+            reason = None
+            try:
+                get_reason = getattr(self.adapter, "get_unavailable_reason", None)
+                reason = get_reason() if callable(get_reason) else None
+            except Exception:
+                reason = None
+            raise RuntimeError(str(reason or "No TTS adapter available"))
 
         self._sync_sample_rate()
 

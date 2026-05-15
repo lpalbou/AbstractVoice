@@ -16,19 +16,26 @@ embed `VoiceManager` directly when you want an in-process library; install it
 beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 
 - **Remote audio (base install)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
-- **Local stack (`abstractvoice[local]`)**: Piper, faster-whisper, microphone/playback, AEC, and local cloning/TTS engines
+- **Platform local stacks (`abstractvoice[apple]`, `abstractvoice[gpu]`)**: Piper, Supertonic 3, faster-whisper, microphone/playback, AEC, and local cloning/TTS engines
 - **Hardware profile aliases**: `abstractvoice[apple]` and `abstractvoice[gpu]` install the local stack; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` add the lightweight web example dependencies.
-- **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`
+- **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[supertonic]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`
-- **Voice cloning / heavier TTS (optional)**: OpenF5, Chroma, AudioDiT, OmniVoice
+- **Voice cloning / heavier TTS (optional)**: OpenF5, Chroma, AudioDiT, OmniVoice; Supertonic is fixed-profile TTS, not cloning
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
 
-Status: **alpha** (`0.9.x`). The base install is remote-first:
-`VoiceManager()` and `auto` select hosted OpenAI audio and require
-`OPENAI_API_KEY` (or `remote_api_key=...`). The full local/offline stack is
-available through `abstractvoice[local]` and explicit local engine selection.
+Status: **alpha** (`0.10.x`). The base install and library constructor are
+remote-first: `VoiceManager()` and library `auto` select hosted OpenAI audio and require
+`OPENAI_API_KEY` (or `remote_api_key=...`). Local/offline stacks are available
+through `abstractvoice[apple]` / `abstractvoice[gpu]` or granular engine
+composition such as `abstractvoice[supertonic,stt,audio-io]`.
+The shipped CLI and web examples use an install-aware `auto` resolver instead:
+installed Supertonic first, installed Piper second, then OpenAI remote as a
+fallback. This keeps plain `abstractvoice` remote/OpenAI by default, while
+`abstractvoice[all-apple]` and `abstractvoice[all-gpu]` start on Supertonic.
+Use an explicit local engine such as `--tts-engine supertonic` when you require
+no remote TTS.
 Optional cloning and torch-based engines are heavier and should be validated on
 your target hardware. The supported integrator surface is documented in
 `docs/api.md`, and current engine caveats are tracked in
@@ -72,6 +79,7 @@ flowchart LR
   App["Your app / REPL"] --> VM["abstractvoice.VoiceManager"]
   VM --> Remote["OpenAI-compatible audio"]
   VM --> TTS["Piper TTS (local extra)"]
+  VM --> Supertonic["Supertonic TTS (local extra)"]
   VM --> STT["faster-whisper STT (local extra)"]
   VM --> IO["sounddevice / PortAudio (local extra)"]
 
@@ -108,8 +116,9 @@ For a remote-first Gateway/Core deployment, the AbstractCore plugin defaults to
 OpenAI remote TTS/STT and reads `OPENAI_API_KEY`. Configure
 `voice_tts_engine=openai-compatible`, `voice_stt_engine=openai-compatible`, and
 `voice_remote_base_url=...` for a compatible audio endpoint. For local
-Piper/faster-whisper inside the same environment, install
-`abstractvoice[local]` and select `piper` / `faster_whisper` explicitly.
+Supertonic/Piper/faster-whisper inside the same environment, install
+`abstractvoice[apple]` or `abstractvoice[gpu]`, or compose granular extras such
+as `abstractvoice[supertonic,stt]`, then select the local engines explicitly.
 
 Do not point `voice_remote_base_url` back at the same AbstractCore Server
 instance that is resolving the plugin fallback; that loops through
@@ -154,10 +163,12 @@ This is the lightweight remote/plugin base. It uses OpenAI audio by default:
 export OPENAI_API_KEY=...
 ```
 
-For local desktop/REPL voice and local cloning engines:
+For local desktop/REPL voice and local cloning engines, use the platform
+profile for your machine:
 
 ```bash
-pip install "abstractvoice[local]"
+pip install "abstractvoice[apple]"
+pip install "abstractvoice[gpu]"
 ```
 
 Common extras:
@@ -167,12 +178,14 @@ pip install "abstractvoice[openai]"            # hosted OpenAI intent extra (no 
 pip install "abstractvoice[openai-compatible]" # generic compatible provider intent extra
 pip install "abstractvoice[web]"               # local FastAPI web example
 pip install "abstractvoice[piper]"             # local Piper TTS only
+pip install "abstractvoice[supertonic]"        # local Supertonic 3 ONNX TTS only
 pip install "abstractvoice[stt]"               # local faster-whisper STT only
 ```
 
 Notes:
-- `abstractvoice[local]` is the full local handle: Piper, faster-whisper, audio I/O, AEC where supported, and local cloning/TTS engines gated by Python-version markers.
-- Python 3.9 supports the lightweight base, web UI, local Piper/faster-whisper, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
+- `abstractvoice[apple]` and `abstractvoice[gpu]` are platform install profiles for the local voice stack: Piper, Supertonic 3, faster-whisper, audio I/O, AEC where supported, and local cloning/TTS engines gated by Python-version markers.
+- `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` install the full platform stack plus the web example dependencies.
+- Python 3.9 supports the lightweight base, web UI, local Piper/Supertonic/faster-whisper, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
 - For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
 ### Explicit model downloads (recommended; never implicit in the REPL)
@@ -185,6 +198,7 @@ After installing, prefetch explicitly (cross-platform).
 Recommended (most users):
 
 ```bash
+abstractvoice-prefetch --supertonic
 abstractvoice-prefetch --piper en
 abstractvoice-prefetch --stt small
 ```
@@ -210,6 +224,7 @@ abstractvoice-prefetch --chroma
 Equivalent `python -m` form:
 
 ```bash
+python -m abstractvoice download --supertonic
 python -m abstractvoice download --piper en
 python -m abstractvoice download --stt small
 python -m abstractvoice download --openf5   # optional; requires abstractvoice[cloning]
@@ -220,6 +235,7 @@ python -m abstractvoice download --omnivoice # optional; requires abstractvoice[
 
 Notes:
 - `--piper <lang>` downloads the Piper ONNX voice for that language into `~/.piper/models`.
+- `--supertonic` downloads Supertonic 3 ONNX weights and built-in voice styles into `~/.cache/abstractvoice/supertonic-3`.
 - `--openf5` is ~5.4GB. `--chroma` is very large (GPU-heavy).
 
 ---
@@ -229,19 +245,32 @@ Notes:
 ### REPL (fastest end-to-end)
 
 ```bash
-OPENAI_API_KEY=... abstractvoice --verbose
+abstractvoice --verbose
 # or (from a source checkout):
-OPENAI_API_KEY=... python -m abstractvoice cli --verbose
+python -m abstractvoice cli --verbose
+
+# Force hosted OpenAI audio:
+OPENAI_API_KEY=... abstractvoice --tts-engine openai --stt-engine openai --verbose
 ```
 
 Notes:
 - Mic voice input is **off by default** for fast startup. Enable with `--voice-mode stop` (or in-session: `/voice stop`).
 - The REPL is **offline-first**: no implicit model downloads. Use the explicit download commands above.
-- For fully local REPL use, install `abstractvoice[local]` and start with
-  `abstractvoice --tts-engine piper --stt-engine faster_whisper`.
+- Interactive `auto` prefers installed Supertonic, then installed Piper, then
+  OpenAI remote. A plain lightweight install therefore starts on OpenAI, while
+  `abstractvoice[all-apple]` / `abstractvoice[all-gpu]` start on Supertonic. If
+  the status line says `openai (remote)`, `/speak` is making a remote TTS
+  request.
+- For guaranteed local REPL TTS, install `abstractvoice[supertonic]` or a
+  platform profile, prefetch explicitly, and start with
+  `abstractvoice --tts-engine supertonic --stt-engine faster_whisper`.
+- Local providers never download during REPL synthesis; missing artifacts fail
+  with a prefetch hint instead of silently falling back to remote TTS.
 - REPL voice selection is centered on `/voices`; older commands such as
   `/profile`, `/tts_voice`, and `/setvoice` remain as compatibility/direct
   forms.
+- Switching base TTS with `/tts engine ...` resets the base voice/profile to the
+  default for that engine and language; for example Supertonic starts on `M1`.
 - The REPL is primarily a **demonstrator**. For production agent/server use in the AbstractFramework ecosystem, run AbstractCore and use AbstractVoice via its capability plugin (see `docs/api.md` → “Integrations”).
 
 See `docs/repl_guide.md`.
@@ -250,18 +279,22 @@ See `docs/repl_guide.md`.
 
 ```bash
 pip install "abstractvoice[web]"
-OPENAI_API_KEY=... abstractvoice web --port 5000
+abstractvoice web --port 5000
 
 # Hosted OpenAI audio in the same web UI
 OPENAI_API_KEY=... abstractvoice web --tts-engine openai --stt-engine openai
+
+# Guaranteed local web TTS after explicit prefetch
+abstractvoice web --tts-engine supertonic --stt-engine faster_whisper
 
 # OpenAI-compatible remote audio
 abstractvoice web --tts-engine openai-compatible --stt-engine openai-compatible --remote-base-url http://localhost:8000/v1
 ```
 
-Use `pip install "abstractvoice[web,omnivoice]"` for the browser UI plus
-OmniVoice, or `pip install "abstractvoice[web,local]"` for the browser UI plus
-the optional local voice/cloning engine dependencies.
+Use `pip install "abstractvoice[web,supertonic]"` for the browser UI plus
+Supertonic, `pip install "abstractvoice[web,omnivoice]"` for OmniVoice, or
+`pip install "abstractvoice[all-apple]"` / `abstractvoice[all-gpu]` for the
+browser UI plus the platform local stack.
 
 Open `http://127.0.0.1:5000`. The browser example has message/conversation
 playback, chat clearing, assistant/user voice selectors, browser voice cloning
@@ -293,11 +326,12 @@ environment. For offline/local inference:
 ```python
 from abstractvoice import VoiceManager
 
-vm = VoiceManager(tts_engine="piper", stt_engine="faster_whisper")
+vm = VoiceManager(tts_engine="supertonic", stt_engine="faster_whisper")
 vm.speak("Hello from the local stack.")
 ```
 
-Install local support first with `pip install "abstractvoice[local]"`.
+Install local support first with `pip install "abstractvoice[supertonic]"`
+or a platform profile such as `abstractvoice[apple]` / `abstractvoice[gpu]`.
 
 ---
 
@@ -306,7 +340,7 @@ Install local support first with `pip install "abstractvoice[local]"`.
 See `docs/api.md` for the supported integrator contract.
 
 At a glance:
-- **TTS**: `speak()`, `stop_speaking()`, `pause_speaking()`, `resume_speaking()`, `speak_to_bytes()`, `speak_to_file()`
+- **TTS**: `speak()`, `set_tts_engine()`, `stop_speaking()`, `pause_speaking()`, `resume_speaking()`, `speak_to_bytes()`, `speak_to_file()`
 - **STT**: `transcribe_file()`, `transcribe_from_bytes()`
 - **Mic**: `listen()`, `stop_listening()`, `pause_listening()`, `resume_listening()`
 

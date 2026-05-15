@@ -35,6 +35,28 @@ For offline deployments, prefetch explicitly:
 python -m abstractvoice download --stt small
 ```
 
+## Supertonic 3 fixed-profile TTS
+
+Supertonic is optional local TTS (`abstractvoice[supertonic]`,
+`abstractvoice[apple]`, or `abstractvoice[gpu]`). It is not a voice-cloning
+engine. AbstractVoice exposes the built-in style profiles `M1`-`M5` and
+`F1`-`F5` through the standard `VoiceProfile` API.
+
+- Model source: `https://huggingface.co/Supertone/supertonic-3`
+- License file: `https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE`
+- Default cache: `~/.cache/abstractvoice/supertonic-3`
+- Local notice: `third_party_licenses/supertone_supertonic_notice.txt`
+
+Prefetch explicitly for offline-first use:
+
+```bash
+python -m abstractvoice download --supertonic
+```
+
+The AbstractVoice adapter/runtime code is internal and does not depend on
+Supertone's external Python SDK. The downloaded model weights and style files
+remain third-party assets with their own license terms.
+
 ## Voice cloning (optional)
 
 AbstractVoice supports voice cloning behind optional extras:
@@ -72,4 +94,3 @@ python -m abstractvoice download --omnivoice
 - Treat **model weights** as third-party assets with their own compliance requirements.
 - Pin exact versions/revisions in production and record them for audits.
 - If you distribute models with your product, include the required notices.
-

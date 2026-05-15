@@ -1,5 +1,5 @@
 # AbstractVoice
-> Modular Python voice I/O for AI apps. The base install is remote-first (OpenAI/OpenAI-compatible TTS/STT by default); `abstractvoice[local]` installs the full local Piper/faster-whisper/audio/cloning stack.
+> Modular Python voice I/O for AI apps. The base install is remote-first (OpenAI/OpenAI-compatible TTS/STT by default); `abstractvoice[apple]` and `[gpu]` install the local Piper/Supertonic/faster-whisper/audio/cloning stack.
 
 Start with `README.md` for the primary entry flow and treat `docs/api.md` as the supported integrator contract. Requires Python `>=3.9` (see `pyproject.toml`).
 
@@ -8,10 +8,12 @@ Positioning:
 - In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** (via the capability plugin entry point, including TTS/STT and voice catalog discovery).
 - The REPL and local FastAPI web UI are **examples/smoke-test harnesses**. They share a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for local providers such as Ollama/LM Studio.
 - REPL voice selection is centered on `/voices`; `/profile`, `/tts_voice`, and `/setvoice` remain compatibility/direct commands.
-- `VoiceManager()` and `auto` are remote-first: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
-- Local inference/listening is explicit: install `abstractvoice[local]` and select `tts_engine="piper"` / `stt_engine="faster_whisper"` (or granular extras such as `abstractvoice[piper]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`).
+- REPL/web base TTS switching uses `VoiceManager.set_tts_engine(...)` and resets the base profile to the engine/language default.
+- Plain `abstractvoice` is remote/OpenAI by default; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` include Supertonic and the REPL/web examples default to Supertonic via their install-aware `auto` resolver.
+- Library `VoiceManager()` remains remote-first unless an engine is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
+- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"`.
 - The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, local `/api/*` routes, and compatible extension routes `/v1/audio/voices` + `/v1/voice/clone`; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
-- Web extras compose directly: `abstractvoice[web]` is lightweight; use `abstractvoice[web,local]` for the full local lab or `abstractvoice[web,omnivoice]` for a narrower engine install.
+- Web extras compose directly: `abstractvoice[web]` is lightweight; use `abstractvoice[all-apple]` / `abstractvoice[all-gpu]` for the full platform local lab or `abstractvoice[web,supertonic]` / `abstractvoice[web,omnivoice]` for narrower engine installs.
 
 Policy: the REPL runs offline‑first (`allow_downloads=False`), so model downloads should be explicit (see `docs/installation.md` and `docs/model-management.md`).
 CI/release tests use `python -m pytest -q -m "not integration and not model_download"` to avoid optional integration and artifact-download paths.
@@ -63,6 +65,8 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Audio chunk smoothing](abstractvoice/audio/fade.py): edge fades + headroom scaling
 - [STT/listening orchestration](abstractvoice/vm/stt_mixin.py): `listen()` + `transcribe_*()`
 - [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): model caching + synthesis
+- [Supertonic TTS adapter](abstractvoice/adapters/tts_supertonic.py): fixed-profile ONNX TTS (`M1`-`M5`, `F1`-`F5`)
+- [Supertonic runtime](abstractvoice/supertonic/runtime.py): internal ONNX loader + explicit `--supertonic` prefetch; no external Supertonic SDK dependency
 - [AudioDiT TTS adapter (optional)](abstractvoice/adapters/tts_audiodit.py): LongCat-AudioDiT engine (extra)
 - [OmniVoice runtime (optional)](abstractvoice/omnivoice/runtime.py): offline-first load + device/dtype policy glue
 - [OmniVoice TTS adapter (optional)](abstractvoice/adapters/tts_omnivoice.py): omnilingual TTS engine (extra)
@@ -85,7 +89,8 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Acknowledgments](ACKNOWLEDGMENTS.md)
 - [Changelog](CHANGELOG.md)
 - [License](LICENSE)
-- [Third-party licenses (vendored code)](third_party_licenses/longcat_audiodit_license.txt)
+- [LongCat AudioDiT license](third_party_licenses/longcat_audiodit_license.txt)
+- [Supertonic model notice](third_party_licenses/supertone_supertonic_notice.txt)
 
 ## Optional
 - [Full index](llms-full.txt): expanded repo map + workflows

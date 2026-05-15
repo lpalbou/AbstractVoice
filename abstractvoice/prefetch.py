@@ -34,6 +34,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Prefetch Piper voice model for a language (e.g. en/fr/de).",
     )
     parser.add_argument(
+        "--supertonic",
+        action="store_true",
+        help="Prefetch Supertonic 3 ONNX weights + built-in voice styles (requires abstractvoice[supertonic])",
+    )
+    parser.add_argument(
         "--audiodit",
         action="store_true",
         help="Prefetch LongCat-AudioDiT-1B weights + tokenizer (requires abstractvoice[audiodit])",
@@ -45,7 +50,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not args.stt_model and not args.openf5 and not args.chroma and not args.piper_language and not args.audiodit and not args.omnivoice:
+    if (
+        not args.stt_model
+        and not args.openf5
+        and not args.chroma
+        and not args.piper_language
+        and not args.supertonic
+        and not args.audiodit
+        and not args.omnivoice
+    ):
         parser.print_help()
         return 2
 
@@ -84,6 +97,13 @@ def main(argv: list[str] | None = None) -> int:
         if not piper.ensure_model_downloaded(lang):
             raise RuntimeError("Piper model download failed.")
         print("✅ Piper model ready.")
+
+    if args.supertonic:
+        from abstractvoice.supertonic.runtime import prefetch_supertonic
+
+        print("Downloading Supertonic 3 ONNX weights + voice styles…")
+        path = prefetch_supertonic()
+        print(f"✅ Supertonic ready (cached at {path}).")
 
     if args.audiodit:
         from abstractvoice.audiodit.runtime import prefetch_audiodit

@@ -23,7 +23,8 @@ def _import_audio_deps():
         raise ImportError(
             "Audio capture/playback requires sounddevice. Install with:\n"
             "  pip install \"abstractvoice[audio-io]\"\n"
-            "  pip install \"abstractvoice[local]\"\n"
+            "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+            "  pip install \"abstractvoice[gpu]\"    # GPU profile\n"
             f"Original error: {e}"
         ) from e
 
@@ -37,7 +38,8 @@ def _import_vad():
             raise ImportError(
                 "Voice activity detection requires optional dependencies. Install with:\n"
                 "  pip install \"abstractvoice[audio-io]\"\n"
-                "  pip install \"abstractvoice[local]\"\n"
+                "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+                "  pip install \"abstractvoice[gpu]\"    # GPU profile\n"
                 f"Original error: {e}"
             ) from e
         raise
@@ -51,7 +53,8 @@ def _import_transcriber():
         raise ImportError(
             "Local speech recognition requires faster-whisper. Install with:\n"
             "  pip install \"abstractvoice[stt]\"\n"
-            "  pip install \"abstractvoice[local]\"\n"
+            "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+            "  pip install \"abstractvoice[gpu]\"    # GPU profile\n"
             f"Original error: {e}"
         ) from e
         raise
