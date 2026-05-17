@@ -203,6 +203,84 @@ def _known_stt_provider_ids() -> list[str]:
     )
 
 
+def _selectable_stt_model_ids(adapter_cls: Any, *, fallback: list[str]) -> list[str]:
+    getter = getattr(adapter_cls, "selectable_model_ids", None)
+    if callable(getter):
+        try:
+            values = getter()
+            if isinstance(values, (list, tuple, set)):
+                return _dedupe_strings(values)
+        except Exception:
+            pass
+
+    for attr in ("KNOWN_MODELS", "MODELS"):
+        catalog = getattr(adapter_cls, attr, None)
+        if isinstance(catalog, dict):
+            return _dedupe_strings(list(catalog.keys()))
+
+    return _dedupe_strings(fallback)
+
+
+def _stt_model_ids_for_provider(provider: Any) -> list[str]:
+    normalized = _norm_engine_id(provider)
+    if normalized in {"faster-whisper", "faster_whisper", "whisper", "local"}:
+        try:
+            from ..adapters.stt_faster_whisper import FasterWhisperAdapter
+
+            return _selectable_stt_model_ids(
+                FasterWhisperAdapter,
+                fallback=["tiny", "base", "small", "medium", "large-v2", "large-v3", "large"],
+            )
+        except Exception:
+            return _dedupe_strings(["tiny", "base", "small", "medium", "large-v2", "large-v3", "large"])
+
+    if normalized in {"transformers-asr", "transformers_asr", "hf", "hf-asr"}:
+        try:
+            from ..adapters.stt_transformers_asr import TransformersASRAdapter
+
+            return _selectable_stt_model_ids(
+                TransformersASRAdapter,
+                fallback=[
+                    "openai/whisper-large-v3",
+                    "openai/whisper-large-v3-turbo",
+                    "Qwen/Qwen3-ASR-1.7B",
+                    "whisper-large-v3",
+                    "whisper-large-v3-turbo",
+                    "qwen3-asr-1.7b",
+                ],
+            )
+        except Exception:
+            return _dedupe_strings(
+                [
+                    "openai/whisper-large-v3",
+                    "openai/whisper-large-v3-turbo",
+                    "Qwen/Qwen3-ASR-1.7B",
+                    "whisper-large-v3",
+                    "whisper-large-v3-turbo",
+                    "qwen3-asr-1.7b",
+                ]
+            )
+
+    return []
+
+
+def _resolve_stt_provider_request(provider: Any, model: Any = None) -> tuple[str, Optional[str]]:
+    provider_text = str(provider or "").strip()
+    model_text = str(model).strip() if isinstance(model, str) and model.strip() else None
+    if provider_text:
+        raw_provider, sep, raw_model = provider_text.partition(":")
+        normalized_provider = _norm_engine_id(raw_provider if sep else provider_text)
+        if sep and normalized_provider in _known_stt_provider_ids():
+            provider_text = normalized_provider
+            if model_text is None:
+                candidate = str(raw_model or "").strip()
+                if candidate:
+                    model_text = candidate
+        else:
+            provider_text = normalized_provider
+    return _norm_engine_id(provider_text), model_text
+
+
 def _known_cloning_provider_ids() -> list[str]:
     return _ordered_provider_ids(
         ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
@@ -480,25 +558,9 @@ def _extract_stt_model_ids(vm: Any) -> list[str]:
     if engine in {"openai", "openai-compatible", "remote"}:
         model_ids.extend(["gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"])
     if engine in {"faster_whisper", "faster-whisper", "whisper", "local"}:
-        try:
-            from ..adapters.stt_faster_whisper import FasterWhisperAdapter
-
-            model_ids.extend(list(getattr(FasterWhisperAdapter, "MODELS", {}).keys()))
-        except Exception:
-            model_ids.extend(["tiny", "base", "small", "medium", "large-v3"])
+        model_ids.extend(_stt_model_ids_for_provider("faster-whisper"))
     if engine in {"transformers-asr", "transformers_asr", "hf", "hf-asr"}:
-        try:
-            from ..adapters.stt_transformers_asr import TransformersASRAdapter
-
-            model_ids.extend(list(getattr(TransformersASRAdapter, "KNOWN_MODELS", {}).keys()))
-        except Exception:
-            model_ids.extend(
-                [
-                    "openai/whisper-large-v3",
-                    "openai/whisper-large-v3-turbo",
-                    "Qwen/Qwen3-ASR-1.7B",
-                ]
-            )
+        model_ids.extend(_stt_model_ids_for_provider("transformers-asr"))
     return _dedupe_strings(model_ids)
 
 
@@ -1194,7 +1256,7 @@ class _BaseVoice:
         stt_model: Optional[str] = None,
     ):
         tts_engine = _norm_engine_id(tts_provider)
-        stt_engine = _norm_engine_id(stt_provider)
+        stt_engine, stt_model = _resolve_stt_provider_request(stt_provider, stt_model)
         if tts_engine == "cloned":
             tts_engine = ""
         if stt_engine == "cloned":
@@ -1425,18 +1487,8 @@ class _VoiceCapability(_BaseVoice):
             pass
         for engine in self._configured_remote_stt_engines():
             model_ids.extend(self._configured_stt_model_ids(engine))
-        try:
-            from ..adapters.stt_faster_whisper import FasterWhisperAdapter
-
-            model_ids.extend(list(getattr(FasterWhisperAdapter, "MODELS", {}).keys()))
-        except Exception:
-            pass
-        try:
-            from ..adapters.stt_transformers_asr import TransformersASRAdapter
-
-            model_ids.extend(list(getattr(TransformersASRAdapter, "KNOWN_MODELS", {}).keys()))
-        except Exception:
-            pass
+        model_ids.extend(_stt_model_ids_for_provider("faster-whisper"))
+        model_ids.extend(_stt_model_ids_for_provider("transformers-asr"))
         return _dedupe_strings(model_ids)
 
     def voice_catalog(self) -> Dict[str, Any]:
@@ -1521,20 +1573,10 @@ class _VoiceCapability(_BaseVoice):
             except Exception:
                 continue
 
-        try:
-            from ..adapters.stt_faster_whisper import FasterWhisperAdapter
-
-            stt_providers.append("faster-whisper")
-            stt_models.extend(list(getattr(FasterWhisperAdapter, "MODELS", {}).keys()))
-        except Exception:
-            pass
-        try:
-            from ..adapters.stt_transformers_asr import TransformersASRAdapter
-
-            stt_providers.append("transformers-asr")
-            stt_models.extend(list(getattr(TransformersASRAdapter, "KNOWN_MODELS", {}).keys()))
-        except Exception:
-            pass
+        stt_providers.append("faster-whisper")
+        stt_models.extend(_stt_model_ids_for_provider("faster-whisper"))
+        stt_providers.append("transformers-asr")
+        stt_models.extend(_stt_model_ids_for_provider("transformers-asr"))
 
         for engine in self._configured_remote_stt_engines():
             stt_providers.append(engine)
@@ -1649,26 +1691,16 @@ class _VoiceCapability(_BaseVoice):
             for model_id in self._configured_stt_model_ids(engine):
                 _add_provider_value(stt_models_by_provider, provider, model_id)
         if "faster-whisper" in stt_providers:
-            try:
-                from ..adapters.stt_faster_whisper import FasterWhisperAdapter
-
-                for model_id in getattr(FasterWhisperAdapter, "MODELS", {}).keys():
-                    _add_provider_value(stt_models_by_provider, "faster-whisper", model_id)
-            except Exception:
-                pass
+            for model_id in _stt_model_ids_for_provider("faster-whisper"):
+                _add_provider_value(stt_models_by_provider, "faster-whisper", model_id)
         if "transformers-asr" in stt_providers:
-            try:
-                from ..adapters.stt_transformers_asr import TransformersASRAdapter
+            for model_id in _stt_model_ids_for_provider("transformers-asr"):
+                _add_provider_value(stt_models_by_provider, "transformers-asr", model_id)
 
-                for model_id in getattr(TransformersASRAdapter, "KNOWN_MODELS", {}).keys():
-                    _add_provider_value(stt_models_by_provider, "transformers-asr", model_id)
-            except Exception:
-                for model_id in (
-                    "openai/whisper-large-v3",
-                    "openai/whisper-large-v3-turbo",
-                    "Qwen/Qwen3-ASR-1.7B",
-                ):
-                    _add_provider_value(stt_models_by_provider, "transformers-asr", model_id)
+        stt_engine_variants = {
+            provider: _dedupe_strings([provider, *[f"{provider}:{model_id}" for model_id in models]])
+            for provider, models in stt_models_by_provider.items()
+        }
 
         raw_engine_id = getattr(adapter, "engine_id", None) or getattr(vm, "_tts_engine_name", None)
         engine_id = _norm_engine_id(raw_engine_id) if raw_engine_id else None
@@ -1693,6 +1725,7 @@ class _VoiceCapability(_BaseVoice):
             "stt_models": stt_models,
             "tts_models_by_provider": tts_models_by_provider,
             "stt_models_by_provider": stt_models_by_provider,
+            "stt_engine_variants": stt_engine_variants,
             "tts_voices_by_provider": tts_voices_by_provider,
             "tts_profiles_by_provider": tts_profiles_by_provider,
             "tts_formats_by_provider": {provider: _tts_formats_for_provider(provider) for provider in tts_providers},
@@ -1904,10 +1937,11 @@ class _VoiceCapability(_BaseVoice):
         **_kwargs: Any,
     ) -> str:
         _ = metadata
-        vm = self._get_vm_for_provider(stt_provider=provider, stt_model=model)
+        provider_id, requested_model = _resolve_stt_provider_request(provider, model)
+        vm = self._get_vm_for_provider(stt_provider=provider_id, stt_model=requested_model)
         lk = self._vm_lock(vm)
         with lk:
-            model_name = str(model or "").strip() if isinstance(model, str) else ""
+            model_name = str(requested_model or "").strip() if isinstance(requested_model, str) else ""
             sentinel = object()
             old_vm_model = getattr(vm, "stt_model", sentinel)
             old_whisper_model = getattr(vm, "whisper_model", sentinel)
@@ -1919,7 +1953,7 @@ class _VoiceCapability(_BaseVoice):
                         setattr(vm, "stt_model", model_name)
                     except Exception:
                         pass
-                    if _norm_engine_id(provider) in {"faster-whisper", "faster_whisper", "whisper", "local"}:
+                    if provider_id in {"faster-whisper", "faster_whisper", "whisper", "local"}:
                         try:
                             setattr(vm, "whisper_model", model_name)
                             setattr(vm, "stt_adapter", None)
@@ -1986,10 +2020,11 @@ class _AudioCapability(_BaseVoice):
         **_kwargs: Any,
     ) -> str:
         _ = metadata
-        vm = self._get_vm_for_provider(stt_provider=provider, stt_model=model)
+        provider_id, requested_model = _resolve_stt_provider_request(provider, model)
+        vm = self._get_vm_for_provider(stt_provider=provider_id, stt_model=requested_model)
         lk = self._vm_lock(vm)
         with lk:
-            model_name = str(model or "").strip() if isinstance(model, str) else ""
+            model_name = str(requested_model or "").strip() if isinstance(requested_model, str) else ""
             sentinel = object()
             old_vm_model = getattr(vm, "stt_model", sentinel)
             old_whisper_model = getattr(vm, "whisper_model", sentinel)
@@ -2001,7 +2036,7 @@ class _AudioCapability(_BaseVoice):
                         setattr(vm, "stt_model", model_name)
                     except Exception:
                         pass
-                    if _norm_engine_id(provider) in {"faster-whisper", "faster_whisper", "whisper", "local"}:
+                    if provider_id in {"faster-whisper", "faster_whisper", "whisper", "local"}:
                         try:
                             setattr(vm, "whisper_model", model_name)
                             setattr(vm, "stt_adapter", None)

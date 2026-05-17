@@ -145,8 +145,16 @@ class SttMixin:
 
     def set_whisper(self, model_name):
         self.whisper_model = model_name
+        adapter = getattr(self, "stt_adapter", None)
+        pref = str(getattr(self, "_stt_engine_preference", "") or "").strip().lower().replace("-", "_")
+        adapter_engine = str(
+            getattr(adapter, "engine_id", None) or getattr(adapter, "provider", None) or ""
+        ).strip().lower().replace("-", "_")
+        if pref in {"faster_whisper", "whisper", "local"} or adapter_engine in {"faster_whisper", "whisper", "local"}:
+            self.stt_adapter = None
         if self.voice_recognizer:
             return self.voice_recognizer.change_whisper_model(model_name)
+        return self.whisper_model
 
     def get_whisper(self):
         return self.whisper_model

@@ -48,6 +48,11 @@ class FasterWhisperAdapter(STTAdapter):
     _MODEL_ALIASES = {
         "large": "large-v3",
     }
+
+    @classmethod
+    def selectable_model_ids(cls) -> list[str]:
+        """Return the model ids we want to expose in help/catalog surfaces."""
+        return list(dict.fromkeys([*cls.MODELS.keys(), *cls._MODEL_ALIASES.keys()]))
     
     # Supported languages
     LANGUAGES = [

@@ -61,6 +61,7 @@ class VoiceREPL(cmd.Cmd):
         verbose_mode: bool = False,
         language="en",
         tts_model=None,
+        whisper_model: str = "base",
         tts_engine: str = "auto",
         stt_engine: str = "openai",
         stt_model: str | None = None,
@@ -103,6 +104,7 @@ class VoiceREPL(cmd.Cmd):
         self.current_language = language
         self._initial_tts_model = tts_model
         self._initial_stt_model = stt_model
+        self._initial_whisper_model = str(whisper_model or "base").strip() or "base"
         self._requested_tts_engine = normalize_tts_engine_name(tts_engine)
         self._initial_tts_engine = resolve_interactive_tts_engine(self._requested_tts_engine, language=language)
         self._initial_stt_engine = str(stt_engine or "openai").strip().lower().replace("_", "-") or "openai"
@@ -119,6 +121,7 @@ class VoiceREPL(cmd.Cmd):
             self.voice_manager = VoiceManager(
                 language=language,
                 tts_model=tts_model,
+                whisper_model=self._initial_whisper_model,
                 stt_model=stt_model,
                 debug_mode=debug_mode,
                 tts_engine=self._initial_tts_engine,
@@ -1882,6 +1885,7 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager = VoiceManager(
                     language=self.current_language,
                     tts_model=self._initial_tts_model,
+                    whisper_model=self._initial_whisper_model,
                     debug_mode=self.debug_mode,
                     tts_engine=self._initial_tts_engine,
                     stt_engine=self._initial_stt_engine,
@@ -2266,8 +2270,9 @@ class VoiceREPL(cmd.Cmd):
         if not model:
             print(f"Current Whisper model: {self.voice_manager.get_whisper()}")
             return
-        
-        self.voice_manager.set_whisper(model)            
+
+        self._initial_whisper_model = model
+        self.voice_manager.set_whisper(model)
 
     def do_speak(self, arg):
         """Speak a text immediately (without calling the LLM).
@@ -4221,6 +4226,7 @@ class VoiceREPL(cmd.Cmd):
                 self.voice_manager = VoiceManager(
                     language=self.current_language,
                     tts_model=self._initial_tts_model,
+                    whisper_model=self._initial_whisper_model,
                     stt_model=self._initial_stt_model,
                     debug_mode=self.debug_mode,
                     tts_engine=engine,
@@ -4542,38 +4548,147 @@ class VoiceREPL(cmd.Cmd):
         except Exception as e:
             print(f"❌ AEC enable failed: {e}")
 
+    def _stt_model_choices(self, engine: str) -> list[str]:
+        normalized = str(engine or "").strip().lower().replace("-", "_")
+        if normalized in ("openai", "openai_compatible", "remote", "compatible", "proxy", "auto"):
+            return ["gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"]
+        if normalized in ("faster_whisper", "whisper", "local"):
+            try:
+                from ..adapters.stt_faster_whisper import FasterWhisperAdapter
+
+                return list(FasterWhisperAdapter.selectable_model_ids())
+            except Exception:
+                return ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large"]
+        if normalized in ("transformers_asr", "hf_asr", "hf"):
+            try:
+                from ..adapters.stt_transformers_asr import TransformersASRAdapter
+
+                return list(TransformersASRAdapter.selectable_model_ids())
+            except Exception:
+                return [
+                    "openai/whisper-large-v3",
+                    "openai/whisper-large-v3-turbo",
+                    "Qwen/Qwen3-ASR-1.7B",
+                    "whisper-large-v3",
+                    "whisper-large-v3-turbo",
+                    "qwen3-asr-1.7b",
+                ]
+        return []
+
+    def _default_transformers_asr_model(self) -> str:
+        choices = self._stt_model_choices("transformers-asr")
+        for candidate in (
+            "openai/whisper-large-v3",
+            "openai/whisper-large-v3-turbo",
+            "Qwen/Qwen3-ASR-1.7B",
+        ):
+            if candidate in choices:
+                return candidate
+        return choices[0] if choices else "openai/whisper-large-v3"
+
+    def _print_stt_engine_status(self) -> None:
+        vm = getattr(self, "voice_manager", None)
+        current_engine = str(
+            getattr(vm, "_stt_engine_preference", None)
+            or getattr(vm, "_stt_engine_name", None)
+            or getattr(vm, "stt_engine", None)
+            or getattr(self, "_initial_stt_engine", "openai")
+            or "openai"
+        ).strip().lower().replace("_", "-")
+        current_model = str(getattr(vm, "stt_model", "") or "").strip()
+        current_whisper = str(getattr(vm, "whisper_model", "") or "").strip()
+
+        print("Current STT engine:")
+        print(f"  Engine: {current_engine}")
+        if current_engine in ("faster_whisper", "faster-whisper", "whisper", "local"):
+            print(f"  Whisper model: {current_whisper or 'base'}")
+        elif current_model:
+            print(f"  Model: {current_model}")
+        print("Available model families:")
+        print(f"  faster_whisper: {'|'.join(self._stt_model_choices('faster_whisper'))}")
+        print(f"  transformers-asr: {'|'.join(self._stt_model_choices('transformers-asr'))}")
+        print(f"  openai/openai-compatible: {'|'.join(self._stt_model_choices('openai'))}")
+        print("Usage: /stt_engine <engine> [model]")
+
     def do_stt_engine(self, arg):
-        """Select STT engine: openai|openai-compatible|faster_whisper|transformers-asr|auto.
+        """Select STT engine: openai|openai-compatible|faster_whisper|transformers-asr|auto [model].
 
         This recreates the internal VoiceManager instance.
         """
-        engine = arg.strip().lower().replace("-", "_")
-        if engine in ("remote", "compatible", "proxy"):
-            engine = "openai_compatible"
-        if engine not in ("auto", "faster_whisper", "openai", "openai_compatible", "transformers_asr"):
-            print("Usage: /stt_engine openai|openai-compatible|faster_whisper|transformers-asr|auto")
-            return
-        display_engine = "openai-compatible" if engine == "openai_compatible" else engine
-        if display_engine == "transformers_asr":
-            display_engine = "transformers-asr"
-
+        raw = str(arg or "").strip()
         if not self.voice_manager:
             print("🔇 Voice features are disabled. Use '/tts on' to enable.")
             return
 
-        # Recreate VoiceManager preserving current TTS engine preference.
-        # If the current engine is unknown, let it auto-select.
-        tts_engine = getattr(self.voice_manager, "_tts_engine_preference", "openai")
+        if not raw or raw.lower() in ("help", "?"):
+            self._print_stt_engine_status()
+            return
 
         try:
-            self.voice_manager.cleanup()
+            parts = shlex.split(raw)
+        except Exception as e:
+            print(f"Usage: /stt_engine <engine> [model]  (parse error: {e})")
+            return
+
+        if not parts:
+            self._print_stt_engine_status()
+            return
+
+        engine = str(parts[0]).strip().lower().replace("-", "_")
+        model = " ".join(parts[1:]).strip() if len(parts) > 1 else ""
+        if engine in ("remote", "compatible", "proxy"):
+            engine = "openai_compatible"
+        if engine not in ("auto", "faster_whisper", "openai", "openai_compatible", "transformers_asr"):
+            print("Usage: /stt_engine openai|openai-compatible|faster_whisper|transformers-asr|auto [model]")
+            return
+
+        display_engine = "openai-compatible" if engine == "openai_compatible" else engine
+        if display_engine == "transformers_asr":
+            display_engine = "transformers-asr"
+        current_vm = self.voice_manager
+
+        # Recreate VoiceManager preserving current TTS engine preference.
+        # If the current engine is unknown, let it auto-select.
+        tts_engine = getattr(current_vm, "_tts_engine_preference", "openai")
+        current_stt_engine = str(
+            getattr(current_vm, "_stt_engine_preference", None)
+            or getattr(current_vm, "_stt_engine_name", None)
+            or getattr(current_vm, "stt_engine", None)
+            or ""
+        ).strip().lower().replace("_", "-")
+        current_whisper_model = str(getattr(current_vm, "whisper_model", "") or "").strip()
+        resolved_whisper_model = current_whisper_model or "base"
+        resolved_stt_model = None
+        if engine == "faster_whisper":
+            if model:
+                resolved_whisper_model = model
+        elif engine == "transformers_asr":
+            if model:
+                resolved_stt_model = model
+            elif current_stt_engine in ("transformers_asr", "transformers-asr", "hf", "hf-asr"):
+                current_stt_model = str(getattr(current_vm, "stt_model", "") or "").strip()
+                if current_stt_model:
+                    resolved_stt_model = current_stt_model
+            if not resolved_stt_model:
+                resolved_stt_model = self._default_transformers_asr_model()
+        else:
+            if model:
+                resolved_stt_model = model
+            elif current_stt_engine in ("openai", "openai-compatible", "openai_compatible", "remote", "compatible", "proxy"):
+                current_stt_model = str(getattr(current_vm, "stt_model", "") or "").strip()
+                if current_stt_model:
+                    resolved_stt_model = current_stt_model
+
+        try:
+            current_vm.cleanup()
         except Exception:
             pass
 
         self.voice_manager = VoiceManager(
             language=self.current_language,
             tts_model=self._initial_tts_model,
-            stt_model=self._initial_stt_model,
+            whisper_model=resolved_whisper_model,
+            stt_model=resolved_stt_model,
             debug_mode=self.debug_mode,
             tts_engine=tts_engine,
             stt_engine=display_engine,
@@ -4584,7 +4699,18 @@ class VoiceREPL(cmd.Cmd):
             remote_api_key=self.remote_api_key,
             remote_timeout_s=self.remote_timeout_s,
         )
-        print(f"✅ STT engine set to: {display_engine}")
+
+        if engine != "faster_whisper" and resolved_stt_model is not None:
+            self._initial_stt_model = resolved_stt_model
+        if engine == "faster_whisper":
+            self._initial_whisper_model = resolved_whisper_model
+        self._initial_stt_engine = str(display_engine)
+
+        model_display = resolved_whisper_model if engine == "faster_whisper" else resolved_stt_model
+        if model_display:
+            print(f"✅ STT engine set to: {display_engine} (model: {model_display})")
+        else:
+            print(f"✅ STT engine set to: {display_engine}")
 
     def do_transcribe(self, arg):
         """Transcribe an audio file via the configured STT path (OpenAI remote by default).
@@ -4939,8 +5065,11 @@ class VoiceREPL(cmd.Cmd):
         print("  /clone_import <path>                Import cloned voice bundle")
         print()
         print("STT / transcription")
-        print("  /stt_engine <engine>   openai|openai-compatible|faster_whisper|transformers-asr|auto")
-        print("  /whisper <model>       tiny|base|small|medium|large")
+        print("  /stt_engine [engine]   openai|openai-compatible|faster_whisper|transformers-asr|auto")
+        print("  /stt_engine openai [model]  gpt-4o-transcribe|gpt-4o-mini-transcribe|whisper-1")
+        print("  /stt_engine openai-compatible [model]  same remote model ids")
+        print("  /stt_engine faster_whisper [model]  tiny|base|small|medium|large-v2|large-v3|large")
+        print("  /stt_engine transformers-asr [model]  openai/whisper-large-v3|openai/whisper-large-v3-turbo|Qwen/Qwen3-ASR-1.7B")
         print("  /transcribe <path>     Transcribe an audio file")
         print()
         print("LLM / provider")
@@ -4963,6 +5092,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /tts_quality ...       Direct quality command")
         print("  /tts_delivery ...      Direct delivery command")
         print("  /speed ...             Direct speed command")
+        print("  /whisper ...           Legacy faster-whisper model shortcut (prefer /stt_engine faster_whisper [model])")
         print("  /setvoice ...          Compatibility Piper model selector (prefer /voices models)")
         print("  /lang_info             Show current language/model information")
         print("  /list_languages        List Piper language mapping")
@@ -5132,6 +5262,7 @@ class VoiceREPL(cmd.Cmd):
                         # Restore Whisper model
                         if "whisper_model" in settings:
                             whisper_model = settings.get("whisper_model", "tiny")
+                            self._initial_whisper_model = str(whisper_model or "base").strip() or "base"
                             self.voice_manager.set_whisper(whisper_model)
                             
                         # Restore temperature

@@ -109,3 +109,133 @@ def test_repl_tts_engine_rejects_local_policy_alias(capsys) -> None:
     out = capsys.readouterr().out
     assert "Usage: /tts_engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice" in out
     assert "local" not in out
+
+
+def test_repl_stt_engine_switch_accepts_transformers_model_and_preserves_whisper(capsys, monkeypatch) -> None:
+    from abstractvoice.examples.cli_repl import VoiceREPL
+
+    created: dict[str, object] = {}
+
+    class CurrentVoiceManager:
+        whisper_model = "large-v3"
+        stt_model = "gpt-4o-transcribe"
+        _stt_engine_preference = "openai"
+        _tts_engine_preference = "openai"
+
+        def cleanup(self) -> None:
+            self.cleaned = True
+
+    class FakeVoiceManager:
+        def __init__(self, **kwargs) -> None:
+            created.update(kwargs)
+            self.whisper_model = kwargs.get("whisper_model", "base")
+            self.stt_model = kwargs.get("stt_model")
+            self._stt_engine_preference = kwargs.get("stt_engine", "openai")
+            self._tts_engine_preference = kwargs.get("tts_engine", "openai")
+
+    monkeypatch.setattr("abstractvoice.examples.cli_repl.VoiceManager", FakeVoiceManager)
+
+    repl = VoiceREPL.__new__(VoiceREPL)
+    repl.voice_manager = CurrentVoiceManager()
+    repl.current_language = "en"
+    repl._initial_tts_model = None
+    repl._initial_stt_model = "gpt-4o-transcribe"
+    repl._initial_stt_engine = "openai"
+    repl.debug_mode = False
+    repl.cloning_engine = "f5_tts"
+    repl.remote_base_url = None
+    repl.remote_api_key = None
+    repl.remote_timeout_s = None
+
+    repl.do_stt_engine("transformers-asr Qwen/Qwen3-ASR-1.7B")
+
+    assert created["stt_engine"] == "transformers-asr"
+    assert created["stt_model"] == "Qwen/Qwen3-ASR-1.7B"
+    assert created["whisper_model"] == "large-v3"
+    assert repl._initial_stt_engine == "transformers-asr"
+    assert repl._initial_stt_model == "Qwen/Qwen3-ASR-1.7B"
+    out = capsys.readouterr().out
+    assert "STT engine set to: transformers-asr" in out
+    assert "Qwen/Qwen3-ASR-1.7B" in out
+
+
+def test_repl_stt_engine_switch_defaults_transformers_model_when_missing(capsys, monkeypatch) -> None:
+    from abstractvoice.examples.cli_repl import VoiceREPL
+
+    created: dict[str, object] = {}
+
+    class CurrentVoiceManager:
+        whisper_model = "large-v3"
+        stt_model = "gpt-4o-transcribe"
+        _stt_engine_preference = "openai"
+        _tts_engine_preference = "openai"
+
+        def cleanup(self) -> None:
+            self.cleaned = True
+
+    class FakeVoiceManager:
+        def __init__(self, **kwargs) -> None:
+            created.update(kwargs)
+            self.whisper_model = kwargs.get("whisper_model", "base")
+            self.stt_model = kwargs.get("stt_model")
+            self._stt_engine_preference = kwargs.get("stt_engine", "openai")
+            self._tts_engine_preference = kwargs.get("tts_engine", "openai")
+
+    monkeypatch.setattr("abstractvoice.examples.cli_repl.VoiceManager", FakeVoiceManager)
+
+    repl = VoiceREPL.__new__(VoiceREPL)
+    repl.voice_manager = CurrentVoiceManager()
+    repl.current_language = "en"
+    repl._initial_tts_model = None
+    repl._initial_stt_model = "gpt-4o-transcribe"
+    repl._initial_stt_engine = "openai"
+    repl.debug_mode = False
+    repl.cloning_engine = "f5_tts"
+    repl.remote_base_url = None
+    repl.remote_api_key = None
+    repl.remote_timeout_s = None
+
+    repl.do_stt_engine("transformers-asr")
+
+    assert created["stt_engine"] == "transformers-asr"
+    assert created["stt_model"] == "openai/whisper-large-v3"
+    assert created["whisper_model"] == "large-v3"
+    out = capsys.readouterr().out
+    assert "openai/whisper-large-v3" in out
+
+
+def test_repl_tts_engine_switch_when_recreating_vm_preserves_initial_whisper(monkeypatch) -> None:
+    from abstractvoice.examples.cli_repl import VoiceREPL
+
+    created: dict[str, object] = {}
+
+    class FakeVoiceManager:
+        def __init__(self, **kwargs) -> None:
+            created.update(kwargs)
+
+        def get_active_profile(self, kind="tts"):
+            return None
+
+    monkeypatch.setattr("abstractvoice.examples.cli_repl.VoiceManager", FakeVoiceManager)
+
+    repl = VoiceREPL.__new__(VoiceREPL)
+    repl.voice_manager = None
+    repl.current_language = "en"
+    repl.current_tts_voice = None
+    repl._initial_tts_model = None
+    repl._initial_stt_model = "gpt-4o-transcribe"
+    repl._initial_whisper_model = "large-v3"
+    repl._initial_tts_engine = "openai"
+    repl._initial_stt_engine = "faster-whisper"
+    repl.debug_mode = False
+    repl.cloning_engine = "f5_tts"
+    repl.remote_base_url = None
+    repl.remote_api_key = None
+    repl.remote_timeout_s = None
+    repl._warm_tts_audio_output_async = lambda: None
+
+    repl.do_tts_engine("supertonic")
+
+    assert created["tts_engine"] == "supertonic"
+    assert created["stt_engine"] == "faster-whisper"
+    assert created["whisper_model"] == "large-v3"

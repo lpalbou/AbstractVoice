@@ -3,4 +3,4 @@
 This file is the single source of truth for AbstractVoice releases.
 """
 
-__version__ = "0.10.1"
+__version__ = "0.10.2"

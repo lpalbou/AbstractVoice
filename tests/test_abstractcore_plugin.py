@@ -197,7 +197,11 @@ def test_voice_capability_available_providers_lists_available_engines_without_vm
     monkeypatch.setenv("OPENAI_BASE_URL", "http://remote.test/v1")
     monkeypatch.setenv("ABSTRACTVOICE_OPENAI_VOICE_CONSENT_ID", "consent-123")
     monkeypatch.setattr(plugin, "_local_tts_engine_available", lambda engine: plugin._norm_engine_id(engine) == "piper")
-    monkeypatch.setattr(plugin, "_local_stt_engine_available", lambda engine: plugin._norm_engine_id(engine) == "faster-whisper")
+    monkeypatch.setattr(
+        plugin,
+        "_local_stt_engine_available",
+        lambda engine: plugin._norm_engine_id(engine) in {"faster-whisper", "transformers-asr"},
+    )
     monkeypatch.setattr(plugin, "_local_cloning_engine_available", lambda engine: plugin._norm_engine_id(engine) in {"omnivoice", "audiodit"})
 
     class _Owner:
@@ -210,7 +214,7 @@ def test_voice_capability_available_providers_lists_available_engines_without_vm
     assert providers["active_stt_provider"] == "openai"
     assert providers["active_cloning_provider"] == "omnivoice"
     assert providers["tts"] == ["openai", "openai-compatible", "piper"]
-    assert providers["stt"] == ["openai", "openai-compatible", "faster-whisper"]
+    assert providers["stt"] == ["openai", "openai-compatible", "faster-whisper", "transformers-asr"]
     assert providers["cloning"] == ["omnivoice", "audiodit", "openai", "openai-compatible"]
     assert "supertonic" in providers["known_tts_providers"]
     assert providers["details"]["tts"]["openai"]["remote"] is True
@@ -337,6 +341,70 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models(monkeyp
     assert catalog["cloned_voices"][0]["voice_id"] == "clone_laurent"
     assert catalog["voices"][-1]["kind"] == "clone"
     assert catalog["catalog"]["openai"]["alloy"]["remote"] is True
+
+
+def test_voice_capability_catalog_surfaces_stt_alias_variants(monkeypatch):
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    models = cap.list_stt_models()
+
+    assert "large" in models
+    assert "large-v2" in models
+    assert "large-v3" in models
+    assert "whisper-large-v3" in models
+    assert "whisper-large-v3-turbo" in models
+    assert "qwen3-asr-1.7b" in models
+
+    catalog = cap.voice_catalog()
+    assert "large" in catalog["stt_models_by_provider"]["faster-whisper"]
+    assert "large-v3" in catalog["stt_models_by_provider"]["faster-whisper"]
+    assert "whisper-large-v3" in catalog["stt_models_by_provider"]["transformers-asr"]
+    assert "whisper-large-v3-turbo" in catalog["stt_models_by_provider"]["transformers-asr"]
+    assert "qwen3-asr-1.7b" in catalog["stt_models_by_provider"]["transformers-asr"]
+    assert "faster-whisper:large" in catalog["stt_engine_variants"]["faster-whisper"]
+    assert "transformers-asr:whisper-large-v3-turbo" in catalog["stt_engine_variants"]["transformers-asr"]
+    assert "transformers-asr:qwen3-asr-1.7b" in catalog["stt_engine_variants"]["transformers-asr"]
+
+
+def test_voice_capability_stt_accepts_provider_model_variants(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    plugin._VM_CACHE.clear()
+    created: list[dict[str, object]] = []
+
+    class _VM:
+        def __init__(self, **kwargs):
+            created.append(dict(kwargs))
+            self.whisper_model = kwargs.get("whisper_model", "base")
+            self.stt_model = kwargs.get("stt_model")
+            self._stt_engine_preference = kwargs.get("stt_engine", "openai")
+            self.stt_adapter = None
+
+        def transcribe_from_bytes(self, audio_bytes: bytes, language=None):
+            return f"{self._stt_engine_preference}|{self.stt_model}|{self.whisper_model}"
+
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    out_fw = cap.stt(b"audio", provider="faster-whisper:large")
+    out_hf = cap.stt(b"audio", provider="transformers-asr:Qwen/Qwen3-ASR-1.7B")
+
+    assert out_fw == "faster-whisper|large|large"
+    assert out_hf == "transformers-asr|Qwen/Qwen3-ASR-1.7B|base"
+    assert any(item["stt_engine"] == "faster-whisper" and item["whisper_model"] == "large" for item in created)
+    assert any(
+        item["stt_engine"] == "transformers-asr" and item["stt_model"] == "Qwen/Qwen3-ASR-1.7B"
+        for item in created
+    )
 
 
 def test_voice_capability_catalog_omits_supertonic_profiles_without_runtime(monkeypatch):

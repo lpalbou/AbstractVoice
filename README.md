@@ -108,6 +108,10 @@ AbstractCore discovers AbstractVoice through the
 - voice catalog discovery through the backend methods `list_profiles(...)`,
   `list_tts_models()`, `list_stt_models()`, `available_providers()`, and
   `voice_catalog()`
+- provider-scoped STT discovery through `voice_catalog()["stt_models_by_provider"]`
+  and `voice_catalog()["stt_engine_variants"]`, so Core/Gateway can present
+  selectors such as `faster-whisper:large` or
+  `transformers-asr:Qwen/Qwen3-ASR-1.7B`
 - `core.audio.transcribe(...)` / `llm.audio.transcribe(...)` for STT
 - OpenAI-compatible server endpoints when AbstractCore Server is running:
   - `POST /v1/audio/speech`
@@ -183,7 +187,7 @@ pip install "abstractvoice[web]"               # local FastAPI web example
 pip install "abstractvoice[piper]"             # local Piper TTS only
 pip install "abstractvoice[supertonic]"        # local Supertonic 3 ONNX TTS only
 pip install "abstractvoice[stt]"               # local faster-whisper STT only
-pip install "abstractvoice[stt-hf]"            # local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3)
+pip install "abstractvoice[stt-hf]"            # local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, openai/whisper-large-v3-turbo, Qwen/Qwen3-ASR-1.7B)
 pip install "abstractvoice[omnivoice]"         # recommended/default local cloning engine
 pip install "abstractvoice[cloning]"           # explicit OpenF5 cloning engine
 ```

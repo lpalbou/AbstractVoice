@@ -2756,7 +2756,7 @@ def parse_args(argv: Optional[list[str]] = None):
     )
     parser.add_argument("--stt-engine", default="openai", help="Default STT provider id (flag name: --stt-engine).")
     parser.add_argument("--tts-model", default=None, help="Model id for remote TTS providers")
-    parser.add_argument("--stt-model", default=None, help="Model id for remote STT providers, or a Hugging Face model id when using transformers-asr")
+    parser.add_argument("--stt-model", default=None, help="Model id for remote STT providers, or a Hugging Face model id when using transformers-asr (e.g. openai/whisper-large-v3, openai/whisper-large-v3-turbo, Qwen/Qwen3-ASR-1.7B)")
     parser.add_argument(
         "--cloning-engine",
         default="omnivoice",
@@ -2766,7 +2766,7 @@ def parse_args(argv: Optional[list[str]] = None):
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
     parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")
-    parser.add_argument("--whisper", default="base", help="Default faster-whisper model")
+    parser.add_argument("--whisper", default="base", help="Default faster-whisper model (e.g. tiny|base|small|medium|large-v2|large-v3|large)")
     parser.add_argument("--allow-downloads", action="store_true", help="Allow model downloads from web requests")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     return parser.parse_args(argv)

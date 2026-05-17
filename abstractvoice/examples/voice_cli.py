@@ -117,7 +117,7 @@ def parse_args():
     parser.add_argument(
         "--whisper",
         default="base",
-        help="STT model size for faster-whisper (e.g. tiny|base|small|medium|large-v3).",
+        help="STT model size for faster-whisper (e.g. tiny|base|small|medium|large-v2|large-v3|large).",
     )
     parser.add_argument(
         "--cloning-engine",
@@ -151,7 +151,7 @@ def parse_args():
                       help="Specific TTS model to use (overrides language default)")
     parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice)")
     parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|transformers-asr|auto)")
-    parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines, or a Hugging Face model id when using transformers-asr")
+    parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines, or a Hugging Face model id when using transformers-asr (e.g. openai/whisper-large-v3, openai/whisper-large-v3-turbo, Qwen/Qwen3-ASR-1.7B)")
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
     parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")
@@ -195,6 +195,7 @@ def main():
                 verbose_mode=args.verbose,
                 language=args.language,
                 tts_model=args.tts_model,
+                whisper_model=args.whisper,
                 tts_engine=args.tts_engine,
                 stt_engine=args.stt_engine,
                 stt_model=args.stt_model,
@@ -205,12 +206,6 @@ def main():
                 disable_tts=args.no_tts,
                 cloning_engine=args.cloning_engine,
             )
-            # Apply requested STT model size (best-effort).
-            try:
-                if getattr(repl, "voice_manager", None) is not None:
-                    repl.voice_manager.set_whisper(str(args.whisper))
-            except Exception:
-                pass
             # Set temperature and max_tokens
             repl.temperature = args.temperature
             repl.max_tokens = args.max_tokens
@@ -270,6 +265,7 @@ def main():
             verbose_mode=args.verbose,
             language=args.language,
             tts_model=args.tts_model,
+            whisper_model=args.whisper,
             tts_engine=args.tts_engine,
             stt_engine=args.stt_engine,
             stt_model=args.stt_model,
@@ -294,13 +290,6 @@ def main():
         if args.debug:
             print(f"Temperature: {args.temperature}")
             print(f"Max tokens: {args.max_tokens}")
-        
-        # Apply requested STT model size (best-effort).
-        try:
-            if getattr(repl, "voice_manager", None) is not None:
-                repl.voice_manager.set_whisper(str(args.whisper))
-        except Exception:
-            pass
         
         # Start the REPL
         repl.cmdloop()

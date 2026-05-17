@@ -10,12 +10,27 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-05-17
+
 ### Added
-- Added `available_providers()` / `list_available_providers()` to the
-  AbstractCore voice capability and embedded `available_providers` in
-  `voice_catalog()` so Core/Gateway can discover selectable TTS, STT, and
-  cloning providers without instantiating heavy local runtimes. The surface
-  always includes OpenAI remote providers plus the registered local engines.
+- Added model-aware STT discovery across the REPL and the AbstractCore plugin,
+  including faster-whisper aliases such as `large` plus Transformers ASR ids
+  such as `openai/whisper-large-v3-turbo` and `Qwen/Qwen3-ASR-1.7B`.
+- Added provider-scoped STT catalog data in `voice_catalog()` via
+  `stt_models_by_provider` and `stt_engine_variants`, and taught the
+  AbstractCore plugin to accept combined selectors such as
+  `faster-whisper:large` and `transformers-asr:Qwen/Qwen3-ASR-1.7B`.
+
+### Fixed
+- Preserved the selected faster-whisper model across REPL `VoiceManager`
+  recreation paths such as `/tts on`, TTS engine switching, and memory restore,
+  and refreshed cached faster-whisper adapters when `/whisper` changes the
+  model.
+
+### Changed
+- Updated the README, API docs, REPL guide, `llms.txt`, `llms-full.txt`, and
+  CLI/web help text to reflect the current STT provider/model abstraction and
+  AbstractCore catalog surface.
 
 ## [0.10.1] - 2026-05-15
 

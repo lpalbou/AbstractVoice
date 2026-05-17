@@ -47,6 +47,9 @@ Local/offline startup example:
 pip install "abstractvoice[supertonic]"
 abstractvoice-prefetch --supertonic
 abstractvoice --tts-engine supertonic --stt-engine faster_whisper --verbose
+
+# Hugging Face / Transformers ASR example:
+abstractvoice --stt-engine transformers-asr --stt-model Qwen/Qwen3-ASR-1.7B --verbose
 ```
 
 Piper remains available as the smaller local fallback:
@@ -67,7 +70,8 @@ Useful startup flags:
 - `--tts-engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice`: choose the initial TTS engine.
 - `--stt-engine openai|openai-compatible|faster_whisper|transformers-asr|auto`: choose the initial STT engine.
 - `--tts-model <id>`: model id for remote TTS engines.
-- `--stt-model <id>`: model id for remote STT engines, or a Hugging Face model id when `--stt-engine transformers-asr`.
+- `--whisper <id>`: faster-whisper model size (`tiny|base|small|medium|large-v2|large-v3|large`).
+- `--stt-model <id>`: model id for remote STT engines, or a Hugging Face model id when `--stt-engine transformers-asr` (for example `openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`, or `Qwen/Qwen3-ASR-1.7B`).
 - `--remote-base-url <url>` / `--remote-api-key <key>`: OpenAI-compatible remote voice endpoint config. `--tts-engine openai` and `--stt-engine openai` default to OpenAI's hosted API and read `OPENAI_API_KEY`.
 
 The default provider preset is Ollama at `http://localhost:11434`.
@@ -234,7 +238,7 @@ REPL commands:
 /stt_engine faster_whisper
 /stt_engine openai-compatible
 /stt_engine transformers-asr
-/whisper small
+# Legacy shortcut: /whisper small (prefer /stt_engine faster_whisper small)
 ```
 
 Engine notes:
@@ -526,7 +530,7 @@ org-gated and requires explicit consent configuration.
 STT:
 
 - `/stt_engine openai|openai-compatible|faster_whisper|transformers-asr|auto`
-- `/whisper <model>`
+- `/whisper <model>` (legacy faster-whisper shortcut; prefer `/stt_engine faster_whisper <model>`)
 - `/transcribe <path>`
 
 LLM:

@@ -132,6 +132,11 @@ class TransformersASRAdapter(STTAdapter):
         "qwen3-asr-1.7b": "Qwen/Qwen3-ASR-1.7B",
     }
 
+    @classmethod
+    def selectable_model_ids(cls) -> list[str]:
+        """Return canonical ids plus convenience aliases for discovery/UI."""
+        return list(dict.fromkeys([*cls.KNOWN_MODELS.keys(), *cls._MODEL_ALIASES.keys()]))
+
     # Keep a conservative list for UI/default validation; many HF models support more.
     LANGUAGES = [
         "en",

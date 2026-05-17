@@ -6,6 +6,7 @@ class _DummyVoiceManager(SttMixin):
     def __init__(self) -> None:
         self.voice_recognizer = None
         self.whisper_model = "tiny"
+        self.stt_adapter = None
         self.debug_mode = False
         self._aec_enabled = False
         self._aec_stream_delay_ms = 0
@@ -45,3 +46,17 @@ def test_listen_forwards_audio_level_callback(monkeypatch) -> None:
     )
     assert ok is True
     assert callable(captured.get("audio_level_callback"))
+
+
+def test_set_whisper_clears_cached_faster_whisper_adapter() -> None:
+    class _DummyAdapter:
+        engine_id = "faster-whisper"
+
+    vm = _DummyVoiceManager()
+    vm.stt_adapter = _DummyAdapter()
+
+    out = vm.set_whisper("large-v3")
+
+    assert out == "large-v3"
+    assert vm.whisper_model == "large-v3"
+    assert vm.stt_adapter is None

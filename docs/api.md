@@ -65,8 +65,8 @@ Notes:
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
 - `stt_engine` selects the STT provider and supports `openai|auto|faster_whisper|openai-compatible|transformers-asr`. `auto` resolves to `openai`.
-  - `faster_whisper` requires `abstractvoice[stt]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`.
-  - `transformers-asr` requires `abstractvoice[stt-hf]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `stt_model` as the Hugging Face model id (for example `openai/whisper-large-v3` or `Qwen/Qwen3-ASR-1.7B`).
+  - `faster_whisper` requires `abstractvoice[stt]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `whisper_model`/`--whisper` for `tiny|base|small|medium|large-v2|large-v3|large`.
+  - `transformers-asr` requires `abstractvoice[stt-hf]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `stt_model` as the Hugging Face model id (for example `openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`, or `Qwen/Qwen3-ASR-1.7B`).
   Missing credentials or missing explicit local dependencies raise actionable errors; the legacy OpenAI Whisper fallback was removed.
 - `tts_model` is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request `model`.
 - For remote STT, `stt_model` maps to the transcription request `model`.
@@ -371,7 +371,7 @@ integration code:
 - `list_tts_models() -> list[str]`
 - `list_stt_models() -> list[str]`
 - `available_providers() -> {tts, stt, cloning, providers, details}`
-- `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, available_providers, catalog}`
+- `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, stt_engine_variants, available_providers, catalog}`
 
 These methods delegate to the active `VoiceManager` and keep voice/profile/model
 semantics in AbstractVoice. AbstractCore still owns HTTP routing, auth, and
@@ -386,6 +386,13 @@ cached model artifacts are present. The same payload also includes
 `known_tts_providers`, `known_stt_providers`, and `known_cloning_providers` so
 UI/provider selectors can distinguish installed availability from the broader
 capability catalog.
+
+For STT, `voice_catalog()` also groups selectable model ids by provider under
+`stt_models_by_provider` and exposes combined `provider:model` selector strings
+under `stt_engine_variants`. AbstractCore callers may either pass separate
+arguments such as `provider="transformers-asr", model="Qwen/Qwen3-ASR-1.7B"`
+or a single combined provider value such as
+`provider="transformers-asr:Qwen/Qwen3-ASR-1.7B"`.
 
 Plugin configuration (owner `config` dict, best-effort). In AbstractCore
 integrations, the env/default path uses OpenAI remote TTS/STT
