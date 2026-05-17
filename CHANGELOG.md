@@ -10,6 +10,39 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-05-17
+
+### Added
+- Expanded the AbstractCore capability plugin discovery surface around the
+  provider/model/voice abstraction: `list_models(kind=..., provider=...)`,
+  `list_tts_models(provider=...)`, `list_stt_models(provider=...)`,
+  `list_tts_voices(provider=..., model=...)`, `list_cloned_voices(...)`, and
+  richer `voice_catalog()` provider entries via `tts_catalog_by_provider` and
+  `stt_catalog_by_provider`.
+- Added combined `provider:model` selector support for both TTS and STT through
+  the AbstractCore plugin, so callers can pass either split fields such as
+  `provider="openai", model="tts-1"` or combined values such as
+  `openai:tts-1`, `faster-whisper:large`, and
+  `transformers-asr:Qwen/Qwen3-ASR-1.7B`.
+
+### Changed
+- Clarified the public AbstractCore integration contract in the README, API
+  docs, `llms.txt`, and `llms-full.txt`, including how to back clean
+  OpenAI-compatible `/v1/audio/voices`, `/v1/audio/speech/models`, and
+  `/v1/audio/transcriptions/models` discovery endpoints from the plugin
+  surface.
+
+### Fixed
+- Provider-scoped TTS model catalogs no longer treat synthetic catalog/profile
+  ids as model ids, so AbstractCore selectors now expose only real provider
+  models.
+- Provider/model-specific TTS and STT requests now reuse a cached
+  `VoiceManager` only when the active model actually matches the requested one,
+  preventing model bleed between requests in AbstractCore/Gateway usage.
+- Deduplicated provider voice/profile catalog rows before exposing them through
+  the AbstractCore plugin, keeping UI consumers and OpenAI-compatible discovery
+  endpoints simpler.
+
 ## [0.10.2] - 2026-05-17
 
 ### Added

@@ -104,20 +104,46 @@ pip install "abstractcore[server]" abstractvoice
 AbstractCore discovers AbstractVoice through the
 `abstractcore.capabilities_plugins` entry point and can use it as:
 
-- `core.voice.tts(...)` / `llm.voice.tts(...)` for TTS
-- voice catalog discovery through the backend methods `list_profiles(...)`,
-  `list_tts_models()`, `list_stt_models()`, `available_providers()`, and
-  `voice_catalog()`
-- provider-scoped STT discovery through `voice_catalog()["stt_models_by_provider"]`
-  and `voice_catalog()["stt_engine_variants"]`, so Core/Gateway can present
-  selectors such as `faster-whisper:large` or
-  `transformers-asr:Qwen/Qwen3-ASR-1.7B`
-- `core.audio.transcribe(...)` / `llm.audio.transcribe(...)` for STT
+- `core.voice.tts(...)` / `llm.voice.tts(...)` for TTS, with explicit
+  `provider`, `model`, and `voice` selection
+- `core.audio.transcribe(...)` / `llm.audio.transcribe(...)` for STT, with
+  explicit `provider` and `model` selection
+- lightweight provider discovery through `available_providers()`, which exposes
+  clean `tts`, `stt`, and `cloning` provider lists plus per-provider details
+- provider-scoped model and voice discovery through:
+  - `list_models(kind="tts"|"stt", provider=...)`
+  - `list_tts_models(provider=...)`
+  - `list_stt_models(provider=...)`
+  - `list_tts_voices(provider=..., model=...)`
+  - `list_cloned_voices(provider=..., model=...)`
+  - `voice_catalog()`
+- nested provider catalogs in `voice_catalog()`:
+  - `tts_catalog_by_provider[provider]` -> `models`, `model_variants`,
+    `voices`, `profiles`, `cloned_voices`, `voices_by_model`
+  - `stt_catalog_by_provider[provider]` -> `models`, `model_variants`
+- combined `provider:model` selectors for both TTS and STT, so Core/Gateway can
+  accept either split fields such as `provider="openai", model="tts-1"` or a
+  single combined value such as `provider="openai:tts-1"` or
+  `provider="faster-whisper:large"`
 - OpenAI-compatible server endpoints when AbstractCore Server is running:
   - `POST /v1/audio/speech`
   - `POST /v1/audio/transcriptions`
   - `GET /v1/audio/voices`, `/v1/audio/speech/models`, and
     `/v1/audio/transcriptions/models` for UI catalog discovery
+
+The abstraction is intentionally simple:
+
+- `provider` = engine/backend (`openai`, `openai-compatible`, `piper`,
+  `supertonic`, `faster-whisper`, `transformers-asr`, ...)
+- `model` = provider-specific selectable model id
+- `voice` = a built-in/base voice profile id or a cloned voice id available for
+  the selected `provider` + `model`
+
+For TTS, AbstractCore can drive the plugin with calls such as
+`core.voice.tts(text, provider="openai", model="tts-1", voice="alloy")` or
+`core.voice.tts(text, provider="openai:tts-1", voice="voice_abc123")`. For
+STT, use `core.audio.transcribe(audio, provider="faster-whisper", model="large")`
+or `provider="transformers-asr:Qwen/Qwen3-ASR-1.7B"`.
 
 For a remote-first Gateway/Core deployment, the AbstractCore plugin defaults to
 OpenAI remote TTS/STT and reads `OPENAI_API_KEY`. Configure

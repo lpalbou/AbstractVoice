@@ -341,6 +341,89 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models(monkeyp
     assert catalog["cloned_voices"][0]["voice_id"] == "clone_laurent"
     assert catalog["voices"][-1]["kind"] == "clone"
     assert catalog["catalog"]["openai"]["alloy"]["remote"] is True
+    assert catalog["tts_catalog_by_provider"]["openai"]["models"] == ["gpt-active-tts", "tts-1", "tts-1-hd", "en_US-lessac-medium.onnx"]
+    assert catalog["tts_catalog_by_provider"]["openai"]["model_variants"][0] == "openai"
+    assert "openai:gpt-active-tts" in catalog["tts_catalog_by_provider"]["openai"]["model_variants"]
+    assert "alloy" in {item["profile_id"] for item in catalog["tts_catalog_by_provider"]["openai"]["profiles"]}
+    assert "clone_laurent" in {item["voice_id"] for item in catalog["tts_catalog_by_provider"]["openai"]["cloned_voices"]}
+    assert "gpt-active-stt" in catalog["stt_catalog_by_provider"]["openai"]["models"]
+    assert "openai:gpt-4o-transcribe" in catalog["stt_catalog_by_provider"]["openai"]["model_variants"]
+
+
+def test_voice_capability_provider_filtered_model_and_voice_discovery(monkeypatch):
+    from abstractvoice.voice_profiles import VoiceProfile
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.delenv("ABSTRACTGATEWAY_VOICE_TTS_ENGINE", raising=False)
+    monkeypatch.delenv("ABSTRACTVOICE_OPENAI_TTS_MODELS", raising=False)
+    monkeypatch.setattr(
+        "abstractvoice.integrations.abstractcore_plugin._catalog_safe_local_tts_engines",
+        lambda: [],
+    )
+
+    class _Adapter:
+        engine_id = "openai"
+        model_id = "gpt-active-tts"
+
+    class _VM:
+        tts_adapter = _Adapter()
+        stt_engine = "openai"
+        stt_model = "gpt-active-stt"
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return [
+                VoiceProfile(
+                    engine_id="openai",
+                    profile_id="alloy",
+                    label="Alloy",
+                    params={"voice": "alloy"},
+                    tags={"provider": "openai"},
+                ),
+                {
+                    "engine_id": "piper",
+                    "profile_id": "amy",
+                    "label": "Amy",
+                    "params": {"voice": "amy", "model": "en_US-amy-medium.onnx"},
+                },
+            ]
+
+        def list_available_models(self):
+            return {
+                "openai": {
+                    "alloy": {"available_models": ["gpt-active-tts", "tts-1"], "remote": True},
+                },
+                "en": {
+                    "amy": {"model_filename": "en_US-amy-medium.onnx", "cached": True},
+                },
+            }
+
+        def list_cloned_voices(self):
+            return [
+                {"voice_id": "clone_openai", "name": "OpenAI Clone", "engine": "openai"},
+                {"voice_id": "clone_piper", "name": "Piper Clone", "engine": "piper"},
+            ]
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    cap = _VoiceCapability(_Owner())
+
+    assert cap.list_models(kind="tts", provider="openai") == ["gpt-active-tts", "tts-1"]
+    assert cap.list_tts_models(provider="piper") == ["en_US-amy-medium.onnx"]
+    assert cap.list_models(kind="stt", provider="openai")[0] == "gpt-active-stt"
+
+    openai_voices = cap.list_tts_voices(provider="openai", model="tts-1")
+    assert {item.get("profile_id") or item.get("voice_id") for item in openai_voices} >= {"alloy", "clone_openai"}
+    assert "clone_piper" not in {item.get("voice_id") for item in openai_voices}
+
+    piper_voices = cap.list_voices(provider="piper", model="en_US-amy-medium.onnx")
+    assert {item.get("profile_id") or item.get("voice_id") for item in piper_voices} >= {"amy", "clone_piper"}
+    assert "alloy" not in {item.get("profile_id") for item in piper_voices}
+
+    piper_no_clones = cap.list_tts_voices(provider="piper", model="en_US-amy-medium.onnx", include_clones=False)
+    assert {item.get("profile_id") for item in piper_no_clones} == {"amy"}
+    assert cap.list_cloned_voices(provider="openai", model="gpt-active-tts")[0]["voice_id"] == "clone_openai"
 
 
 def test_voice_capability_catalog_surfaces_stt_alias_variants(monkeypatch):
@@ -405,6 +488,36 @@ def test_voice_capability_stt_accepts_provider_model_variants(monkeypatch):
         item["stt_engine"] == "transformers-asr" and item["stt_model"] == "Qwen/Qwen3-ASR-1.7B"
         for item in created
     )
+
+
+def test_voice_capability_tts_accepts_provider_model_variants(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    plugin._VM_CACHE.clear()
+    created: list[dict[str, object]] = []
+
+    class _VM:
+        def __init__(self, **kwargs):
+            created.append(dict(kwargs))
+            self.tts_model = kwargs.get("tts_model")
+            self._abstractvoice_tts_engine = kwargs.get("tts_engine", "openai")
+            self._tts_engine_name = kwargs.get("tts_engine", "openai")
+            self.tts_adapter = None
+
+        def speak_to_bytes(self, text: str, format: str = "wav", voice=None):
+            return f"{self._tts_engine_name}|{self.tts_model}|{voice or ''}".encode("utf-8")
+
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    out = cap.tts("hello", provider="openai:tts-1", voice="alloy")
+
+    assert out == b"openai|tts-1|alloy"
+    assert any(item["tts_engine"] == "openai" and item["tts_model"] == "tts-1" for item in created)
 
 
 def test_voice_capability_catalog_omits_supertonic_profiles_without_runtime(monkeypatch):

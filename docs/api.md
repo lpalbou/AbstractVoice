@@ -368,10 +368,17 @@ Audio outputs can optionally be stored into an AbstractRuntime-like `artifact_st
 The voice backend also exposes thin catalog discovery methods for Core/Gateway
 integration code:
 - `list_profiles(kind="tts") -> list[dict]`
-- `list_tts_models() -> list[str]`
-- `list_stt_models() -> list[str]`
+- `list_models(kind="tts"|"stt", provider: str | None = None) -> list[str]`
+- `list_tts_models(provider: str | None = None) -> list[str]`
+- `list_stt_models(provider: str | None = None) -> list[str]`
+- `list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True) -> list[dict]`
+- `list_cloned_voices(provider: str | None = None, model: str | None = None) -> list[dict]`
+- `list_voices(...) -> list[dict]` (alias of `list_tts_voices(...)`)
 - `available_providers() -> {tts, stt, cloning, providers, details}`
-- `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, stt_engine_variants, available_providers, catalog}`
+- `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}`
+- `tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -> bytes | artifact_ref`
+- `stt(audio, *, provider=None, model=None, language=None, ...) -> str`
+- `transcribe(audio, *, provider=None, model=None, language=None, ...) -> str`
 
 These methods delegate to the active `VoiceManager` and keep voice/profile/model
 semantics in AbstractVoice. AbstractCore still owns HTTP routing, auth, and
@@ -387,12 +394,37 @@ cached model artifacts are present. The same payload also includes
 UI/provider selectors can distinguish installed availability from the broader
 capability catalog.
 
-For STT, `voice_catalog()` also groups selectable model ids by provider under
-`stt_models_by_provider` and exposes combined `provider:model` selector strings
-under `stt_engine_variants`. AbstractCore callers may either pass separate
-arguments such as `provider="transformers-asr", model="Qwen/Qwen3-ASR-1.7B"`
-or a single combined provider value such as
+The provider/model/voice abstraction used by the plugin is:
+- `provider`: backend/engine id such as `openai`, `openai-compatible`,
+  `piper`, `supertonic`, `faster-whisper`, or `transformers-asr`
+- `model`: provider-specific selectable model id
+- `voice`: base voice/profile id or cloned voice id available for the selected
+  `provider` + `model`
+
+`voice_catalog()` is meant to be the single rich discovery payload for
+AbstractCore/Gateway:
+- `tts_catalog_by_provider[provider]` contains `models`, `model_variants`,
+  `voices`, `profiles`, `cloned_voices`, `voices_by_model`, and `formats`
+- `stt_catalog_by_provider[provider]` contains `models`, `model_variants`, and
+  `formats`
+
+The lighter helper methods are convenience views over that same abstraction:
+- `available_providers()` for provider selectors
+- `list_models(...)` / `list_tts_models(...)` / `list_stt_models(...)` for
+  model selectors
+- `list_tts_voices(...)` / `list_cloned_voices(...)` for voice selectors
+
+For both TTS and STT, the plugin accepts either split fields or combined
+`provider:model` selectors. AbstractCore callers may pass separate arguments
+such as `provider="openai", model="tts-1"` or
+`provider="transformers-asr", model="Qwen/Qwen3-ASR-1.7B"`, or a single
+combined provider value such as `provider="openai:tts-1"`,
+`provider="faster-whisper:large"`, or
 `provider="transformers-asr:Qwen/Qwen3-ASR-1.7B"`.
+
+For TTS execution, the plugin accepts either a simple `voice="alloy"` string or
+the selected voice/cloned-voice record from the catalog. When a voice dict is
+passed, the plugin derives `provider` and `model` from that record when needed.
 
 Plugin configuration (owner `config` dict, best-effort). In AbstractCore
 integrations, the env/default path uses OpenAI remote TTS/STT
@@ -437,6 +469,35 @@ capability plugin:
 
 - `POST /v1/audio/speech` -> `core.voice.tts(...)` -> `VoiceManager.speak_to_bytes(...)`
 - `POST /v1/audio/transcriptions` -> `core.audio.transcribe(...)` -> `VoiceManager.transcribe_*()`
+- `GET /v1/audio/voices` -> `core.voice.voice_catalog()` / `list_tts_voices(...)` for provider, model, profile, and cloned-voice discovery
+- `GET /v1/audio/speech/models` -> `core.voice.list_tts_models(...)` or `voice_catalog()["tts_catalog_by_provider"]`
+- `GET /v1/audio/transcriptions/models` -> `core.voice.list_stt_models(...)` or `voice_catalog()["stt_catalog_by_provider"]`
+
+Recommended AbstractCore mapping:
+
+```python
+providers = core.voice.available_providers()
+catalog = core.voice.voice_catalog()
+
+tts_audio = core.voice.tts(
+    "Hello.",
+    provider="openai",
+    model="tts-1",
+    voice="alloy",
+    format="wav",
+)
+
+text = core.audio.transcribe(
+    wav_bytes,
+    provider="faster-whisper",
+    model="large",
+    language="en",
+)
+```
+
+That same shape also supports local or remote cloned voices: the selected
+catalog item from `tts_catalog_by_provider[provider]["cloned_voices"]` can be
+passed back as the TTS `voice`, or its `voice_id` can be passed directly.
 
 Example:
 
