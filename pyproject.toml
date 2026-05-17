@@ -184,6 +184,19 @@ stt = [
     "soundfile>=0.12.1",
 ]
 
+# Local Speech-to-Text functionality (Transformers-based Hugging Face models).
+stt-hf = [
+    "soundfile>=0.12.1",
+    "torch>=2.0.0",
+    "transformers>=4.55.4,<5; python_version < '3.10'",
+    "transformers>=5.3.0; python_version >= '3.10'",
+    "accelerate>=1.0.0; python_version >= '3.10'",
+    "huggingface_hub>=0.20.0",
+    "safetensors>=0.4.0",
+    "safetensors>=0.5.0; python_version >= '3.10'",
+    "sentencepiece>=0.1.99",
+]
+
 # Local FastAPI web example. Production HTTP audio endpoints live in AbstractCore Server.
 web = [
     "fastapi>=0.100.0",

@@ -48,6 +48,7 @@ pip install "abstractvoice[all-gpu]"   # GPU stack + local FastAPI browser examp
 pip install "abstractvoice[piper]"     # Local Piper TTS only
 pip install "abstractvoice[supertonic]" # Local Supertonic 3 ONNX TTS only
 pip install "abstractvoice[stt]"       # Local faster-whisper STT
+pip install "abstractvoice[stt-hf]"    # Local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, Qwen/Qwen3-ASR-1.7B)
 pip install "abstractvoice[audio-io]"  # Microphone/playback/VAD dependencies
 pip install "abstractvoice[cloning]"   # explicit OpenF5-based cloning (heavy; Python 3.10+)
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
@@ -80,7 +81,7 @@ wav = vm.speak_to_bytes("Hello from remote TTS.", format="wav")
 PY
 
 # Any OpenAI-compatible /v1 server, including AbstractCore Server
-export ABSTRACTVOICE_REMOTE_BASE_URL=http://localhost:8000/v1
+export OPENAI_BASE_URL=http://localhost:8000/v1
 python - <<'PY'
 from abstractvoice import VoiceManager
 vm = VoiceManager(tts_engine="openai-compatible", stt_engine="openai-compatible")
@@ -90,7 +91,7 @@ PY
 ```
 
 Remote cloning is provider-specific. For compatible services, configure
-`ABSTRACTVOICE_REMOTE_BASE_URL` and use `cloning_engine="openai-compatible"`;
+`OPENAI_BASE_URL` and use `cloning_engine="openai-compatible"`;
 the default custom clone route is `POST /voice/clone` and should return
 `{"voice_id": "..."}` or `{"id": "..."}`.
 For `cloning_engine="openai"`, OpenAI custom voice creation is org-gated and

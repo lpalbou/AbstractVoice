@@ -8,10 +8,10 @@ Positioning:
 - In the AbstractFramework ecosystem, AbstractVoice is meant to be used with **AbstractCore** (via the capability plugin entry point, including TTS/STT and voice catalog discovery).
 - The REPL and local FastAPI web UI are **examples/smoke-test harnesses**. They share a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for local providers such as Ollama/LM Studio.
 - REPL voice selection is centered on `/voices`; `/profile`, `/tts_voice`, and `/setvoice` remain compatibility/direct commands.
-- REPL/web base TTS switching uses `VoiceManager.set_tts_engine(...)` and resets the base profile to the engine/language default.
+- REPL/web base TTS switching uses `VoiceManager.set_tts_engine(...)` and resets the base profile to the provider/language default.
 - Plain `abstractvoice` is remote/OpenAI by default; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` include Supertonic and the REPL/web examples default to Supertonic via their install-aware `auto` resolver.
-- Library `VoiceManager()` remains remote-first unless an engine is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
-- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"`. Supertonic is the recommended local base TTS path; OmniVoice is the recommended/default local cloning backend.
+- Library `VoiceManager()` remains remote-first unless a provider is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `OPENAI_BASE_URL` or `remote_base_url=...`.
+- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"` (providers). Supertonic is the recommended local base TTS path; OmniVoice is the recommended/default local cloning backend.
 - The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, local `/api/*` routes, and compatible extension routes `/v1/audio/voices` + `/v1/voice/clone`; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
 - Web extras compose directly: `abstractvoice[web]` is lightweight; use `abstractvoice[all-apple]` / `abstractvoice[all-gpu]` for the full platform local lab or `abstractvoice[web,supertonic]` / `abstractvoice[web,omnivoice]` for narrower engine installs.
 
@@ -78,7 +78,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Local web example](abstractvoice/examples/web_ui.py): browser TTS/STT smoke test
 
 ## Integrations (AbstractFramework ecosystem)
-- [AbstractCore capability plugin](abstractvoice/integrations/abstractcore_plugin.py): registers voice/audio backends and exposes profile/model catalog discovery
+- [AbstractCore capability plugin](abstractvoice/integrations/abstractcore_plugin.py): registers voice/audio backends and exposes profile/model/provider catalog discovery
 - [AbstractCore tool helpers](abstractvoice/integrations/abstractcore.py): `make_voice_tools(...)`
 - [Artifact store adapter](abstractvoice/artifacts.py): AbstractRuntime-like ArtifactStore adapter (duck-typed)
 

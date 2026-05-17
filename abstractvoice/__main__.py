@@ -131,6 +131,12 @@ def main():
         dl = argparse.ArgumentParser(description="AbstractVoice explicit downloads")
         dl.add_argument("--stt", dest="stt_model", default=None, help="Prefetch faster-whisper model (e.g. small)")
         dl.add_argument(
+            "--stt-hf",
+            dest="stt_hf_model",
+            default=None,
+            help="Prefetch a Transformers/Hugging Face ASR model by id (e.g. openai/whisper-large-v3).",
+        )
+        dl.add_argument(
             "--openf5",
             action="store_true",
             help="Prefetch OpenF5 artifacts for cloning (~5.4GB, requires abstractvoice[cloning])",
@@ -165,6 +171,7 @@ def main():
 
         if (
             not dl_args.stt_model
+            and not dl_args.stt_hf_model
             and not dl_args.openf5
             and not dl_args.chroma
             and not dl_args.piper_language
@@ -174,6 +181,7 @@ def main():
         ):
             print("Nothing to download. Examples:")
             print("  python -m abstractvoice download --stt small")
+            print("  python -m abstractvoice download --stt-hf openai/whisper-large-v3")
             print("  python -m abstractvoice download --openf5")
             print("  python -m abstractvoice download --chroma")
             print("  python -m abstractvoice download --piper en")
@@ -194,6 +202,17 @@ def main():
                 print("✅ STT model ready.")
             except Exception as e:
                 print(f"❌ STT download failed: {e}")
+
+        if dl_args.stt_hf_model:
+            try:
+                model_id = str(dl_args.stt_hf_model).strip()
+                print(f"Downloading STT model (transformers-asr): {model_id}")
+                from huggingface_hub import snapshot_download
+
+                path = snapshot_download(repo_id=model_id)
+                print(f"✅ STT model cached at {path}.")
+            except Exception as e:
+                print(f"❌ STT-HF download failed: {e}")
 
         if dl_args.openf5:
             try:

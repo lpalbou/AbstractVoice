@@ -72,6 +72,41 @@ class SttMixin:
                     print(f"⚠️  Remote STT not available: {e}")
                 raise
 
+        if pref in ("transformers_asr", "transformers", "hf_asr", "hf"):
+            try:
+                from ..adapters.stt_transformers_asr import TransformersASRAdapter
+
+                model_id = getattr(self, "stt_model", None)
+                if not isinstance(model_id, str) or not model_id.strip():
+                    raise ValueError(
+                        "Local STT provider 'transformers-asr' requires an explicit Hugging Face model id.\n"
+                        "Examples:\n"
+                        "  VoiceManager(stt_engine=\"transformers-asr\", stt_model=\"openai/whisper-large-v3\", ...)\n"
+                        "  VoiceManager(stt_engine=\"transformers-asr\", stt_model=\"openai/whisper-large-v3-turbo\", ...)\n"
+                        "  VoiceManager(stt_engine=\"transformers-asr\", stt_model=\"Qwen/Qwen3-ASR-1.7B\", ...)"
+                    )
+
+                self.stt_adapter = TransformersASRAdapter(
+                    model_id=str(model_id).strip(),
+                    device="auto",
+                    dtype=None,
+                    allow_downloads=bool(getattr(self, "allow_downloads", True)),
+                )
+                return self.stt_adapter if self.stt_adapter.is_available() else None
+            except Exception as e:
+                if self.debug_mode:
+                    print(f"⚠️  Transformers ASR STT not available: {e}")
+                self.stt_adapter = None
+                if pref in ("transformers_asr", "transformers", "hf_asr", "hf"):
+                    raise RuntimeError(
+                        "Local STT provider 'transformers-asr' requires optional dependencies.\n"
+                        "Install with:\n"
+                        "  pip install \"abstractvoice[stt-hf]\"\n"
+                        "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+                        "  pip install \"abstractvoice[gpu]\"    # GPU profile"
+                    ) from e
+                return None
+
         if pref not in ("auto", "faster_whisper", "faster-whisper"):
             return None
 
@@ -136,7 +171,17 @@ class SttMixin:
 
             stt_adapter = None
             pref = str(getattr(self, "_stt_engine_preference", "openai") or "openai").strip().lower().replace("-", "_")
-            if pref in ("auto", "openai", "openai_compatible", "remote", "compatible"):
+            if pref in (
+                "auto",
+                "openai",
+                "openai_compatible",
+                "remote",
+                "compatible",
+                "transformers_asr",
+                "transformers",
+                "hf_asr",
+                "hf",
+            ):
                 stt_adapter = self._get_stt_adapter()
 
             VoiceRecognizer = import_voice_recognizer()

@@ -76,6 +76,8 @@ Note on vendored code:
 
 - This repo includes a derived implementation of LongCat-AudioDiT under `abstractvoice/audiodit/*` to avoid `trust_remote_code`.
 - Upstream license text is included in `third_party_licenses/longcat_audiodit_license.txt`.
+- This repo includes a derived implementation of Qwen3-ASR under `abstractvoice/qwen3_asr/*` so `Qwen/Qwen3-ASR-1.7B` can run without `trust_remote_code`.
+- Upstream license text is included in `third_party_licenses/qwen_asr_license.txt`.
 
 For AudioDiT specifically, verify the model card/source for:
 

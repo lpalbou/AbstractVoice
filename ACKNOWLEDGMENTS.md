@@ -73,6 +73,10 @@ and is needed to avoid `trust_remote_code`.
 - LongCat-AudioDiT (MIT): https://github.com/meituan-longcat/LongCat-AudioDiT
   - We include a HuggingFace-compatible derived implementation under `abstractvoice/audiodit/*`.
   - License text: `third_party_licenses/longcat_audiodit_license.txt`.
+- Qwen3-ASR Transformers implementation (Apache-2.0): https://github.com/QwenLM/Qwen3-ASR
+  - We include a derived implementation under `abstractvoice/qwen3_asr/*` (sourced from the upstream `qwen-asr` package)
+    so `Qwen/Qwen3-ASR-1.7B` can run without `trust_remote_code`.
+  - License text: `third_party_licenses/qwen_asr_license.txt`.
 
 No Supertonic or OmniVoice model weights are vendored in this repository.
 AbstractVoice downloads those optional artifacts into local caches only when

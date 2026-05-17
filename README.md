@@ -18,7 +18,7 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 - **Remote audio (base install)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
 - **Platform local stacks (`abstractvoice[apple]`, `abstractvoice[gpu]`)**: Piper, Supertonic 3, faster-whisper, microphone/playback, AEC, and local cloning/TTS engines
 - **Hardware profile aliases**: `abstractvoice[apple]` and `abstractvoice[gpu]` install the local stack; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` add the lightweight web example dependencies.
-- **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[supertonic]`, `abstractvoice[stt]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`
+- **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[supertonic]`, `abstractvoice[stt]`, `abstractvoice[stt-hf]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[chroma]`
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`
 - **Voice cloning / heavier TTS (optional)**: OmniVoice is the recommended/default local cloning backend; OpenF5, Chroma, and AudioDiT remain explicit alternatives. Supertonic is fixed-profile TTS, not cloning.
@@ -34,7 +34,7 @@ The shipped CLI and web examples use an install-aware `auto` resolver instead:
 installed Supertonic first, installed Piper second, then OpenAI remote as a
 fallback. This keeps plain `abstractvoice` remote/OpenAI by default, while
 `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` start on Supertonic.
-Use an explicit local engine such as `--tts-engine supertonic` when you require
+Use an explicit local provider such as `--tts-engine supertonic` when you require
 no remote TTS.
 For new local voice clones, the default cloning backend is OmniVoice; install
 `abstractvoice[omnivoice]` or a platform/full profile before using clone
@@ -106,7 +106,8 @@ AbstractCore discovers AbstractVoice through the
 
 - `core.voice.tts(...)` / `llm.voice.tts(...)` for TTS
 - voice catalog discovery through the backend methods `list_profiles(...)`,
-  `list_tts_models()`, `list_stt_models()`, and `voice_catalog()`
+  `list_tts_models()`, `list_stt_models()`, `available_providers()`, and
+  `voice_catalog()`
 - `core.audio.transcribe(...)` / `llm.audio.transcribe(...)` for STT
 - OpenAI-compatible server endpoints when AbstractCore Server is running:
   - `POST /v1/audio/speech`
@@ -116,16 +117,16 @@ AbstractCore discovers AbstractVoice through the
 
 For a remote-first Gateway/Core deployment, the AbstractCore plugin defaults to
 OpenAI remote TTS/STT and reads `OPENAI_API_KEY`. Configure
-`voice_tts_engine=openai-compatible`, `voice_stt_engine=openai-compatible`, and
+`voice_tts_engine=openai-compatible` (provider), `voice_stt_engine=openai-compatible` (provider), and
 `voice_remote_base_url=...` for a compatible audio endpoint. For local
 Supertonic/Piper/faster-whisper inside the same environment, install
 `abstractvoice[apple]` or `abstractvoice[gpu]`, or compose granular extras such
-as `abstractvoice[supertonic,stt]`, then select the local engines explicitly.
+as `abstractvoice[supertonic,stt]`, then select the local providers explicitly.
 
 Do not point `voice_remote_base_url` back at the same AbstractCore Server
 instance that is resolving the plugin fallback; that loops through
 `/v1/audio/*` recursively. Use an upstream provider/gateway URL, or install the
-local extra and select local engines.
+local extra and select local providers.
 
 Minimal server smoke test:
 
@@ -182,6 +183,7 @@ pip install "abstractvoice[web]"               # local FastAPI web example
 pip install "abstractvoice[piper]"             # local Piper TTS only
 pip install "abstractvoice[supertonic]"        # local Supertonic 3 ONNX TTS only
 pip install "abstractvoice[stt]"               # local faster-whisper STT only
+pip install "abstractvoice[stt-hf]"            # local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3)
 pip install "abstractvoice[omnivoice]"         # recommended/default local cloning engine
 pip install "abstractvoice[cloning]"           # explicit OpenF5 cloning engine
 ```

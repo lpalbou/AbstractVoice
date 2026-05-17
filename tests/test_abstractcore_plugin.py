@@ -10,18 +10,12 @@ _PLUGIN_ENV_KEYS = (
     "ABSTRACTVOICE_STT_ENGINE",
     "ABSTRACTVOICE_TTS_MODEL",
     "ABSTRACTVOICE_STT_MODEL",
-    "ABSTRACTVOICE_REMOTE_BASE_URL",
-    "ABSTRACTVOICE_REMOTE_API_KEY",
     "ABSTRACTVOICE_REMOTE_TIMEOUT_S",
     "ABSTRACTVOICE_OPENAI_TTS_MODEL",
     "ABSTRACTVOICE_OPENAI_STT_MODEL",
-    "ABSTRACTVOICE_OPENAI_BASE_URL",
-    "ABSTRACTVOICE_OPENAI_API_KEY",
     "ABSTRACTVOICE_OPENAI_TIMEOUT_S",
     "ABSTRACTVOICE_OPENAI_COMPATIBLE_TTS_MODEL",
     "ABSTRACTVOICE_OPENAI_COMPATIBLE_STT_MODEL",
-    "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
-    "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
     "ABSTRACTVOICE_OPENAI_COMPATIBLE_TIMEOUT_S",
     "ABSTRACTVOICE_REMOTE_TTS_MODEL",
     "ABSTRACTVOICE_REMOTE_STT_MODEL",
@@ -80,7 +74,7 @@ def test_voice_capability_defaults_to_openai_env_for_abstractcore(monkeypatch):
     assert seen["tts_engine"] == "openai"
     assert seen["stt_engine"] == "openai"
     assert seen["cloning_engine"] == "omnivoice"
-    assert seen["remote_api_key"] == "sk-test"
+    assert seen["remote_api_key"] is None
 
 
 def test_voice_capability_env_overrides_openai_defaults(monkeypatch):
@@ -89,8 +83,8 @@ def test_voice_capability_env_overrides_openai_defaults(monkeypatch):
     _clear_plugin_env(monkeypatch)
     monkeypatch.setenv("ABSTRACTVOICE_TTS_ENGINE", "openai-compatible")
     monkeypatch.setenv("ABSTRACTVOICE_STT_ENGINE", "openai-compatible")
-    monkeypatch.setenv("ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL", "http://remote.test/v1")
-    monkeypatch.setenv("ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY", "remote-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://remote.test/v1")
+    monkeypatch.setenv("OPENAI_API_KEY", "remote-key")
     monkeypatch.setenv("ABSTRACTVOICE_ALLOW_DOWNLOADS", "false")
     monkeypatch.setenv("ABSTRACTVOICE_CLONED_TTS_STREAMING", "off")
     monkeypatch.setenv("ABSTRACTVOICE_DEBUG", "true")
@@ -112,7 +106,7 @@ def test_voice_capability_env_overrides_openai_defaults(monkeypatch):
     assert seen["tts_engine"] == "openai-compatible"
     assert seen["stt_engine"] == "openai-compatible"
     assert seen["remote_base_url"] == "http://remote.test/v1"
-    assert seen["remote_api_key"] == "remote-key"
+    assert seen["remote_api_key"] is None
     assert seen["allow_downloads"] is False
     assert seen["cloning_engine"] == "omnivoice"
     assert seen["cloned_tts_streaming"] is False
@@ -193,6 +187,35 @@ def test_voice_capability_default_openai_without_api_key_has_clear_error(monkeyp
     cap = _VoiceCapability(_Owner())
     with pytest.raises(ValueError, match="OpenAI audio requires OPENAI_API_KEY"):
         cap._get_vm()
+
+
+def test_voice_capability_available_providers_lists_available_engines_without_vm(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://remote.test/v1")
+    monkeypatch.setenv("ABSTRACTVOICE_OPENAI_VOICE_CONSENT_ID", "consent-123")
+    monkeypatch.setattr(plugin, "_local_tts_engine_available", lambda engine: plugin._norm_engine_id(engine) == "piper")
+    monkeypatch.setattr(plugin, "_local_stt_engine_available", lambda engine: plugin._norm_engine_id(engine) == "faster-whisper")
+    monkeypatch.setattr(plugin, "_local_cloning_engine_available", lambda engine: plugin._norm_engine_id(engine) in {"omnivoice", "audiodit"})
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    providers = cap.available_providers()
+
+    assert providers["active_tts_provider"] == "openai"
+    assert providers["active_stt_provider"] == "openai"
+    assert providers["active_cloning_provider"] == "omnivoice"
+    assert providers["tts"] == ["openai", "openai-compatible", "piper"]
+    assert providers["stt"] == ["openai", "openai-compatible", "faster-whisper"]
+    assert providers["cloning"] == ["omnivoice", "audiodit", "openai", "openai-compatible"]
+    assert "supertonic" in providers["known_tts_providers"]
+    assert providers["details"]["tts"]["openai"]["remote"] is True
+    assert providers["details"]["tts"]["piper"]["local"] is True
+    assert cap.list_available_providers() == providers
 
 
 def test_voice_capability_catalog_surface_serializes_profiles_and_models(monkeypatch):
@@ -297,11 +320,74 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models(monkeyp
     assert catalog["active_stt_provider"] == "openai"
     assert catalog["tts_providers"] == ["openai"]
     assert catalog["stt_providers"][0] == "openai"
+    assert "openai" in catalog["available_tts_providers"]
+    assert "supertonic" in catalog["available_providers"]["known_tts_providers"]
+    assert "piper" in catalog["available_providers"]["known_tts_providers"]
+    assert "audiodit" in catalog["available_providers"]["known_tts_providers"]
+    assert "omnivoice" in catalog["available_providers"]["known_tts_providers"]
+    assert "openai" in catalog["available_stt_providers"]
+    assert "transformers-asr" in catalog["available_providers"]["known_stt_providers"]
+    assert "available_providers" in catalog
     assert catalog["tts_models"] == ["gpt-active-tts", "tts-1", "tts-1-hd", "en_US-lessac-medium.onnx"]
     assert catalog["stt_models"][: len(expected_stt_models)] == expected_stt_models
+    assert "transformers-asr" in catalog["stt_providers"]
+    assert "transformers-asr" in catalog["stt_models_by_provider"]
+    assert "openai/whisper-large-v3" in catalog["stt_models_by_provider"]["transformers-asr"]
+    assert "Qwen/Qwen3-ASR-1.7B" in catalog["stt_models_by_provider"]["transformers-asr"]
     assert catalog["cloned_voices"][0]["voice_id"] == "clone_laurent"
     assert catalog["voices"][-1]["kind"] == "clone"
     assert catalog["catalog"]["openai"]["alloy"]["remote"] is True
+
+
+def test_voice_capability_catalog_omits_supertonic_profiles_without_runtime(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+    from abstractvoice.voice_profiles import VoiceProfile
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setattr(plugin, "_local_tts_engines", lambda: ["supertonic"])
+    monkeypatch.setattr(plugin, "_engine_runtime_available", lambda *_args, **_kwargs: False)
+
+    class _Adapter:
+        engine_id = "openai"
+        model_id = "gpt-active-tts"
+
+    class _VM:
+        tts_adapter = _Adapter()
+        stt_engine = "openai"
+        stt_model = "gpt-active-stt"
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return [
+                VoiceProfile(
+                    engine_id="openai",
+                    profile_id="alloy",
+                    label="Alloy",
+                    params={"voice": "alloy"},
+                    tags={"provider": "openai"},
+                )
+            ]
+
+        def list_available_models(self):
+            return {"openai": {"alloy": {"available_models": ["gpt-active-tts"], "remote": True}}}
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    cap = _VoiceCapability(_Owner())
+    cap._get_vm_for_provider = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("runtime unavailable"))
+
+    catalog = cap.voice_catalog()
+
+    supertonic_ids = {
+        item.get("profile_id")
+        for item in catalog["profiles"]
+        if item.get("provider") == "supertonic" or item.get("engine_id") == "supertonic"
+    }
+    assert supertonic_ids == set()
+    assert "supertonic" not in catalog["tts_providers"]
+    assert "supertonic" not in catalog["tts_voices_by_provider"]
+    assert "supertonic" not in catalog["tts_models_by_provider"]
 
 
 def test_voice_capability_catalog_includes_configured_openai_when_piper_active(monkeypatch):
@@ -372,6 +458,24 @@ def test_voice_capability_catalog_includes_configured_openai_when_piper_active(m
     assert "gpt-4o-mini-tts" in catalog["tts_models"]
     ids = {p.get("profile_id") for p in catalog["profiles"]}
     assert {"amy", "alloy"} <= ids
+
+
+def test_voice_capability_model_lists_survive_unavailable_default_vm(monkeypatch):
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+
+    def unavailable_vm():
+        raise RuntimeError("default voice manager unavailable")
+
+    cap._get_vm = unavailable_vm
+
+    assert "tts-1" in cap.list_tts_models()
+    assert "whisper-1" in cap.list_stt_models()
 
 
 def test_voice_capability_tts_treats_active_profile_voice_as_profile_not_clone():

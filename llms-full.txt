@@ -20,8 +20,8 @@ Positioning:
 - The REPL (`abstractvoice/examples/cli_repl.py`) and local FastAPI web UI (`abstractvoice/examples/web_ui.py`) are **examples/smoke-test harnesses**. They share a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for local providers such as Ollama/LM Studio.
 - REPL voice selection is centered on `/voices`; `/profile`, `/tts_voice`, and `/setvoice` remain compatibility/direct commands.
 - Plain `abstractvoice` is remote/OpenAI by default; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` include Supertonic and the REPL/web examples default to Supertonic via their install-aware `auto` resolver.
-- Library `VoiceManager()` remains remote-first unless an engine is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `ABSTRACTVOICE_REMOTE_BASE_URL` or `remote_base_url=...`.
-- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"`. Supertonic is the recommended local base TTS path; OmniVoice is the recommended/default local cloning backend.
+- Library `VoiceManager()` remains remote-first unless a provider is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `OPENAI_BASE_URL` or `remote_base_url=...`.
+- Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"` (providers). Supertonic is the recommended local base TTS path; OmniVoice is the recommended/default local cloning backend.
 - The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, local `/api/*` routes, and compatible extension routes `/v1/audio/voices` + `/v1/voice/clone`; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
 - Web extras compose directly: `abstractvoice[web]` is lightweight; use `abstractvoice[all-apple]` / `abstractvoice[all-gpu]` for the full platform local lab or `abstractvoice[web,supertonic]` / `abstractvoice[web,omnivoice]` for narrower engine installs.
 
@@ -104,7 +104,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [AbstractFramework](https://github.com/lpalbou/AbstractFramework): umbrella ecosystem
 - [AbstractCore](https://github.com/lpalbou/abstractcore): capabilities/plugins
 - [AbstractRuntime](https://github.com/lpalbou/abstractruntime): runtime + ArtifactStore
-- [AbstractCore capability plugin](abstractvoice/integrations/abstractcore_plugin.py): registers voice/audio backends via entry points; exposes `list_profiles`, `list_tts_models`, and `voice_catalog`
+- [AbstractCore capability plugin](abstractvoice/integrations/abstractcore_plugin.py): registers voice/audio backends via entry points; exposes `list_profiles`, `list_tts_models`, `available_providers`, and `voice_catalog`
 - [AbstractCore tool helpers](abstractvoice/integrations/abstractcore.py): `make_voice_tools(...)` (manual wiring)
 - [Artifact store adapter](abstractvoice/artifacts.py): AbstractRuntime-like ArtifactStore adapter (duck-typed)
 - [Entry points + scripts](pyproject.toml): `abstractvoice`, `abstractvoice-prefetch`, plugin registration
@@ -129,7 +129,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [VoiceManager wiring](abstractvoice/vm/manager.py): constructor + engine selection
 - [Voice-mode callbacks](abstractvoice/vm/core.py): behavior while speaking
 - [TTS methods + cloning orchestration](abstractvoice/vm/tts_mixin.py)
-- [Runtime TTS switching](abstractvoice/vm/tts_mixin.py): `set_tts_engine(...)` resets the base profile to the engine/language default
+- [Runtime TTS switching](abstractvoice/vm/tts_mixin.py): `set_tts_engine(...)` resets the base profile to the provider/language default
 - [Voice profiles abstraction](abstractvoice/voice_profiles.py): cross-engine `VoiceProfile` ids + metadata
 - [Remote audio HTTP helpers](abstractvoice/adapters/openai_compatible_http.py): lightweight requests-based OpenAI-compatible audio client
 - [Remote TTS adapter](abstractvoice/adapters/tts_openai_compatible.py): `/audio/speech` + remote profile discovery

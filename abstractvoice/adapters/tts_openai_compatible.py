@@ -503,7 +503,7 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
                 )
             return (
                 "OpenAI-compatible TTS is not configured.\n"
-                "Set remote_base_url=... or ABSTRACTVOICE_REMOTE_BASE_URL.\n"
+                "Set remote_base_url=... or OPENAI_BASE_URL.\n"
                 f"Original error: {e}"
             )
 

@@ -1,0 +1,72 @@
+[
+  {
+    "profile_id": "M1",
+    "label": "Supertonic M1",
+    "description": "Supertonic 3 male fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "M1", "language": "en" },
+    "tags": { "gender": "male", "style": "fixed" }
+  },
+  {
+    "profile_id": "M2",
+    "label": "Supertonic M2",
+    "description": "Supertonic 3 male fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "M2", "language": "en" },
+    "tags": { "gender": "male", "style": "fixed" }
+  },
+  {
+    "profile_id": "M3",
+    "label": "Supertonic M3",
+    "description": "Supertonic 3 male fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "M3", "language": "en" },
+    "tags": { "gender": "male", "style": "fixed" }
+  },
+  {
+    "profile_id": "M4",
+    "label": "Supertonic M4",
+    "description": "Supertonic 3 male fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "M4", "language": "en" },
+    "tags": { "gender": "male", "style": "fixed" }
+  },
+  {
+    "profile_id": "M5",
+    "label": "Supertonic M5",
+    "description": "Supertonic 3 male fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "M5", "language": "en" },
+    "tags": { "gender": "male", "style": "fixed" }
+  },
+  {
+    "profile_id": "F1",
+    "label": "Supertonic F1",
+    "description": "Supertonic 3 female fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "F1", "language": "en" },
+    "tags": { "gender": "female", "style": "fixed" }
+  },
+  {
+    "profile_id": "F2",
+    "label": "Supertonic F2",
+    "description": "Supertonic 3 female fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "F2", "language": "en" },
+    "tags": { "gender": "female", "style": "fixed" }
+  },
+  {
+    "profile_id": "F3",
+    "label": "Supertonic F3",
+    "description": "Supertonic 3 female fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "F3", "language": "en" },
+    "tags": { "gender": "female", "style": "fixed" }
+  },
+  {
+    "profile_id": "F4",
+    "label": "Supertonic F4",
+    "description": "Supertonic 3 female fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "F4", "language": "en" },
+    "tags": { "gender": "female", "style": "fixed" }
+  },
+  {
+    "profile_id": "F5",
+    "label": "Supertonic F5",
+    "description": "Supertonic 3 female fixed voice style.",
+    "params": { "provider": "supertonic", "model": "supertonic-3", "voice": "F5", "language": "en" },
+    "tags": { "gender": "female", "style": "fixed" }
+  }
+]

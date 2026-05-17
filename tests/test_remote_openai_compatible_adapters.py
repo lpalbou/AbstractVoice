@@ -11,10 +11,9 @@ import pytest
 
 
 def _live_openai_api_key() -> str | None:
-    for name in ("ABSTRACTVOICE_OPENAI_API_KEY", "OPENAI_API_KEY"):
-        value = os.environ.get(name)
-        if value and value.strip():
-            return value.strip()
+    value = os.environ.get("OPENAI_API_KEY")
+    if value and value.strip():
+        return value.strip()
     return None
 
 
@@ -100,11 +99,7 @@ def test_voicemanager_auto_resolves_to_openai_remote(monkeypatch):
 def test_voicemanager_default_requires_openai_key(monkeypatch):
     from abstractvoice import VoiceManager
 
-    for name in (
-        "ABSTRACTVOICE_OPENAI_API_KEY",
-        "OPENAI_API_KEY",
-    ):
-        monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     with pytest.raises(ValueError, match="OpenAI audio requires OPENAI_API_KEY"):
         VoiceManager(allow_downloads=False)
@@ -235,8 +230,6 @@ def test_live_openai_default_lists_tts_models_and_voice_profiles(monkeypatch):
 
     monkeypatch.setenv("OPENAI_API_KEY", api_key)
     for name in (
-        "ABSTRACTVOICE_OPENAI_API_KEY",
-        "ABSTRACTVOICE_OPENAI_BASE_URL",
         "OPENAI_BASE_URL",
         "ABSTRACTVOICE_OPENAI_TTS_MODEL",
         "ABSTRACTVOICE_OPENAI_TTS_VOICE",

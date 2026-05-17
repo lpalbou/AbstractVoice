@@ -96,8 +96,8 @@ References:
 
 Current implementation:
 - `abstractvoice[openai]`, `abstractvoice[openai-compatible]`, and `abstractvoice[remote]` are no-op intent extras; the adapters use the core `requests` dependency instead of the OpenAI SDK.
-- `tts_engine="openai"` / `stt_engine="openai"` default to `https://api.openai.com/v1` and read `OPENAI_API_KEY` (or `ABSTRACTVOICE_OPENAI_API_KEY`).
-- `tts_engine="openai-compatible"` / `stt_engine="openai-compatible"` require `remote_base_url=...` or `ABSTRACTVOICE_REMOTE_BASE_URL` / `ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL`.
+- `tts_engine="openai"` / `stt_engine="openai"` default to `https://api.openai.com/v1` and read `OPENAI_API_KEY`.
+- `tts_engine="openai-compatible"` / `stt_engine="openai-compatible"` require `remote_base_url=...` or `OPENAI_BASE_URL`.
 - Remote engines are explicit opt-in, so `allow_downloads` remains local-model download policy rather than a network-access flag.
 
 ### Voice profiles (cross-provider abstraction)

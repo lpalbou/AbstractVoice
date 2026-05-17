@@ -65,8 +65,9 @@ Useful startup flags:
 - `--provider <preset-or-url>`: choose an OpenAI-compatible LLM provider.
 - `--model <name>`: choose the LLM model.
 - `--tts-engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice`: choose the initial TTS engine.
-- `--stt-engine openai|openai-compatible|faster_whisper|auto`: choose the initial STT engine.
-- `--tts-model <id>` / `--stt-model <id>`: model ids for remote audio engines.
+- `--stt-engine openai|openai-compatible|faster_whisper|transformers-asr|auto`: choose the initial STT engine.
+- `--tts-model <id>`: model id for remote TTS engines.
+- `--stt-model <id>`: model id for remote STT engines, or a Hugging Face model id when `--stt-engine transformers-asr`.
 - `--remote-base-url <url>` / `--remote-api-key <key>`: OpenAI-compatible remote voice endpoint config. `--tts-engine openai` and `--stt-engine openai` default to OpenAI's hosted API and read `OPENAI_API_KEY`.
 
 The default provider preset is Ollama at `http://localhost:11434`.
@@ -232,6 +233,7 @@ REPL commands:
 /tts engine omnivoice
 /stt_engine faster_whisper
 /stt_engine openai-compatible
+/stt_engine transformers-asr
 /whisper small
 ```
 
@@ -248,7 +250,7 @@ Engine notes:
   `abstractvoice[apple]`, or `abstractvoice[gpu]`. Smaller fallback for
   reliable local speech.
 - `openai` / `openai-compatible`: remote TTS/STT endpoints. Configure
-  `OPENAI_API_KEY` for OpenAI or `ABSTRACTVOICE_REMOTE_BASE_URL` for compatible
+  `OPENAI_API_KEY` for OpenAI or `OPENAI_BASE_URL` for compatible
   servers. Compatible servers may expose `GET /v1/audio/voices`; `/voices
   profiles` lists those remote profile/voice ids and `/voices profile <id>`
   uses the selected id as the remote speech `voice`.
@@ -258,6 +260,9 @@ Engine notes:
   cloning. Stable reusable profiles are still being curated.
 - `faster_whisper`: local STT path; install `abstractvoice[stt]`,
   `abstractvoice[apple]`, or `abstractvoice[gpu]`.
+- `transformers-asr`: local STT path for Hugging Face ASR models; install
+  `abstractvoice[stt-hf]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and
+  pass `--stt-model <hf-model-id>` (for example `openai/whisper-large-v3`).
 
 Current caveats are tracked in `docs/known-issues.md`.
 
@@ -424,6 +429,12 @@ The default path uses OpenAI remote transcription. If you select
 python -m abstractvoice download --stt small
 ```
 
+For Hugging Face Transformers STT (`transformers-asr`), prefetch the model id:
+
+```bash
+abstractvoice-prefetch --stt-hf openai/whisper-large-v3
+```
+
 ## Debugging
 
 ```text
@@ -508,13 +519,13 @@ Cloning:
 
 Remote clone-compatible services can be used with
 `/clone <path> --engine openai-compatible` after setting
-`ABSTRACTVOICE_REMOTE_BASE_URL`; no local artifact download is needed.
+`OPENAI_BASE_URL`; no local artifact download is needed.
 OpenAI custom voice creation can be selected with `--engine openai`, but it is
 org-gated and requires explicit consent configuration.
 
 STT:
 
-- `/stt_engine openai|openai-compatible|faster_whisper|auto`
+- `/stt_engine openai|openai-compatible|faster_whisper|transformers-asr|auto`
 - `/whisper <model>`
 - `/transcribe <path>`
 

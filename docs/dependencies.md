@@ -105,6 +105,49 @@ Models/weights:
   - **Prefetch**: `python -m abstractvoice download --supertonic` or `abstractvoice-prefetch --supertonic`
   - **Profiles**: built-in fixed styles `M1`-`M5` and `F1`-`F5`
 
+### `abstractvoice[stt-hf]` — local Transformers ASR (Hugging Face)
+
+This extra enables the `stt_engine="transformers-asr"` path for local speech-to-text using Hugging Face models
+(for example Whisper and Qwen3-ASR).
+
+Python packages:
+
+- **torch**
+  - **Why**: tensor runtime for local ASR inference.
+  - **Where**: `abstractvoice/adapters/stt_transformers_asr.py`
+  - **Repo**: `https://github.com/pytorch/pytorch`
+  - **License**: `https://github.com/pytorch/pytorch/blob/main/LICENSE`
+
+- **transformers**
+  - **Why**: HF model + processor APIs.
+  - **Where**: `abstractvoice/adapters/stt_transformers_asr.py`
+  - **Repo**: `https://github.com/huggingface/transformers`
+  - **License**: `https://github.com/huggingface/transformers/blob/main/LICENSE`
+
+- **soundfile**
+  - **Why**: audio file I/O (`transcribe()` and byte decoding).
+  - **Where**: `abstractvoice/adapters/stt_transformers_asr.py`
+  - **Repo**: `https://github.com/bastibe/python-soundfile`
+  - **License**: `https://github.com/bastibe/python-soundfile/blob/master/LICENSE`
+
+Models/weights (Hugging Face):
+
+- **Whisper** (Transformers)
+  - Example ids: `openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`
+  - Cache: `~/.cache/huggingface` (default)
+  - Prefetch: `python -m abstractvoice download --stt-hf openai/whisper-large-v3` or `abstractvoice-prefetch --stt-hf openai/whisper-large-v3`
+
+- **Qwen3-ASR-1.7B**
+  - Model: `https://huggingface.co/Qwen/Qwen3-ASR-1.7B`
+  - Cache: `~/.cache/huggingface` (default)
+  - Prefetch: `python -m abstractvoice download --stt-hf Qwen/Qwen3-ASR-1.7B` or `abstractvoice-prefetch --stt-hf Qwen/Qwen3-ASR-1.7B`
+
+Vendored code:
+
+- Qwen3-ASR Transformers backend
+  - **Upstream**: `qwen-asr` (Apache-2.0) and `https://github.com/QwenLM/Qwen3-ASR`
+  - **What we ship**: a derived Transformers implementation under `abstractvoice/qwen3_asr/*` so Qwen3-ASR works without `trust_remote_code`.
+
 ### `abstractvoice[omnivoice]`, `[cloning]`, `[chroma]`, `[audiodit]` — model prefetch support
 
 - **huggingface_hub**

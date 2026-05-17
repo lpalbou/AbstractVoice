@@ -79,10 +79,21 @@ def _voice_profile_to_dict(profile: Any) -> Dict[str, Any]:
     if profile is None:
         return {}
     if isinstance(profile, dict):
-        return _json_safe(profile)
+        out = dict(_json_safe(profile) or {})
+        engine_id = _norm_engine_id(out.get("provider_id") or out.get("provider") or out.get("engine_id") or out.get("engine"))
+        if engine_id:
+            out.setdefault("engine_id", engine_id)
+            out.setdefault("engine", engine_id)
+            out.setdefault("provider_id", engine_id)
+            out.setdefault("provider", engine_id)
+        return out
 
+    engine_id = _norm_engine_id(getattr(profile, "engine_id", None))
     return {
-        "engine_id": _json_safe(getattr(profile, "engine_id", None)),
+        "engine_id": _json_safe(engine_id),
+        "engine": _json_safe(engine_id),
+        "provider_id": _json_safe(engine_id),
+        "provider": _json_safe(engine_id),
         "profile_id": _json_safe(getattr(profile, "profile_id", None)),
         "label": _json_safe(getattr(profile, "label", None)),
         "description": _json_safe(getattr(profile, "description", None)),
@@ -123,6 +134,8 @@ def _norm_engine_id(value: Any) -> str:
     text = str(value or "").strip().lower().replace("_", "-")
     if text in {"remote", "compatible", "proxy"}:
         return "openai-compatible"
+    if text in {"f5-tts", "f5tts", "openf5", "open-f5"}:
+        return "f5_tts"
     if text == "faster-whisper":
         return "faster-whisper"
     return text
@@ -133,6 +146,8 @@ def _engine_aliases(value: Any) -> set[str]:
     if not engine:
         return set()
     aliases = {engine, engine.replace("-", "_")}
+    if engine == "f5_tts":
+        aliases.update({"f5-tts", "f5tts", "openf5", "open-f5"})
     if engine == "openai-compatible":
         aliases.update({"remote", "compatible", "proxy", "openai_compatible"})
     if engine in {"faster-whisper", "faster_whisper"}:
@@ -154,13 +169,158 @@ def _local_tts_engines() -> list[str]:
     ]
 
 
+def _ordered_provider_ids(values: Any, preferred: list[str]) -> list[str]:
+    normalized = _dedupe_provider_ids(values)
+    order = {str(provider): index for index, provider in enumerate(preferred)}
+    return sorted(normalized, key=lambda item: (order.get(item, len(order)), item))
+
+
+def _known_tts_provider_ids() -> list[str]:
+    try:
+        from ..adapters.tts_registry import get_supported_tts_engines
+
+        raw = get_supported_tts_engines()
+    except Exception:
+        raw = []
+    providers = [
+        _norm_engine_id(item)
+        for item in list(raw or [])
+        if _norm_engine_id(item) != "auto"
+    ]
+    # OpenAI is built into the lightweight install and must remain visible even
+    # when no API key is configured or the active provider is local.
+    providers.extend(["openai", "openai-compatible"])
+    return _ordered_provider_ids(
+        providers,
+        ["openai", "openai-compatible", "supertonic", "piper", "audiodit", "omnivoice"],
+    )
+
+
+def _known_stt_provider_ids() -> list[str]:
+    return _ordered_provider_ids(
+        ["openai", "openai-compatible", "faster-whisper", "transformers-asr"],
+        ["openai", "openai-compatible", "faster-whisper", "transformers-asr"],
+    )
+
+
+def _known_cloning_provider_ids() -> list[str]:
+    return _ordered_provider_ids(
+        ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+        ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+    )
+
+
+def _runtime_installed(kind: str, provider: Any) -> bool | None:
+    engine = _norm_engine_id(provider)
+    if not engine:
+        return None
+    if engine in {"openai", "openai-compatible"}:
+        return True
+    if kind == "stt" and engine == "faster-whisper":
+        return importlib.util.find_spec("faster_whisper") is not None
+    if kind == "stt" and engine == "transformers-asr":
+        return (
+            importlib.util.find_spec("torch") is not None
+            and importlib.util.find_spec("transformers") is not None
+            and importlib.util.find_spec("soundfile") is not None
+        )
+    if engine == "piper":
+        return (
+            importlib.util.find_spec("piper") is not None
+            or importlib.util.find_spec("piper_phonemize") is not None
+        )
+    if engine == "supertonic":
+        return importlib.util.find_spec("onnxruntime") is not None
+    if engine == "omnivoice":
+        return importlib.util.find_spec("omnivoice") is not None
+    if engine == "f5_tts":
+        return importlib.util.find_spec("f5_tts") is not None
+    if engine in {"audiodit", "chroma"}:
+        return (
+            importlib.util.find_spec("torch") is not None
+            and importlib.util.find_spec("transformers") is not None
+        )
+    return None
+
+
+def _catalog_contains_cached_model(value: Any) -> bool:
+    if isinstance(value, dict):
+        cached = value.get("cached")
+        if cached is True:
+            return True
+        return any(_catalog_contains_cached_model(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_catalog_contains_cached_model(v) for v in value)
+    return False
+
+
+def _local_tts_engine_available(engine: Any) -> bool:
+    normalized = _norm_engine_id(engine)
+    if not normalized or normalized in {"openai", "openai-compatible"}:
+        return False
+    if not _engine_runtime_available(normalized):
+        return False
+    if normalized == "supertonic":
+        try:
+            from ..supertonic import is_supertonic_cached
+
+            return bool(is_supertonic_cached())
+        except Exception:
+            return False
+    if normalized == "piper":
+        try:
+            from ..adapters.tts_piper import PiperTTSAdapter
+
+            adapter = PiperTTSAdapter(language="en", allow_downloads=False, auto_load=False)
+            return _catalog_contains_cached_model(adapter.list_available_models())
+        except Exception:
+            return False
+    # These engines expose availability through optional dependency presence.
+    # Their model caches are backend-specific and may be resolved by the runtime.
+    if normalized in {"audiodit", "omnivoice"}:
+        return True
+    return bool(_runtime_installed("tts", normalized))
+
+
+def _local_stt_engine_available(engine: Any) -> bool:
+    normalized = _norm_engine_id(engine)
+    if normalized == "faster-whisper":
+        return bool(_runtime_installed("stt", normalized))
+    if normalized == "transformers-asr":
+        return bool(_runtime_installed("stt", normalized))
+    return False
+
+
+def _local_cloning_engine_available(engine: Any) -> bool:
+    normalized = _norm_engine_id(engine)
+    if normalized in {"omnivoice", "f5_tts", "chroma", "audiodit"}:
+        return bool(_runtime_installed("cloning", normalized))
+    return False
+
+
+def _provider_details(kind: str, providers: Any) -> dict[str, dict[str, Any]]:
+    details: dict[str, dict[str, Any]] = {}
+    for provider in _dedupe_provider_ids(providers):
+        remote = provider in {"openai", "openai-compatible"}
+        details[provider] = {
+            "id": provider,
+            "provider": provider,
+            "kind": str(kind),
+            "remote": remote,
+            "local": not remote,
+            "installed": _runtime_installed(str(kind), provider),
+        }
+    return details
+
+
 def _catalog_safe_local_tts_engines() -> list[str]:
-    """Local engines whose catalog/profile listing is side-effect-light."""
+    """Local engines installed enough to expose catalog metadata."""
 
     return [
         engine
         for engine in _local_tts_engines()
-        if _norm_engine_id(engine) in {"piper", "supertonic"}
+        if _norm_engine_id(engine) in {"piper", "supertonic", "audiodit", "omnivoice"}
+        and _local_tts_engine_available(engine)
     ]
 
 
@@ -181,7 +341,7 @@ def _engine_runtime_available(engine: Any, configured_providers: Any = ()) -> bo
         return importlib.util.find_spec("onnxruntime") is not None
     if normalized == "omnivoice":
         return importlib.util.find_spec("omnivoice") is not None
-    if normalized == "f5-tts":
+    if normalized == "f5_tts":
         return importlib.util.find_spec("f5_tts") is not None
     if normalized == "audiodit":
         return importlib.util.find_spec("torch") is not None and importlib.util.find_spec("transformers") is not None
@@ -326,6 +486,19 @@ def _extract_stt_model_ids(vm: Any) -> list[str]:
             model_ids.extend(list(getattr(FasterWhisperAdapter, "MODELS", {}).keys()))
         except Exception:
             model_ids.extend(["tiny", "base", "small", "medium", "large-v3"])
+    if engine in {"transformers-asr", "transformers_asr", "hf", "hf-asr"}:
+        try:
+            from ..adapters.stt_transformers_asr import TransformersASRAdapter
+
+            model_ids.extend(list(getattr(TransformersASRAdapter, "KNOWN_MODELS", {}).keys()))
+        except Exception:
+            model_ids.extend(
+                [
+                    "openai/whisper-large-v3",
+                    "openai/whisper-large-v3-turbo",
+                    "Qwen/Qwen3-ASR-1.7B",
+                ]
+            )
     return _dedupe_strings(model_ids)
 
 
@@ -371,6 +544,9 @@ def _profiles_from_tts_catalog(catalog: Any, *, engine_id: str) -> list[Dict[str
             profiles.append(
                 {
                     "engine_id": engine,
+                    "engine": engine,
+                    "provider_id": engine,
+                    "provider": engine,
                     "profile_id": profile_id,
                     "id": profile_id,
                     "label": label,
@@ -384,6 +560,7 @@ def _profiles_from_tts_catalog(catalog: Any, *, engine_id: str) -> list[Dict[str
                     "tags": {
                         "provider": engine,
                         "engine_id": engine,
+                        "provider_id": engine,
                         "cached": "true",
                     },
                     "provenance": "abstractvoice.adapter_catalog",
@@ -576,18 +753,8 @@ class _BaseVoice:
         cloning_engine = _env("ABSTRACTVOICE_CLONING_ENGINE", "omnivoice") or "omnivoice"
         cloned_tts_streaming = _env_bool("ABSTRACTVOICE_CLONED_TTS_STREAMING", True)
         tts_delivery_mode = _env("ABSTRACTVOICE_TTS_DELIVERY_MODE")
-        remote_base_url = _env_first(
-            "ABSTRACTVOICE_REMOTE_BASE_URL",
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
-            "ABSTRACTVOICE_OPENAI_BASE_URL",
-            "OPENAI_BASE_URL",
-        )
-        remote_api_key = _env_first(
-            "ABSTRACTVOICE_REMOTE_API_KEY",
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
-            "ABSTRACTVOICE_OPENAI_API_KEY",
-            "OPENAI_API_KEY",
-        )
+        remote_base_url = _env("OPENAI_BASE_URL")
+        remote_api_key = None
         remote_timeout_s = _env_float(
             "ABSTRACTVOICE_REMOTE_TIMEOUT_S",
             "ABSTRACTVOICE_OPENAI_TIMEOUT_S",
@@ -747,20 +914,9 @@ class _BaseVoice:
         )
         add(requested)
 
-        remote_base_url = self._config_text("voice_remote_base_url") or _env_first(
-            "ABSTRACTVOICE_REMOTE_BASE_URL",
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
-            "ABSTRACTVOICE_OPENAI_BASE_URL",
-            "OPENAI_BASE_URL",
-        )
-        remote_api_key = self._config_text("voice_remote_api_key") or _env_first(
-            "ABSTRACTVOICE_REMOTE_API_KEY",
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
-            "ABSTRACTVOICE_OPENAI_API_KEY",
-            "OPENAI_API_KEY",
-        )
+        remote_base_url = self._config_text("voice_remote_base_url") or _env("OPENAI_BASE_URL")
+        remote_api_key = self._config_text("voice_remote_api_key") or _env("OPENAI_API_KEY")
         openai_specific = _env_first(
-            "ABSTRACTVOICE_OPENAI_API_KEY",
             "OPENAI_API_KEY",
             "ABSTRACTVOICE_OPENAI_TTS_MODEL",
             "ABSTRACTVOICE_OPENAI_TTS_MODELS",
@@ -768,10 +924,7 @@ class _BaseVoice:
             "ABSTRACTVOICE_OPENAI_TTS_VOICES",
         )
         compatible_specific = _env_first(
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
-            "ABSTRACTVOICE_REMOTE_BASE_URL",
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
-            "ABSTRACTVOICE_REMOTE_API_KEY",
+            "OPENAI_BASE_URL",
             "ABSTRACTVOICE_OPENAI_COMPATIBLE_TTS_MODEL",
             "ABSTRACTVOICE_REMOTE_TTS_MODEL",
             "ABSTRACTVOICE_OPENAI_COMPATIBLE_TTS_MODELS",
@@ -833,29 +986,15 @@ class _BaseVoice:
         )
         add(requested)
 
-        remote_base_url = self._config_text("voice_remote_base_url") or _env_first(
-            "ABSTRACTVOICE_REMOTE_BASE_URL",
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
-            "ABSTRACTVOICE_OPENAI_BASE_URL",
-            "OPENAI_BASE_URL",
-        )
-        remote_api_key = self._config_text("voice_remote_api_key") or _env_first(
-            "ABSTRACTVOICE_REMOTE_API_KEY",
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
-            "ABSTRACTVOICE_OPENAI_API_KEY",
-            "OPENAI_API_KEY",
-        )
+        remote_base_url = self._config_text("voice_remote_base_url") or _env("OPENAI_BASE_URL")
+        remote_api_key = self._config_text("voice_remote_api_key") or _env("OPENAI_API_KEY")
         openai_specific = _env_first(
-            "ABSTRACTVOICE_OPENAI_API_KEY",
             "OPENAI_API_KEY",
             "ABSTRACTVOICE_OPENAI_STT_MODEL",
             "ABSTRACTVOICE_OPENAI_STT_MODELS",
         )
         compatible_specific = _env_first(
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
-            "ABSTRACTVOICE_REMOTE_BASE_URL",
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
-            "ABSTRACTVOICE_REMOTE_API_KEY",
+            "OPENAI_BASE_URL",
             "ABSTRACTVOICE_OPENAI_COMPATIBLE_STT_MODEL",
             "ABSTRACTVOICE_REMOTE_STT_MODEL",
             "ABSTRACTVOICE_OPENAI_COMPATIBLE_STT_MODELS",
@@ -898,6 +1037,153 @@ class _BaseVoice:
             ):
                 add(_env(key))
         return _dedupe_strings(values)
+
+    def _configured_provider_id(self, *, kind: str) -> str:
+        k = str(kind or "").strip().lower()
+        vm = self._vm
+        try:
+            cfg = getattr(self._owner, "config", None)
+            if vm is None and isinstance(cfg, dict):
+                candidate = cfg.get("voice_manager_instance")
+                if candidate is not None:
+                    vm = candidate
+        except Exception:
+            vm = self._vm
+        if vm is not None and k in {"tts", "stt"}:
+            adapter = (
+                getattr(vm, "tts_adapter", None)
+                if k == "tts"
+                else getattr(vm, "stt_adapter", None)
+            )
+            for value in (
+                getattr(adapter, "engine_id", None),
+                getattr(adapter, "provider", None),
+                getattr(vm, f"_abstractvoice_{k}_engine", None),
+                getattr(vm, f"_{k}_engine_name", None),
+                getattr(vm, f"_{k}_engine_preference", None),
+                getattr(vm, f"{k}_engine", None),
+            ):
+                provider = _norm_engine_id(value)
+                if provider and provider != "auto":
+                    return provider
+        if k == "tts":
+            provider = _norm_engine_id(
+                self._config_text("voice_tts_engine")
+                or _env_first("ABSTRACTVOICE_TTS_ENGINE", "ABSTRACTGATEWAY_VOICE_TTS_ENGINE")
+                or "openai"
+            )
+        elif k == "stt":
+            provider = _norm_engine_id(
+                self._config_text("voice_stt_engine")
+                or _env_first("ABSTRACTVOICE_STT_ENGINE", "ABSTRACTGATEWAY_VOICE_STT_ENGINE")
+                or "openai"
+            )
+        elif k == "cloning":
+            provider = _norm_engine_id(
+                self._config_text("voice_cloning_engine")
+                or _env("ABSTRACTVOICE_CLONING_ENGINE", "omnivoice")
+                or "omnivoice"
+            )
+        else:
+            provider = ""
+        if provider == "auto":
+            return "openai"
+        return provider
+
+    def _remote_base_url(self) -> str:
+        return str(
+            self._config_text("voice_remote_base_url")
+            or _env("OPENAI_BASE_URL")
+            or ""
+        ).strip()
+
+    def _configured_remote_api_key(self) -> str:
+        return str(self._config_text("voice_remote_api_key") or _env("OPENAI_API_KEY") or "").strip()
+
+    def _openai_provider_available(self) -> bool:
+        if str(_env("OPENAI_API_KEY") or "").strip():
+            return True
+        base_url = self._remote_base_url().lower()
+        return bool(self._config_text("voice_remote_api_key") and (not base_url or "api.openai.com" in base_url))
+
+    def _openai_compatible_provider_available(self) -> bool:
+        base_url = self._remote_base_url()
+        if not base_url:
+            return False
+        return "api.openai.com" not in base_url.lower()
+
+    def _active_vm_provider_id(self, *, kind: str) -> str:
+        k = str(kind or "").strip().lower()
+        vm = self._vm
+        try:
+            cfg = getattr(self._owner, "config", None)
+            if vm is None and isinstance(cfg, dict):
+                vm = cfg.get("voice_manager_instance")
+        except Exception:
+            vm = self._vm
+        if vm is None or k not in {"tts", "stt"}:
+            return ""
+        adapter = getattr(vm, "tts_adapter", None) if k == "tts" else getattr(vm, "stt_adapter", None)
+        for value in (
+            getattr(adapter, "engine_id", None),
+            getattr(adapter, "provider", None),
+            getattr(vm, f"_abstractvoice_{k}_engine", None),
+            getattr(vm, f"_{k}_engine_name", None),
+            getattr(vm, f"{k}_engine", None),
+        ):
+            provider = _norm_engine_id(value)
+            if provider and provider != "auto":
+                return provider
+        return ""
+
+    def _available_tts_provider_ids(self) -> list[str]:
+        providers: list[str] = []
+        active_provider = self._active_vm_provider_id(kind="tts")
+        if active_provider in _known_tts_provider_ids():
+            providers.append(active_provider)
+        if self._openai_provider_available():
+            providers.append("openai")
+        if self._openai_compatible_provider_available():
+            providers.append("openai-compatible")
+        for engine in _local_tts_engines():
+            normalized = _norm_engine_id(engine)
+            if _local_tts_engine_available(normalized):
+                providers.append(normalized)
+        return _ordered_provider_ids(
+            providers,
+            ["openai", "openai-compatible", "supertonic", "piper", "audiodit", "omnivoice"],
+        )
+
+    def _available_stt_provider_ids(self) -> list[str]:
+        providers: list[str] = []
+        active_provider = self._active_vm_provider_id(kind="stt")
+        if active_provider in _known_stt_provider_ids():
+            providers.append(active_provider)
+        if self._openai_provider_available():
+            providers.append("openai")
+        if self._openai_compatible_provider_available():
+            providers.append("openai-compatible")
+        if _local_stt_engine_available("faster-whisper"):
+            providers.append("faster-whisper")
+        if _local_stt_engine_available("transformers-asr"):
+            providers.append("transformers-asr")
+        return _ordered_provider_ids(providers, ["openai", "openai-compatible", "faster-whisper", "transformers-asr"])
+
+    def _available_cloning_provider_ids(self) -> list[str]:
+        providers: list[str] = []
+        for engine in ("omnivoice", "f5_tts", "chroma", "audiodit"):
+            if _local_cloning_engine_available(engine):
+                providers.append(engine)
+        clone_path = str(_env("ABSTRACTVOICE_OPENAI_VOICE_CREATE_PATH") or "").strip()
+        consent_id = str(_env("ABSTRACTVOICE_OPENAI_VOICE_CONSENT_ID") or "").strip()
+        if self._openai_provider_available() and (clone_path or consent_id):
+            providers.append("openai")
+        if self._openai_compatible_provider_available():
+            providers.append("openai-compatible")
+        return _ordered_provider_ids(
+            providers,
+            ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+        )
 
     def _get_vm_for_provider(
         self,
@@ -1049,6 +1335,37 @@ class _BaseVoice:
 class _VoiceCapability(_BaseVoice):
     backend_id = "abstractvoice:default"
 
+    def available_providers(self) -> Dict[str, Any]:
+        """Return selectable provider ids without constructing heavy runtimes."""
+        tts = self._available_tts_provider_ids()
+        stt = self._available_stt_provider_ids()
+        cloning = self._available_cloning_provider_ids()
+        combined = _dedupe_provider_ids([*tts, *stt, *cloning])
+        return {
+            "tts": tts,
+            "stt": stt,
+            "cloning": cloning,
+            "providers": combined,
+            "tts_providers": tts,
+            "stt_providers": stt,
+            "cloning_providers": cloning,
+            "known_tts_providers": _known_tts_provider_ids(),
+            "known_stt_providers": _known_stt_provider_ids(),
+            "known_cloning_providers": _known_cloning_provider_ids(),
+            "active_tts_provider": self._configured_provider_id(kind="tts"),
+            "active_stt_provider": self._configured_provider_id(kind="stt"),
+            "active_cloning_provider": self._configured_provider_id(kind="cloning"),
+            "details": {
+                "tts": _provider_details("tts", tts),
+                "stt": _provider_details("stt", stt),
+                "cloning": _provider_details("cloning", cloning),
+            },
+        }
+
+    # Alias for callers that use list_* naming conventions.
+    def list_available_providers(self) -> Dict[str, Any]:
+        return self.available_providers()
+
     def list_profiles(self, *, kind: str = "tts") -> list[Dict[str, Any]]:
         """List active-engine voice profiles through the plugin boundary."""
         vm = self._get_vm()
@@ -1060,13 +1377,17 @@ class _VoiceCapability(_BaseVoice):
     def list_tts_models(self) -> list[str]:
         """List deduplicated TTS model ids from serveable AbstractVoice engines."""
         model_ids: list[str] = []
-        active_vm = self._get_vm()
+        active_vm = None
         active_catalog: Any = {}
-        if hasattr(active_vm, "list_available_models"):
-            active_catalog = active_vm.list_available_models()
-        model_ids.extend(_extract_tts_model_ids(active_catalog))
+        try:
+            active_vm = self._get_vm()
+            if hasattr(active_vm, "list_available_models"):
+                active_catalog = active_vm.list_available_models()
+            model_ids.extend(_extract_tts_model_ids(active_catalog))
+        except Exception:
+            active_vm = None
 
-        active_engines = self._vm_engine_values(active_vm, kind="tts")
+        active_engines = self._vm_engine_values(active_vm, kind="tts") if active_vm is not None else set()
         for engine in self._configured_remote_tts_engines():
             model_ids.extend(self._configured_tts_model_ids(engine))
             if _engine_aliases(engine) & active_engines:
@@ -1097,8 +1418,11 @@ class _VoiceCapability(_BaseVoice):
     def list_stt_models(self) -> list[str]:
         """List deduplicated STT model ids from serveable AbstractVoice engines."""
         model_ids: list[str] = []
-        vm = self._get_vm()
-        model_ids.extend(_extract_stt_model_ids(vm))
+        try:
+            vm = self._get_vm()
+            model_ids.extend(_extract_stt_model_ids(vm))
+        except Exception:
+            pass
         for engine in self._configured_remote_stt_engines():
             model_ids.extend(self._configured_stt_model_ids(engine))
         try:
@@ -1107,11 +1431,18 @@ class _VoiceCapability(_BaseVoice):
             model_ids.extend(list(getattr(FasterWhisperAdapter, "MODELS", {}).keys()))
         except Exception:
             pass
+        try:
+            from ..adapters.stt_transformers_asr import TransformersASRAdapter
+
+            model_ids.extend(list(getattr(TransformersASRAdapter, "KNOWN_MODELS", {}).keys()))
+        except Exception:
+            pass
         return _dedupe_strings(model_ids)
 
     def voice_catalog(self) -> Dict[str, Any]:
         """Return JSON-safe profile/model discovery data for Core/Gateway."""
         vm = self._get_vm()
+        available_providers = self.available_providers()
 
         profiles = self.list_profiles(kind="tts")
         active_profile = None
@@ -1132,6 +1463,14 @@ class _VoiceCapability(_BaseVoice):
             profiles.extend(_profiles_from_tts_catalog(catalog, engine_id=active_engine))
 
         active_tts_engines = self._vm_engine_values(vm, kind="tts")
+        for engine in _catalog_safe_local_tts_engines():
+            tts_providers.append(engine)
+            try:
+                from ..voice_profiles import get_builtin_voice_profiles
+
+                profiles.extend(_voice_profile_to_dict(p) for p in get_builtin_voice_profiles(engine))
+            except Exception:
+                pass
         for engine in self._configured_remote_tts_engines():
             tts_providers.append(engine)
             tts_models.extend(self._configured_tts_model_ids(engine))
@@ -1187,6 +1526,13 @@ class _VoiceCapability(_BaseVoice):
 
             stt_providers.append("faster-whisper")
             stt_models.extend(list(getattr(FasterWhisperAdapter, "MODELS", {}).keys()))
+        except Exception:
+            pass
+        try:
+            from ..adapters.stt_transformers_asr import TransformersASRAdapter
+
+            stt_providers.append("transformers-asr")
+            stt_models.extend(list(getattr(TransformersASRAdapter, "KNOWN_MODELS", {}).keys()))
         except Exception:
             pass
 
@@ -1310,10 +1656,26 @@ class _VoiceCapability(_BaseVoice):
                     _add_provider_value(stt_models_by_provider, "faster-whisper", model_id)
             except Exception:
                 pass
+        if "transformers-asr" in stt_providers:
+            try:
+                from ..adapters.stt_transformers_asr import TransformersASRAdapter
 
+                for model_id in getattr(TransformersASRAdapter, "KNOWN_MODELS", {}).keys():
+                    _add_provider_value(stt_models_by_provider, "transformers-asr", model_id)
+            except Exception:
+                for model_id in (
+                    "openai/whisper-large-v3",
+                    "openai/whisper-large-v3-turbo",
+                    "Qwen/Qwen3-ASR-1.7B",
+                ):
+                    _add_provider_value(stt_models_by_provider, "transformers-asr", model_id)
+
+        raw_engine_id = getattr(adapter, "engine_id", None) or getattr(vm, "_tts_engine_name", None)
+        engine_id = _norm_engine_id(raw_engine_id) if raw_engine_id else None
         return {
             "kind": "tts",
-            "engine_id": getattr(adapter, "engine_id", None) or getattr(vm, "_tts_engine_name", None),
+            "engine_id": engine_id,
+            "provider_id": engine_id,
             "active_profile": _voice_profile_to_dict(active_profile) if active_profile is not None else None,
             "active_model": _active_tts_model(vm, catalog, tts_models),
             "active_tts_provider": tts_providers[0] if tts_providers else None,
@@ -1323,6 +1685,10 @@ class _VoiceCapability(_BaseVoice):
             "cloned_voices": cloned_voices,
             "tts_providers": tts_providers,
             "stt_providers": stt_providers,
+            "available_providers": available_providers,
+            "available_tts_providers": available_providers["tts"],
+            "available_stt_providers": available_providers["stt"],
+            "available_cloning_providers": available_providers["cloning"],
             "tts_models": tts_models,
             "stt_models": stt_models,
             "tts_models_by_provider": tts_models_by_provider,
@@ -1708,6 +2074,6 @@ def register(registry: Any) -> None:
         description="AbstractVoice STT (speech-to-text).",
         config_hint=(
             "Defaults to OpenAI remote STT in AbstractCore integrations; set OPENAI_API_KEY "
-            "or configure voice_stt_engine/ABSTRACTVOICE_STT_ENGINE. Use faster_whisper with abstractvoice[stt], [apple], or [gpu] for local offline STT."
+            "or configure voice_stt_engine/ABSTRACTVOICE_STT_ENGINE. Use faster_whisper with abstractvoice[stt], [apple], or [gpu] for local offline STT, or transformers-asr with abstractvoice[stt-hf] for Hugging Face ASR models."
         ),
     )

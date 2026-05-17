@@ -150,8 +150,8 @@ def parse_args():
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
     parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice)")
-    parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|auto)")
-    parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
+    parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|transformers-asr|auto)")
+    parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines, or a Hugging Face model id when using transformers-asr")
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
     parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")

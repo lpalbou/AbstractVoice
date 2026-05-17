@@ -18,6 +18,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Prefetch faster-whisper model weights (e.g. tiny/base/small/medium/large-v3)",
     )
     parser.add_argument(
+        "--stt-hf",
+        dest="stt_hf_model",
+        default=None,
+        help="Prefetch a Transformers/Hugging Face ASR model by id (e.g. openai/whisper-large-v3).",
+    )
+    parser.add_argument(
         "--openf5",
         action="store_true",
         help="Prefetch OpenF5 artifacts for cloning (~5.4GB, requires abstractvoice[cloning])",
@@ -52,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if (
         not args.stt_model
+        and not args.stt_hf_model
         and not args.openf5
         and not args.chroma
         and not args.piper_language
@@ -71,6 +78,21 @@ def main(argv: list[str] | None = None) -> int:
         if not stt.is_available():
             raise RuntimeError("STT model download/load failed.")
         print("✅ STT model ready.")
+
+    if args.stt_hf_model:
+        model_id = str(args.stt_hf_model).strip()
+        print(f"Downloading STT model (transformers-asr): {model_id}")
+        try:
+            from huggingface_hub import snapshot_download
+        except Exception as e:
+            raise RuntimeError(
+                "Transformers/Hugging Face STT prefetch requires optional dependencies.\n"
+                "Install with:\n"
+                "  pip install \"abstractvoice[stt-hf]\""
+            ) from e
+
+        path = snapshot_download(repo_id=model_id)
+        print(f"✅ STT model cached at {path}.")
 
     if args.openf5:
         from abstractvoice.cloning.engine_f5 import F5TTSVoiceCloningEngine

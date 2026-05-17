@@ -3973,7 +3973,7 @@ class VoiceREPL(cmd.Cmd):
                 return
         elif engine_name in ("openai", "openai-compatible", "remote"):
             print("ℹ️  Remote cloning engines do not have local model artifacts to download.")
-            print("   Configure ABSTRACTVOICE_REMOTE_BASE_URL (or OPENAI_API_KEY for OpenAI) and use /clone --engine openai-compatible.")
+            print("   Configure OPENAI_BASE_URL (or OPENAI_API_KEY for OpenAI) and use /clone --engine openai-compatible.")
             return
         else:
             print("Usage: /cloning_download [omnivoice|f5_tts|chroma|audiodit|openai-compatible]")
@@ -4543,17 +4543,19 @@ class VoiceREPL(cmd.Cmd):
             print(f"❌ AEC enable failed: {e}")
 
     def do_stt_engine(self, arg):
-        """Select STT engine: openai|openai-compatible|faster_whisper|auto.
+        """Select STT engine: openai|openai-compatible|faster_whisper|transformers-asr|auto.
 
         This recreates the internal VoiceManager instance.
         """
         engine = arg.strip().lower().replace("-", "_")
         if engine in ("remote", "compatible", "proxy"):
             engine = "openai_compatible"
-        if engine not in ("auto", "faster_whisper", "openai", "openai_compatible"):
-            print("Usage: /stt_engine openai|openai-compatible|faster_whisper|auto")
+        if engine not in ("auto", "faster_whisper", "openai", "openai_compatible", "transformers_asr"):
+            print("Usage: /stt_engine openai|openai-compatible|faster_whisper|transformers-asr|auto")
             return
         display_engine = "openai-compatible" if engine == "openai_compatible" else engine
+        if display_engine == "transformers_asr":
+            display_engine = "transformers-asr"
 
         if not self.voice_manager:
             print("🔇 Voice features are disabled. Use '/tts on' to enable.")
@@ -4937,7 +4939,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /clone_import <path>                Import cloned voice bundle")
         print()
         print("STT / transcription")
-        print("  /stt_engine <engine>   openai|openai-compatible|faster_whisper|auto")
+        print("  /stt_engine <engine>   openai|openai-compatible|faster_whisper|transformers-asr|auto")
         print("  /whisper <model>       tiny|base|small|medium|large")
         print("  /transcribe <path>     Transcribe an audio file")
         print()
@@ -5347,8 +5349,8 @@ def parse_args():
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
     parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|openai|openai-compatible|supertonic|piper|audiodit|omnivoice)")
-    parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|auto)")
-    parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines")
+    parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|transformers-asr|auto)")
+    parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines, or a Hugging Face model id when using transformers-asr")
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
     parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")

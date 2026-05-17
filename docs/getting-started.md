@@ -105,13 +105,13 @@ The web example is offline-first by default. Its `auto` TTS default has the same
 interactive behavior as the REPL: installed Supertonic, installed Piper, then
 remote OpenAI. Prefetch models first, or start it with `--allow-downloads` when
 you explicitly want web requests to download missing models. The Voice panel
-includes a base TTS engine selector; switching engines resets the base profile
-to that engine/language default. Selecting a cloned voice can take a while on first use because the
+includes a base TTS provider selector; switching providers resets the base
+profile to that provider/language default. Selecting a cloned voice can take a while on first use because the
 cloning backend loads weights and builds prompt/runtime caches; the browser UI
 shows a busy overlay while that work is happening.
 
 The browser voice-cloning action validates a new clone by synthesizing a short
-sample before reporting success. If an optional engine cannot load, the stored
+sample before reporting success. If an optional provider runtime cannot load, the stored
 clone is removed and the backend error is shown instead of leaving a broken
 voice in the selector.
 
@@ -178,8 +178,13 @@ curl -X POST http://localhost:8000/v1/audio/transcriptions \
   -F "language=en"
 ```
 
-If the server is configured with `ABSTRACTCORE_SERVER_API_KEY`, include
+If the server is configured with `ABSTRACTCORE_API_KEY`, include
 `Authorization: Bearer <key>` in those requests.
+
+`ABSTRACTCORE_API_KEY` is AbstractCore’s master key: when set, AbstractCore can
+use any preconfigured provider API keys. A specific provider key can still be
+overridden by also setting that provider’s explicit env var (for example
+`OPENAI_API_KEY`).
 
 ## Enable microphone input (voice modes)
 

@@ -75,19 +75,12 @@ def resolve_base_url(provider: str, base_url: str | None = None) -> str:
     if base_url and str(base_url).strip():
         return str(base_url).strip()
     if p == "openai":
-        return (
-            env_first("ABSTRACTVOICE_OPENAI_BASE_URL", "OPENAI_BASE_URL")
-            or "https://api.openai.com/v1"
-        )
-    out = env_first(
-        "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL",
-        "ABSTRACTVOICE_REMOTE_BASE_URL",
-        "OPENAI_BASE_URL",
-    )
+        return env_first("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+    out = env_first("OPENAI_BASE_URL")
     if not out:
         raise ValueError(
             "Missing remote audio base URL. Set `remote_base_url=...` or "
-            "ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL / ABSTRACTVOICE_REMOTE_BASE_URL."
+            "OPENAI_BASE_URL."
         )
     return str(out).strip()
 
@@ -97,12 +90,8 @@ def resolve_api_key(provider: str, api_key: str | None = None) -> Optional[str]:
         return str(api_key).strip()
     p = normalize_remote_provider(provider)
     if p == "openai":
-        return env_first("ABSTRACTVOICE_OPENAI_API_KEY", "OPENAI_API_KEY")
-    return env_first(
-        "ABSTRACTVOICE_OPENAI_COMPATIBLE_API_KEY",
-        "ABSTRACTVOICE_REMOTE_API_KEY",
-        "OPENAI_API_KEY",
-    )
+        return env_first("OPENAI_API_KEY")
+    return env_first("OPENAI_API_KEY")
 
 
 def require_provider_ready(provider: str, *, base_url: str, api_key: Optional[str]) -> None:

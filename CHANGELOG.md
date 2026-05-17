@@ -10,6 +10,13 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Added
+- Added `available_providers()` / `list_available_providers()` to the
+  AbstractCore voice capability and embedded `available_providers` in
+  `voice_catalog()` so Core/Gateway can discover selectable TTS, STT, and
+  cloning providers without instantiating heavy local runtimes. The surface
+  always includes OpenAI remote providers plus the registered local engines.
+
 ## [0.10.1] - 2026-05-15
 
 ### Changed
