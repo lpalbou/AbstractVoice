@@ -2,286 +2,286 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/acronyms/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/api/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/architecture/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/benchmark/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/dependencies/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/development/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/faq/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/getting-started/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/installation/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/known-issues/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/model-management/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/multilingual/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/overview/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/public_api/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/repl_guide/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/voice_cloning_2026/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/voices-and-licenses/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/adr/0001-local_assistant_out_of_box/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/adr/0002_barge_in_interruption/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/adr/0003_cloning_reference_text_fallback/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/adr/0004_streaming_and_cancellation_for_cloned_tts/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/adr/0005_torch_device_and_dtype_policy/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/template/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/001-piper-tts-adapter/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/002-faster-whisper-adapter/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/003-voicemanager-adapter-integration-hardening/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/004_public_api_v0_6/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/005_voice_manager_refactor/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/006_repl_as_assistant/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/007_repo_hygiene/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/008_voice_cloning_mit_apache/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/009_voice_cloning_adapter_impl/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/011_remove_legacy_voicemanager_blob/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/012_model_management_consolidation/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/014_llms_txt_best_practices/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/015_adr0002_phase1_wait_mode_stop_phrase/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/016_adr0002_phase2_optional_aec/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/017_remove_legacy_coqui_model_management/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/018_repl_voice_cloning_workflow/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/019_cloning_ux_no_surprise_downloads/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/020_cloning_reference_text_autofallback/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/021_streaming_and_cancellation_for_cloned_tts/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/022_repl_cloned_voice_management/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/024_python_version_support_contract/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/026_update_docs_to_piper_first/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/030_chroma_4b_optional_s2s_and_cloning/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/032_markdown_speech_sanitizer/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/037_lightweight_openai_compatible_packaging/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/038_voice_install_profiles_and_pending_defaults/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/039_abstractcore_plugin_voice_catalog_surface/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/040_remote_first_default_and_local_extra_release/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/013_openai_compatible_audio_endpoint/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/023_kws_stop_phrase_detector/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/025_headless_ci_safe_tests/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/027_refresh_dependency_check/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/028_cli_repl_request_timeouts/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/029_warning_filter_policy/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/031_chroma_cloning_quality_improvements/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/032_aws_audio_backends/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/033_omnivoice_preset_voice_profiles/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/034_audiodit_preset_voice_profiles/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/035_piper_voice_profiles_and_voice_selection/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/planned/036_voice_profile_abstraction/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/recurrent/001_docs_llms_release_hygiene/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/reports/IMPLEMENTATION_REPORT_2026-01-21/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/reports/UPGRADE_STATUS/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/reports/status-report-2026-01-21/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/research/Agentic%20Voice%20Assistant%20Stack%20Deep%20Research/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://www.lpalbou.info/AbstractVoice/research/Voice%20Assistant%20Architecture%20Investigation/</loc>
-         <lastmod>2026-05-15</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
 </urlset>

@@ -1279,6 +1279,7 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[piper]&quot;</span><span class="w">     </span><span class="c1"># Local Piper TTS only</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[supertonic]&quot;</span><span class="w"> </span><span class="c1"># Local Supertonic 3 ONNX TTS only</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[stt]&quot;</span><span class="w">       </span><span class="c1"># Local faster-whisper STT</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[stt-hf]&quot;</span><span class="w">    </span><span class="c1"># Local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, Qwen/Qwen3-ASR-1.7B)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audio-io]&quot;</span><span class="w">  </span><span class="c1"># Microphone/playback/VAD dependencies</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="w">   </span><span class="c1"># explicit OpenF5-based cloning (heavy; Python 3.10+)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[chroma]&quot;</span><span class="w">    </span><span class="c1"># Chroma-4B (very heavy; torch/transformers)</span>
@@ -1307,7 +1308,7 @@ python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&
 <span class="s">PY</span>
 
 <span class="c1"># Any OpenAI-compatible /v1 server, including AbstractCore Server</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">ABSTRACTVOICE_REMOTE_BASE_URL</span><span class="o">=</span>http://localhost:8000/v1
+<span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_BASE_URL</span><span class="o">=</span>http://localhost:8000/v1
 python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
 <span class="s">from abstractvoice import VoiceManager</span>
 <span class="s">vm = VoiceManager(tts_engine=&quot;openai-compatible&quot;, stt_engine=&quot;openai-compatible&quot;)</span>
@@ -1316,7 +1317,7 @@ python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&
 <span class="s">PY</span>
 </code></pre></div>
 <p>Remote cloning is provider-specific. For compatible services, configure
-<code>ABSTRACTVOICE_REMOTE_BASE_URL</code> and use <code>cloning_engine="openai-compatible"</code>;
+<code>OPENAI_BASE_URL</code> and use <code>cloning_engine="openai-compatible"</code>;
 the default custom clone route is <code>POST /voice/clone</code> and should return
 <code>{"voice_id": "..."}</code> or <code>{"id": "..."}</code>.
 For <code>cloning_engine="openai"</code>, OpenAI custom voice creation is org-gated and

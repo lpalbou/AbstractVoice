@@ -1348,12 +1348,12 @@ extras directly, such as <code>abstractvoice[web,supertonic]</code> or
 interactive behavior as the REPL: installed Supertonic, installed Piper, then
 remote OpenAI. Prefetch models first, or start it with <code>--allow-downloads</code> when
 you explicitly want web requests to download missing models. The Voice panel
-includes a base TTS engine selector; switching engines resets the base profile
-to that engine/language default. Selecting a cloned voice can take a while on first use because the
+includes a base TTS provider selector; switching providers resets the base
+profile to that provider/language default. Selecting a cloned voice can take a while on first use because the
 cloning backend loads weights and builds prompt/runtime caches; the browser UI
 shows a busy overlay while that work is happening.</p>
 <p>The browser voice-cloning action validates a new clone by synthesizing a short
-sample before reporting success. If an optional engine cannot load, the stored
+sample before reporting success. If an optional provider runtime cannot load, the stored
 clone is removed and the backend error is shown instead of leaving a broken
 voice in the selector.</p>
 <p>For the dialogue panel, start a compatible local LLM server separately (for
@@ -1405,8 +1405,12 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 <span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;file=@hello.wav&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;language=en&quot;</span>
 </code></pre></div>
-<p>If the server is configured with <code>ABSTRACTCORE_SERVER_API_KEY</code>, include
+<p>If the server is configured with <code>ABSTRACTCORE_API_KEY</code>, include
 <code>Authorization: Bearer &lt;key&gt;</code> in those requests.</p>
+<p><code>ABSTRACTCORE_API_KEY</code> is AbstractCore’s master key: when set, AbstractCore can
+use any preconfigured provider API keys. A specific provider key can still be
+overridden by also setting that provider’s explicit env var (for example
+<code>OPENAI_API_KEY</code>).</p>
 <h2 id="enable-microphone-input-voice-modes">Enable microphone input (voice modes)<a class="headerlink" href="#enable-microphone-input-voice-modes" title="Permanent link">&para;</a></h2>
 <p>By default, the REPL does <strong>not</strong> start microphone capture. Enable it explicitly:</p>
 <div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--voice-mode<span class="w"> </span>stop

@@ -624,6 +624,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#abstractvoicestt-hf-local-transformers-asr-hugging-face" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[stt-hf] — local Transformers ASR (Hugging Face)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1253,6 +1264,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#abstractvoicestt-hf-local-transformers-asr-hugging-face" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[stt-hf] — local Transformers ASR (Hugging Face)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1515,6 +1537,56 @@ external <code>supertonic</code> Python SDK.</p>
 <li><strong>Cache</strong>: <code>~/.cache/abstractvoice/supertonic-3</code> by default</li>
 <li><strong>Prefetch</strong>: <code>python -m abstractvoice download --supertonic</code> or <code>abstractvoice-prefetch --supertonic</code></li>
 <li><strong>Profiles</strong>: built-in fixed styles <code>M1</code>-<code>M5</code> and <code>F1</code>-<code>F5</code></li>
+</ul>
+<h3 id="abstractvoicestt-hf-local-transformers-asr-hugging-face"><code>abstractvoice[stt-hf]</code> — local Transformers ASR (Hugging Face)<a class="headerlink" href="#abstractvoicestt-hf-local-transformers-asr-hugging-face" title="Permanent link">&para;</a></h3>
+<p>This extra enables the <code>stt_engine="transformers-asr"</code> path for local speech-to-text using Hugging Face models
+(for example Whisper and Qwen3-ASR).</p>
+<p>Python packages:</p>
+<ul>
+<li><strong>torch</strong></li>
+<li><strong>Why</strong>: tensor runtime for local ASR inference.</li>
+<li><strong>Where</strong>: <code>abstractvoice/adapters/stt_transformers_asr.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/pytorch/pytorch</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/pytorch/pytorch/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>transformers</strong></p>
+</li>
+<li><strong>Why</strong>: HF model + processor APIs.</li>
+<li><strong>Where</strong>: <code>abstractvoice/adapters/stt_transformers_asr.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/transformers</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/huggingface/transformers/blob/main/LICENSE</code></p>
+</li>
+<li>
+<p><strong>soundfile</strong></p>
+</li>
+<li><strong>Why</strong>: audio file I/O (<code>transcribe()</code> and byte decoding).</li>
+<li><strong>Where</strong>: <code>abstractvoice/adapters/stt_transformers_asr.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/bastibe/python-soundfile</code></li>
+<li><strong>License</strong>: <code>https://github.com/bastibe/python-soundfile/blob/master/LICENSE</code></li>
+</ul>
+<p>Models/weights (Hugging Face):</p>
+<ul>
+<li><strong>Whisper</strong> (Transformers)</li>
+<li>Example ids: <code>openai/whisper-large-v3</code>, <code>openai/whisper-large-v3-turbo</code></li>
+<li>Cache: <code>~/.cache/huggingface</code> (default)</li>
+<li>
+<p>Prefetch: <code>python -m abstractvoice download --stt-hf openai/whisper-large-v3</code> or <code>abstractvoice-prefetch --stt-hf openai/whisper-large-v3</code></p>
+</li>
+<li>
+<p><strong>Qwen3-ASR-1.7B</strong></p>
+</li>
+<li>Model: <code>https://huggingface.co/Qwen/Qwen3-ASR-1.7B</code></li>
+<li>Cache: <code>~/.cache/huggingface</code> (default)</li>
+<li>Prefetch: <code>python -m abstractvoice download --stt-hf Qwen/Qwen3-ASR-1.7B</code> or <code>abstractvoice-prefetch --stt-hf Qwen/Qwen3-ASR-1.7B</code></li>
+</ul>
+<p>Vendored code:</p>
+<ul>
+<li>Qwen3-ASR Transformers backend</li>
+<li><strong>Upstream</strong>: <code>qwen-asr</code> (Apache-2.0) and <code>https://github.com/QwenLM/Qwen3-ASR</code></li>
+<li><strong>What we ship</strong>: a derived Transformers implementation under <code>abstractvoice/qwen3_asr/*</code> so Qwen3-ASR works without <code>trust_remote_code</code>.</li>
 </ul>
 <h3 id="abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support"><code>abstractvoice[omnivoice]</code>, <code>[cloning]</code>, <code>[chroma]</code>, <code>[audiodit]</code> — model prefetch support<a class="headerlink" href="#abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support" title="Permanent link">&para;</a></h3>
 <ul>

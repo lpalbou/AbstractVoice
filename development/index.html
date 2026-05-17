@@ -1223,6 +1223,7 @@
 <li><code>abstractvoice/adapters/</code> — adapter implementations (Piper / Supertonic / AudioDiT / OmniVoice TTS; Faster-Whisper STT)</li>
 <li><code>abstractvoice/supertonic/</code> — internal Supertonic 3 ONNX runtime; no external Supertonic SDK dependency</li>
 <li><code>abstractvoice/audiodit/</code> — AudioDiT runtime + HF model implementation (vendored code; avoids <code>trust_remote_code</code>)</li>
+<li><code>abstractvoice/qwen3_asr/</code> — Qwen3-ASR Transformers implementation (vendored code; avoids <code>trust_remote_code</code>)</li>
 <li><code>abstractvoice/omnivoice/</code> — OmniVoice runtime wrapper (offline-first + device/dtype policy glue)</li>
 <li><code>abstractvoice/tts/</code> — audio playback utilities (<code>NonBlockingAudioPlayer</code>)</li>
 <li><code>abstractvoice/cloning/</code> — optional cloning engines + voice store (<code>f5_tts</code> / <code>chroma</code> / <code>audiodit</code> / <code>omnivoice</code>)</li>
@@ -1241,6 +1242,7 @@
 <li>Piper downloads are gated in <code>abstractvoice/adapters/tts_piper.py</code>.</li>
 <li>Supertonic downloads are gated in <code>abstractvoice/supertonic/runtime.py</code> and exposed via <code>--supertonic</code>.</li>
 <li>Faster-Whisper offline mode is enforced in <code>abstractvoice/adapters/stt_faster_whisper.py</code>.</li>
+<li>Transformers ASR offline mode is enforced in <code>abstractvoice/adapters/stt_transformers_asr.py</code>.</li>
 <li>Torch engine snapshots are resolved offline-first in their runtimes (<code>abstractvoice/audiodit/runtime.py</code>, <code>abstractvoice/omnivoice/runtime.py</code>).</li>
 <li>Cloning downloads are explicit per engine (<code>abstractvoice/cloning/engine_f5.py</code>, <code>abstractvoice/cloning/engine_chroma.py</code>, <code>abstractvoice/cloning/engine_audiodit.py</code>, <code>abstractvoice/cloning/engine_omnivoice.py</code>).</li>
 </ul>

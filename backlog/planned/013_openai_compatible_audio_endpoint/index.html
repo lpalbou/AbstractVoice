@@ -1376,8 +1376,8 @@
 <h3 id="packaging-configuration">Packaging + configuration<a class="headerlink" href="#packaging-configuration" title="Permanent link">&para;</a></h3>
 <p>Current implementation:
 - <code>abstractvoice[openai]</code>, <code>abstractvoice[openai-compatible]</code>, and <code>abstractvoice[remote]</code> are no-op intent extras; the adapters use the core <code>requests</code> dependency instead of the OpenAI SDK.
-- <code>tts_engine="openai"</code> / <code>stt_engine="openai"</code> default to <code>https://api.openai.com/v1</code> and read <code>OPENAI_API_KEY</code> (or <code>ABSTRACTVOICE_OPENAI_API_KEY</code>).
-- <code>tts_engine="openai-compatible"</code> / <code>stt_engine="openai-compatible"</code> require <code>remote_base_url=...</code> or <code>ABSTRACTVOICE_REMOTE_BASE_URL</code> / <code>ABSTRACTVOICE_OPENAI_COMPATIBLE_BASE_URL</code>.
+- <code>tts_engine="openai"</code> / <code>stt_engine="openai"</code> default to <code>https://api.openai.com/v1</code> and read <code>OPENAI_API_KEY</code>.
+- <code>tts_engine="openai-compatible"</code> / <code>stt_engine="openai-compatible"</code> require <code>remote_base_url=...</code> or <code>OPENAI_BASE_URL</code>.
 - Remote engines are explicit opt-in, so <code>allow_downloads</code> remains local-model download policy rather than a network-access flag.</p>
 <h3 id="voice-profiles-cross-provider-abstraction">Voice profiles (cross-provider abstraction)<a class="headerlink" href="#voice-profiles-cross-provider-abstraction" title="Permanent link">&para;</a></h3>
 <p>OpenAI (and other commercial providers) have a first-class notion of “voice” (built-in voices and gated custom voices).

@@ -1452,6 +1452,9 @@ abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>openai-
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[supertonic]&quot;</span>
 abstractvoice-prefetch<span class="w"> </span>--supertonic
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>supertonic<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
+
+<span class="c1"># Hugging Face / Transformers ASR example:</span>
+abstractvoice<span class="w"> </span>--stt-engine<span class="w"> </span>transformers-asr<span class="w"> </span>--stt-model<span class="w"> </span>Qwen/Qwen3-ASR-1.7B<span class="w"> </span>--verbose
 </code></pre></div>
 <p>Piper remains available as the smaller local fallback:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[piper]&quot;</span>
@@ -1466,8 +1469,10 @@ abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<s
 <li><code>--provider &lt;preset-or-url&gt;</code>: choose an OpenAI-compatible LLM provider.</li>
 <li><code>--model &lt;name&gt;</code>: choose the LLM model.</li>
 <li><code>--tts-engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice</code>: choose the initial TTS engine.</li>
-<li><code>--stt-engine openai|openai-compatible|faster_whisper|auto</code>: choose the initial STT engine.</li>
-<li><code>--tts-model &lt;id&gt;</code> / <code>--stt-model &lt;id&gt;</code>: model ids for remote audio engines.</li>
+<li><code>--stt-engine openai|openai-compatible|faster_whisper|transformers-asr|auto</code>: choose the initial STT engine.</li>
+<li><code>--tts-model &lt;id&gt;</code>: model id for remote TTS engines.</li>
+<li><code>--whisper &lt;id&gt;</code>: faster-whisper model size (<code>tiny|base|small|medium|large-v2|large-v3|large</code>).</li>
+<li><code>--stt-model &lt;id&gt;</code>: model id for remote STT engines, or a Hugging Face model id when <code>--stt-engine transformers-asr</code> (for example <code>openai/whisper-large-v3</code>, <code>openai/whisper-large-v3-turbo</code>, or <code>Qwen/Qwen3-ASR-1.7B</code>).</li>
 <li><code>--remote-base-url &lt;url&gt;</code> / <code>--remote-api-key &lt;key&gt;</code>: OpenAI-compatible remote voice endpoint config. <code>--tts-engine openai</code> and <code>--stt-engine openai</code> default to OpenAI's hosted API and read <code>OPENAI_API_KEY</code>.</li>
 </ul>
 <p>The default provider preset is Ollama at <code>http://localhost:11434</code>.</p>
@@ -1591,7 +1596,8 @@ language:</p>
 /tts engine omnivoice
 /stt_engine faster_whisper
 /stt_engine openai-compatible
-/whisper small
+/stt_engine transformers-asr
+# Legacy shortcut: /whisper small (prefer /stt_engine faster_whisper small)
 </code></pre></div>
 <p>Engine notes:</p>
 <ul>
@@ -1606,7 +1612,7 @@ language:</p>
   <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>. Smaller fallback for
   reliable local speech.</li>
 <li><code>openai</code> / <code>openai-compatible</code>: remote TTS/STT endpoints. Configure
-  <code>OPENAI_API_KEY</code> for OpenAI or <code>ABSTRACTVOICE_REMOTE_BASE_URL</code> for compatible
+  <code>OPENAI_API_KEY</code> for OpenAI or <code>OPENAI_BASE_URL</code> for compatible
   servers. Compatible servers may expose <code>GET /v1/audio/voices</code>; <code>/voices
   profiles</code> lists those remote profile/voice ids and <code>/voices profile &lt;id&gt;</code>
   uses the selected id as the remote speech <code>voice</code>.</li>
@@ -1616,6 +1622,9 @@ language:</p>
   cloning. Stable reusable profiles are still being curated.</li>
 <li><code>faster_whisper</code>: local STT path; install <code>abstractvoice[stt]</code>,
   <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>.</li>
+<li><code>transformers-asr</code>: local STT path for Hugging Face ASR models; install
+  <code>abstractvoice[stt-hf]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>, and
+  pass <code>--stt-model &lt;hf-model-id&gt;</code> (for example <code>openai/whisper-large-v3</code>).</li>
 </ul>
 <p>Current caveats are tracked in <code>docs/known-issues.md</code>.</p>
 <h2 id="voice-profiles">Voice Profiles<a class="headerlink" href="#voice-profiles" title="Permanent link">&para;</a></h2>
@@ -1735,6 +1744,9 @@ state. Neither command deletes saved <code>.mem</code> files or terminal command
 <code>faster_whisper</code> for offline REPL use, prefetch an STT model:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--stt<span class="w"> </span>small
 </code></pre></div>
+<p>For Hugging Face Transformers STT (<code>transformers-asr</code>), prefetch the model id:</p>
+<div class="highlight"><pre><span></span><code>abstractvoice-prefetch<span class="w"> </span>--stt-hf<span class="w"> </span>openai/whisper-large-v3
+</code></pre></div>
 <h2 id="debugging">Debugging<a class="headerlink" href="#debugging" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>/verbose on
 /debug on
@@ -1812,13 +1824,13 @@ remote TTS provider. Remote calls only happen when the active engine is
 </ul>
 <p>Remote clone-compatible services can be used with
 <code>/clone &lt;path&gt; --engine openai-compatible</code> after setting
-<code>ABSTRACTVOICE_REMOTE_BASE_URL</code>; no local artifact download is needed.
+<code>OPENAI_BASE_URL</code>; no local artifact download is needed.
 OpenAI custom voice creation can be selected with <code>--engine openai</code>, but it is
 org-gated and requires explicit consent configuration.</p>
 <p>STT:</p>
 <ul>
-<li><code>/stt_engine openai|openai-compatible|faster_whisper|auto</code></li>
-<li><code>/whisper &lt;model&gt;</code></li>
+<li><code>/stt_engine openai|openai-compatible|faster_whisper|transformers-asr|auto</code></li>
+<li><code>/whisper &lt;model&gt;</code> (legacy faster-whisper shortcut; prefer <code>/stt_engine faster_whisper &lt;model&gt;</code>)</li>
 <li><code>/transcribe &lt;path&gt;</code></li>
 </ul>
 <p>LLM:</p>
