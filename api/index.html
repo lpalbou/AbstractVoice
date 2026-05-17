@@ -1933,10 +1933,17 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 <p>The voice backend also exposes thin catalog discovery methods for Core/Gateway
 integration code:
 - <code>list_profiles(kind="tts") -&gt; list[dict]</code>
-- <code>list_tts_models() -&gt; list[str]</code>
-- <code>list_stt_models() -&gt; list[str]</code>
+- <code>list_models(kind="tts"|"stt", provider: str | None = None) -&gt; list[str]</code>
+- <code>list_tts_models(provider: str | None = None) -&gt; list[str]</code>
+- <code>list_stt_models(provider: str | None = None) -&gt; list[str]</code>
+- <code>list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True) -&gt; list[dict]</code>
+- <code>list_cloned_voices(provider: str | None = None, model: str | None = None) -&gt; list[dict]</code>
+- <code>list_voices(...) -&gt; list[dict]</code> (alias of <code>list_tts_voices(...)</code>)
 - <code>available_providers() -&gt; {tts, stt, cloning, providers, details}</code>
-- <code>voice_catalog() -&gt; {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, stt_engine_variants, available_providers, catalog}</code></p>
+- <code>voice_catalog() -&gt; {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}</code>
+- <code>tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -&gt; bytes | artifact_ref</code>
+- <code>stt(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code>
+- <code>transcribe(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code></p>
 <p>These methods delegate to the active <code>VoiceManager</code> and keep voice/profile/model
 semantics in AbstractVoice. AbstractCore still owns HTTP routing, auth, and
 browser/security policy.</p>
@@ -1949,12 +1956,33 @@ cached model artifacts are present. The same payload also includes
 <code>known_tts_providers</code>, <code>known_stt_providers</code>, and <code>known_cloning_providers</code> so
 UI/provider selectors can distinguish installed availability from the broader
 capability catalog.</p>
-<p>For STT, <code>voice_catalog()</code> also groups selectable model ids by provider under
-<code>stt_models_by_provider</code> and exposes combined <code>provider:model</code> selector strings
-under <code>stt_engine_variants</code>. AbstractCore callers may either pass separate
-arguments such as <code>provider="transformers-asr", model="Qwen/Qwen3-ASR-1.7B"</code>
-or a single combined provider value such as
+<p>The provider/model/voice abstraction used by the plugin is:
+- <code>provider</code>: backend/engine id such as <code>openai</code>, <code>openai-compatible</code>,
+  <code>piper</code>, <code>supertonic</code>, <code>faster-whisper</code>, or <code>transformers-asr</code>
+- <code>model</code>: provider-specific selectable model id
+- <code>voice</code>: base voice/profile id or cloned voice id available for the selected
+  <code>provider</code> + <code>model</code></p>
+<p><code>voice_catalog()</code> is meant to be the single rich discovery payload for
+AbstractCore/Gateway:
+- <code>tts_catalog_by_provider[provider]</code> contains <code>models</code>, <code>model_variants</code>,
+  <code>voices</code>, <code>profiles</code>, <code>cloned_voices</code>, <code>voices_by_model</code>, and <code>formats</code>
+- <code>stt_catalog_by_provider[provider]</code> contains <code>models</code>, <code>model_variants</code>, and
+  <code>formats</code></p>
+<p>The lighter helper methods are convenience views over that same abstraction:
+- <code>available_providers()</code> for provider selectors
+- <code>list_models(...)</code> / <code>list_tts_models(...)</code> / <code>list_stt_models(...)</code> for
+  model selectors
+- <code>list_tts_voices(...)</code> / <code>list_cloned_voices(...)</code> for voice selectors</p>
+<p>For both TTS and STT, the plugin accepts either split fields or combined
+<code>provider:model</code> selectors. AbstractCore callers may pass separate arguments
+such as <code>provider="openai", model="tts-1"</code> or
+<code>provider="transformers-asr", model="Qwen/Qwen3-ASR-1.7B"</code>, or a single
+combined provider value such as <code>provider="openai:tts-1"</code>,
+<code>provider="faster-whisper:large"</code>, or
 <code>provider="transformers-asr:Qwen/Qwen3-ASR-1.7B"</code>.</p>
+<p>For TTS execution, the plugin accepts either a simple <code>voice="alloy"</code> string or
+the selected voice/cloned-voice record from the catalog. When a voice dict is
+passed, the plugin derives <code>provider</code> and <code>model</code> from that record when needed.</p>
 <p>Plugin configuration (owner <code>config</code> dict, best-effort). In AbstractCore
 integrations, the env/default path uses OpenAI remote TTS/STT
 (<code>OPENAI_API_KEY</code>, optional <code>ABSTRACTVOICE_OPENAI_*</code> overrides) unless owner
@@ -1992,7 +2020,32 @@ capability plugin:</p>
 <ul>
 <li><code>POST /v1/audio/speech</code> -&gt; <code>core.voice.tts(...)</code> -&gt; <code>VoiceManager.speak_to_bytes(...)</code></li>
 <li><code>POST /v1/audio/transcriptions</code> -&gt; <code>core.audio.transcribe(...)</code> -&gt; <code>VoiceManager.transcribe_*()</code></li>
+<li><code>GET /v1/audio/voices</code> -&gt; <code>core.voice.voice_catalog()</code> / <code>list_tts_voices(...)</code> for provider, model, profile, and cloned-voice discovery</li>
+<li><code>GET /v1/audio/speech/models</code> -&gt; <code>core.voice.list_tts_models(...)</code> or <code>voice_catalog()["tts_catalog_by_provider"]</code></li>
+<li><code>GET /v1/audio/transcriptions/models</code> -&gt; <code>core.voice.list_stt_models(...)</code> or <code>voice_catalog()["stt_catalog_by_provider"]</code></li>
 </ul>
+<p>Recommended AbstractCore mapping:</p>
+<div class="highlight"><pre><span></span><code><span class="n">providers</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">available_providers</span><span class="p">()</span>
+<span class="n">catalog</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">voice_catalog</span><span class="p">()</span>
+
+<span class="n">tts_audio</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">tts</span><span class="p">(</span>
+    <span class="s2">&quot;Hello.&quot;</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;tts-1&quot;</span><span class="p">,</span>
+    <span class="n">voice</span><span class="o">=</span><span class="s2">&quot;alloy&quot;</span><span class="p">,</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;wav&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">text</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">transcribe</span><span class="p">(</span>
+    <span class="n">wav_bytes</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;faster-whisper&quot;</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">,</span>
+    <span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>That same shape also supports local or remote cloned voices: the selected
+catalog item from <code>tts_catalog_by_provider[provider]["cloned_voices"]</code> can be
+passed back as the TTS <code>voice</code>, or its <code>voice_id</code> can be passed directly.</p>
 <p>Example:</p>
 <div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
 
