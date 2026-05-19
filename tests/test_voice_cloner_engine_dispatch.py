@@ -132,3 +132,86 @@ def test_voice_cloner_rejects_unsupported_reference_file(tmp_path: Path):
 
     with pytest.raises(ValueError, match=r"Unsupported reference audio format"):
         cloner.clone_voice(str(ref), name="v", reference_text="hello.", engine="chroma")
+
+
+def test_voice_cloner_preload_and_list_loaded_engines(tmp_path: Path):
+    from abstractvoice.cloning.manager import VoiceCloner
+    from abstractvoice.cloning.store import VoiceCloneStore
+
+    calls: list[str] = []
+
+    class DummyEngine:
+        def preload(self):
+            calls.append("preload")
+
+        def runtime_info(self):
+            return {"requested_device": "cpu"}
+
+        def unload(self):
+            calls.append("unload")
+
+    store = VoiceCloneStore(base_dir=tmp_path / "store")
+    cloner = VoiceCloner(store=store, allow_downloads=False)
+    cloner._engines["omnivoice"] = DummyEngine()
+
+    warmed = cloner.preload_engine("omnivoice")
+    assert warmed["engine"] == "omnivoice"
+    assert warmed["state"] == "resident"
+    assert warmed["resident"] is True
+    assert warmed["warmed_via"] == "engine_preload"
+    assert warmed["runtime_info"]["requested_device"] == "cpu"
+
+    loaded = cloner.list_loaded_engines()
+    assert loaded == [
+        {
+            "component": "cloning_engine",
+            "engine": "omnivoice",
+            "state": "resident",
+            "resident": True,
+            "local": True,
+            "unloadable": True,
+            "engine_cached": True,
+            "runtime_info": {"requested_device": "cpu"},
+        }
+    ]
+
+    assert cloner.unload_engine("omnivoice") is True
+    assert calls == ["preload", "unload"]
+
+
+def test_voice_cloner_preload_with_voice_warms_voice_path(tmp_path: Path):
+    import numpy as np
+    import soundfile as sf
+
+    from abstractvoice.cloning.manager import VoiceCloner
+    from abstractvoice.cloning.store import VoiceCloneStore
+
+    ref = tmp_path / "ref.wav"
+    sf.write(str(ref), np.zeros((24000,), dtype=np.float32), 24000, subtype="PCM_16")
+
+    store = VoiceCloneStore(base_dir=tmp_path / "store")
+    cloner = VoiceCloner(store=store, allow_downloads=False)
+    voice_id = cloner.clone_voice(str(ref), name="v", reference_text="hello.", engine="omnivoice")
+
+    calls: list[str] = []
+
+    class DummyEngine:
+        def preload(self):
+            calls.append("preload")
+
+        def runtime_info(self):
+            return {"requested_device": "cpu"}
+
+        def infer_to_wav_bytes(self, *, text, reference_paths, reference_text, speed=None, language=None):
+            _ = (reference_paths, reference_text, speed, language)
+            calls.append(f"speak:{text}")
+            return b"RIFF....dummy"
+
+    cloner._engines["omnivoice"] = DummyEngine()
+
+    warmed = cloner.preload_engine("omnivoice", voice_id=voice_id, language="en")
+    assert warmed["voice_id"] == voice_id
+    assert warmed["voice_prepared"] is True
+    assert warmed["voice_warmed"] is True
+    assert warmed["warmed_via"] == "engine_preload+voice_synthesis"
+    assert calls == ["preload", "speak:Hello."]

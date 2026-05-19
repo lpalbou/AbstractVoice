@@ -822,6 +822,147 @@ def test_audio_capability_injection_transcribe():
     assert cap.transcribe(b"audio") == "ok"
 
 
+def test_voice_capability_clone_residency_round_trip(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    plugin._VM_CACHE.clear()
+    created: list[dict[str, object]] = []
+
+    class _VM:
+        def __init__(self, **kwargs):
+            created.append(dict(kwargs))
+            self.cloning_engine = kwargs.get("cloning_engine", "omnivoice")
+            self._loaded: set[str] = set()
+
+        def get_cloned_voice(self, voice_id: str):
+            if voice_id == "clone-1":
+                return {"voice_id": "clone-1", "engine": "audiodit"}
+            return None
+
+        def preload_cloning_engine(self, *, engine=None, voice=None, language=None, speed=None):
+            _ = (language, speed)
+            eng = str(engine or self.cloning_engine)
+            self._loaded.add(eng)
+            return {
+                "engine": eng,
+                "voice_id": voice,
+                "state": "resident",
+                "resident": True,
+                "local": True,
+                "unloadable": True,
+                "engine_cached": True,
+                "warmed_via": "engine_preload",
+                "runtime_info": {"requested_device": "cpu"},
+            }
+
+        def list_resident_components(self):
+            return [
+                {
+                    "component": "cloning_engine",
+                    "engine": eng,
+                    "state": "resident",
+                    "resident": True,
+                    "local": True,
+                    "unloadable": True,
+                    "engine_cached": True,
+                    "runtime_info": {"requested_device": "cpu"},
+                }
+                for eng in sorted(self._loaded)
+            ]
+
+        def unload_cloning_engine(self, *, engine=None):
+            eng = str(engine or self.cloning_engine)
+            unloaded = eng in self._loaded
+            self._loaded.discard(eng)
+            return {
+                "engine": eng,
+                "unloaded": unloaded,
+                "state": "unloaded" if unloaded else "not_loaded",
+                "resident": False,
+                "local": True,
+                "unloadable": True,
+            }
+
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+
+    loaded = cap.load_resident_model({"task": "tts", "provider": "cloned", "model": "omnivoice"})
+    assert loaded["provider"] == "cloned"
+    assert loaded["model"] == "omnivoice"
+    assert loaded["state"] == "resident"
+    assert loaded["resident"] is True
+    assert loaded["details"]["warmed_via"] == "engine_preload"
+    assert any(item["cloning_engine"] == "omnivoice" for item in created)
+
+    loaded_from_voice = cap.load_resident_model({"task": "tts", "provider": "cloned", "options": {"voice": "clone-1"}})
+    assert loaded_from_voice["model"] == "audiodit"
+    assert loaded_from_voice["options"] == {"voice": "clone-1"}
+    assert any(item["cloning_engine"] == "audiodit" for item in created)
+
+    listed = cap.list_resident_models({"task": "tts", "provider": "cloned"})
+    assert {(item["provider"], item["model"], item["state"]) for item in listed} >= {
+        ("cloned", "audiodit", "resident"),
+        ("cloned", "omnivoice", "resident"),
+    }
+
+    unloaded = cap.unload_resident_model({"task": "tts", "provider": "cloned", "model": "omnivoice"})
+    assert unloaded["model"] == "omnivoice"
+    assert unloaded["state"] == "unloaded"
+    assert unloaded["resident"] is False
+    assert unloaded["unloaded"] is True
+    assert unloaded["details"]["unloaded_count"] >= 1
+
+
+def test_voice_capability_clone_residency_defers_base_tts_and_stt(monkeypatch):
+    _clear_plugin_env(monkeypatch)
+
+    class _Owner:
+        config = {"voice_manager_instance": object()}
+
+    cap = _VoiceCapability(_Owner())
+
+    base_tts = cap.load_resident_model({"task": "tts", "provider": "omnivoice", "model": "default"})
+    assert base_tts["state"] == "not_implemented"
+    assert base_tts["error"]["code"] == "not_implemented_yet"
+
+    stt = cap.load_resident_model({"task": "stt", "provider": "faster-whisper", "model": "base"})
+    assert stt["state"] == "not_implemented"
+    assert stt["error"]["code"] == "not_implemented_yet"
+    assert cap.list_resident_models({"task": "stt"}) == []
+
+
+def test_audio_capability_clone_residency_is_not_implemented(monkeypatch):
+    _clear_plugin_env(monkeypatch)
+
+    class _Owner:
+        config = {"voice_manager_instance": object()}
+
+    cap = _AudioCapability(_Owner())
+
+    loaded = cap.load_resident_model({"task": "tts", "provider": "cloned", "model": "omnivoice"})
+    assert loaded["state"] == "not_implemented"
+    assert loaded["error"]["code"] == "not_implemented_yet"
+    assert cap.list_resident_models({"task": "tts", "provider": "cloned"}) == []
+
+
+def test_voice_capability_clone_unload_requires_model_or_voice(monkeypatch):
+    _clear_plugin_env(monkeypatch)
+
+    class _Owner:
+        config = {"voice_manager_instance": object()}
+
+    cap = _VoiceCapability(_Owner())
+
+    unloaded = cap.unload_resident_model({"task": "tts", "provider": "cloned"})
+    assert unloaded["state"] == "failed"
+    assert unloaded["error"]["code"] == "invalid_request"
+
+
 @pytest.mark.basic
 def test_audio_capability_prefers_transcribe_file_for_paths_and_artifacts(tmp_path):
     calls = {"file": [], "bytes": 0}

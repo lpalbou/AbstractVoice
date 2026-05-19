@@ -285,6 +285,33 @@ class TtsMixin:
     def get_cloning_runtime_info(self):
         return self._get_voice_cloner().get_runtime_info()
 
+    def preload_cloning_engine(
+        self,
+        *,
+        engine: str | None = None,
+        voice: str | None = None,
+        language: str | None = None,
+        speed: float | None = None,
+    ) -> dict:
+        cloner = self._get_voice_cloner()
+        return dict(
+            cloner.preload_engine(
+                engine=engine,
+                voice_id=voice,
+                language=str(language or getattr(self, "language", None) or "en"),
+                speed=float(speed if speed is not None else getattr(self, "speed", 1.0) or 1.0),
+            )
+        )
+
+    def list_resident_components(self) -> list[dict]:
+        cloner = getattr(self, "_voice_cloner", None)
+        if cloner is None:
+            return []
+        try:
+            return [dict(item) for item in list(cloner.list_loaded_engines() or [])]
+        except Exception:
+            return []
+
     def rename_cloned_voice(self, voice_id: str, new_name: str) -> bool:
         self._get_voice_cloner().rename_cloned_voice(voice_id, new_name)
         return True
@@ -299,9 +326,8 @@ class TtsMixin:
         This is critical for large backends (e.g. Chroma). It does NOT delete any
         cloned voices; it only releases in-memory model weights.
         """
-        try:
-            cloner = self._get_voice_cloner()
-        except Exception:
+        cloner = getattr(self, "_voice_cloner", None)
+        if cloner is None:
             return 0
         try:
             if keep_engine:
@@ -309,6 +335,33 @@ class TtsMixin:
             return int(cloner.unload_all_engines())
         except Exception:
             return 0
+
+    def unload_cloning_engine(self, *, engine: str | None = None) -> dict:
+        cloner = getattr(self, "_voice_cloner", None)
+        if cloner is None:
+            return {
+                "engine": str(engine or getattr(self, "cloning_engine", None) or "").strip().lower() or None,
+                "resident": False,
+                "unloaded": False,
+                "state": "not_loaded",
+                "local": True,
+                "unloadable": True,
+            }
+        name = str(engine or getattr(self, "cloning_engine", None) or "").strip().lower() or None
+        unloaded = False
+        if name:
+            try:
+                unloaded = bool(cloner.unload_engine(name))
+            except Exception:
+                unloaded = False
+        return {
+            "engine": name,
+            "resident": False,
+            "unloaded": bool(unloaded),
+            "state": "unloaded" if unloaded else "not_loaded",
+            "local": True,
+            "unloadable": True,
+        }
 
     def unload_piper_voice(self) -> bool:
         """Best-effort release of Piper voice weights/session (keeps audio output ready).

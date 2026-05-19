@@ -47,6 +47,11 @@ class AudioDiTVoiceCloningEngine:
             pass
         return {"requested_device": self._device_pref, "quality_preset": self._quality_preset}
 
+    def preload(self) -> dict:
+        runtime = self._get_runtime()
+        runtime._ensure_loaded()  # noqa: SLF001
+        return self.runtime_info()
+
     def set_quality_preset(self, preset: str) -> None:
         from ..quality_preset import normalize_quality_preset
 
@@ -148,4 +153,3 @@ class AudioDiTVoiceCloningEngine:
         for wav in chunks:
             mono = np.asarray(wav, dtype=np.float32).reshape(-1)
             yield mono, int(sr)
-

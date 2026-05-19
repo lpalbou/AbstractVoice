@@ -14,6 +14,7 @@ _VM_CACHE: dict[tuple, Any] = {}
 _VM_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = weakref.WeakKeyDictionary()
 _TRUE_BOOL_VALUES = {"1", "true", "yes", "y", "on"}
 _FALSE_BOOL_VALUES = {"0", "false", "no", "n", "off"}
+_CLONE_RESIDENCY_PROVIDER_ALIASES = {"cloned", "clone", "cloning"}
 
 
 def _env(key: str, default: Optional[str] = None) -> Optional[str]:
@@ -63,6 +64,26 @@ def _env_float(*keys: str) -> Optional[float]:
         return float(raw)
     except Exception:
         return None
+
+
+def _norm_residency_task(value: Any) -> str:
+    text = str(value or "").strip().lower().replace("-", "_")
+    if text in {"speech", "speech_synthesis", "text_to_speech"}:
+        return "tts"
+    if text in {"transcribe", "transcription", "speech_to_text", "audio_transcription"}:
+        return "stt"
+    return text
+
+
+def _norm_residency_provider(value: Any) -> str:
+    text = str(value or "").strip().lower().replace("_", "-")
+    if text in _CLONE_RESIDENCY_PROVIDER_ALIASES:
+        return "cloned"
+    return _norm_engine_id(text)
+
+
+def _clone_engine_is_local(value: Any) -> bool:
+    return _norm_engine_id(value) not in {"openai", "openai-compatible", "remote"}
 
 
 def _json_safe(value: Any) -> Any:
@@ -1107,6 +1128,37 @@ class _BaseVoice:
             self._vm = cached
             return self._vm
 
+    def _iter_known_vms(self):
+        seen: set[int] = set()
+        try:
+            current = self._vm
+        except Exception:
+            current = None
+        if current is None:
+            try:
+                cfg = getattr(self._owner, "config", None)
+                if isinstance(cfg, dict):
+                    inst = cfg.get("voice_manager_instance")
+                    if inst is not None:
+                        current = inst
+            except Exception:
+                current = None
+        if current is not None:
+            key = id(current)
+            if key not in seen:
+                seen.add(key)
+                yield None, current
+        with _VM_CACHE_LOCK:
+            cached_items = list(_VM_CACHE.items())
+        for cache_key, vm in cached_items:
+            if vm is None:
+                continue
+            key = id(vm)
+            if key in seen:
+                continue
+            seen.add(key)
+            yield cache_key, vm
+
     def _vm_engine_values(self, vm: Any, *, kind: str) -> set[str]:
         adapter = getattr(vm, "tts_adapter", None) if kind == "tts" else getattr(vm, "stt_adapter", None)
         values = {
@@ -1133,6 +1185,313 @@ class _BaseVoice:
         for value in values:
             out.update(_engine_aliases(value))
         return out
+
+    def _get_vm_for_cloning_engine(self, cloning_engine: Optional[str] = None):
+        engine = _norm_engine_id(cloning_engine)
+        if not engine:
+            return self._get_vm()
+
+        current = None
+        try:
+            current = self._get_vm()
+        except Exception:
+            current = None
+        if current is not None:
+            current_engine = _norm_engine_id(getattr(current, "cloning_engine", None))
+            if current_engine and current_engine == engine:
+                return current
+
+        cfg = getattr(self._owner, "config", None)
+        override_cfg = dict(cfg) if isinstance(cfg, dict) else {}
+        override_cfg.pop("voice_manager_instance", None)
+        override_cfg.pop("voice_manager_factory", None)
+        override_cfg["voice_cloning_engine"] = engine
+
+        owner = type("_AbstractVoiceCloningEngineOverride", (), {"config": override_cfg})()
+        cap = self.__class__(owner)
+        return cap._get_vm()
+
+    def _residency_error(
+        self,
+        *,
+        task: str,
+        provider: str | None,
+        model: str | None,
+        code: str,
+        message: str,
+        state: str = "failed",
+        local: bool | None = None,
+        unloadable: bool = False,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        return {
+            "task": str(task or ""),
+            "provider": provider,
+            "model": model,
+            "state": str(state),
+            "resident": False,
+            "local": _coerce_bool(local, False) if local is not None else False,
+            "unloadable": bool(unloadable),
+            "details": {
+                "backend_id": getattr(self, "backend_id", None),
+                **(dict(details) if isinstance(details, dict) else {}),
+            },
+            "error": {"code": str(code), "message": str(message)},
+        }
+
+    def _parse_resident_model_request(self, request: Any) -> Dict[str, Any]:
+        data = dict(request) if isinstance(request, dict) else {}
+        options = data.get("options")
+        options_d = dict(options) if isinstance(options, dict) else {}
+        task = _norm_residency_task(data.get("task") or "tts") or "tts"
+        provider = _norm_residency_provider(data.get("provider"))
+        model = _norm_engine_id(data.get("model"))
+        voice = None
+        for key in ("voice", "voice_id"):
+            value = options_d.get(key)
+            if isinstance(value, str) and value.strip():
+                voice = value.strip()
+                break
+        return {
+            "task": task,
+            "provider": provider,
+            "model": model or None,
+            "voice": voice,
+            "options": options_d,
+        }
+
+    def _resolve_clone_residency_engine(self, *, model: Optional[str], voice: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+        voice_id = str(voice or "").strip() or None
+        engine = _norm_engine_id(model)
+        if voice_id and not engine:
+            for _cache_key, vm in self._iter_known_vms():
+                try:
+                    info = vm.get_cloned_voice(voice_id) if hasattr(vm, "get_cloned_voice") else None
+                except Exception:
+                    info = None
+                if isinstance(info, dict):
+                    engine = _norm_engine_id(info.get("engine"))
+                    if engine:
+                        break
+            if not engine:
+                try:
+                    from ..cloning.store import VoiceCloneStore
+
+                    info = VoiceCloneStore().get_voice_dict(voice_id)
+                    if isinstance(info, dict):
+                        engine = _norm_engine_id(info.get("engine"))
+                except Exception:
+                    engine = engine or ""
+        return (engine or None), voice_id
+
+    def _clone_residency_entry(
+        self,
+        *,
+        engine: Optional[str],
+        voice: Optional[str],
+        state: str,
+        resident: bool,
+        local: bool,
+        unloadable: bool,
+        details: Optional[Dict[str, Any]] = None,
+        error: Optional[Dict[str, Any]] = None,
+        unloaded: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        entry: Dict[str, Any] = {
+            "task": "tts",
+            "provider": "cloned",
+            "model": engine,
+            "state": str(state),
+            "resident": bool(resident),
+            "local": bool(local),
+            "unloadable": bool(unloadable),
+            "details": {
+                "component": "cloning_engine",
+                "backend_id": getattr(self, "backend_id", None),
+                **(dict(details) if isinstance(details, dict) else {}),
+            },
+            "error": dict(error) if isinstance(error, dict) else None,
+        }
+        if voice:
+            entry["options"] = {"voice": str(voice)}
+        if unloaded is not None:
+            entry["unloaded"] = bool(unloaded)
+        return entry
+
+    def load_resident_model(self, request: Any) -> Dict[str, Any]:
+        parsed = self._parse_resident_model_request(request)
+        task = parsed["task"]
+        provider = parsed["provider"]
+        model = parsed["model"]
+        voice = parsed["voice"]
+
+        if not (task == "tts" and provider == "cloned"):
+            return self._residency_error(
+                task=task,
+                provider=provider or None,
+                model=model,
+                code="not_implemented_yet",
+                message="Residency warmup is currently implemented only for cloned TTS engines.",
+                state="not_implemented",
+                details={"supported": {"task": "tts", "provider": "cloned"}},
+            )
+
+        try:
+            engine, voice_id = self._resolve_clone_residency_engine(model=model, voice=voice)
+            vm = self._get_vm_for_cloning_engine(engine)
+            lk = self._vm_lock(vm)
+            with lk:
+                result = vm.preload_cloning_engine(
+                    engine=engine,
+                    voice=voice_id,
+                    language=parsed["options"].get("language"),
+                    speed=parsed["options"].get("speed"),
+                )
+        except Exception as e:
+            return self._clone_residency_entry(
+                engine=model,
+                voice=voice,
+                state="failed",
+                resident=False,
+                local=_clone_engine_is_local(model),
+                unloadable=True,
+                error={"code": "load_failed", "message": str(e)},
+            )
+
+        details = {
+            "engine_cached": bool(result.get("engine_cached", False)),
+            "warmed_via": result.get("warmed_via"),
+            "runtime_info": _json_safe(result.get("runtime_info") or {}),
+        }
+        if "voice_prepared" in result:
+            details["voice_prepared"] = bool(result.get("voice_prepared"))
+        if result.get("voice_prepare_error"):
+            details["voice_prepare_error"] = str(result.get("voice_prepare_error"))
+        if "voice_warmed" in result:
+            details["voice_warmed"] = bool(result.get("voice_warmed"))
+        if result.get("voice_warm_error"):
+            details["voice_warm_error"] = str(result.get("voice_warm_error"))
+        return self._clone_residency_entry(
+            engine=_norm_engine_id(result.get("engine")) or engine,
+            voice=str(result.get("voice_id") or voice_id or "") or None,
+            state=str(result.get("state") or "resident"),
+            resident=bool(result.get("resident", False)),
+            local=bool(result.get("local", True)),
+            unloadable=bool(result.get("unloadable", True)),
+            details=details,
+        )
+
+    def list_resident_models(self, filters: Any | None = None) -> list[Dict[str, Any]]:
+        parsed = self._parse_resident_model_request(filters or {})
+        task = parsed["task"]
+        provider = parsed["provider"]
+        model = parsed["model"]
+        if task and task != "tts":
+            return []
+        if provider and provider != "cloned":
+            return []
+
+        out: list[Dict[str, Any]] = []
+        for cache_key, vm in self._iter_known_vms():
+            try:
+                lk = self._vm_lock(vm)
+                with lk:
+                    components = vm.list_resident_components() if hasattr(vm, "list_resident_components") else []
+            except Exception:
+                continue
+            for component in list(components or []):
+                if not isinstance(component, dict):
+                    continue
+                if str(component.get("component") or "").strip().lower() != "cloning_engine":
+                    continue
+                engine = _norm_engine_id(component.get("engine") or component.get("model"))
+                if model and engine != model:
+                    continue
+                details = {
+                    "engine_cached": bool(component.get("engine_cached", False)),
+                    "runtime_info": _json_safe(component.get("runtime_info") or {}),
+                }
+                if cache_key is not None:
+                    details["cache_key"] = _json_safe(list(cache_key))
+                out.append(
+                    self._clone_residency_entry(
+                        engine=engine or None,
+                        voice=None,
+                        state=str(component.get("state") or ("resident" if component.get("resident") else "configured")),
+                        resident=bool(component.get("resident", False)),
+                        local=bool(component.get("local", True)),
+                        unloadable=bool(component.get("unloadable", True)),
+                        details=details,
+                    )
+                )
+        out.sort(key=lambda item: (str(item.get("model") or ""), str(item.get("state") or "")))
+        return out
+
+    def unload_resident_model(self, request: Any) -> Dict[str, Any]:
+        parsed = self._parse_resident_model_request(request)
+        task = parsed["task"]
+        provider = parsed["provider"]
+        model = parsed["model"]
+        voice = parsed["voice"]
+
+        if not (task == "tts" and provider == "cloned"):
+            return self._residency_error(
+                task=task,
+                provider=provider or None,
+                model=model,
+                code="not_implemented_yet",
+                message="Residency unload is currently implemented only for cloned TTS engines.",
+                state="not_implemented",
+                details={"supported": {"task": "tts", "provider": "cloned"}},
+            )
+
+        try:
+            engine, voice_id = self._resolve_clone_residency_engine(model=model, voice=voice)
+        except Exception as e:
+            return self._clone_residency_entry(
+                engine=model,
+                voice=voice,
+                state="failed",
+                resident=False,
+                local=_clone_engine_is_local(model),
+                unloadable=True,
+                error={"code": "resolve_failed", "message": str(e)},
+            )
+        if not engine:
+            return self._clone_residency_entry(
+                engine=None,
+                voice=voice_id,
+                state="failed",
+                resident=False,
+                local=True,
+                unloadable=True,
+                error={
+                    "code": "invalid_request",
+                    "message": "Provide a cloned engine model, or pass options.voice for a stored cloned voice.",
+                },
+            )
+
+        unloaded_count = 0
+        for _cache_key, vm in self._iter_known_vms():
+            try:
+                lk = self._vm_lock(vm)
+                with lk:
+                    result = vm.unload_cloning_engine(engine=engine)
+            except Exception:
+                continue
+            if bool(result.get("unloaded")):
+                unloaded_count += 1
+
+        return self._clone_residency_entry(
+            engine=engine,
+            voice=voice_id,
+            state="unloaded" if unloaded_count > 0 else "not_loaded",
+            resident=False,
+            local=_clone_engine_is_local(engine),
+            unloadable=True,
+            details={"unloaded_count": int(unloaded_count)},
+            unloaded=bool(unloaded_count > 0),
+        )
 
     def _config_text(self, *keys: str) -> Optional[str]:
         cfg = getattr(self._owner, "config", None)
@@ -2368,6 +2727,34 @@ class _VoiceCapability(_BaseVoice):
 
 class _AudioCapability(_BaseVoice):
     backend_id = "abstractvoice:stt"
+
+    def load_resident_model(self, request: Any) -> Dict[str, Any]:
+        parsed = self._parse_resident_model_request(request)
+        return self._residency_error(
+            task=parsed["task"],
+            provider=parsed["provider"] or None,
+            model=parsed["model"],
+            code="not_implemented_yet",
+            message="Residency control is not implemented on the audio/STT capability backend yet.",
+            state="not_implemented",
+            details={"supported": {"task": "tts", "provider": "cloned", "backend": "abstractvoice:default"}},
+        )
+
+    def list_resident_models(self, filters: Any | None = None) -> list[Dict[str, Any]]:
+        _ = filters
+        return []
+
+    def unload_resident_model(self, request: Any) -> Dict[str, Any]:
+        parsed = self._parse_resident_model_request(request)
+        return self._residency_error(
+            task=parsed["task"],
+            provider=parsed["provider"] or None,
+            model=parsed["model"],
+            code="not_implemented_yet",
+            message="Residency control is not implemented on the audio/STT capability backend yet.",
+            state="not_implemented",
+            details={"supported": {"task": "tts", "provider": "cloned", "backend": "abstractvoice:default"}},
+        )
 
     def transcribe(
         self,

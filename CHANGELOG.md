@@ -10,6 +10,21 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.5] - 2026-05-19
+
+### Added
+- Added capability-level residency hooks to the AbstractCore integration for
+  cloned TTS engines, including warm, list, and unload support through the
+  process-local `VoiceManager`/cloner cache.
+
+### Changed
+- Clone-engine preloading can now optionally warm a stored cloned voice path
+  with a discarded synthesis pass so later real utterances reuse the prepared
+  engine and prompt state.
+- Residency requests that target non-cloned TTS or STT now return an explicit
+  deferred-support response instead of implying warm resident state where none
+  exists.
+
 ## [0.10.4] - 2026-05-19
 
 ### Fixed

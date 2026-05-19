@@ -148,6 +148,10 @@ class F5TTSVoiceCloningEngine:
             pass
         return info
 
+    def preload(self) -> dict:
+        self._ensure_model_loaded()
+        return self.runtime_info()
+
     def set_quality_preset(self, preset: str) -> None:
         """Set speed/quality preset.
 

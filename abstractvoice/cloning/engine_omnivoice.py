@@ -86,6 +86,11 @@ class OmniVoiceVoiceCloningEngine:
             "guidance_scale": float(self._guidance_scale),
         }
 
+    def preload(self) -> dict:
+        runtime = self._get_runtime()
+        _ = runtime.get_model()
+        return self.runtime_info()
+
     def set_quality_preset(self, preset: str) -> None:
         from ..quality_preset import normalize_quality_preset
 

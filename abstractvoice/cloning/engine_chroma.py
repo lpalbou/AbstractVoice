@@ -119,6 +119,10 @@ class ChromaVoiceCloningEngine:
             pass
         return info
 
+    def preload(self) -> Dict[str, object]:
+        self._ensure_model_loaded()
+        return self.runtime_info()
+
     def set_quality_preset(self, preset: str) -> None:
         from ..quality_preset import normalize_quality_preset
 

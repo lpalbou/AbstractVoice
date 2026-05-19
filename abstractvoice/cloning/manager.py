@@ -136,6 +136,124 @@ class VoiceCloner:
         except Exception:
             return "standard"
 
+    def _warmup_text_for_language(self, language: str | None = None) -> str:
+        lang = str(language or "").strip().lower()
+        return {
+            "en": "Hello.",
+            "fr": "Bonjour.",
+            "de": "Hallo.",
+            "es": "Hola.",
+            "ru": "Privet.",
+            "zh": "Ni hao.",
+        }.get(lang, "Hello.")
+
+    def preload_engine(
+        self,
+        engine: str | None = None,
+        *,
+        voice_id: str | None = None,
+        language: str | None = None,
+        speed: float | None = None,
+    ) -> Dict[str, Any]:
+        voice_info: Dict[str, Any] | None = None
+        engine_name = _normalize_cloning_engine(engine or self._default_engine) or self._default_engine
+        voice_text = str(voice_id or "").strip() or None
+        if voice_text:
+            voice_info = self.get_cloned_voice(voice_text)
+            voice_engine = _normalize_cloning_engine(voice_info.get("engine") if isinstance(voice_info, dict) else None)
+            if voice_engine:
+                if engine and engine_name and engine_name != voice_engine:
+                    raise ValueError(
+                        f"Requested cloning engine '{engine_name}' does not match stored voice engine '{voice_engine}'."
+                    )
+                engine_name = voice_engine
+
+        inst = self._get_engine(engine_name)
+        local = engine_name not in _REMOTE_CLONING_ENGINES
+        warmed_via_steps: list[str] = ["engine_instance"]
+        voice_prepared = False
+        voice_prepare_error = None
+        voice_warmed = False
+        voice_warm_error = None
+
+        if voice_text:
+            try:
+                self.store.normalize_reference_audio(voice_text)
+                self._ensure_reference_text(voice_text)
+                voice_prepared = True
+            except Exception as e:
+                voice_prepare_error = str(e)
+
+        if local:
+            preload = getattr(inst, "preload", None)
+            if callable(preload):
+                preload()
+                warmed_via_steps = ["engine_preload"]
+            if voice_text:
+                try:
+                    _ = self.speak_to_bytes(
+                        self._warmup_text_for_language(language),
+                        voice_id=voice_text,
+                        format="wav",
+                        speed=speed,
+                        language=language,
+                    )
+                    voice_warmed = True
+                    warmed_via_steps.append("voice_synthesis")
+                except Exception as e:
+                    voice_warm_error = str(e)
+        runtime_info = {}
+        try:
+            if hasattr(inst, "runtime_info"):
+                runtime_info = dict(inst.runtime_info())
+        except Exception:
+            runtime_info = {}
+
+        out: Dict[str, Any] = {
+            "engine": engine_name,
+            "state": "resident" if local else "configured",
+            "resident": bool(local),
+            "local": bool(local),
+            "unloadable": True,
+            "warmed_via": "+".join(warmed_via_steps),
+            "engine_cached": engine_name in self._engines,
+            "runtime_info": runtime_info,
+        }
+        if voice_text:
+            out["voice_id"] = voice_text
+            out["voice_prepared"] = bool(voice_prepared)
+            if voice_prepare_error:
+                out["voice_prepare_error"] = voice_prepare_error
+            out["voice_warmed"] = bool(voice_warmed)
+            if voice_warm_error:
+                out["voice_warm_error"] = voice_warm_error
+        return out
+
+    def list_loaded_engines(self) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        for name in sorted(self._engines.keys()):
+            inst = self._engines[name]
+            runtime_info = {}
+            try:
+                if hasattr(inst, "runtime_info"):
+                    runtime_info = dict(inst.runtime_info())
+            except Exception:
+                runtime_info = {}
+            local = name not in _REMOTE_CLONING_ENGINES
+            out.append(
+                {
+                    "component": "cloning_engine",
+                    "engine": str(name),
+                    "state": "resident" if local else "configured",
+                    "resident": bool(local),
+                    "local": bool(local),
+                    "unloadable": True,
+                    "engine_cached": True,
+                    "runtime_info": runtime_info,
+                }
+            )
+        return out
+
     def unload_engine(self, engine: str) -> bool:
         """Best-effort unload a loaded engine to free memory.
 
