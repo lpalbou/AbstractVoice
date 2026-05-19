@@ -10,6 +10,14 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-05-19
+
+### Fixed
+- OmniVoice cloned speech now preserves sentence boundaries when batching text
+  for synthesis, preventing deterministic speaker drift where adjacent
+  sentences were merged into a single oversized clone batch and only later
+  isolated sentences retained the cloned voice identity.
+
 ## [0.10.3] - 2026-05-17
 
 ### Added

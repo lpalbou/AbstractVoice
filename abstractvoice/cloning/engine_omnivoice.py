@@ -1,16 +1,46 @@
 from __future__ import annotations
 
 import io
+import re
 from typing import Iterable, Optional
 
 import numpy as np
 import soundfile as sf
 
 def _split_text_batches(text: str, *, max_chars: int = 240) -> list[str]:
-    """Split text into short batches, preferring sentence boundaries."""
+    """Split text into clone-safe batches, preserving sentence boundaries.
+
+    OmniVoice cloned speech is noticeably more stable when we keep full
+    sentences as hard batch boundaries. Re-merging adjacent sentences into a
+    larger chunk can cause speaker drift within the combined batch, even when a
+    fixed `voice_clone_prompt` is used.
+    """
     from ..tts.text_chunking import split_text_batches
 
-    return split_text_batches(str(text or ""), max_chars=int(max_chars))
+    try:
+        mc = int(max_chars)
+    except Exception:
+        mc = 240
+    if mc <= 0:
+        mc = 240
+
+    s = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not s:
+        return []
+
+    # Keep sentence boundaries hard for clone stability. If a single sentence is
+    # still too long, fall back to the generic chunker inside that sentence.
+    parts = re.split(r"(?<=[\.\!\?\。\！\？])\s+", s)
+    out: list[str] = []
+    for part in parts:
+        p = str(part or "").strip()
+        if not p:
+            continue
+        if len(p) <= mc:
+            out.append(p)
+            continue
+        out.extend(split_text_batches(p, max_chars=mc))
+    return out
 
 
 class OmniVoiceVoiceCloningEngine:

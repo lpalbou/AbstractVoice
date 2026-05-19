@@ -102,6 +102,24 @@ def test_omnivoice_clone_high_quality_uses_stable_step_count():
     assert info["guidance_scale"] == 2.0
 
 
+def test_omnivoice_clone_batching_preserves_sentence_boundaries():
+    from abstractvoice.cloning.engine_omnivoice import _split_text_batches
+
+    text = (
+        "The bridge hums with the low thrum of a starship, but today it feels like an electric guitar solo waiting to be played. "
+        "You look up at the viewport and see nothing but swirling void, yet something feels wrong beneath the surface. "
+        "Have you ever felt that tiny glitch in your gut whenyou're about to launch into the unknown?"
+    )
+
+    chunks = _split_text_batches(text, max_chars=240)
+
+    assert chunks == [
+        "The bridge hums with the low thrum of a starship, but today it feels like an electric guitar solo waiting to be played.",
+        "You look up at the viewport and see nothing but swirling void, yet something feels wrong beneath the surface.",
+        "Have you ever felt that tiny glitch in your gut whenyou're about to launch into the unknown?",
+    ]
+
+
 def test_voice_cloner_rejects_unsupported_reference_file(tmp_path: Path):
     from abstractvoice.cloning.manager import VoiceCloner
     from abstractvoice.cloning.store import VoiceCloneStore
