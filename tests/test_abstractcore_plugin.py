@@ -583,6 +583,123 @@ def test_voice_capability_provider_filtered_model_and_voice_discovery(monkeypatc
     assert cap.list_cloned_voices(provider="openai", model="gpt-active-tts")[0]["voice_id"] == "clone_openai"
 
 
+def test_voice_capability_list_models_supports_cloning_kind(monkeypatch):
+    from abstractvoice.compatibility import build_compatibility_catalog
+
+    _clear_plugin_env(monkeypatch)
+
+    class _VM:
+        def get_compatibility_catalog(self):
+            return build_compatibility_catalog(
+                current_cloning_provider="openai-compatible",
+                current_remote_tts_model="custom-compatible-tts",
+            )
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    cap = _VoiceCapability(_Owner())
+
+    assert cap.list_models(kind="cloning", provider="f5_tts") == ["mrfakename/OpenF5-TTS-Base"]
+    assert cap.list_cloning_models(provider="f5_tts") == ["mrfakename/OpenF5-TTS-Base"]
+    assert cap.list_models(kind="cloning", provider="openai-compatible:custom-compatible-tts") == ["custom-compatible-tts"]
+
+
+def test_voice_capability_cloning_query_helpers_delegate_to_vm(monkeypatch):
+    _clear_plugin_env(monkeypatch)
+
+    seen = {"support": None, "matches": None}
+
+    class _VM:
+        def get_capability_support(self, **kwargs):
+            seen["support"] = dict(kwargs)
+            return {"support": "native", "reason": "sentinel"}
+
+        def find_compatible_models(self, **kwargs):
+            seen["matches"] = dict(kwargs)
+            return [
+                {
+                    "kind": "cloning",
+                    "provider": "f5_tts",
+                    "model": "mrfakename/OpenF5-TTS-Base",
+                    "surface": "create",
+                    "feature": "multi_reference_audio",
+                    "support": {"support": "native", "reason": None, "metadata": {}},
+                }
+            ]
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    cap = _VoiceCapability(_Owner())
+
+    support = cap.get_capability_support(
+        kind="cloning",
+        provider="f5_tts",
+        model="mrfakename/OpenF5-TTS-Base",
+        surface="create",
+        feature="multi_reference_audio",
+    )
+    matches = cap.find_compatible_models(
+        kind="cloning",
+        feature="multi_reference_audio",
+        surface="create",
+        support_in="native",
+    )
+
+    assert support == {"support": "native", "reason": "sentinel"}
+    assert matches[0]["provider"] == "f5_tts"
+    assert seen["support"] == {
+        "kind": "cloning",
+        "feature": "multi_reference_audio",
+        "provider": "f5_tts",
+        "model": "mrfakename/OpenF5-TTS-Base",
+        "surface": "create",
+    }
+    assert seen["matches"] == {
+        "kind": "cloning",
+        "feature": "multi_reference_audio",
+        "surface": "create",
+        "support_in": ("native",),
+    }
+
+
+def test_voice_capability_cloning_query_helpers_fallback_to_catalog(monkeypatch):
+    from abstractvoice.compatibility import build_compatibility_catalog
+
+    _clear_plugin_env(monkeypatch)
+
+    class _VM:
+        def get_compatibility_catalog(self):
+            return build_compatibility_catalog()
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    cap = _VoiceCapability(_Owner())
+
+    support = cap.get_capability_support(
+        kind="cloning",
+        provider="omnivoice",
+        model="k2-fsa/OmniVoice",
+        surface="create",
+        feature="multi_reference_audio",
+    )
+    matches = cap.find_compatible_models(
+        kind="cloning",
+        feature="multi_reference_audio",
+        surface="create",
+        support_in="native",
+    )
+
+    assert support is not None
+    assert support["support"] == "unsupported"
+    providers = {item["provider"] for item in matches}
+    assert "f5_tts" in providers
+    assert "audiodit" in providers
+    assert "omnivoice" not in providers
+
+
 def test_voice_catalog_keeps_remote_clones_when_base_tts_is_local(monkeypatch):
     from abstractvoice.voice_profiles import VoiceProfile
 

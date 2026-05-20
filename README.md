@@ -111,11 +111,13 @@ AbstractCore discovers AbstractVoice through the
 - lightweight provider discovery through `available_providers()`, which exposes
   clean `tts`, `stt`, and `cloning` provider lists plus per-provider details
 - provider-scoped model and voice discovery through:
-  - `list_models(kind="tts"|"stt", provider=...)`
+  - `list_models(kind="tts"|"stt"|"cloning", provider=...)`
   - `list_tts_models(provider=...)`
   - `list_stt_models(provider=...)`
+  - `list_cloning_models(provider=...)`
   - `list_tts_voices(provider=..., model=...)`
   - `list_cloned_voices(provider=..., model=...)`
+  - `get_capability_support(...)` / `find_compatible_models(...)`
   - `voice_catalog()`
 - nested provider catalogs in `voice_catalog()`:
   - `tts_catalog_by_provider[provider]` -> `models`, `model_variants`,

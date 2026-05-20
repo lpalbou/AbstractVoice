@@ -319,6 +319,43 @@ def _resolve_stt_provider_request(provider: Any, model: Any = None) -> tuple[str
     return _norm_engine_id(provider_text), model_text
 
 
+def _resolve_cloning_provider_request(provider: Any, model: Any = None) -> tuple[str, Optional[str]]:
+    provider_text = str(provider or "").strip()
+    model_text = str(model).strip() if isinstance(model, str) and model.strip() else None
+    if provider_text:
+        raw_provider, sep, raw_model = provider_text.partition(":")
+        normalized_provider = _norm_engine_id(raw_provider if sep else provider_text)
+        if sep and normalized_provider in _known_cloning_provider_ids():
+            provider_text = normalized_provider
+            if model_text is None:
+                candidate = str(raw_model or "").strip()
+                if candidate:
+                    model_text = candidate
+        else:
+            provider_text = normalized_provider
+    return _norm_engine_id(provider_text), model_text
+
+
+def _norm_compat_provider_id(kind: Any, provider: Any) -> str:
+    normalized_kind = str(kind or "").strip().lower()
+    normalized_provider = _norm_engine_id(provider)
+    if normalized_kind == "stt":
+        if normalized_provider in {"whisper", "local"}:
+            return "faster-whisper"
+        if normalized_provider in {"transformers", "hf", "hf-asr"}:
+            return "transformers-asr"
+    return normalized_provider
+
+
+def _normalize_support_levels(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        text = str(value).strip()
+        return (text,) if text else ()
+    return tuple(str(item) for item in list(value or ()) if str(item).strip())
+
+
 def _known_cloning_provider_ids() -> list[str]:
     return _ordered_provider_ids(
         ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
@@ -2024,13 +2061,15 @@ class _VoiceCapability(_BaseVoice):
         return {}
 
     def list_models(self, *, kind: str = "tts", provider: Optional[str] = None) -> list[str]:
-        """List provider-filtered models for TTS/STT discovery."""
+        """List provider-filtered models for TTS/STT/cloning discovery."""
         normalized_kind = str(kind or "tts").strip().lower()
         if normalized_kind == "tts":
             return self.list_tts_models(provider=provider)
         if normalized_kind == "stt":
             return self.list_stt_models(provider=provider)
-        raise ValueError("kind must be 'tts' or 'stt'")
+        if normalized_kind == "cloning":
+            return self.list_cloning_models(provider=provider)
+        raise ValueError("kind must be 'tts', 'stt', or 'cloning'")
 
     def list_profiles(self, *, kind: str = "tts") -> list[Dict[str, Any]]:
         """List active-engine voice profiles through the plugin boundary."""
@@ -2113,6 +2152,31 @@ class _VoiceCapability(_BaseVoice):
             model_ids.extend(_stt_model_ids_for_provider("transformers-asr"))
         return _dedupe_strings(model_ids)
 
+    def list_cloning_models(self, provider: Optional[str] = None) -> list[str]:
+        """List deduplicated cloning model ids from the central compatibility catalog."""
+        provider_id, requested_model = _resolve_cloning_provider_request(provider)
+        if requested_model:
+            return [requested_model]
+
+        catalog = self.compatibility_catalog()
+        cloning_providers = catalog.get("providers", {}).get("cloning", {})
+        if provider_id:
+            entry = cloning_providers.get(provider_id, {})
+            models = [
+                str(model_name)
+                for model_name in dict(entry.get("models") or {}).keys()
+                if str(model_name).strip() and str(model_name).strip() != "*"
+            ]
+            return _dedupe_strings(models)
+
+        model_ids: list[str] = []
+        for entry in dict(cloning_providers or {}).values():
+            for model_name in dict(entry.get("models") or {}).keys():
+                text = str(model_name or "").strip()
+                if text and text != "*":
+                    model_ids.append(text)
+        return _dedupe_strings(model_ids)
+
     def list_tts_voices(
         self,
         *,
@@ -2155,6 +2219,131 @@ class _VoiceCapability(_BaseVoice):
     ) -> list[Dict[str, Any]]:
         """Alias for provider/model-filtered TTS voice discovery."""
         return self.list_tts_voices(provider=provider, model=model, include_clones=include_clones)
+
+    def get_capability_support(
+        self,
+        *,
+        kind: str,
+        feature: str,
+        provider: str,
+        model: Optional[str] = None,
+        surface: str = "default",
+    ) -> Optional[Dict[str, Any]]:
+        """Return support metadata for one feature/provider/model/surface selection."""
+        vm = self._get_vm()
+        try:
+            if hasattr(vm, "get_capability_support"):
+                support = vm.get_capability_support(
+                    kind=str(kind),
+                    feature=str(feature),
+                    provider=str(provider),
+                    model=model,
+                    surface=str(surface),
+                )
+                if isinstance(support, dict):
+                    return dict(support)
+        except Exception:
+            pass
+
+        catalog = self.compatibility_catalog()
+        provider_record = (
+            catalog.get("providers", {})
+            .get(str(kind or "").strip().lower(), {})
+            .get(_norm_compat_provider_id(kind, provider), {})
+        )
+        if not isinstance(provider_record, dict):
+            return None
+        model_key = str(model).strip() if isinstance(model, str) and model.strip() else "*"
+        model_record = dict(provider_record.get("models") or {}).get(model_key)
+        if not isinstance(model_record, dict) and model_key != "*":
+            model_record = dict(provider_record.get("models") or {}).get("*")
+        if isinstance(model_record, dict):
+            features = dict(dict(model_record.get("surfaces") or {}).get(str(surface or "default"), {}) or {})
+            support = features.get(str(feature or "").strip())
+            if isinstance(support, dict):
+                return dict(support)
+        features = dict(dict(provider_record.get("default_surfaces") or {}).get(str(surface or "default"), {}) or {})
+        support = features.get(str(feature or "").strip())
+        if isinstance(support, dict):
+            return dict(support)
+        return None
+
+    def find_compatible_models(
+        self,
+        *,
+        kind: str,
+        feature: str,
+        surface: str = "default",
+        support_in: Any = ("native", "emulated", "conditional"),
+    ) -> list[Dict[str, Any]]:
+        """Find provider/model pairs that support a feature on the requested surface."""
+        vm = self._get_vm()
+        support_levels = _normalize_support_levels(support_in)
+        try:
+            if hasattr(vm, "find_compatible_models"):
+                matches = vm.find_compatible_models(
+                    kind=str(kind),
+                    feature=str(feature),
+                    surface=str(surface),
+                    support_in=support_levels,
+                )
+                if isinstance(matches, list):
+                    return [dict(item) for item in matches if isinstance(item, dict)]
+        except Exception:
+            pass
+
+        normalized_kind = str(kind or "").strip().lower()
+        wanted = set(support_levels)
+        out: list[Dict[str, Any]] = []
+        providers = self.compatibility_catalog().get("providers", {}).get(normalized_kind, {})
+        for provider_name, provider_record in dict(providers or {}).items():
+            models = dict(dict(provider_record).get("models") or {})
+            matched_model = False
+            for model_name in list(models.keys()):
+                if str(model_name).strip() == "*":
+                    continue
+                support = self.get_capability_support(
+                    kind=normalized_kind,
+                    provider=str(provider_name),
+                    model=str(model_name),
+                    surface=str(surface),
+                    feature=str(feature),
+                )
+                if not isinstance(support, dict) or str(support.get("support") or "") not in wanted:
+                    continue
+                matched_model = True
+                out.append(
+                    {
+                        "kind": normalized_kind,
+                        "provider": str(provider_name),
+                        "model": str(model_name),
+                        "surface": str(surface),
+                        "feature": str(feature),
+                        "support": dict(support),
+                    }
+                )
+            if matched_model:
+                continue
+            support = self.get_capability_support(
+                kind=normalized_kind,
+                provider=str(provider_name),
+                model=None,
+                surface=str(surface),
+                feature=str(feature),
+            )
+            if not isinstance(support, dict) or str(support.get("support") or "") not in wanted:
+                continue
+            out.append(
+                {
+                    "kind": normalized_kind,
+                    "provider": str(provider_name),
+                    "model": None,
+                    "surface": str(surface),
+                    "feature": str(feature),
+                    "support": dict(support),
+                }
+            )
+        return out
 
     def voice_catalog(self) -> Dict[str, Any]:
         """Return JSON-safe profile/model discovery data for Core/Gateway."""

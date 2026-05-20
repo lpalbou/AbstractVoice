@@ -10,6 +10,20 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.10] - 2026-05-20
+
+### Added
+- Made cloning a first-class model/capability discovery surface in the
+  AbstractCore plugin via `list_models(kind="cloning", ...)`,
+  `list_cloning_models(...)`, `get_capability_support(...)`, and
+  `find_compatible_models(...)`, all backed by the central
+  `voice_model_capabilities.json` matrix.
+
+### Changed
+- Updated the public plugin docs in `README.md`, `docs/api.md`, `llms.txt`,
+  and `llms-full.txt` so TTS, STT, and cloning discovery/capability queries are
+  documented from the same package-owned compatibility surface.
+
 ## [0.10.9] - 2026-05-20
 
 ### Fixed

@@ -368,14 +368,17 @@ Audio outputs can optionally be stored into an AbstractRuntime-like `artifact_st
 The voice backend also exposes thin catalog discovery methods for Core/Gateway
 integration code:
 - `list_profiles(kind="tts") -> list[dict]`
-- `list_models(kind="tts"|"stt", provider: str | None = None) -> list[str]`
+- `list_models(kind="tts"|"stt"|"cloning", provider: str | None = None) -> list[str]`
 - `list_tts_models(provider: str | None = None) -> list[str]`
 - `list_stt_models(provider: str | None = None) -> list[str]`
+- `list_cloning_models(provider: str | None = None) -> list[str]`
 - `list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True) -> list[dict]`
 - `list_cloned_voices(provider: str | None = None, model: str | None = None) -> list[dict]`
 - `list_voices(...) -> list[dict]` (alias of `list_tts_voices(...)`)
 - `available_providers() -> {tts, stt, cloning, providers, details}`
 - `compatibility_catalog() -> {version, providers}`
+- `get_capability_support(kind, feature, provider, model=None, surface="default") -> dict | None`
+- `find_compatible_models(kind, feature, surface="default", support_in=("native","emulated","conditional")) -> list[dict]`
 - `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}`
 - `voice_catalog()` also includes additive capability metadata:
   - `controls`: legacy control map kept backward-compatible for existing clients
@@ -432,9 +435,12 @@ AbstractCore/Gateway:
 
 The lighter helper methods are convenience views over that same abstraction:
 - `available_providers()` for provider selectors
-- `list_models(...)` / `list_tts_models(...)` / `list_stt_models(...)` for
-  model selectors
+- `list_models(...)` / `list_tts_models(...)` / `list_stt_models(...)` /
+  `list_cloning_models(...)` for model selectors
 - `list_tts_voices(...)` / `list_cloned_voices(...)` for voice selectors
+- `get_capability_support(...)` / `find_compatible_models(...)` for
+  provider-model-surface capability filtering across `tts`, `stt`, and
+  `cloning`
 
 For both TTS and STT, the plugin accepts either split fields or combined
 `provider:model` selectors. AbstractCore callers may pass separate arguments
