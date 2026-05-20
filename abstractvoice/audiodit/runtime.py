@@ -15,7 +15,7 @@ from typing import Any, Iterable
 import numpy as np
 
 from ..audio.resample import linear_resample_mono
-from ..compute import best_torch_device
+from ..compute import resolve_torch_runtime
 
 
 _RE_QUOTE = re.compile(r"""["“”‘’]""")
@@ -286,6 +286,8 @@ class AudioDiTRuntime:
         self._tokenizer = None
         self._resolved_device: str | None = None
         self._resolved_dtype: str | None = None
+        self._used_fallback = False
+        self._fallback_reason: str | None = None
 
     def runtime_info(self) -> dict[str, Any]:
         return {
@@ -295,13 +297,22 @@ class AudioDiTRuntime:
             "resolved_device": self._resolved_device,
             "requested_dtype": self._dtype_pref,
             "resolved_dtype": self._resolved_dtype,
+            "used_fallback": bool(self._used_fallback),
+            "fallback_reason": self._fallback_reason,
             "allow_downloads": bool(self.allow_downloads),
         }
 
-    def _resolve_device(self) -> str:
-        if self._device_pref and self._device_pref != "auto":
-            return str(self._device_pref)
-        return best_torch_device()
+    def _resolve_runtime(self):
+        runtime = resolve_torch_runtime(
+            device=str(self._device_pref or "auto"),
+            dtype_name=self._dtype_pref,
+            allow_cpu_fallback=str(self._device_pref or "auto") == "auto",
+        )
+        self._resolved_device = str(runtime.resolved_device)
+        self._resolved_dtype = str(runtime.resolved_dtype_name)
+        self._used_fallback = bool(runtime.used_fallback)
+        self._fallback_reason = runtime.fallback_reason
+        return runtime
 
     def _ensure_loaded(self) -> None:
         if self._model is not None and self._tokenizer is not None and self._resolved_device is not None:
@@ -333,20 +344,11 @@ class AudioDiTRuntime:
         # Import model code only when needed (avoids heavy deps in base install).
         from .modeling_audiodit import AudioDiTModel
 
-        device = self._resolve_device()
-        self._resolved_device = device
-        try:
-            from ..compute import resolve_torch_dtype
-
-            dt = resolve_torch_dtype(device=str(device), dtype_name=self._dtype_pref)
-            # Record for runtime_info/debug.
-            try:
-                self._resolved_dtype = str(getattr(dt, "__repr__", lambda: str(dt))()).replace("torch.", "")
-            except Exception:
-                self._resolved_dtype = str(dt).replace("torch.", "")
-        except Exception:
-            dt = None
-            self._resolved_dtype = None
+        runtime = self._resolve_runtime()
+        device = str(runtime.resolved_device)
+        dt = runtime.torch_dtype
+        if runtime.used_fallback and runtime.fallback_reason:
+            warnings.warn(runtime.fallback_reason, RuntimeWarning)
 
         local_only = not bool(self.allow_downloads)
         old_hf_offline = os.environ.get("HF_HUB_OFFLINE")
@@ -399,16 +401,27 @@ class AudioDiTRuntime:
                     model.to(device=device, dtype=dt)
                 else:
                     model.to(device)
-            except Exception:
-                # Best-effort: if move fails, keep on CPU.
-                model.to("cpu")
+            except Exception as e:
+                cpu_runtime = resolve_torch_runtime(
+                    device="cpu",
+                    dtype_name="float32",
+                    allow_cpu_fallback=False,
+                )
+                model.to(device="cpu", dtype=cpu_runtime.torch_dtype)
                 self._resolved_device = "cpu"
+                self._resolved_dtype = str(cpu_runtime.resolved_dtype_name)
+                self._used_fallback = True
+                self._fallback_reason = (
+                    f"AudioDiT failed to move the model to '{device}': {e}. "
+                    "Falling back to CPU."
+                )
+                warnings.warn(str(self._fallback_reason), RuntimeWarning)
                 device = "cpu"
-                # Dtype remains whatever `from_pretrained` loaded.
+                dt = cpu_runtime.torch_dtype
 
             # VAE runs in fp16 in upstream (matching original).
             try:
-                if hasattr(model, "vae") and hasattr(model.vae, "to_half"):
+                if device != "cpu" and hasattr(model, "vae") and hasattr(model.vae, "to_half"):
                     model.vae.to_half()
             except Exception:
                 pass

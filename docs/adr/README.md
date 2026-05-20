@@ -23,6 +23,9 @@ the policy changes.
 - [ADR 0006](./0006_voice_overlays_are_package_owned_not_generic_adapters.md) — Accepted.
   Keeps provider/model/profile/voice/quality/residency semantics package-owned
   rather than flattening them into a generic adapter metaphor.
+- [ADR 0007](./0007_directed_speech_requests_and_planning_are_package_owned.md) — Accepted.
+  Defines the package-owned directed speech contract, explicit capability
+  degradation, and the planning boundary that stays inside AbstractVoice.
 
 ## Working rules
 

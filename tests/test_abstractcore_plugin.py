@@ -350,6 +350,159 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models(monkeyp
     assert "openai:gpt-4o-transcribe" in catalog["stt_catalog_by_provider"]["openai"]["model_variants"]
 
 
+def test_voice_capability_catalog_controls_reflect_vm_tts_capabilities():
+    from abstractvoice.speech_request import SpeechCapabilities, SpeechCapability
+
+    class _Adapter:
+        engine_id = "audiodit"
+        model_id = "dramatic-local"
+
+    class _VM:
+        tts_adapter = _Adapter()
+        stt_engine = "faster-whisper"
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return []
+
+        def list_available_models(self):
+            return {}
+
+        def get_tts_capabilities(self):
+            return SpeechCapabilities(
+                fields={
+                    "speed": SpeechCapability(
+                        name="speed",
+                        support="unsupported",
+                        reason="speed changes are disabled for this engine",
+                    ),
+                    "pace": SpeechCapability(
+                        name="pace",
+                        support="unsupported",
+                        reason="directed-speech planning not wired yet",
+                    ),
+                }
+            )
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    catalog = _VoiceCapability(_Owner()).voice_catalog()
+
+    assert catalog["speech_request_contract"] == "speech_request_v1"
+    assert "compatibility_catalog" in catalog
+    assert catalog["controls"]["speed"] == {"supported": True, "min": 0.5, "max": 2.0, "default": 1.0}
+    assert catalog["controls"]["quality_preset"]["supported"] is True
+    assert "pace" not in catalog["controls"]
+    assert catalog["tts_capabilities"]["speed"]["support"] == "unsupported"
+    assert catalog["tts_capabilities"]["speed"]["reason"] == "speed changes are disabled for this engine"
+    assert catalog["tts_capabilities"]["pace"]["support"] == "unsupported"
+    assert catalog["tts_capabilities"]["pace"]["reason"] == "directed-speech planning not wired yet"
+
+
+def test_voice_catalog_filters_unavailable_local_stt_providers(monkeypatch):
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setattr(
+        "abstractvoice.integrations.abstractcore_plugin._local_stt_engine_available",
+        lambda _engine: False,
+    )
+
+    class _Adapter:
+        engine_id = "openai"
+        model_id = "gpt-active-tts"
+
+    class _VM:
+        tts_adapter = _Adapter()
+        stt_engine = "openai"
+        stt_model = "gpt-active-stt"
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return []
+
+        def list_available_models(self):
+            return {}
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    catalog = _VoiceCapability(_Owner()).voice_catalog()
+
+    assert catalog["stt_providers"] == ["openai"]
+    assert "faster-whisper" not in catalog["stt_models_by_provider"]
+    assert "transformers-asr" not in catalog["stt_models_by_provider"]
+    assert "transformers-asr" in catalog["available_providers"]["known_stt_providers"]
+
+
+def test_voice_catalog_does_not_treat_unloaded_local_stt_engine_name_as_available(monkeypatch):
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setattr(
+        "abstractvoice.integrations.abstractcore_plugin._local_stt_engine_available",
+        lambda _engine: False,
+    )
+
+    class _Adapter:
+        engine_id = "openai"
+        model_id = "gpt-active-tts"
+
+    class _VM:
+        tts_adapter = _Adapter()
+        stt_engine = "transformers-asr"
+        stt_model = "openai/whisper-large-v3"
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return []
+
+        def list_available_models(self):
+            return {}
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    cap = _VoiceCapability(_Owner())
+    catalog = cap.voice_catalog()
+    models = cap.list_stt_models()
+
+    assert catalog["available_stt_providers"] == []
+    assert "transformers-asr" not in catalog["stt_providers"]
+    assert "transformers-asr" not in catalog["stt_models_by_provider"]
+    assert "openai/whisper-large-v3" in models
+    assert "Qwen/Qwen3-ASR-1.7B" not in models
+
+
+def test_voice_capability_tts_forwards_instructions_to_vm():
+    seen: dict[str, object] = {}
+
+    class _VM:
+        def speak_to_bytes(self, text: str, format: str = "wav", voice=None, instructions=None):
+            seen.update(
+                {
+                    "text": text,
+                    "format": format,
+                    "voice": voice,
+                    "instructions": instructions,
+                }
+            )
+            return b"RIFF....WAVE"
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    out = _VoiceCapability(_Owner()).tts(
+        "hello",
+        instructions="speak softly",
+    )
+
+    assert out.startswith(b"RIFF")
+    assert seen == {
+        "text": "hello",
+        "format": "wav",
+        "voice": None,
+        "instructions": "speak softly",
+    }
+
+
 def test_voice_capability_provider_filtered_model_and_voice_discovery(monkeypatch):
     from abstractvoice.voice_profiles import VoiceProfile
 
@@ -424,6 +577,62 @@ def test_voice_capability_provider_filtered_model_and_voice_discovery(monkeypatc
     piper_no_clones = cap.list_tts_voices(provider="piper", model="en_US-amy-medium.onnx", include_clones=False)
     assert {item.get("profile_id") for item in piper_no_clones} == {"amy"}
     assert cap.list_cloned_voices(provider="openai", model="gpt-active-tts")[0]["voice_id"] == "clone_openai"
+
+
+def test_voice_catalog_keeps_remote_clones_when_base_tts_is_local(monkeypatch):
+    from abstractvoice.voice_profiles import VoiceProfile
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("ABSTRACTVOICE_OPENAI_VOICE_CREATE_PATH", "/v1/voices")
+    monkeypatch.setattr(
+        "abstractvoice.integrations.abstractcore_plugin._catalog_safe_local_tts_engines",
+        lambda: [],
+    )
+
+    class _Adapter:
+        engine_id = "piper"
+        model_id = "en_US-amy-medium.onnx"
+
+    class _VM:
+        tts_adapter = _Adapter()
+        stt_engine = "openai"
+        stt_model = "gpt-active-stt"
+
+        def get_profiles(self, *, kind="tts"):
+            assert kind == "tts"
+            return [
+                VoiceProfile(
+                    engine_id="piper",
+                    profile_id="amy",
+                    label="Amy",
+                    params={"voice": "amy", "model": "en_US-amy-medium.onnx"},
+                ),
+            ]
+
+        def list_available_models(self):
+            return {
+                "en": {
+                    "amy": {"model_filename": "en_US-amy-medium.onnx", "cached": True},
+                }
+            }
+
+        def list_cloned_voices(self):
+            return [
+                {"voice_id": "clone_openai", "name": "OpenAI Clone", "engine": "openai"},
+            ]
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    catalog = _VoiceCapability(_Owner()).voice_catalog()
+
+    assert "openai" in catalog["available_cloning_providers"]
+    assert "clone_openai" in {item["voice_id"] for item in catalog["cloned_voices"]}
+    assert "clone_openai" in {
+        item["voice_id"]
+        for item in catalog["tts_catalog_by_provider"]["openai"]["cloned_voices"]
+    }
 
 
 def test_voice_capability_catalog_surfaces_stt_alias_variants(monkeypatch):

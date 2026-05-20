@@ -43,6 +43,12 @@ The maintainership preference for AbstractVoice is to **avoid vendoring external
 
 ## Current Code Reality
 
+- This branch now has a package-owned directed-speech/request seam in:
+  - `abstractvoice/speech_request.py`
+  - `abstractvoice/vm/tts_mixin.py`
+- This branch now also has a shared torch runtime and explicit fallback seam in:
+  - `abstractvoice/compute/torch_runtime.py`
+  - multiple heavy engine runtimes that already reuse it
 - AbstractVoice base/local TTS engines are selected through `abstractvoice/adapters/tts_registry.py`.
 - Optional cloning engines are loaded lazily through `abstractvoice/cloning/manager.py`.
 - Heavy engines already live behind explicit extras in `pyproject.toml` and explicit prefetch flows in:
@@ -199,6 +205,8 @@ If the answer is “no” because of version skew or missing APIs, stop and re-e
 - This is the cleanest path that respects the non-vendoring preference.
 - It matches AbstractVoice’s existing optional-heavy-engine pattern.
 - It avoids prematurely committing to a large maintenance burden before we know whether upstream packages are stable enough.
+- It now has a cleaner landing zone than it did before the branch added a
+  package-owned request/capability seam and shared torch runtime policy.
 
 ---
 

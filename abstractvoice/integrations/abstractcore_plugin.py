@@ -567,6 +567,7 @@ def _extract_stt_provider_ids(vm: Any) -> list[str]:
 
 def _extract_stt_model_ids(vm: Any) -> list[str]:
     model_ids: list[str] = []
+    adapter = getattr(vm, "stt_adapter", None)
     for key in (
         "ABSTRACTVOICE_STT_MODEL",
         "ABSTRACTVOICE_OPENAI_STT_MODEL",
@@ -577,7 +578,7 @@ def _extract_stt_model_ids(vm: Any) -> list[str]:
         if isinstance(value, str) and value.strip():
             model_ids.extend(value.split(","))
 
-    for target in (vm, getattr(vm, "stt_adapter", None)):
+    for target in (vm, adapter):
         if target is None:
             continue
         for attr in ("stt_model", "model_id", "model", "model_size", "_model_size"):
@@ -585,6 +586,11 @@ def _extract_stt_model_ids(vm: Any) -> list[str]:
             if isinstance(value, str) and value.strip():
                 model_ids.append(value.strip())
 
+    live_local_provider = _norm_engine_id(
+        getattr(adapter, "engine_id", None)
+        or getattr(adapter, "provider", None)
+        or getattr(adapter, "backend_id", None)
+    )
     engine = _norm_engine_id(
         getattr(vm, "_abstractvoice_stt_engine", None)
         or getattr(vm, "_stt_engine_name", None)
@@ -595,9 +601,13 @@ def _extract_stt_model_ids(vm: Any) -> list[str]:
     )
     if engine in {"openai", "openai-compatible", "remote"}:
         model_ids.extend(["gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"])
-    if engine in {"faster_whisper", "faster-whisper", "whisper", "local"}:
+    if engine in {"faster_whisper", "faster-whisper", "whisper", "local"} and (
+        live_local_provider == "faster-whisper" or _local_stt_engine_available("faster-whisper")
+    ):
         model_ids.extend(_stt_model_ids_for_provider("faster-whisper"))
-    if engine in {"transformers-asr", "transformers_asr", "hf", "hf-asr"}:
+    if engine in {"transformers-asr", "transformers_asr", "hf", "hf-asr"} and (
+        live_local_provider == "transformers-asr" or _local_stt_engine_available("transformers-asr")
+    ):
         model_ids.extend(_stt_model_ids_for_provider("transformers-asr"))
     return _dedupe_strings(model_ids)
 
@@ -1738,6 +1748,27 @@ class _BaseVoice:
                 return provider
         return ""
 
+    def _active_local_stt_provider_is_live(self, provider: Any) -> bool:
+        provider_id = _norm_engine_id(provider)
+        if provider_id not in {"faster-whisper", "transformers-asr"}:
+            return False
+        vm = self._vm
+        try:
+            cfg = getattr(self._owner, "config", None)
+            if vm is None and isinstance(cfg, dict):
+                vm = cfg.get("voice_manager_instance")
+        except Exception:
+            vm = self._vm
+        adapter = getattr(vm, "stt_adapter", None) if vm is not None else None
+        if adapter is None:
+            return False
+        adapter_provider = _norm_engine_id(
+            getattr(adapter, "engine_id", None)
+            or getattr(adapter, "provider", None)
+            or getattr(adapter, "backend_id", None)
+        )
+        return adapter_provider == provider_id
+
     def _available_tts_provider_ids(self) -> list[str]:
         providers: list[str] = []
         active_provider = self._active_vm_provider_id(kind="tts")
@@ -1759,7 +1790,12 @@ class _BaseVoice:
     def _available_stt_provider_ids(self) -> list[str]:
         providers: list[str] = []
         active_provider = self._active_vm_provider_id(kind="stt")
-        if active_provider in _known_stt_provider_ids():
+        if active_provider in {"openai", "openai-compatible"}:
+            providers.append(active_provider)
+        elif active_provider in {"faster-whisper", "transformers-asr"}:
+            if _local_stt_engine_available(active_provider) or self._active_local_stt_provider_is_live(active_provider):
+                providers.append(active_provider)
+        elif active_provider in _known_stt_provider_ids():
             providers.append(active_provider)
         if self._openai_provider_available():
             providers.append("openai")
@@ -1974,6 +2010,19 @@ class _VoiceCapability(_BaseVoice):
     def list_available_providers(self) -> Dict[str, Any]:
         return self.available_providers()
 
+    def compatibility_catalog(self) -> Dict[str, Any]:
+        vm = self._get_vm()
+        try:
+            if hasattr(vm, "get_compatibility_catalog"):
+                catalog = vm.get_compatibility_catalog()
+                if hasattr(catalog, "to_dict"):
+                    return dict(catalog.to_dict())
+                if isinstance(catalog, dict):
+                    return dict(catalog)
+        except Exception:
+            pass
+        return {}
+
     def list_models(self, *, kind: str = "tts", provider: Optional[str] = None) -> list[str]:
         """List provider-filtered models for TTS/STT discovery."""
         normalized_kind = str(kind or "tts").strip().lower()
@@ -2058,8 +2107,10 @@ class _VoiceCapability(_BaseVoice):
             pass
         for engine in self._configured_remote_stt_engines():
             model_ids.extend(self._configured_stt_model_ids(engine))
-        model_ids.extend(_stt_model_ids_for_provider("faster-whisper"))
-        model_ids.extend(_stt_model_ids_for_provider("transformers-asr"))
+        if _local_stt_engine_available("faster-whisper") or self._active_local_stt_provider_is_live("faster-whisper"):
+            model_ids.extend(_stt_model_ids_for_provider("faster-whisper"))
+        if _local_stt_engine_available("transformers-asr") or self._active_local_stt_provider_is_live("transformers-asr"):
+            model_ids.extend(_stt_model_ids_for_provider("transformers-asr"))
         return _dedupe_strings(model_ids)
 
     def list_tts_voices(
@@ -2122,6 +2173,11 @@ class _VoiceCapability(_BaseVoice):
         stt_models = _extract_stt_model_ids(vm)
         tts_providers = _extract_tts_provider_ids(vm, catalog, profiles)
         stt_providers = _extract_stt_provider_ids(vm)
+        live_local_stt_provider = _norm_engine_id(
+            getattr(getattr(vm, "stt_adapter", None), "engine_id", None)
+            or getattr(getattr(vm, "stt_adapter", None), "provider", None)
+            or getattr(getattr(vm, "stt_adapter", None), "backend_id", None)
+        )
         catalogs: Dict[str, Any] = {}
         active_engine = _norm_engine_id(tts_providers[0] if tts_providers else getattr(vm, "_abstractvoice_tts_engine", None))
         if active_engine:
@@ -2189,10 +2245,20 @@ class _VoiceCapability(_BaseVoice):
 
         profiles = _dedupe_voice_records(_json_safe(profiles))
 
-        stt_providers.append("faster-whisper")
-        stt_models.extend(_stt_model_ids_for_provider("faster-whisper"))
-        stt_providers.append("transformers-asr")
-        stt_models.extend(_stt_model_ids_for_provider("transformers-asr"))
+        available_stt_provider_ids = set(_dedupe_provider_ids(available_providers.get("stt") or []))
+        available_cloning_provider_ids = set(_dedupe_provider_ids(available_providers.get("cloning") or []))
+        stt_providers = [
+            provider
+            for provider in stt_providers
+            if _norm_engine_id(provider) not in {"faster-whisper", "transformers-asr"}
+            or _norm_engine_id(provider) in available_stt_provider_ids
+            or _norm_engine_id(provider) == live_local_stt_provider
+        ]
+        for local_stt_provider in ("faster-whisper", "transformers-asr"):
+            if local_stt_provider not in available_stt_provider_ids:
+                continue
+            stt_providers.append(local_stt_provider)
+            stt_models.extend(_stt_model_ids_for_provider(local_stt_provider))
 
         for engine in self._configured_remote_stt_engines():
             stt_providers.append(engine)
@@ -2225,7 +2291,17 @@ class _VoiceCapability(_BaseVoice):
                                 or getattr(vm, "tts_engine", None)
                                 or active_engine
                             )
-                            if clone_engine and not _engine_runtime_available(clone_engine, tts_providers):
+                            clone_engine_available = bool(
+                                clone_engine
+                                and (
+                                    clone_engine in {"openai", "openai-compatible"}
+                                    and (
+                                        clone_engine in available_cloning_provider_ids
+                                        or clone_engine in _dedupe_provider_ids(tts_providers)
+                                    )
+                                )
+                            )
+                            if clone_engine and not clone_engine_available and not _engine_runtime_available(clone_engine, tts_providers):
                                 continue
                             if clone_engine:
                                 tts_providers.append(clone_engine)
@@ -2257,7 +2333,17 @@ class _VoiceCapability(_BaseVoice):
                             or getattr(vm, "tts_engine", None)
                             or active_engine
                         )
-                        if clone_engine and not _engine_runtime_available(clone_engine, tts_providers):
+                        clone_engine_available = bool(
+                            clone_engine
+                            and (
+                                clone_engine in {"openai", "openai-compatible"}
+                                and (
+                                    clone_engine in available_cloning_provider_ids
+                                    or clone_engine in _dedupe_provider_ids(tts_providers)
+                                )
+                            )
+                        )
+                        if clone_engine and not clone_engine_available and not _engine_runtime_available(clone_engine, tts_providers):
                             continue
                         if clone_engine:
                             tts_providers.append(clone_engine)
@@ -2312,7 +2398,9 @@ class _VoiceCapability(_BaseVoice):
             _add_provider_value(tts_profiles_by_provider, clone_provider, _profile_id(clone))
 
         stt_models_by_provider: dict[str, list[str]] = {provider: [] for provider in stt_providers}
-        active_stt_provider = self._active_vm_provider_id(kind="stt") or (stt_providers[0] if stt_providers else "")
+        active_stt_provider = self._active_vm_provider_id(kind="stt")
+        if _norm_engine_id(active_stt_provider) not in stt_models_by_provider:
+            active_stt_provider = stt_providers[0] if stt_providers else ""
         for model_id in _extract_stt_model_ids(vm):
             _add_provider_value(stt_models_by_provider, active_stt_provider, model_id)
         for engine in self._configured_remote_stt_engines():
@@ -2398,6 +2486,35 @@ class _VoiceCapability(_BaseVoice):
                 "formats": _stt_formats_for_provider(provider_id),
             }
 
+        controls: Dict[str, Any] = {
+            "speed": {"supported": True, "min": 0.5, "max": 2.0, "default": 1.0},
+            "quality_preset": {"supported": True, "values": ["low", "standard", "high"], "default": "standard"},
+            "instructions": {"supported": True},
+            "profile": {"supported": True},
+            "voice_clone": {"supported": True},
+        }
+        try:
+            raw_tts_capabilities = vm.get_tts_capabilities() if hasattr(vm, "get_tts_capabilities") else None
+        except Exception:
+            raw_tts_capabilities = None
+        if raw_tts_capabilities is not None:
+            try:
+                capability_items = raw_tts_capabilities.to_dict() if hasattr(raw_tts_capabilities, "to_dict") else raw_tts_capabilities
+            except Exception:
+                capability_items = {}
+            if not isinstance(capability_items, dict):
+                capability_items = {}
+        else:
+            capability_items = {}
+
+        tts_capabilities = {
+            key: {
+                "support": str(value.get("support") or "unsupported"),
+                "reason": value.get("reason"),
+            }
+            for key, value in dict(capability_items or {}).items()
+            if isinstance(value, dict)
+        }
         raw_engine_id = getattr(adapter, "engine_id", None) or getattr(vm, "_tts_engine_name", None)
         engine_id = _norm_engine_id(raw_engine_id) if raw_engine_id else None
         return {
@@ -2429,13 +2546,10 @@ class _VoiceCapability(_BaseVoice):
             "stt_catalog_by_provider": stt_catalog_by_provider,
             "tts_formats_by_provider": {provider: _tts_formats_for_provider(provider) for provider in tts_providers},
             "stt_formats_by_provider": {provider: _stt_formats_for_provider(provider) for provider in stt_providers},
-            "controls": {
-                "speed": {"supported": True, "min": 0.5, "max": 2.0, "default": 1.0},
-                "quality_preset": {"supported": True, "values": ["low", "standard", "high"], "default": "standard"},
-                "instructions": {"supported": True},
-                "profile": {"supported": True},
-                "voice_clone": {"supported": True},
-            },
+            "controls": controls,
+            "tts_capabilities": tts_capabilities,
+            "speech_request_contract": "speech_request_v1",
+            "compatibility_catalog": self.compatibility_catalog(),
             "catalog": _json_safe(catalog),
             "catalogs": catalogs,
         }
@@ -2482,6 +2596,7 @@ class _VoiceCapability(_BaseVoice):
                 voice_name = str(voice).strip()
             voice_name = voice_name or None
             quality_preset = str(_kwargs.get("quality_preset") or _kwargs.get("quality") or "").strip()
+            instructions_value = str(_kwargs.get("instructions") or "").strip()
             speed_value = _kwargs.get("speed")
             provider_id = _norm_engine_id(
                 provider_id
@@ -2574,11 +2689,23 @@ class _VoiceCapability(_BaseVoice):
                             applied_profile = False
                     except Exception:
                         applied_profile = False
-                audio = vm.speak_to_bytes(
-                    str(text),
-                    format=str(format),
-                    voice=None if applied_profile or piper_voice_is_profile else voice_name,
-                )
+                speak_kwargs = {
+                    "format": str(format),
+                    "voice": None if applied_profile or piper_voice_is_profile else voice_name,
+                }
+                if instructions_value:
+                    try:
+                        audio = vm.speak_to_bytes(
+                            str(text),
+                            instructions=instructions_value,
+                            **speak_kwargs,
+                        )
+                    except TypeError as e:
+                        if "instructions" not in str(e):
+                            raise
+                        audio = vm.speak_to_bytes(str(text), **speak_kwargs)
+                else:
+                    audio = vm.speak_to_bytes(str(text), **speak_kwargs)
             finally:
                 if applied_profile and old_profile_id and hasattr(vm, "set_profile"):
                     try:

@@ -375,7 +375,13 @@ integration code:
 - `list_cloned_voices(provider: str | None = None, model: str | None = None) -> list[dict]`
 - `list_voices(...) -> list[dict]` (alias of `list_tts_voices(...)`)
 - `available_providers() -> {tts, stt, cloning, providers, details}`
+- `compatibility_catalog() -> {version, providers}`
 - `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}`
+- `voice_catalog()` also includes additive capability metadata:
+  - `controls`: legacy control map kept backward-compatible for existing clients
+  - `tts_capabilities`: richer per-field support truth (`native|emulated|conditional|unsupported`) for newer clients
+  - `speech_request_contract`: current request contract id (currently `"speech_request_v1"`)
+  - `compatibility_catalog`: package-owned provider/model feature matrix across `tts`, `stt`, and `cloning`
 - `tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -> bytes | artifact_ref`
 - `stt(audio, *, provider=None, model=None, language=None, ...) -> str`
 - `transcribe(audio, *, provider=None, model=None, language=None, ...) -> str`
@@ -407,6 +413,22 @@ AbstractCore/Gateway:
   `voices`, `profiles`, `cloned_voices`, `voices_by_model`, and `formats`
 - `stt_catalog_by_provider[provider]` contains `models`, `model_variants`, and
   `formats`
+- `controls` remains the legacy compatibility surface for control discovery
+  and still uses simple `supported` booleans for fields such as `speed`,
+  `quality_preset`, `instructions`, `profile`, and `voice_clone`
+- `tts_capabilities` is the newer truthful capability map for engine-aware
+  clients and reports `support` plus optional `reason` per field
+  - support values may be `native`, `emulated`, `conditional`, or `unsupported`
+  - `conditional` means AbstractVoice forwards or orchestrates the feature, but
+    actual backend support can still vary by provider or endpoint
+- `speech_request_contract` versions the richer package-owned request shape
+  without forcing older clients to understand it
+- `compatibility_catalog` is the central matrix for provider/model capability
+  queries across `tts`, `stt`, and `cloning`
+  - each provider entry can define provider-wide defaults plus explicit model
+    records
+  - feature support is surface-specific, for example `tts.bytes` vs
+    `tts.playback`
 
 The lighter helper methods are convenience views over that same abstraction:
 - `available_providers()` for provider selectors

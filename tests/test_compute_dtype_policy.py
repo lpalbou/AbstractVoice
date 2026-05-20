@@ -7,6 +7,7 @@ def test_best_torch_dtype_name_defaults():
     assert best_torch_dtype_name(device="cpu") == "float32"
     assert best_torch_dtype_name(device="mps") == "float16"
     assert best_torch_dtype_name(device="cuda") == "bfloat16"
+    assert best_torch_dtype_name(device="cuda:1") == "bfloat16"
 
 
 def test_best_torch_dtype_name_env_override(monkeypatch: pytest.MonkeyPatch):

@@ -10,6 +10,39 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-05-20
+
+### Added
+- Added a central provider/model capability catalog backed by
+  `abstractvoice/assets/voice_model_capabilities.json`, with query helpers on
+  `VoiceManager` for TTS, STT, and cloning compatibility by provider, model,
+  surface, and feature.
+- Added package-owned `SpeechRequest` and `SpeechCapabilities` types plus new
+  additive AbstractCore/plugin catalog fields such as `tts_capabilities`,
+  `speech_request_contract`, and `compatibility_catalog`.
+- Added shared torch runtime policy helpers and focused tests for device/dtype
+  resolution and explicit accelerator fallback reporting.
+
+### Changed
+- Made TTS capability reporting provider/model-aware and surface-aware, while
+  keeping legacy `voice_catalog()["controls"]` stable for older clients.
+- Wired capability enforcement into more runtime paths so unsupported controls
+  such as `instructions`, `speed`, `profile`, and `quality_preset` are no
+  longer blindly forwarded when the active provider/model cannot honor them.
+- Refined the Scenema and DramaBox backlog/ADR track so future advanced speech
+  engines build on the same package-owned request and compatibility foundation.
+
+### Fixed
+- Forwarded TTS `instructions` correctly through the AbstractCore plugin path
+  without breaking older `VoiceManager` call sites.
+- Preserved explicit accelerator selections such as `cuda:1`, made
+  `dtype=\"auto\"` and stale dtype values degrade safely, and limited CPU retry
+  fallback to likely device/backend failures instead of masking generic load
+  errors.
+- Corrected capability inventory and runtime handling for remote STT models and
+  cloning speed support, including consistent clone-speed gating across bytes,
+  buffered playback, and chunked streaming.
+
 ## [0.10.5] - 2026-05-19
 
 ### Added

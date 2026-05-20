@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 
 from ..audio.resample import linear_resample_mono
-from ..compute import best_torch_device, resolve_torch_dtype
+from ..compute import looks_like_torch_device_error, resolve_torch_runtime
 from .base import STTAdapter
 
 
@@ -192,18 +192,60 @@ class TransformersASRAdapter(STTAdapter):
             self._trust_remote_code = False
 
         self._current_language: str | None = None
+        self._resolved_device: str | None = None
+        self._resolved_dtype: str | None = None
+        self._used_fallback = False
+        self._fallback_reason: str | None = None
+        self._load_error: str | None = None
 
         # Best-effort eager load so `is_available()` is meaningful right away.
         try:
             self._ensure_loaded()
-        except Exception:
+        except Exception as e:
             # Offline-first: missing cached weights is a normal outcome when allow_downloads=False.
+            self._load_error = str(e)
             self._available = False
 
-    def _resolve_device(self) -> str:
-        if self._device_pref and self._device_pref != "auto":
-            return self._device_pref
-        return best_torch_device()
+    def _resolve_runtime(self):
+        return resolve_torch_runtime(
+            device=str(self._device_pref or "auto"),
+            dtype_name=self._dtype_pref,
+            allow_cpu_fallback=str(self._device_pref or "auto") == "auto",
+        )
+
+    def _capture_model_runtime(self, model: Any) -> None:
+        if model is None or not hasattr(model, "parameters"):
+            return
+        try:
+            first_param = next(iter(model.parameters()), None)
+        except Exception:
+            first_param = None
+        if first_param is None:
+            return
+        try:
+            if hasattr(first_param, "device"):
+                self._resolved_device = str(first_param.device)
+        except Exception:
+            pass
+        try:
+            if hasattr(first_param, "dtype"):
+                self._resolved_dtype = str(first_param.dtype).replace("torch.", "")
+        except Exception:
+            pass
+
+    def runtime_info(self) -> Dict[str, Any]:
+        return {
+            "requested_device": self._device_pref,
+            "resolved_device": self._resolved_device,
+            "requested_dtype": self._dtype_pref,
+            "resolved_dtype": self._resolved_dtype,
+            "used_fallback": bool(self._used_fallback),
+            "fallback_reason": self._fallback_reason,
+            "load_error": self._load_error,
+        }
+
+    def get_unavailable_reason(self) -> str | None:
+        return self._load_error
 
     def _ensure_loaded(self) -> None:
         if self._pipeline is not None or self._qwen3_model is not None:
@@ -232,19 +274,6 @@ class TransformersASRAdapter(STTAdapter):
         except Exception:
             pass
 
-        device = self._resolve_device()
-        torch_device: torch.device
-        try:
-            torch_device = torch.device(device)
-        except Exception:
-            torch_device = torch.device("cpu")
-            device = "cpu"
-
-        try:
-            torch_dtype = resolve_torch_dtype(device=str(device), dtype_name=self._dtype_pref)
-        except Exception:
-            torch_dtype = None
-
         local_only = not bool(self._allow_downloads)
         old_hf_offline = os.environ.get("HF_HUB_OFFLINE")
         old_tf_offline = os.environ.get("TRANSFORMERS_OFFLINE")
@@ -254,58 +283,73 @@ class TransformersASRAdapter(STTAdapter):
             os.environ["TRANSFORMERS_OFFLINE"] = "1"
             os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 
+        self._available = False
         try:
-            if self._use_qwen3_asr:
-                self._ensure_loaded_qwen3_asr(
-                    torch_device=torch_device,
-                    torch_dtype=torch_dtype,
-                    local_only=bool(local_only),
-                )
-                return
-
-            # Avoid noisy HF Hub token warnings when operating in local-only mode.
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message=r"^Warning: You are sending unauthenticated requests to the HF Hub\\..*",
-                )
-                warnings.filterwarnings(
-                    "ignore",
-                    message=r"^You are sending unauthenticated requests to the HF Hub\\..*",
-                )
-                pipe = pipeline(
-                    "automatic-speech-recognition",
-                    model=self._model_id,
-                    device=torch_device,
-                    dtype=torch_dtype if torch_dtype is not None else "auto",
-                    trust_remote_code=bool(self._trust_remote_code),
-                    model_kwargs={"local_files_only": bool(local_only)},
-                )
+            runtime = self._resolve_runtime()
+            self._resolved_device = str(runtime.resolved_device)
+            self._resolved_dtype = str(runtime.resolved_dtype_name)
+            self._used_fallback = bool(runtime.used_fallback)
+            self._fallback_reason = runtime.fallback_reason
+            if runtime.used_fallback and runtime.fallback_reason:
+                warnings.warn(runtime.fallback_reason)
+            torch_device = torch.device(str(runtime.resolved_device))
+            torch_dtype = runtime.torch_dtype
+            self._load_backend(
+                pipeline=pipeline,
+                torch_device=torch_device,
+                torch_dtype=torch_dtype,
+                local_only=bool(local_only),
+            )
         except Exception as e:
-            # If a Qwen3-ASR model id/path is passed, the generic ASR pipeline won't work
-            # unless the Qwen3-ASR config/model/processor are registered. We ship a local,
-            # vendored implementation for this case.
-            if not self._use_qwen3_asr and _is_qwen3_asr_model_id(self._model_id):
-                self._use_qwen3_asr = True
+            runtime = locals().get("runtime")
+            resolved_device = str(getattr(runtime, "resolved_device", "") or "").lower()
+            if not resolved_device:
+                self._load_error = str(e)
+                raise
+            if (
+                str(self._device_pref or "auto") == "auto"
+                and resolved_device
+                and resolved_device != "cpu"
+                and looks_like_torch_device_error(e, attempted_device=resolved_device)
+            ):
                 try:
-                    self._ensure_loaded_qwen3_asr(
-                        torch_device=torch_device,
-                        torch_dtype=torch_dtype,
+                    cpu_runtime = resolve_torch_runtime(
+                        device="cpu",
+                        dtype_name="float32",
+                        allow_cpu_fallback=False,
+                    )
+                    retry_reason = (
+                        f"Falling back to CPU because transformers-asr load failed on '{resolved_device}': "
+                        f"{type(e).__name__}: {e}"
+                    )
+                    warnings.warn(retry_reason)
+                    self._resolved_device = str(cpu_runtime.resolved_device)
+                    self._resolved_dtype = str(cpu_runtime.resolved_dtype_name)
+                    self._used_fallback = True
+                    self._fallback_reason = retry_reason
+                    self._load_backend(
+                        pipeline=pipeline,
+                        torch_device=torch.device(str(cpu_runtime.resolved_device)),
+                        torch_dtype=cpu_runtime.torch_dtype,
                         local_only=bool(local_only),
                     )
+                    self._load_error = None
                     return
                 except Exception:
-                    self._use_qwen3_asr = False
-                    raise
+                    pass
 
             if local_only:
-                raise RuntimeError(
+                self._load_error = (
                     "Transformers ASR model is not available locally and downloads are disabled.\n"
                     "Fix options:\n"
                     "  - Enable downloads: VoiceManager(..., allow_downloads=True)\n"
                     "  - Or prefetch explicitly: abstractvoice-prefetch --stt-hf <model_id>\n"
                     f"Model: {self._model_id}"
+                )
+                raise RuntimeError(
+                    self._load_error
                 ) from e
+            self._load_error = str(e)
             raise
         finally:
             if local_only:
@@ -322,14 +366,49 @@ class TransformersASRAdapter(STTAdapter):
                 else:
                     os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = old_disable_pb
 
-        self._pipeline = pipe
-        try:
-            sr = int(getattr(getattr(pipe, "feature_extractor", None), "sampling_rate", 16000))
-            self._target_sample_rate = sr if sr > 0 else 16000
-        except Exception:
-            self._target_sample_rate = 16000
+        self._load_error = None
+        if self._pipeline is not None:
+            try:
+                sr = int(getattr(getattr(self._pipeline, "feature_extractor", None), "sampling_rate", 16000))
+                self._target_sample_rate = sr if sr > 0 else 16000
+            except Exception:
+                self._target_sample_rate = 16000
 
         self._available = True
+
+    def _load_backend(self, *, pipeline, torch_device: Any, torch_dtype: Any, local_only: bool) -> None:
+        self._pipeline = None
+        self._qwen3_model = None
+        self._qwen3_processor = None
+
+        if self._use_qwen3_asr:
+            self._ensure_loaded_qwen3_asr(
+                torch_device=torch_device,
+                torch_dtype=torch_dtype,
+                local_only=bool(local_only),
+            )
+            return
+
+        # Avoid noisy HF Hub token warnings when operating in local-only mode.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"^Warning: You are sending unauthenticated requests to the HF Hub\\..*",
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r"^You are sending unauthenticated requests to the HF Hub\\..*",
+            )
+            pipe = pipeline(
+                "automatic-speech-recognition",
+                model=self._model_id,
+                device=torch_device,
+                dtype=torch_dtype if torch_dtype is not None else "auto",
+                trust_remote_code=bool(self._trust_remote_code),
+                model_kwargs={"local_files_only": bool(local_only)},
+            )
+        self._pipeline = pipe
+        self._capture_model_runtime(getattr(pipe, "model", None))
 
     def _ensure_loaded_qwen3_asr(self, *, torch_device: Any, torch_dtype: Any, local_only: bool) -> None:
         try:
@@ -359,17 +438,25 @@ class TransformersASRAdapter(STTAdapter):
         # when the resolved device is clearly GPU-like.
         resolved_device = str(getattr(torch_device, "type", "") or torch_device).lower()
         if resolved_device.startswith("cuda"):
-            model_kwargs["device_map"] = "cuda:0"
+            model_kwargs["device_map"] = resolved_device
         elif resolved_device.startswith("mps"):
             # MPS does not support accelerate-style device maps reliably; load then move.
             model_kwargs.pop("device_map", None)
 
         model = AutoModel.from_pretrained(self._model_id, **model_kwargs)
         try:
-            if resolved_device in {"cuda", "mps"}:
+            if resolved_device.startswith("cuda") or resolved_device.startswith("mps"):
                 model = model.to(torch_device)
-        except Exception:
-            pass
+        except Exception as e:
+            if str(self._device_pref or "auto") == "auto":
+                raise
+            warning = (
+                f"Failed to move Qwen3-ASR model to requested device '{resolved_device}': {e}. "
+                "Continuing on the model's current load device."
+            )
+            self._used_fallback = True
+            self._fallback_reason = warning
+            warnings.warn(warning, RuntimeWarning)
 
         # `fix_mistral_regex` is a Qwen3-ASR processor option; ignore if unsupported.
         processor_kwargs: dict[str, Any] = {"local_files_only": bool(local_only), "trust_remote_code": False}
@@ -381,6 +468,7 @@ class TransformersASRAdapter(STTAdapter):
 
         self._qwen3_model = model
         self._qwen3_processor = processor
+        self._capture_model_runtime(model)
         self._target_sample_rate = int(getattr(getattr(processor, "feature_extractor", None), "sampling_rate", 16000) or 16000)
         if self._target_sample_rate <= 0:
             self._target_sample_rate = 16000
@@ -566,6 +654,7 @@ class TransformersASRAdapter(STTAdapter):
                 "allow_downloads": bool(self._allow_downloads),
                 "trust_remote_code": bool(self._trust_remote_code) if not self._use_qwen3_asr else False,
                 "backend": "qwen3-asr" if self._use_qwen3_asr else "transformers-pipeline",
+                "runtime": self.runtime_info(),
             }
         )
         return info

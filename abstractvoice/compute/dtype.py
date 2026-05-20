@@ -9,6 +9,17 @@ from __future__ import annotations
 import os
 
 
+def _device_base(device: str) -> str:
+    text = str(device or "").strip().lower()
+    if text.startswith("cuda"):
+        return "cuda"
+    if text.startswith("mps"):
+        return "mps"
+    if text.startswith("xpu"):
+        return "xpu"
+    return text
+
+
 def best_torch_dtype_name(*, device: str) -> str:
     """Return a recommended torch dtype name for `device`.
 
@@ -25,7 +36,7 @@ def best_torch_dtype_name(*, device: str) -> str:
             return "float32"
         return forced
 
-    dev = str(device or "").strip().lower()
+    dev = _device_base(str(device or ""))
     if dev == "cuda":
         # Prefer bf16 on modern NVIDIA GPUs, but allow fallback.
         return "bfloat16"
@@ -47,7 +58,11 @@ def resolve_torch_dtype(*, device: str, dtype_name: str | None = None):
     except Exception as e:  # pragma: no cover
         raise RuntimeError("torch is required to resolve a torch dtype") from e
 
-    name = (dtype_name or best_torch_dtype_name(device=device)).strip().lower()
+    raw_name = (dtype_name or "").strip().lower()
+    if not raw_name or raw_name == "auto":
+        name = best_torch_dtype_name(device=device)
+    else:
+        name = raw_name
     mapping = {
         "float16": torch.float16,
         "bfloat16": torch.bfloat16,
@@ -59,7 +74,7 @@ def resolve_torch_dtype(*, device: str, dtype_name: str | None = None):
     dt = mapping[name]
 
     # CUDA bf16 support varies; fall back to fp16 if needed.
-    if str(device).strip().lower() == "cuda" and dt == torch.bfloat16:
+    if _device_base(str(device)) == "cuda" and dt == torch.bfloat16:
         try:
             if hasattr(torch.cuda, "is_bf16_supported") and not torch.cuda.is_bf16_supported():
                 return torch.float16
@@ -68,4 +83,3 @@ def resolve_torch_dtype(*, device: str, dtype_name: str | None = None):
             return dt
 
     return dt
-

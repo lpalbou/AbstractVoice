@@ -6,11 +6,14 @@ behind adapters.
 
 from __future__ import annotations
 
+from dataclasses import replace
 import threading
 import time
 
+from ..adapters.base import TTSAdapter
 from ..text_sanitize import sanitize_markdown_for_speech
 from ..adapters.tts_registry import create_tts_adapter
+from ..speech_request import SpeechCapabilities, SpeechCapability, build_speech_request
 
 def _resolve_sanitize_syntax_arg(
     sanitize_syntax: bool,
@@ -33,6 +36,45 @@ def _resolve_sanitize_syntax_arg(
 
 
 class TtsMixin:
+    def _adapter_method_overridden(self, adapter, method_name: str) -> bool:
+        if adapter is None:
+            return False
+        cls_method = getattr(type(adapter), method_name, None)
+        base_method = getattr(TTSAdapter, method_name, None)
+        return callable(cls_method) and cls_method is not base_method
+
+    def _build_speech_request(
+        self,
+        text: str,
+        *,
+        voice: str | None = None,
+        instructions: str | None = None,
+        output_format: str | None = None,
+        sanitize_syntax: bool = True,
+        speed: float | None = None,
+    ):
+        request = build_speech_request(
+            text,
+            language=str(getattr(self, "language", None) or "en"),
+            provider=(
+                getattr(self, "_tts_engine_name", None)
+                or getattr(self, "_tts_engine_preference", None)
+            ),
+            model=getattr(self, "tts_model", None),
+            voice=voice,
+            instructions=instructions,
+            speed=speed,
+            quality_preset=self.get_tts_quality_preset(),
+            output_format=output_format,
+            sanitize_syntax=bool(sanitize_syntax),
+        )
+        speech_text = str(request.text)
+        if request.sanitize_syntax:
+            speech_text = sanitize_markdown_for_speech(speech_text)
+        if speech_text != request.text:
+            request = replace(request, text=speech_text)
+        return request
+
     def _set_last_tts_metrics(self, metrics: dict | None) -> None:
         lock = getattr(self, "_last_tts_metrics_lock", None)
         if lock is None:
@@ -210,6 +252,34 @@ class TtsMixin:
             adapter = getattr(self, "tts_adapter", None)
             if adapter is None:
                 return False
+            provider_name = str(
+                getattr(adapter, "engine_id", None)
+                or getattr(adapter, "provider", None)
+                or getattr(self, "_tts_engine_name", None)
+                or getattr(self, "_tts_engine_preference", None)
+                or ""
+            ).strip().lower() or None
+            model_name = str(
+                getattr(adapter, "model_id", None)
+                or getattr(self, "tts_model", None)
+                or ""
+            ).strip() or None
+            bytes_support = self._compatibility_support_level(
+                kind="tts",
+                provider=provider_name,
+                model=model_name,
+                surface="bytes",
+                feature="quality_preset",
+            )
+            playback_support = self._compatibility_support_level(
+                kind="tts",
+                provider=provider_name,
+                model=model_name,
+                surface="playback",
+                feature="quality_preset",
+            )
+            if bytes_support == "unsupported" and playback_support == "unsupported":
+                return False
             if hasattr(adapter, "set_quality_preset"):
                 return bool(adapter.set_quality_preset(p))
         except Exception:
@@ -227,6 +297,237 @@ class TtsMixin:
         except Exception:
             return None
         return None
+
+    def get_compatibility_catalog(self):
+        """Return the central provider/model compatibility catalog."""
+        from ..compatibility import build_compatibility_catalog
+
+        adapter = getattr(self, "tts_adapter", None)
+        current_tts_provider = str(
+            getattr(adapter, "engine_id", None)
+            or getattr(adapter, "provider", None)
+            or getattr(self, "_tts_engine_name", None)
+            or getattr(self, "_tts_engine_preference", None)
+            or ""
+        ).strip().lower() or None
+        current_tts_model = None
+        if adapter is not None:
+            current_tts_model = getattr(adapter, "model_id", None)
+        if not isinstance(current_tts_model, str) or not current_tts_model.strip():
+            current_tts_model = getattr(self, "tts_model", None)
+
+        stt_adapter = getattr(self, "stt_adapter", None)
+        current_stt_provider = str(
+            getattr(stt_adapter, "engine_id", None)
+            or getattr(stt_adapter, "provider", None)
+            or getattr(self, "_stt_engine_name", None)
+            or getattr(self, "_stt_engine_preference", None)
+            or getattr(self, "stt_engine", None)
+            or ""
+        ).strip().lower() or None
+        current_stt_model = (
+            getattr(stt_adapter, "model_id", None)
+            or getattr(self, "stt_model", None)
+        )
+
+        current_remote_tts_model = None
+        cloner = getattr(self, "_voice_cloner", None)
+        if cloner is not None:
+            current_remote_tts_model = getattr(cloner, "_remote_tts_model", None)
+        current_cloning_provider = str(getattr(self, "cloning_engine", None) or "").strip().lower() or None
+        if (
+            (not isinstance(current_remote_tts_model, str) or not current_remote_tts_model.strip())
+            and current_cloning_provider in {"openai", "openai-compatible"}
+        ):
+            current_remote_tts_model = getattr(self, "tts_model", None)
+
+        return build_compatibility_catalog(
+            current_tts_provider=current_tts_provider,
+            current_tts_model=(str(current_tts_model).strip() if isinstance(current_tts_model, str) and current_tts_model.strip() else None),
+            current_stt_provider=current_stt_provider,
+            current_stt_model=(str(current_stt_model).strip() if isinstance(current_stt_model, str) and current_stt_model.strip() else None),
+            current_cloning_provider=current_cloning_provider,
+            current_remote_tts_model=(
+                str(current_remote_tts_model).strip()
+                if isinstance(current_remote_tts_model, str) and current_remote_tts_model.strip()
+                else None
+            ),
+        )
+
+    def get_capability_support(
+        self,
+        *,
+        kind: str,
+        feature: str,
+        provider: str | None = None,
+        model: str | None = None,
+        surface: str = "default",
+    ) -> dict | None:
+        """Return support metadata for one feature, if known."""
+        normalized_kind = str(kind or "").strip().lower()
+        provider_name = str(provider or "").strip().lower()
+        model_name = str(model).strip() if isinstance(model, str) and model.strip() else None
+
+        if not provider_name and normalized_kind == "tts":
+            adapter = getattr(self, "tts_adapter", None)
+            provider_name = str(
+                getattr(adapter, "engine_id", None)
+                or getattr(adapter, "provider", None)
+                or getattr(self, "_tts_engine_name", None)
+                or getattr(self, "_tts_engine_preference", None)
+                or ""
+            ).strip().lower()
+            if model_name is None:
+                model_name = str(
+                    getattr(adapter, "model_id", None)
+                    or getattr(self, "tts_model", None)
+                    or ""
+                ).strip() or None
+        elif not provider_name and normalized_kind == "stt":
+            adapter = getattr(self, "stt_adapter", None)
+            provider_name = str(
+                getattr(adapter, "engine_id", None)
+                or getattr(adapter, "provider", None)
+                or getattr(self, "_stt_engine_name", None)
+                or getattr(self, "_stt_engine_preference", None)
+                or getattr(self, "stt_engine", None)
+                or ""
+            ).strip().lower().replace("_", "-")
+            if model_name is None:
+                model_name = str(
+                    getattr(adapter, "model_id", None)
+                    or getattr(self, "stt_model", None)
+                    or ""
+                ).strip() or None
+        elif not provider_name and normalized_kind == "cloning":
+            provider_name = str(getattr(self, "cloning_engine", None) or "").strip().lower().replace("-", "_")
+            if model_name is None and provider_name in {"openai", "openai_compatible"}:
+                cloner = getattr(self, "_voice_cloner", None)
+                model_name = str(
+                    getattr(cloner, "_remote_tts_model", None)
+                    or getattr(self, "tts_model", None)
+                    or ""
+                ).strip() or None
+
+        catalog = self.get_compatibility_catalog()
+        support = catalog.support_for(
+            kind=normalized_kind,
+            provider=provider_name,
+            model=model_name,
+            surface=str(surface or "default").strip() or "default",
+            feature=str(feature or "").strip(),
+        )
+        return support.to_dict() if support is not None else None
+
+    def _compatibility_support_level(
+        self,
+        *,
+        kind: str,
+        feature: str,
+        provider: str | None = None,
+        model: str | None = None,
+        surface: str = "default",
+    ) -> str:
+        support = self.get_capability_support(
+            kind=kind,
+            feature=feature,
+            provider=provider,
+            model=model,
+            surface=surface,
+        )
+        if isinstance(support, dict):
+            return str(support.get("support") or "unsupported")
+        return "unsupported"
+
+    def _resolve_clone_engine_name(self, cloner, voice_id: str) -> str | None:
+        try:
+            info = cloner.get_cloned_voice(str(voice_id)) or {}
+        except Exception:
+            info = {}
+        return str(info.get("engine") or "").strip().lower() or None
+
+    def _effective_clone_speed(
+        self,
+        *,
+        cloner,
+        voice_id: str,
+        surface: str,
+    ) -> tuple[float, str | None]:
+        clone_engine_name = self._resolve_clone_engine_name(cloner, voice_id)
+        clone_speed = float(getattr(self, "speed", 1.0) or 1.0)
+        if clone_engine_name:
+            speed_support = self._compatibility_support_level(
+                kind="cloning",
+                provider=clone_engine_name,
+                model=(str(getattr(cloner, "_remote_tts_model", "")).strip() or None),
+                surface=str(surface or "speak_bytes").strip() or "speak_bytes",
+                feature="speed",
+            )
+            if speed_support == "unsupported":
+                clone_speed = 1.0
+        return clone_speed, clone_engine_name
+
+    def find_compatible_models(
+        self,
+        *,
+        kind: str,
+        feature: str,
+        surface: str = "default",
+        support_in: tuple[str, ...] = ("native", "emulated", "conditional"),
+    ) -> list[dict]:
+        """Return provider/model pairs that support a feature."""
+        catalog = self.get_compatibility_catalog()
+        return catalog.find_models(
+            kind=str(kind or "").strip().lower(),
+            feature=str(feature or "").strip(),
+            surface=str(surface or "default").strip() or "default",
+            support_in=tuple(str(item) for item in tuple(support_in or ())),
+        )
+
+    def get_tts_capabilities(self, *, surface: str = "bytes") -> SpeechCapabilities:
+        """Return package-owned TTS control support for the active engine."""
+        adapter = getattr(self, "tts_adapter", None)
+        try:
+            engine_id = str(
+                getattr(adapter, "engine_id", "")
+                or getattr(adapter, "provider", "")
+                or getattr(self, "_tts_engine_name", "")
+                or getattr(self, "_tts_engine_preference", "")
+                or ""
+            ).strip().lower()
+        except Exception:
+            engine_id = ""
+        model_id = None
+        try:
+            model_id = getattr(adapter, "model_id", None) or getattr(self, "tts_model", None)
+        except Exception:
+            model_id = getattr(self, "tts_model", None)
+
+        from ..compatibility import TTS_COMPATIBILITY_FEATURES
+
+        catalog = self.get_compatibility_catalog()
+        fields: dict[str, SpeechCapability] = {}
+        for feature_name in TTS_COMPATIBILITY_FEATURES:
+            support = catalog.support_for(
+                kind="tts",
+                provider=engine_id or "tts",
+                model=(str(model_id).strip() if isinstance(model_id, str) and model_id.strip() else None),
+                surface=str(surface or "bytes").strip() or "bytes",
+                feature=str(feature_name),
+            )
+            if support is None:
+                fields[str(feature_name)] = SpeechCapability(
+                    name=str(feature_name),
+                    support="unsupported",
+                    reason="The active provider/model does not declare support for this field.",
+                )
+                continue
+            fields[str(feature_name)] = SpeechCapability(
+                name=str(feature_name),
+                support=str(support.support),
+                reason=support.reason,
+            )
+        return SpeechCapabilities(fields=fields)
 
     # ------------------------------------------------------------------
     # Audio delivery mode (buffered vs streamed)
@@ -534,9 +835,13 @@ class TtsMixin:
         if not self.tts_engine:
             raise RuntimeError("No TTS engine available")
 
-        speak_text = str(text)
-        if _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax):
-            speak_text = sanitize_markdown_for_speech(speak_text)
+        request = self._build_speech_request(
+            str(text),
+            voice=voice,
+            sanitize_syntax=_resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax),
+            speed=float(sp if sp is not None else 1.0),
+        )
+        speak_text = str(request.text)
 
         # ------------------------------------------------------------------
         # Delivery-mode override: streamed vs buffered (engine-agnostic)
@@ -611,12 +916,11 @@ class TtsMixin:
             cloner = self._get_voice_cloner()
             # Prefer playing cloned audio at its native rate (F5 is typically 24kHz).
             target_sr = 24000
-            clone_engine_name = ""
-            try:
-                info = cloner.get_cloned_voice(str(voice)) or {}
-                clone_engine_name = str(info.get("engine") or "").strip().lower()
-            except Exception:
-                clone_engine_name = ""
+            sp, clone_engine_name = self._effective_clone_speed(
+                cloner=cloner,
+                voice_id=str(voice),
+                surface="speak_bytes",
+            )
 
             def _worker():
                 try:
@@ -823,12 +1127,11 @@ class TtsMixin:
         if voice:
             cloner = self._get_voice_cloner()
 
-            clone_engine_name = None
-            try:
-                info = cloner.get_cloned_voice(str(voice)) or {}
-                clone_engine_name = str(info.get("engine") or "").strip().lower() or None
-            except Exception:
-                clone_engine_name = None
+            clone_speed, clone_engine_name = self._effective_clone_speed(
+                cloner=cloner,
+                voice_id=str(voice),
+                surface="speak_bytes",
+            )
 
             def _gen_clone():
                 import numpy as np
@@ -841,7 +1144,7 @@ class TtsMixin:
                     for chunk, sr in cloner.speak_to_audio_chunks(
                         str(speak_text),
                         voice_id=str(voice),
-                        speed=float(getattr(self, "speed", 1.0) or 1.0),
+                        speed=clone_speed,
                         max_chars=120,
                         language=str(getattr(self, "language", None) or "en"),
                     ):
@@ -870,7 +1173,7 @@ class TtsMixin:
                         "rtf": (synth_s / float(total_audio_s)) if total_audio_s else None,
                         "chunks": int(chunks),
                         "language": str(getattr(self, "language", None) or "en"),
-                        "speed": float(getattr(self, "speed", 1.0) or 1.0),
+                        "speed": float(clone_speed),
                         "ts": time.time(),
                     }
                     self._set_last_tts_metrics(metrics)
@@ -1051,11 +1354,11 @@ class TtsMixin:
         clone_engine_name = None
         if voice:
             cloner = self._get_voice_cloner()
-            try:
-                info = cloner.get_cloned_voice(str(voice)) or {}
-                clone_engine_name = str(info.get("engine") or "").strip().lower() or None
-            except Exception:
-                clone_engine_name = None
+            clone_speed, clone_engine_name = self._effective_clone_speed(
+                cloner=cloner,
+                voice_id=str(voice),
+                surface="speak_bytes",
+            )
 
             def _iter_chunks(seg_text: str):
                 txt = str(seg_text or "")
@@ -1064,7 +1367,7 @@ class TtsMixin:
                 return cloner.speak_to_audio_chunks(
                     txt,
                     voice_id=str(voice),
-                    speed=float(getattr(self, "speed", 1.0) or 1.0),
+                    speed=clone_speed,
                     max_chars=int(mc or 240),
                     language=str(getattr(self, "language", None) or "en"),
                 )
@@ -1084,10 +1387,11 @@ class TtsMixin:
                 merged.setdefault("engine", "clone")
                 merged.setdefault("clone_engine", clone_engine_name)
                 merged.setdefault("voice_id", str(voice))
+                merged.setdefault("speed", float(clone_speed))
             else:
                 merged.setdefault("engine", engine_id)
+                merged.setdefault("speed", float(getattr(self, "speed", 1.0) or 1.0))
             merged.setdefault("language", str(getattr(self, "language", None) or "en"))
-            merged.setdefault("speed", float(getattr(self, "speed", 1.0) or 1.0))
             try:
                 self._set_last_tts_metrics(merged)
             except Exception:
@@ -1108,6 +1412,7 @@ class TtsMixin:
         format: str = "wav",
         voice: str | None = None,
         *,
+        instructions: str | None = None,
         sanitize_syntax: bool = True,
         saninitze_syntax: bool | None = None,
     ) -> bytes:
@@ -1121,11 +1426,16 @@ class TtsMixin:
         # Clear prior metrics for this new utterance.
         self._set_last_tts_metrics(None)
 
-        speak_text = str(text)
-        if _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax):
-            speak_text = sanitize_markdown_for_speech(speak_text)
-
         fmt = str(format or "wav").strip().lower() or "wav"
+        request = self._build_speech_request(
+            str(text),
+            voice=voice,
+            instructions=instructions,
+            output_format=fmt,
+            sanitize_syntax=_resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax),
+            speed=float(getattr(self, "speed", 1.0) or 1.0),
+        )
+        speak_text = str(request.text)
 
         def _analyze_audio_bytes(b: bytes) -> dict:
             metrics: dict = {}
@@ -1160,31 +1470,30 @@ class TtsMixin:
         t0 = time.monotonic()
         if voice:
             cloner = self._get_voice_cloner()
+            clone_speed, clone_engine_name = self._effective_clone_speed(
+                cloner=cloner,
+                voice_id=str(voice),
+                surface="speak_bytes",
+            )
             out = cloner.speak_to_bytes(
                 speak_text,
-                voice_id=voice,
+                voice_id=str(request.voice or voice),
                 format=fmt,
-                speed=self.speed,
+                speed=clone_speed,
                 language=str(getattr(self, "language", None) or "en"),
             )
             synth_s = float(time.monotonic() - t0)
 
-            clone_engine_name = None
-            try:
-                info = cloner.get_cloned_voice(str(voice)) or {}
-                clone_engine_name = str(info.get("engine") or "").strip().lower() or None
-            except Exception:
-                clone_engine_name = None
-
             metrics = {
                 "engine": "clone",
                 "clone_engine": clone_engine_name,
-                "voice_id": str(voice),
+                "voice_id": str(request.voice or voice),
                 "streaming": False,
                 "synth_s": synth_s,
                 "format": fmt,
-                "speed": float(getattr(self, "speed", 1.0) or 1.0),
+                "speed": float(clone_speed),
                 "language": str(getattr(self, "language", None) or "en"),
+                "request_contract": "speech_request_v1",
                 "ts": time.time(),
             }
             metrics.update(_analyze_audio_bytes(bytes(out)))
@@ -1198,7 +1507,66 @@ class TtsMixin:
             return out
 
         if self.tts_adapter and self.tts_adapter.is_available():
-            out = self.tts_adapter.synthesize_to_bytes(speak_text, format=fmt)
+            provider_name = str(
+                getattr(self.tts_adapter, "engine_id", None)
+                or getattr(self.tts_adapter, "provider", None)
+                or getattr(self, "_tts_engine_name", None)
+                or getattr(self, "_tts_engine_preference", None)
+                or ""
+            ).strip().lower() or None
+            model_name = str(
+                getattr(self.tts_adapter, "model_id", None)
+                or getattr(self, "tts_model", None)
+                or ""
+            ).strip() or None
+            effective_voice = str(request.voice or "").strip() or None
+            effective_speed = float(request.speed) if request.speed is not None else None
+            effective_instructions = str(request.instructions) if request.instructions is not None else None
+            if effective_voice and self._compatibility_support_level(
+                kind="tts",
+                provider=provider_name,
+                model=model_name,
+                surface="bytes",
+                feature="profile",
+            ) == "unsupported":
+                effective_voice = None
+            if effective_instructions is not None and self._compatibility_support_level(
+                kind="tts",
+                provider=provider_name,
+                model=model_name,
+                surface="bytes",
+                feature="instructions",
+            ) == "unsupported":
+                effective_instructions = None
+            if effective_speed is not None and self._compatibility_support_level(
+                kind="tts",
+                provider=provider_name,
+                model=model_name,
+                surface="bytes",
+                feature="speed",
+            ) == "unsupported":
+                effective_speed = None
+            use_voice_aware_bytes = bool(
+                hasattr(self.tts_adapter, "synthesize_to_bytes_with_voice")
+                and (
+                    effective_instructions
+                    or effective_voice
+                    or (
+                        isinstance(effective_speed, (int, float))
+                        and float(effective_speed) != 1.0
+                    )
+                )
+            )
+            if use_voice_aware_bytes:
+                out = self.tts_adapter.synthesize_to_bytes_with_voice(
+                    speak_text,
+                    format=fmt,
+                    voice=effective_voice,
+                    speed=effective_speed,
+                    instructions=effective_instructions,
+                )
+            else:
+                out = self.tts_adapter.synthesize_to_bytes(speak_text, format=fmt)
             synth_s = float(time.monotonic() - t0)
             try:
                 engine_id = str(getattr(self.tts_adapter, "engine_id", "") or "").strip().lower()
@@ -1209,6 +1577,7 @@ class TtsMixin:
                 "synth_s": synth_s,
                 "format": fmt,
                 "language": str(getattr(self, "language", None) or "en"),
+                "request_contract": "speech_request_v1",
                 "ts": time.time(),
             }
             # Best-effort: attach active profile info when supported by the adapter.
@@ -1245,9 +1614,15 @@ class TtsMixin:
         self._set_last_tts_metrics(None)
 
         sanitize = _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax)
-        speak_text = str(text)
-        if sanitize:
-            speak_text = sanitize_markdown_for_speech(speak_text)
+        fmt_hint = str(format or "").strip().lower() or None
+        request = self._build_speech_request(
+            str(text),
+            voice=voice,
+            output_format=fmt_hint,
+            sanitize_syntax=sanitize,
+            speed=float(getattr(self, "speed", 1.0) or 1.0),
+        )
+        speak_text = str(request.text)
         if voice:
             from pathlib import Path
 
@@ -1390,13 +1765,30 @@ class TtsMixin:
         if not (0.5 <= sp <= 2.0):
             return False
 
-        # AudioDiT speed control: not supported (avoid degraded/glitchy audio).
         try:
             a = getattr(self, "tts_adapter", None)
-            engine_id = str(getattr(a, "engine_id", "") or "").strip().lower()
+            provider_name = str(
+                getattr(a, "engine_id", None)
+                or getattr(a, "provider", None)
+                or getattr(self, "_tts_engine_name", None)
+                or getattr(self, "_tts_engine_preference", None)
+                or ""
+            ).strip().lower() or None
+            model_name = str(
+                getattr(a, "model_id", None)
+                or getattr(self, "tts_model", None)
+                or ""
+            ).strip() or None
         except Exception:
-            engine_id = ""
-        if engine_id == "audiodit" and sp != 1.0:
+            provider_name = None
+            model_name = None
+        if sp != 1.0 and self._compatibility_support_level(
+            kind="tts",
+            provider=provider_name,
+            model=model_name,
+            surface="playback",
+            feature="speed",
+        ) == "unsupported":
             # Keep manager speed unchanged (or reset to 1.0 if unset).
             try:
                 self.speed = float(getattr(self, "speed", 1.0) or 1.0)

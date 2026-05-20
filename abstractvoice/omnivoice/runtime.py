@@ -21,7 +21,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from ..compute import best_torch_device
+from ..compute import looks_like_torch_device_error, resolve_torch_runtime
 
 
 @dataclass
@@ -105,6 +105,8 @@ class OmniVoiceRuntime:
 
         self._resolved_device: str | None = None
         self._resolved_dtype: str | None = None
+        self._used_fallback = False
+        self._fallback_reason: str | None = None
 
         self._model = None
 
@@ -114,25 +116,30 @@ class OmniVoiceRuntime:
             "model_id": str(self.model_id),
             "revision": str(self.revision) if self.revision else None,
             "requested_device": str(self._device_pref),
+            "requested_dtype": self._dtype_pref,
             "resolved_device": self._resolved_device,
             "resolved_dtype": self._resolved_dtype,
+            "used_fallback": bool(self._used_fallback),
+            "fallback_reason": self._fallback_reason,
             "allow_downloads": bool(self.allow_downloads),
         }
 
+    def _resolve_runtime(self):
+        runtime = resolve_torch_runtime(
+            device=str(self._device_pref or "auto"),
+            dtype_name=self._dtype_pref,
+            allow_cpu_fallback=str(self._device_pref or "auto") == "auto",
+        )
+        self._resolved_dtype = str(runtime.resolved_dtype_name)
+        self._used_fallback = bool(runtime.used_fallback)
+        self._fallback_reason = runtime.fallback_reason
+        return runtime
+
     def _resolve_device_base(self) -> str:
-        pref = str(self._device_pref or "auto").strip().lower() or "auto"
-        if pref == "auto":
-            # Auto means: choose the best available torch device.
-            # On Apple Silicon this is typically MPS (Metal).
-            return str(best_torch_device()).strip().lower() or "cpu"
-        return pref
+        return str(self._resolve_runtime().resolved_device)
 
     def _resolve_device_map(self) -> str:
-        # OmniVoice upstream examples use "cuda:0". Keep that convention.
-        dev = self._resolve_device_base()
-        if dev == "cuda":
-            return "cuda:0"
-        return dev
+        return str(self._resolve_runtime().resolved_device)
 
     def _ensure_local_snapshot(self) -> str:
         """Resolve a local folder path for the HF snapshot (offline-first)."""
@@ -238,36 +245,53 @@ class OmniVoiceRuntime:
                 )
             raise RuntimeError(msg) from e
 
-        device_base = self._resolve_device_base()
-        device_map = self._resolve_device_map()
+        runtime = self._resolve_runtime()
+        device_map = str(runtime.resolved_device)
         self._resolved_device = str(device_map)
+        if runtime.used_fallback and runtime.fallback_reason:
+            warnings.warn(runtime.fallback_reason, RuntimeWarning)
 
-        # Resolve dtype consistently with AbstractVoice policy.
-        try:
-            from ..compute import resolve_torch_dtype
-
-            dt = resolve_torch_dtype(device=str(device_base), dtype_name=self._dtype_pref)
-            self._resolved_dtype = str(dt).replace("torch.", "")
-        except Exception:
-            dt = None
-            self._resolved_dtype = None
+        dt = runtime.torch_dtype
+        self._resolved_dtype = str(runtime.resolved_dtype_name)
 
         local_dir = self._ensure_local_snapshot()
 
         # Load from the local snapshot directory to prevent OmniVoice's own
         # internal `snapshot_download()` call (offline-first).
         try:
-            kwargs: dict[str, Any] = {
-                "device_map": str(device_map),
-                "train": False,
-                "load_asr": False,
-            }
-            if dt is not None:
-                # Transformers expects `torch_dtype`; OmniVoice README uses `dtype`,
-                # but passing torch_dtype is the most compatible choice.
-                kwargs["torch_dtype"] = dt
+            def _load_model(resolved_device_map: str, resolved_dtype) -> Any:
+                kwargs: dict[str, Any] = {
+                    "device_map": str(resolved_device_map),
+                    "train": False,
+                    "load_asr": False,
+                }
+                if resolved_dtype is not None:
+                    kwargs["torch_dtype"] = resolved_dtype
+                return OmniVoice.from_pretrained(str(local_dir), **kwargs)
 
-            model = OmniVoice.from_pretrained(str(local_dir), **kwargs)
+            try:
+                model = _load_model(str(device_map), dt)
+            except Exception as e:
+                if (
+                    str(self._device_pref or "auto") != "auto"
+                    or str(device_map).strip().lower() == "cpu"
+                    or not looks_like_torch_device_error(e, attempted_device=str(device_map))
+                ):
+                    raise RuntimeError(f"Failed to load OmniVoice model: {e}") from e
+                cpu_runtime = resolve_torch_runtime(
+                    device="cpu",
+                    dtype_name="float32",
+                    allow_cpu_fallback=False,
+                )
+                self._used_fallback = True
+                self._fallback_reason = (
+                    f"OmniVoice failed to load on '{device_map}': {e}. "
+                    "Retrying on CPU."
+                )
+                warnings.warn(str(self._fallback_reason), RuntimeWarning)
+                self._resolved_device = "cpu"
+                self._resolved_dtype = str(cpu_runtime.resolved_dtype_name)
+                model = _load_model("cpu", cpu_runtime.torch_dtype)
         except Exception as e:
             raise RuntimeError(f"Failed to load OmniVoice model: {e}") from e
 

@@ -4,6 +4,7 @@ import gc
 import os
 import sys
 import tempfile
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
@@ -12,6 +13,7 @@ import numpy as np
 import soundfile as sf
 
 from ..audio.resample import linear_resample_mono
+from ..compute import looks_like_torch_device_error, resolve_torch_runtime
 
 
 def _load_as_mono_float(path: Path) -> Tuple[np.ndarray, int]:
@@ -96,6 +98,8 @@ class F5TTSVoiceCloningEngine:
         self._f5_model = None
         self._f5_vocoder = None
         self._f5_device = None
+        self._used_fallback = False
+        self._fallback_reason: str | None = None
 
     def unload(self) -> None:
         """Best-effort release of loaded model/vocoder to free memory."""
@@ -126,7 +130,13 @@ class F5TTSVoiceCloningEngine:
 
     def runtime_info(self) -> dict:
         """Return best-effort runtime info for debugging/perf validation."""
-        info = {"requested_device": self._device_pref, "resolved_device": self._f5_device, "quality_preset": self._quality_preset}
+        info = {
+            "requested_device": self._device_pref,
+            "resolved_device": self._f5_device,
+            "quality_preset": self._quality_preset,
+            "used_fallback": bool(self._used_fallback),
+            "fallback_reason": self._fallback_reason,
+        }
         try:
             m = self._f5_model
             if m is not None and hasattr(m, "parameters"):
@@ -252,12 +262,51 @@ class F5TTSVoiceCloningEngine:
         vocab = next(iter(root.rglob("vocab*.txt")), None) or next(iter(root.rglob("*.txt")), None)
         return bool(cfg and ckpt and vocab)
 
-    def _resolve_device(self) -> str:
-        if self._device_pref and self._device_pref != "auto":
-            return str(self._device_pref)
-        from ..compute import best_torch_device
+    def _resolve_runtime(self):
+        return resolve_torch_runtime(
+            device=str(self._device_pref or "auto"),
+            allow_cpu_fallback=str(self._device_pref or "auto") == "auto",
+        )
 
-        return best_torch_device()
+    def _load_openf5_components(
+        self,
+        *,
+        device: str,
+        model_cls,
+        model_arc,
+        ckpt_file: Path,
+        vocab_file: Path,
+    ):
+        import contextlib
+        import io
+
+        from f5_tts.infer.utils_infer import load_model, load_vocoder
+
+        if self.debug:
+            vocoder = load_vocoder(vocoder_name=self._vocoder_name, device=device)
+            model = load_model(
+                model_cls,
+                model_arc,
+                str(ckpt_file),
+                mel_spec_type=self._vocoder_name,
+                vocab_file=str(vocab_file),
+                device=device,
+            )
+            return vocoder, model
+
+        buf_out = io.StringIO()
+        buf_err = io.StringIO()
+        with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
+            vocoder = load_vocoder(vocoder_name=self._vocoder_name, device=device)
+            model = load_model(
+                model_cls,
+                model_arc,
+                str(ckpt_file),
+                mel_spec_type=self._vocoder_name,
+                vocab_file=str(vocab_file),
+                device=device,
+            )
+        return vocoder, model
 
     def _ensure_model_loaded(self) -> None:
         """Load vocoder + model once (expensive)."""
@@ -270,45 +319,49 @@ class F5TTSVoiceCloningEngine:
         # Silence HF progress bars during internal downloads (REPL UX).
         os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 
-        # Some f5_tts utilities print; keep it quiet unless debug.
-        import contextlib
-        import io
-
         from omegaconf import OmegaConf
         from hydra.utils import get_class
-
-        from f5_tts.infer.utils_infer import load_model, load_vocoder
-
-        device = self._resolve_device()
+        runtime = self._resolve_runtime()
+        self._used_fallback = bool(runtime.used_fallback)
+        self._fallback_reason = runtime.fallback_reason
+        if runtime.used_fallback and runtime.fallback_reason:
+            warnings.warn(runtime.fallback_reason)
+        device = str(runtime.resolved_device)
 
         model_cfg = OmegaConf.load(str(artifacts.model_cfg))
         model_cls = get_class(f"f5_tts.model.{model_cfg.model.backbone}")
         model_arc = model_cfg.model.arch
 
-        # load vocoder + model
-        if self.debug:
-            self._f5_vocoder = load_vocoder(vocoder_name=self._vocoder_name, device=device)
-            self._f5_model = load_model(
-                model_cls,
-                model_arc,
-                str(artifacts.ckpt_file),
-                mel_spec_type=self._vocoder_name,
-                vocab_file=str(artifacts.vocab_file),
+        try:
+            self._f5_vocoder, self._f5_model = self._load_openf5_components(
                 device=device,
+                model_cls=model_cls,
+                model_arc=model_arc,
+                ckpt_file=artifacts.ckpt_file,
+                vocab_file=artifacts.vocab_file,
             )
-        else:
-            buf_out = io.StringIO()
-            buf_err = io.StringIO()
-            with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
-                self._f5_vocoder = load_vocoder(vocoder_name=self._vocoder_name, device=device)
-                self._f5_model = load_model(
-                    model_cls,
-                    model_arc,
-                    str(artifacts.ckpt_file),
-                    mel_spec_type=self._vocoder_name,
-                    vocab_file=str(artifacts.vocab_file),
-                    device=device,
-                )
+        except Exception as e:
+            if (
+                str(self._device_pref or "auto") != "auto"
+                or device == "cpu"
+                or not looks_like_torch_device_error(e, attempted_device=str(device))
+            ):
+                raise
+            retry_reason = f"Falling back to CPU because OpenF5 load failed on '{device}': {type(e).__name__}: {e}"
+            warnings.warn(retry_reason)
+            self._f5_model = None
+            self._f5_vocoder = None
+            cpu_runtime = resolve_torch_runtime(device="cpu", allow_cpu_fallback=False)
+            self._used_fallback = True
+            self._fallback_reason = retry_reason
+            device = str(cpu_runtime.resolved_device)
+            self._f5_vocoder, self._f5_model = self._load_openf5_components(
+                device=device,
+                model_cls=model_cls,
+                model_arc=model_arc,
+                ckpt_file=artifacts.ckpt_file,
+                vocab_file=artifacts.vocab_file,
+            )
 
         self._f5_device = device
 
