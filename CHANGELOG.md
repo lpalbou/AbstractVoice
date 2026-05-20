@@ -10,6 +10,13 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-05-20
+
+### Fixed
+- Made the new F5 runtime-policy tests honor AbstractVoice's documented Python
+  support boundary by skipping them on Python 3.9, where OpenF5/F5-TTS is
+  intentionally unsupported.
+
 ## [0.10.8] - 2026-05-20
 
 ### Fixed

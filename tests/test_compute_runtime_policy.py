@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 
@@ -112,6 +114,7 @@ def test_resolve_torch_runtime_invalid_dtype_degrades_to_engine_default(monkeypa
     assert runtime.torch_dtype is None
 
 
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="F5/OpenF5 is unsupported on Python < 3.10")
 def test_openf5_runtime_resolution_uses_shared_policy(monkeypatch: pytest.MonkeyPatch) -> None:
     from types import SimpleNamespace
 
@@ -150,6 +153,7 @@ def test_openf5_runtime_resolution_uses_shared_policy(monkeypatch: pytest.Monkey
     }
 
 
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="F5/OpenF5 is unsupported on Python < 3.10")
 def test_openf5_runtime_info_surfaces_fallback_metadata() -> None:
     from abstractvoice.cloning.engine_f5 import F5TTSVoiceCloningEngine
 
