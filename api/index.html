@@ -1933,14 +1933,17 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 <p>The voice backend also exposes thin catalog discovery methods for Core/Gateway
 integration code:
 - <code>list_profiles(kind="tts") -&gt; list[dict]</code>
-- <code>list_models(kind="tts"|"stt", provider: str | None = None) -&gt; list[str]</code>
+- <code>list_models(kind="tts"|"stt"|"cloning", provider: str | None = None) -&gt; list[str]</code>
 - <code>list_tts_models(provider: str | None = None) -&gt; list[str]</code>
 - <code>list_stt_models(provider: str | None = None) -&gt; list[str]</code>
+- <code>list_cloning_models(provider: str | None = None) -&gt; list[str]</code>
 - <code>list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True) -&gt; list[dict]</code>
 - <code>list_cloned_voices(provider: str | None = None, model: str | None = None) -&gt; list[dict]</code>
 - <code>list_voices(...) -&gt; list[dict]</code> (alias of <code>list_tts_voices(...)</code>)
 - <code>available_providers() -&gt; {tts, stt, cloning, providers, details}</code>
 - <code>compatibility_catalog() -&gt; {version, providers}</code>
+- <code>get_capability_support(kind, feature, provider, model=None, surface="default") -&gt; dict | None</code>
+- <code>find_compatible_models(kind, feature, surface="default", support_in=("native","emulated","conditional")) -&gt; list[dict]</code>
 - <code>voice_catalog() -&gt; {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}</code>
 - <code>voice_catalog()</code> also includes additive capability metadata:
   - <code>controls</code>: legacy control map kept backward-compatible for existing clients
@@ -1992,9 +1995,12 @@ AbstractCore/Gateway:
     <code>tts.playback</code></p>
 <p>The lighter helper methods are convenience views over that same abstraction:
 - <code>available_providers()</code> for provider selectors
-- <code>list_models(...)</code> / <code>list_tts_models(...)</code> / <code>list_stt_models(...)</code> for
-  model selectors
-- <code>list_tts_voices(...)</code> / <code>list_cloned_voices(...)</code> for voice selectors</p>
+- <code>list_models(...)</code> / <code>list_tts_models(...)</code> / <code>list_stt_models(...)</code> /
+  <code>list_cloning_models(...)</code> for model selectors
+- <code>list_tts_voices(...)</code> / <code>list_cloned_voices(...)</code> for voice selectors
+- <code>get_capability_support(...)</code> / <code>find_compatible_models(...)</code> for
+  provider-model-surface capability filtering across <code>tts</code>, <code>stt</code>, and
+  <code>cloning</code></p>
 <p>For both TTS and STT, the plugin accepts either split fields or combined
 <code>provider:model</code> selectors. AbstractCore callers may pass separate arguments
 such as <code>provider="openai", model="tts-1"</code> or
