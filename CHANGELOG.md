@@ -10,6 +10,28 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.11] - 2026-05-20
+
+### Added
+- Exposed first-class clone creation on the AbstractCore capability plugin via
+  `clone(...)` and `clone_voice(...)`, so cloning discovery, clone creation,
+  and clone-backed TTS now all have explicit plugin surfaces in AbstractVoice.
+- Made plugin clone creation accept direct audio payload dicts with in-memory
+  bytes plus optional `filename` / `content_type`, preserving original suffixes
+  for remote providers when possible.
+
+### Changed
+- Raised the OmniVoice dependency floor to `omnivoice>=0.1.5`, which removes
+  the old exact `transformers==5.3.0` package conflict and allows newer
+  `transformers` releases such as `5.9.0`.
+
+### Fixed
+- Scoped clone-request model routing to remote cloning providers only, so local
+  cloning engines no longer inherit unrelated remote TTS model overrides.
+- Extended `VoiceManager.clone_voice_from_wav_bytes(...)` with optional
+  metadata forwarding so plugin-level clone creation can preserve byte-source
+  metadata without signature mismatches.
+
 ## [0.10.10] - 2026-05-20
 
 ### Added

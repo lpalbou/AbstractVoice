@@ -149,6 +149,7 @@ class TtsMixin:
         *,
         reference_text: str | None = None,
         engine: str | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> str:
         """Create a new cloned voice from an in-memory WAV payload.
 
@@ -162,6 +163,7 @@ class TtsMixin:
                 name=name,
                 reference_text=reference_text,
                 engine=engine,
+                meta=meta,
             )
         # Backward-compatible fallback for older cloner versions (should not
         # normally be needed inside this repo).

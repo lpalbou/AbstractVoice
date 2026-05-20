@@ -52,7 +52,7 @@ class DependencyChecker:
         "librosa": ("0.10.0", None),
         "f5-tts": ("1.1.0", None),
         "aec-audio-processing": ("1.0.1", None),
-        "omnivoice": ("0.1.2", None),
+        "omnivoice": ("0.1.5", None),
         "transformers": ("4.55.4", None),
         "accelerate": ("1.0.0", None),
         "safetensors": ("0.4.0", None),

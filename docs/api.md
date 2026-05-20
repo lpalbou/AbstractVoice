@@ -379,6 +379,8 @@ integration code:
 - `compatibility_catalog() -> {version, providers}`
 - `get_capability_support(kind, feature, provider, model=None, surface="default") -> dict | None`
 - `find_compatible_models(kind, feature, surface="default", support_in=("native","emulated","conditional")) -> list[dict]`
+- `clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -> voice_id | dict`
+- `clone_voice(...) -> ...` (compatibility alias of `clone(...)`)
 - `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}`
 - `voice_catalog()` also includes additive capability metadata:
   - `controls`: legacy control map kept backward-compatible for existing clients
@@ -428,6 +430,10 @@ AbstractCore/Gateway:
   without forcing older clients to understand it
 - `compatibility_catalog` is the central matrix for provider/model capability
   queries across `tts`, `stt`, and `cloning`
+- `clone(...)` accepts a local file path, raw audio bytes, an artifact-ref dict,
+  or a direct audio payload dict with `content`/`bytes` plus optional
+  `filename` / `content_type`. File-path and filename-bearing payloads preserve
+  the original audio suffix for remote cloning providers.
   - each provider entry can define provider-wide defaults plus explicit model
     records
   - feature support is surface-specific, for example `tts.bytes` vs

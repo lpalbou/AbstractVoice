@@ -71,7 +71,7 @@ apple = [
     "safetensors>=0.5.0; python_version >= '3.10'",
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
-    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "omnivoice>=0.1.5; python_version >= '3.10'",
     "aec-audio-processing>=1.0.1; python_version >= '3.11'",
 ]
 
@@ -99,7 +99,7 @@ gpu = [
     "safetensors>=0.5.0; python_version >= '3.10'",
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
-    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "omnivoice>=0.1.5; python_version >= '3.10'",
     "aec-audio-processing>=1.0.1; python_version >= '3.11'",
 ]
 
@@ -164,7 +164,7 @@ omnivoice = [
     # Torch-backed and heavy; treat this as an opt-in extra to avoid affecting
     # default installs.
     "huggingface_hub>=0.20.0; python_version >= '3.10'",
-    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "omnivoice>=0.1.5; python_version >= '3.10'",
     "torch>=2.0.0; python_version >= '3.10'",
     "torchaudio>=2.0.0; python_version >= '3.10'",
     "transformers>=5.3.0; python_version >= '3.10'",
@@ -230,7 +230,7 @@ all-apple = [
     "safetensors>=0.5.0; python_version >= '3.10'",
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
-    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "omnivoice>=0.1.5; python_version >= '3.10'",
     "aec-audio-processing>=1.0.1; python_version >= '3.11'",
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
@@ -261,7 +261,7 @@ all-gpu = [
     "safetensors>=0.5.0; python_version >= '3.10'",
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
-    "omnivoice>=0.1.2; python_version >= '3.10'",
+    "omnivoice>=0.1.5; python_version >= '3.10'",
     "aec-audio-processing>=1.0.1; python_version >= '3.11'",
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",

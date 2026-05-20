@@ -336,6 +336,15 @@ def _resolve_cloning_provider_request(provider: Any, model: Any = None) -> tuple
     return _norm_engine_id(provider_text), model_text
 
 
+def _normalize_optional_model_id(value: Any) -> Optional[str]:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.lower() == "default":
+        return None
+    return text
+
+
 def _norm_compat_provider_id(kind: Any, provider: Any) -> str:
     normalized_kind = str(kind or "").strip().lower()
     normalized_provider = _norm_engine_id(provider)
@@ -1258,6 +1267,46 @@ class _BaseVoice:
         cap = self.__class__(owner)
         return cap._get_vm()
 
+    def _get_vm_for_clone_request(
+        self,
+        *,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        cloning_engine: Optional[str] = None,
+    ):
+        provider_id, requested_model = _resolve_cloning_provider_request(provider, model)
+        requested_model = _normalize_optional_model_id(requested_model)
+        engine = _norm_engine_id(cloning_engine or provider_id)
+        remote_model_capable = engine in {"openai", "openai-compatible"}
+        if not engine:
+            return self._get_vm()
+
+        current = None
+        try:
+            current = self._get_vm()
+        except Exception:
+            current = None
+        if current is not None:
+            current_engine = _norm_engine_id(getattr(current, "cloning_engine", None))
+            current_tts_models = {item.lower() for item in _current_tts_model_ids(current)}
+            model_ok = (not remote_model_capable) or requested_model is None or requested_model.lower() in current_tts_models
+            if current_engine == engine and model_ok:
+                return current
+
+        cfg = getattr(self._owner, "config", None)
+        override_cfg = dict(cfg) if isinstance(cfg, dict) else {}
+        override_cfg.pop("voice_manager_instance", None)
+        override_cfg.pop("voice_manager_factory", None)
+        override_cfg["voice_cloning_engine"] = engine
+        if remote_model_capable:
+            override_cfg["voice_tts_engine"] = engine
+        if remote_model_capable and requested_model:
+            override_cfg["voice_tts_model"] = requested_model
+
+        owner = type("_AbstractVoiceCloneRequestOverride", (), {"config": override_cfg})()
+        cap = self.__class__(owner)
+        return cap._get_vm()
+
     def _residency_error(
         self,
         *,
@@ -1948,12 +1997,16 @@ class _BaseVoice:
         if isinstance(audio, (bytes, bytearray)):
             return bytes(audio)
         if isinstance(audio, dict):
-            if not is_artifact_ref(audio):
-                raise ValueError("Expected an artifact ref dict like {'$artifact': '...'}")
-            if artifact_store is None:
-                raise ValueError("artifact_store is required to resolve artifact refs to bytes")
-            store = RuntimeArtifactStoreAdapter(artifact_store)
-            return store.load_bytes(get_artifact_id(audio))
+            if is_artifact_ref(audio):
+                if artifact_store is None:
+                    raise ValueError("artifact_store is required to resolve artifact refs to bytes")
+                store = RuntimeArtifactStoreAdapter(artifact_store)
+                return store.load_bytes(get_artifact_id(audio))
+            for key in ("content", "bytes", "data"):
+                raw = audio.get(key)
+                if isinstance(raw, (bytes, bytearray)):
+                    return bytes(raw)
+            raise ValueError("Expected an artifact ref dict or an in-memory audio payload dict with bytes")
         if isinstance(audio, str):
             from pathlib import Path
 
@@ -1964,7 +2017,7 @@ class _BaseVoice:
         raise TypeError("Unsupported input type; expected bytes, artifact-ref dict, or file path")
 
     def _suffix_for_audio_ref(self, audio: Dict[str, Any], *, artifact_store: Any) -> str:
-        """Pick a best-effort file suffix for an audio artifact-ref dict."""
+        """Pick a best-effort file suffix for an audio payload/artifact dict."""
         import mimetypes
         from pathlib import Path
 
@@ -2344,6 +2397,96 @@ class _VoiceCapability(_BaseVoice):
                 }
             )
         return out
+
+    def clone(
+        self,
+        audio: Union[bytes, Dict[str, Any], str],
+        *,
+        name: Optional[str] = None,
+        reference_text: Optional[str] = None,
+        model: Optional[str] = None,
+        provider: Optional[str] = None,
+        artifact_store: Any = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Create a cloned voice through the plugin boundary."""
+        provider_id, requested_model = _resolve_cloning_provider_request(provider, model)
+        requested_model = _normalize_optional_model_id(requested_model)
+        requested_engine = _norm_engine_id(kwargs.get("cloning_engine") or kwargs.get("engine") or provider_id)
+        vm = self._get_vm_for_clone_request(
+            provider=provider_id,
+            model=requested_model,
+            cloning_engine=requested_engine,
+        )
+        lk = self._vm_lock(vm)
+        with lk:
+            engine_name = _norm_engine_id(requested_engine or getattr(vm, "cloning_engine", None)) or None
+            clone_name = str(name) if name is not None else None
+            ref_text = str(reference_text) if reference_text is not None else None
+            clone_meta = dict(metadata) if isinstance(metadata, dict) else None
+
+            if isinstance(audio, str):
+                return vm.clone_voice(
+                    str(audio),
+                    name=clone_name,
+                    reference_text=ref_text,
+                    engine=engine_name,
+                )
+
+            if isinstance(audio, dict):
+                import os
+                import tempfile
+
+                audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
+                suffix = self._suffix_for_audio_ref(audio, artifact_store=artifact_store) or ".wav"
+                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
+                    tmp_file.write(bytes(audio_bytes))
+                    tmp_path = tmp_file.name
+                try:
+                    return vm.clone_voice(
+                        tmp_path,
+                        name=clone_name,
+                        reference_text=ref_text,
+                        engine=engine_name,
+                    )
+                finally:
+                    try:
+                        os.unlink(tmp_path)
+                    except Exception:
+                        pass
+
+            return vm.clone_voice_from_wav_bytes(
+                bytes(audio),
+                name=clone_name,
+                reference_text=ref_text,
+                engine=engine_name,
+                meta=clone_meta,
+            )
+
+    def clone_voice(
+        self,
+        audio: Union[bytes, Dict[str, Any], str],
+        *,
+        name: Optional[str] = None,
+        reference_text: Optional[str] = None,
+        model: Optional[str] = None,
+        provider: Optional[str] = None,
+        artifact_store: Any = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Alias for clone() for compatibility with older duck-typed callers."""
+        return self.clone(
+            audio,
+            name=name,
+            reference_text=reference_text,
+            model=model,
+            provider=provider,
+            artifact_store=artifact_store,
+            metadata=metadata,
+            **kwargs,
+        )
 
     def voice_catalog(self) -> Dict[str, Any]:
         """Return JSON-safe profile/model discovery data for Core/Gateway."""

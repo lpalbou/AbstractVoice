@@ -119,6 +119,9 @@ AbstractCore discovers AbstractVoice through the
   - `list_cloned_voices(provider=..., model=...)`
   - `get_capability_support(...)` / `find_compatible_models(...)`
   - `voice_catalog()`
+- first-class clone creation through:
+  - `clone(audio, provider=..., model=..., name=..., reference_text=..., artifact_store=...)`
+  - `clone_voice(...)` as a compatibility alias
 - nested provider catalogs in `voice_catalog()`:
   - `tts_catalog_by_provider[provider]` -> `models`, `model_variants`,
     `voices`, `profiles`, `cloned_voices`, `voices_by_model`

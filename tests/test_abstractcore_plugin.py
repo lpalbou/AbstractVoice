@@ -700,6 +700,145 @@ def test_voice_capability_cloning_query_helpers_fallback_to_catalog(monkeypatch)
     assert "omnivoice" not in providers
 
 
+def test_voice_capability_clone_exposes_first_class_plugin_surface(tmp_path):
+    seen = {"path": None, "kwargs": None}
+    ref = tmp_path / "reference.wav"
+    ref.write_bytes(b"RIFF....WAVE")
+
+    class _VM:
+        cloning_engine = "f5_tts"
+
+        def clone_voice(self, path, **kwargs):
+            seen["path"] = path
+            seen["kwargs"] = dict(kwargs)
+            return "clone-voice-id"
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    cap = _VoiceCapability(_Owner())
+
+    assert cap.clone(str(ref), name="Ada", reference_text="hello", engine="f5_tts") == "clone-voice-id"
+    assert cap.clone_voice(str(ref), name="Ada", reference_text="hello", engine="f5_tts") == "clone-voice-id"
+    assert seen["path"] == str(ref)
+    assert seen["kwargs"] == {
+        "name": "Ada",
+        "reference_text": "hello",
+        "engine": "f5_tts",
+    }
+
+
+def test_voice_capability_clone_routes_remote_provider_model_to_vm(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    seen = {"init": None, "clone": None}
+
+    class _VM:
+        def __init__(self, **kwargs):
+            seen["init"] = dict(kwargs)
+
+        def clone_voice_from_wav_bytes(self, audio, **kwargs):
+            seen["clone"] = {
+                "audio": bytes(audio),
+                "kwargs": dict(kwargs),
+            }
+            return "clone-voice-id"
+
+    plugin._VM_CACHE.clear()
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {}
+
+    out = _VoiceCapability(_Owner()).clone(
+        b"RIFF....WAVE",
+        provider="openai-compatible:custom-compatible-tts",
+        metadata={"source": "upload"},
+    )
+
+    assert out == "clone-voice-id"
+    assert seen["init"]["tts_engine"] == "openai-compatible"
+    assert seen["init"]["cloning_engine"] == "openai-compatible"
+    assert seen["init"]["tts_model"] == "custom-compatible-tts"
+    assert seen["clone"] == {
+        "audio": b"RIFF....WAVE",
+        "kwargs": {
+            "name": None,
+            "reference_text": None,
+            "engine": "openai-compatible",
+            "meta": {"source": "upload"},
+        },
+    }
+
+
+def test_voice_capability_clone_does_not_force_local_cloning_model_into_tts(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    seen = {"init": None}
+
+    class _VM:
+        def __init__(self, **kwargs):
+            seen["init"] = dict(kwargs)
+
+        def clone_voice_from_wav_bytes(self, audio, **kwargs):
+            return "clone-voice-id"
+
+    plugin._VM_CACHE.clear()
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {}
+
+    out = _VoiceCapability(_Owner()).clone(
+        b"RIFF....WAVE",
+        provider="f5_tts:mrfakename/OpenF5-TTS-Base",
+    )
+
+    assert out == "clone-voice-id"
+    assert seen["init"]["cloning_engine"] == "f5_tts"
+    assert seen["init"].get("tts_model") in (None, "")
+
+
+def test_voice_capability_clone_uses_temp_file_for_named_audio_payload_dict(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    seen = {"path": None, "clone_from_bytes_called": False}
+
+    class _VM:
+        def __init__(self, **kwargs):
+            pass
+
+        def clone_voice(self, path, **kwargs):
+            seen["path"] = str(path)
+            return "clone-voice-id"
+
+        def clone_voice_from_wav_bytes(self, audio, **kwargs):
+            seen["clone_from_bytes_called"] = True
+            raise AssertionError("expected temp-path flow for filename-bearing audio payload dict")
+
+    plugin._VM_CACHE.clear()
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        config = {}
+
+    out = _VoiceCapability(_Owner()).clone(
+        {
+            "content": b"ID3\x00\x00",
+            "filename": "reference.mp3",
+            "mime_type": "audio/mpeg",
+        },
+        provider="openai-compatible",
+    )
+
+    assert out == "clone-voice-id"
+    assert seen["clone_from_bytes_called"] is False
+    assert isinstance(seen["path"], str) and seen["path"].endswith(".mp3")
+
+
 def test_voice_catalog_keeps_remote_clones_when_base_tts_is_local(monkeypatch):
     from abstractvoice.voice_profiles import VoiceProfile
 

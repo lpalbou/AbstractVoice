@@ -134,7 +134,7 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
     ):
         assert dep in platform
     assert _has_marked_dep(platform, "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(platform, "omnivoice>=0.1.2", "python_version >= '3.10'")
+    assert _has_marked_dep(platform, "omnivoice>=0.1.5", "python_version >= '3.10'")
     assert _has_marked_dep(platform, "aec-audio-processing>=1.0.1", "python_version >= '3.11'")
     assert extras["gpu"] == platform
 
@@ -193,10 +193,10 @@ def test_web_extra_is_lightweight_and_composes_with_engine_extras() -> None:
     assert "uvicorn>=0.23.0" in extras["web"]
     assert "python-multipart>=0.0.9" in extras["web"]
 
-    assert not _has_dep(extras["web"], "omnivoice>=0.1.2")
+    assert not _has_dep(extras["web"], "omnivoice>=0.1.5")
     assert not _has_dep(extras["web"], "f5-tts>=1.1.0")
     assert not _has_dep(extras["web"], "torch")
-    assert _has_dep(extras["omnivoice"], "omnivoice>=0.1.2")
+    assert _has_dep(extras["omnivoice"], "omnivoice>=0.1.5")
     assert not any(dep.startswith("torchvision") for dep in extras["omnivoice"])
 
 
@@ -211,7 +211,7 @@ def test_python39_optional_engine_markers_are_resolver_safe() -> None:
     assert "transformers>=5.3.0; python_version >= '3.10'" in extras["audiodit"]
     assert _has_marked_dep(extras["cloning"], "f5-tts>=1.1.0", "python_version >= '3.10'")
     assert _has_marked_dep(extras["apple"], "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(extras["apple"], "omnivoice>=0.1.2", "python_version >= '3.10'")
+    assert _has_marked_dep(extras["apple"], "omnivoice>=0.1.5", "python_version >= '3.10'")
     assert all("python_version >= '3.10'" in dep for dep in extras["chroma"])
     assert all("python_version >= '3.10'" in dep for dep in extras["omnivoice"])
     assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["aec"]
