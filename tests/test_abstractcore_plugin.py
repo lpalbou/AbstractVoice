@@ -234,6 +234,10 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models(monkeyp
         "abstractvoice.integrations.abstractcore_plugin._catalog_safe_local_tts_engines",
         lambda: [],
     )
+    monkeypatch.setattr(
+        "abstractvoice.integrations.abstractcore_plugin._local_stt_engine_available",
+        lambda engine: str(engine or "").strip().lower().replace("_", "-") in {"faster-whisper", "transformers-asr"},
+    )
 
     class _Adapter:
         engine_id = "openai"
@@ -638,6 +642,10 @@ def test_voice_catalog_keeps_remote_clones_when_base_tts_is_local(monkeypatch):
 def test_voice_capability_catalog_surfaces_stt_alias_variants(monkeypatch):
     _clear_plugin_env(monkeypatch)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setattr(
+        "abstractvoice.integrations.abstractcore_plugin._local_stt_engine_available",
+        lambda engine: str(engine or "").strip().lower().replace("_", "-") in {"faster-whisper", "transformers-asr"},
+    )
 
     class _Owner:
         config = {}

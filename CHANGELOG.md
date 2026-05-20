@@ -10,6 +10,14 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-05-20
+
+### Fixed
+- Made the AbstractCore plugin STT catalog tests declare local STT availability
+  explicitly, so the release/test workflow passes in the lightweight `.[test]`
+  environment instead of depending on optional local ASR runtimes being
+  installed on the runner.
+
 ## [0.10.6] - 2026-05-20
 
 ### Added
