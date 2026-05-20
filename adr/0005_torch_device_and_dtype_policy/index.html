@@ -66,7 +66,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0005-torch-device-dtype-selection-policy" class="md-skip">
+        <a href="#adr-0005-torch-device-and-dtype-defaults-come-from-shared-compute-helpers" class="md-skip">
           Skip to content
         </a>
       
@@ -939,6 +939,8 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
           
@@ -981,23 +983,14 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#adr-0005-torch-device-dtype-selection-policy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ADR 0005: Torch device + dtype selection policy
-      
-    </span>
-  </a>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#context" class="md-nav__link">
@@ -1018,56 +1011,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Decision">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-centralize-device-selection-for-torch-based-engines" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1) Centralize device selection for torch-based engines
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-centralize-dtype-selection-torch-with-safe-defaults-override" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2) Centralize dtype selection (torch) with safe defaults + override
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-reliability-first-fallbacks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3) Reliability-first fallbacks
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-keep-devicedtype-policy-independent-from-model-download-policy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4) Keep device/dtype policy independent from model download policy
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1095,10 +1038,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative-risks" class="md-nav__link">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative / Risks
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
       
     </span>
   </a>
@@ -1107,6 +1061,39 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backlog-links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backlog links
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1154,23 +1141,14 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#adr-0005-torch-device-dtype-selection-policy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ADR 0005: Torch device + dtype selection policy
-      
-    </span>
-  </a>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#context" class="md-nav__link">
@@ -1191,56 +1169,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Decision">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-centralize-device-selection-for-torch-based-engines" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1) Centralize device selection for torch-based engines
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-centralize-dtype-selection-torch-with-safe-defaults-override" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2) Centralize dtype selection (torch) with safe defaults + override
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-reliability-first-fallbacks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3) Reliability-first fallbacks
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-keep-devicedtype-policy-independent-from-model-download-policy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4) Keep device/dtype policy independent from model download policy
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1268,10 +1196,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative-risks" class="md-nav__link">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative / Risks
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
       
     </span>
   </a>
@@ -1280,6 +1219,39 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backlog-links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backlog links
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1314,72 +1286,80 @@
   
 
 
-  <h1>ADR 0005 - Torch Device and Dtype</h1>
-
-<h2 id="adr-0005-torch-device-dtype-selection-policy">ADR 0005: Torch device + dtype selection policy<a class="headerlink" href="#adr-0005-torch-device-dtype-selection-policy" title="Permanent link">&para;</a></h2>
-<p><strong>Date</strong>: 2026-04-05<br />
-<strong>Status</strong>: Accepted</p>
-<hr />
+<h1 id="adr-0005-torch-device-and-dtype-defaults-come-from-shared-compute-helpers">ADR 0005: Torch device and dtype defaults come from shared compute helpers<a class="headerlink" href="#adr-0005-torch-device-and-dtype-defaults-come-from-shared-compute-helpers" title="Permanent link">&para;</a></h1>
+<p>Status: Accepted.</p>
 <h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
-<p>AbstractVoice now includes multiple <strong>torch-based</strong> backends (already: cloning engines; soon: additional TTS engines).
-These engines must run well across:</p>
-<ul>
-<li>macOS (Apple Silicon) → <strong>MPS</strong></li>
-<li>Linux/Windows with NVIDIA → <strong>CUDA</strong></li>
-<li>CPU-only environments → <strong>CPU fallback</strong></li>
-</ul>
-<p>Today we already have a partial policy:</p>
-<ul>
-<li><code>abstractvoice/compute/device.py</code> provides <code>best_torch_device()</code> and an env override (<code>ABSTRACTVOICE_TORCH_DEVICE</code>).</li>
-<li>Individual engines still make ad-hoc dtype decisions (e.g. fp16 vs bf16), which won’t scale as we add more engines.</li>
-</ul>
-<p>We need a single, documented policy so new engines (e.g. LongCat-AudioDiT, OmniVoice) behave consistently by default.</p>
-<hr />
+<p>AbstractVoice now ships multiple torch-backed engines across TTS, STT, and
+cloning. If each engine chooses its own default device and dtype independently,
+the package becomes harder to reason about and platform bugs become harder to
+debug.</p>
+<p>The repo already has shared device and dtype helpers. The missing policy
+question is whether engines should treat those helpers as advisory or
+authoritative.</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<h3 id="1-centralize-device-selection-for-torch-based-engines">1) Centralize device selection for torch-based engines<a class="headerlink" href="#1-centralize-device-selection-for-torch-based-engines" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Use <code>best_torch_device()</code> as the <strong>single source of truth</strong> for automatic device selection.</li>
-<li>Default priority (when not overridden): <strong>cuda → mps → xpu → cpu</strong></li>
-<li>Allow explicit override via <code>ABSTRACTVOICE_TORCH_DEVICE</code> (e.g. <code>cpu</code>, <code>mps</code>, <code>cuda</code>).</li>
+<li>Automatic torch device selection starts from <code>abstractvoice/compute/device.py</code>
+  and its <code>best_torch_device()</code> helper.</li>
+<li>Automatic torch dtype selection starts from
+  <code>abstractvoice/compute/dtype.py</code> and its <code>best_torch_dtype_name()</code> /
+  <code>resolve_torch_dtype()</code> helpers.</li>
+<li>Environment overrides remain first-class:</li>
+<li><code>ABSTRACTVOICE_TORCH_DEVICE</code></li>
+<li><code>ABSTRACTVOICE_TORCH_DTYPE</code></li>
+<li>Engine-specific exceptions are allowed only when the upstream runtime or model
+  has a documented incompatibility. Those exceptions must narrow or override the
+  shared default deliberately; they must not replace the shared policy with
+  unrelated ad hoc heuristics.</li>
+<li>There is no repo-wide promise that every torch engine will transparently retry
+  on CPU. If an engine cannot safely run on the chosen device/dtype, it must
+  either:</li>
+<li>fail clearly; or</li>
+<li>implement and document an engine-local fallback.</li>
+<li>Device and dtype selection stay independent from download and offline-first
+  policy.</li>
 </ul>
-<h3 id="2-centralize-dtype-selection-torch-with-safe-defaults-override">2) Centralize dtype selection (torch) with safe defaults + override<a class="headerlink" href="#2-centralize-dtype-selection-torch-with-safe-defaults-override" title="Permanent link">&para;</a></h3>
-<p>Add a shared helper (or extend <code>abstractvoice/compute/*</code>) so engines can request a recommended dtype:</p>
-<ul>
-<li><strong>CUDA</strong>: prefer <strong>bf16</strong> when supported; otherwise <strong>fp16</strong></li>
-<li><strong>MPS</strong>: default <strong>fp16</strong>; fall back to <strong>fp32</strong> when kernels are unstable</li>
-<li><strong>CPU</strong>: <strong>fp32</strong></li>
-</ul>
-<p>Allow override via <code>ABSTRACTVOICE_TORCH_DTYPE</code> (e.g. <code>float32</code>, <code>float16</code>, <code>bfloat16</code>) so advanced users can force behavior.</p>
-<h3 id="3-reliability-first-fallbacks">3) Reliability-first fallbacks<a class="headerlink" href="#3-reliability-first-fallbacks" title="Permanent link">&para;</a></h3>
-<p>Engines should implement best-effort fallbacks on failure (especially on MPS):</p>
-<ul>
-<li>If an operation fails due to dtype/device incompatibility, retry on <strong>CPU fp32</strong> where feasible.</li>
-<li>If a fallback is taken, emit an explicit <code>#FALLBACK</code>-style warning (consistent with repo conventions).</li>
-</ul>
-<h3 id="4-keep-devicedtype-policy-independent-from-model-download-policy">4) Keep device/dtype policy independent from model download policy<a class="headerlink" href="#4-keep-devicedtype-policy-independent-from-model-download-policy" title="Permanent link">&para;</a></h3>
-<p>Device/dtype selection must not change offline-first behavior:</p>
-<ul>
-<li>Large model downloads remain gated by <code>allow_downloads</code> and/or explicit prefetch commands.</li>
-</ul>
-<hr />
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Consistent performance defaults across engines and platforms.</li>
-<li>Clear, centralized override knobs for integrators.</li>
-<li>Reduced per-engine “special-case” logic as new TTS/cloning backends are added.</li>
+<li>New torch engines have one default policy to plug into.</li>
+<li>Debugging becomes easier because requested and resolved device/dtype behavior
+  can be compared across engines.</li>
+<li>Power users keep explicit override knobs.</li>
 </ul>
-<h3 id="negative-risks">Negative / Risks<a class="headerlink" href="#negative-risks" title="Permanent link">&para;</a></h3>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Any default policy will be wrong for some models; per-engine overrides may still be needed.</li>
-<li>Some models may require CPU fallbacks on MPS for correctness, reducing performance.</li>
+<li>Some models still need engine-local caveats, especially on MPS.</li>
+<li>Shared defaults cannot capture every model-specific performance tradeoff.</li>
 </ul>
-<hr />
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The policy sets the starting point for engines; it does not eliminate
+  engine-specific runtime knowledge.</li>
+</ul>
+<h2 id="enforcement">Enforcement<a class="headerlink" href="#enforcement" title="Permanent link">&para;</a></h2>
+<ul>
+<li>New torch-backed engines should call the shared compute helpers before adding
+  special-case logic.</li>
+<li>PRs that add inline device/dtype policy without a model-specific justification
+  should be treated as drift.</li>
+<li>Runtime info and bug reports should expose requested and resolved
+  device/dtype where practical.</li>
+</ul>
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>tests/test_compute_dtype_policy.py</code></li>
+<li><code>tests/test_audiodit_smoke_optional.py</code></li>
+<li><code>tests/test_omnivoice_smoke_optional.py</code></li>
+</ul>
+<h2 id="backlog-links">Backlog links<a class="headerlink" href="#backlog-links" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>docs/backlog/completed/030_chroma_4b_optional_s2s_and_cloning.md</code></li>
+</ul>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>abstractvoice/compute/device.py</code> (current device selection)</li>
-<li><code>abstractvoice/compute/dtype.py</code> (dtype defaults + <code>ABSTRACTVOICE_TORCH_DTYPE</code>)</li>
-<li><code>docs/adr/0004_streaming_and_cancellation_for_cloned_tts.md</code></li>
+<li><code>abstractvoice/compute/device.py</code></li>
+<li><code>abstractvoice/compute/dtype.py</code></li>
+<li><a href="../../benchmark/">../benchmark.md</a></li>
 </ul>
 
 

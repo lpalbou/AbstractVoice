@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0001-local-voice-assistant-works-out-of-the-box" class="md-skip">
+        <a href="#adr-0001-local-assistant-installs-must-work-out-of-the-box" class="md-skip">
           Skip to content
         </a>
       
@@ -829,6 +829,8 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
           
@@ -871,23 +873,14 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#adr-0001-local-voice-assistant-works-out-of-the-box" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ADR 0001: Local Voice Assistant Works Out-of-the-Box
-      
-    </span>
-  </a>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#context" class="md-nav__link">
@@ -935,10 +928,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative-risks" class="md-nav__link">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative / Risks
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
       
     </span>
   </a>
@@ -947,6 +951,39 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backlog-links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backlog links
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1106,23 +1143,14 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#adr-0001-local-voice-assistant-works-out-of-the-box" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ADR 0001: Local Voice Assistant Works Out-of-the-Box
-      
-    </span>
-  </a>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#context" class="md-nav__link">
@@ -1170,10 +1198,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative-risks" class="md-nav__link">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative / Risks
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
       
     </span>
   </a>
@@ -1182,6 +1221,39 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backlog-links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backlog links
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1216,64 +1288,92 @@
   
 
 
-  <h1>ADR 0001 - Local Assistant</h1>
-
-<h2 id="adr-0001-local-voice-assistant-works-out-of-the-box">ADR 0001: Local Voice Assistant Works Out-of-the-Box<a class="headerlink" href="#adr-0001-local-voice-assistant-works-out-of-the-box" title="Permanent link">&para;</a></h2>
-<p><strong>Date</strong>: 2026-01-23<br />
-<strong>Status</strong>: Superseded for the base install; platform/granular profiles retained</p>
-<hr />
+<h1 id="adr-0001-local-assistant-installs-must-work-out-of-the-box">ADR 0001: Local assistant installs must work out of the box<a class="headerlink" href="#adr-0001-local-assistant-installs-must-work-out-of-the-box" title="Permanent link">&para;</a></h1>
+<p>Status: Accepted. Amended 2026-05-08.</p>
 <h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
-<p>AbstractVoice must support a local “voice assistant” experience via the <code>abstractvoice</code> command:</p>
+<p>AbstractVoice supports two real deployment shapes:</p>
 <ul>
-<li>user speaks (microphone capture)</li>
-<li>assistant transcribes (STT)</li>
-<li>assistant answers (LLM)</li>
-<li>assistant speaks (TTS)</li>
+<li>a lightweight remote/plugin install for OpenAI and OpenAI-compatible audio;</li>
+<li>an explicit local assistant install for microphone capture, STT, TTS, and
+  interactive playback on a user machine.</li>
 </ul>
-<p>Original constraint: this should work on a fresh machine with <strong>no extra system installs</strong> beyond
-<code>pip install abstractvoice</code>.</p>
-<p>Historically we relied on <code>PyAudio</code>, which is a frequent installation failure point across platforms.</p>
-<p>2026-05-08 refinement for AbstractVoice <code>0.9.1</code>: the base install is
-remote-first. Bare <code>abstractvoice</code> / <code>VoiceManager()</code> selects OpenAI remote
-TTS/STT and requires <code>OPENAI_API_KEY</code> or <code>remote_api_key=...</code>. This ADR now
-applies only to explicit local assistant installs such as
-<code>pip install "abstractvoice[apple]"</code>, <code>pip install "abstractvoice[gpu]"</code>, or
-granular compositions like <code>pip install "abstractvoice[supertonic,stt,audio-io]"</code>,
-plus explicit local engine selection.</p>
-<hr />
+<p>The project originally treated <code>pip install abstractvoice</code> as the local
+assistant install. That is no longer true. The base package is now
+remote-first, while local voice runtimes live behind explicit install profiles
+and granular extras.</p>
+<p>That packaging change did not remove the local assistant goal. It narrowed the
+scope of the goal: the out-of-box experience now applies to explicit local
+installs such as <code>abstractvoice[apple]</code>, <code>abstractvoice[gpu]</code>, or equivalent
+granular compositions, not to the lightweight base package.</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Use <strong>sounddevice</strong> (PortAudio) for microphone capture in-process.</li>
-<li>Use <strong>webrtcvad</strong> for low-latency VAD (pip-installable).</li>
-<li>Use <strong>faster-whisper</strong> for local STT in the local assistant profile.</li>
-<li>Remove the legacy OpenAI Whisper fallback from the public install contract.</li>
-<li>Keep local assistant UX available through platform or granular extras and
-  explicit local engines.</li>
-<li>Default direct <code>VoiceManager()</code> and AbstractCore/Gateway capability-plugin
-  usage to remote OpenAI/OpenAI-compatible TTS/STT.</li>
+<li>The base package stays lightweight and remote-first.</li>
+<li>A first-class local assistant experience remains required through explicit
+  local install profiles and compatible granular extras.</li>
+<li>Local assistant installs should provide mic capture, playback, VAD, local STT,
+  and local TTS without custom source builds in the normal supported path when
+  upstream wheels and standard OS audio packages are available.</li>
+<li>The preferred local assistant stack remains:</li>
+<li><code>sounddevice</code> / PortAudio for audio I/O;</li>
+<li><code>webrtcvad</code> for VAD;</li>
+<li><code>faster-whisper</code> for local STT;</li>
+<li>explicit local TTS engines such as Piper or Supertonic.</li>
+<li><code>VoiceManager()</code> and lightweight plugin/server usage stay remote-first by
+  default. Local behavior must be selected explicitly through install extras and
+  engine selection.</li>
 </ul>
-<hr />
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>listen()</code> can work in the local assistant profile (no <code>PyAudio</code> required).</li>
-<li>Unified audio backend for playback + capture (PortAudio).</li>
-<li>Bare <code>abstractvoice</code> stays remote-light and aligns with AbstractCore/Gateway
-  deployments.</li>
+<li>Remote/plugin deployments keep a small default dependency footprint.</li>
+<li>Local assistant installs remain a supported product shape instead of an
+  accidental side effect of the base package.</li>
+<li>The repo can optimize docs and examples separately for remote and local
+  install paths.</li>
 </ul>
-<h3 id="negative-risks">Negative / Risks<a class="headerlink" href="#negative-risks" title="Permanent link">&para;</a></h3>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>PortAudio availability can still be an issue on some Linux setups.</li>
-<li>Mitigation: document common system packages in <code>README.md</code> and <code>docs/installation.md</code>.</li>
-<li>Existing callers that relied on implicit local <code>auto</code> behavior must select
-  local engines explicitly and install either a platform profile or the needed
-  granular extras.</li>
+<li>There is no longer one install command that serves both remote-first hosts and
+  full local desktop use equally well.</li>
+<li>Linux users may still need standard PortAudio packages from the OS even though
+  Python-level install friction is reduced.</li>
+<li>Callers that relied on implicit local defaults must now choose explicit local
+  engines.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>CLI and browser examples may be install-aware and choose practical local
+  defaults when the local runtimes are installed, without changing the base
+  library contract.</li>
+</ul>
+<h2 id="enforcement">Enforcement<a class="headerlink" href="#enforcement" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Do not reintroduce local audio, STT, or TTS runtime dependencies into the
+  base package dependency set.</li>
+<li>Keep local assistant dependencies behind explicit extras or install profiles.</li>
+<li>Keep <code>VoiceManager()</code> and plugin/server default behavior remote-first unless a
+  new ADR changes that policy.</li>
+<li>Update installation docs and examples whenever packaging or default engine
+  selection changes.</li>
+</ul>
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>tests/test_dependency_check.py</code></li>
+<li><code>tests/test_lightweight_import_boundaries.py</code></li>
+<li>Clean-environment import/install checks for the base package</li>
+<li>Manual smoke of documented local install paths in release validation</li>
+</ul>
+<h2 id="backlog-links">Backlog links<a class="headerlink" href="#backlog-links" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>docs/backlog/completed/037_lightweight_openai_compatible_packaging.md</code></li>
+<li><code>docs/backlog/completed/038_voice_install_profiles_and_pending_defaults.md</code></li>
+<li><code>docs/backlog/completed/040_remote_first_default_and_local_extra_release.md</code></li>
 </ul>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Framework ADR 0033: install profiles, config entry points, and server boundaries.</li>
-<li>Framework ADR 0028: capabilities plugins and library/framework modes.</li>
-<li>AbstractVoice backlog: <code>docs/backlog/completed/037_lightweight_openai_compatible_packaging.md</code></li>
+<li><a href="../0002_barge_in_interruption/">0002_barge_in_interruption.md</a></li>
+<li><a href="../../installation/">../installation.md</a></li>
+<li><a href="../../architecture/">../architecture.md</a></li>
 </ul>
 
 

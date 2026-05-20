@@ -10,28 +10,24 @@
       
       
       
-        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/adr/0004_streaming_and_cancellation_for_cloned_tts/">
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/proposed/dramabox/051_ltx_audio_runtime_spike_for_dramabox/">
       
       
-        <link rel="prev" href="../0003_cloning_reference_text_fallback/">
-      
-      
-        <link rel="next" href="../0005_torch_device_and_dtype_policy/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>ADR 0004 - Cloned TTS Streaming - AbstractVoice</title>
+        <title>051 ltx audio runtime spike for dramabox - AbstractVoice</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.484c7ddc.min.css">
       
       
 
@@ -50,7 +46,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -68,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0004-cloned-tts-favors-early-playback-and-per-utterance-cancellation" class="md-skip">
+        <a href="#task-051-ltx-audio-runtime-spike-for-dramabox" class="md-skip">
           Skip to content
         </a>
       
@@ -84,7 +80,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+    <a href="../../../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -104,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0004 - Cloned TTS Streaming
+              051 ltx audio runtime spike for dramabox
             
           </span>
         </div>
@@ -194,7 +190,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+    <a href="../../../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -224,7 +220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../../.." class="md-nav__link">
         
   
   
@@ -251,7 +247,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/" class="md-nav__link">
+      <a href="../../../../getting-started/" class="md-nav__link">
         
   
   
@@ -278,7 +274,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../installation/" class="md-nav__link">
+      <a href="../../../../installation/" class="md-nav__link">
         
   
   
@@ -305,7 +301,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/" class="md-nav__link">
+      <a href="../../../../api/" class="md-nav__link">
         
   
   
@@ -332,7 +328,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/" class="md-nav__link">
+      <a href="../../../../architecture/" class="md-nav__link">
         
   
   
@@ -359,7 +355,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../repl_guide/" class="md-nav__link">
+      <a href="../../../../repl_guide/" class="md-nav__link">
         
   
   
@@ -433,7 +429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../model-management/" class="md-nav__link">
+      <a href="../../../../model-management/" class="md-nav__link">
         
   
   
@@ -461,7 +457,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../voice_cloning_2026/" class="md-nav__link">
+      <a href="../../../../voice_cloning_2026/" class="md-nav__link">
         
   
   
@@ -489,7 +485,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../multilingual/" class="md-nav__link">
+      <a href="../../../../multilingual/" class="md-nav__link">
         
   
   
@@ -517,7 +513,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../dependencies/" class="md-nav__link">
+      <a href="../../../../dependencies/" class="md-nav__link">
         
   
   
@@ -545,7 +541,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../voices-and-licenses/" class="md-nav__link">
+      <a href="../../../../voices-and-licenses/" class="md-nav__link">
         
   
   
@@ -627,7 +623,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../faq/" class="md-nav__link">
+      <a href="../../../../faq/" class="md-nav__link">
         
   
   
@@ -655,7 +651,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../known-issues/" class="md-nav__link">
+      <a href="../../../../known-issues/" class="md-nav__link">
         
   
   
@@ -683,7 +679,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../acronyms/" class="md-nav__link">
+      <a href="../../../../acronyms/" class="md-nav__link">
         
   
   
@@ -715,20 +711,18 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
@@ -749,7 +743,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -767,7 +761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../benchmark/" class="md-nav__link">
+      <a href="../../../../benchmark/" class="md-nav__link">
         
   
   
@@ -795,7 +789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/" class="md-nav__link">
+      <a href="../../../../development/" class="md-nav__link">
         
   
   
@@ -823,7 +817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0001-local_assistant_out_of_box/" class="md-nav__link">
+      <a href="../../../../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
         
   
   
@@ -851,7 +845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0002_barge_in_interruption/" class="md-nav__link">
+      <a href="../../../../adr/0002_barge_in_interruption/" class="md-nav__link">
         
   
   
@@ -879,7 +873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0003_cloning_reference_text_fallback/" class="md-nav__link">
+      <a href="../../../../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
         
   
   
@@ -904,37 +898,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR 0004 - Cloned TTS Streaming
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
         
   
   
@@ -950,142 +917,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#enforcement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enforcement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#validation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Validation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#backlog-links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Backlog links
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1098,7 +929,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0005_torch_device_and_dtype_policy/" class="md-nav__link">
+      <a href="../../../../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
         
   
   
@@ -1143,14 +974,23 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#task-051-ltx-audio-runtime-spike-for-dramabox" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 051: LTX audio runtime spike for DramaBox
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#context" class="md-nav__link">
@@ -1164,10 +1004,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#current-code-reality" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
+        Current code reality
       
     </span>
   </a>
@@ -1175,60 +1015,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#problem-or-opportunity" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#enforcement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enforcement
+        Problem or opportunity
       
     </span>
   </a>
@@ -1236,10 +1026,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#validation" class="md-nav__link">
+  <a href="#proposed-direction" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Validation
+        Proposed direction
       
     </span>
   </a>
@@ -1247,10 +1037,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#backlog-links" class="md-nav__link">
+  <a href="#why-it-might-matter" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Backlog links
+        Why it might matter
       
     </span>
   </a>
@@ -1258,10 +1048,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related" class="md-nav__link">
+  <a href="#promotion-criteria" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Related
+        Promotion criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-ideas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation ideas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#guidance-for-future-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guidance for future agents
       
     </span>
   </a>
@@ -1288,71 +1111,74 @@
   
 
 
-<h1 id="adr-0004-cloned-tts-favors-early-playback-and-per-utterance-cancellation">ADR 0004: Cloned TTS favors early playback and per-utterance cancellation<a class="headerlink" href="#adr-0004-cloned-tts-favors-early-playback-and-per-utterance-cancellation" title="Permanent link">&para;</a></h1>
-<p>Status: Accepted.</p>
+  <h1>051 ltx audio runtime spike for dramabox</h1>
+
+<h2 id="task-051-ltx-audio-runtime-spike-for-dramabox">Task 051: LTX audio runtime spike for DramaBox<a class="headerlink" href="#task-051-ltx-audio-runtime-spike-for-dramabox" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-05-20<br />
+<strong>Status</strong>: Proposed<br />
+<strong>Priority</strong>: P1</p>
+<hr />
 <h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
-<p>Cloned TTS is materially heavier than the light local TTS paths. Users judge the
-experience mainly by:</p>
+<p>The real blocker for a non-vendored DramaBox path is no longer architectural
+hand-wringing. It is whether published upstream LTX packages are sufficient for
+the required runtime behavior.</p>
+<h2 id="current-code-reality">Current code reality<a class="headerlink" href="#current-code-reality" title="Permanent link">&para;</a></h2>
 <ul>
-<li>how quickly they hear the first audio;</li>
-<li>whether new user input can stop the current response.</li>
+<li>AbstractVoice now has a shared torch runtime policy in
+  <code>abstractvoice/compute/torch_runtime.py</code>.</li>
+<li>Heavy engines already live behind explicit extras and prefetch flows.</li>
+<li>The existing DramaBox feasibility memo found a real package/version gap:
+  published <code>ltx-core</code> / <code>ltx-pipelines</code> are still behind the repo version, and
+  published <code>PromptEncoder</code> behavior does not obviously match DramaBox’s
+  vendored warm/audio-only/4-bit path.</li>
 </ul>
-<p>Waiting for a full cloned utterance to finish before playback makes the REPL and
-interactive flows feel frozen even when the total synthesis time is acceptable.</p>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<h2 id="problem-or-opportunity">Problem or opportunity<a class="headerlink" href="#problem-or-opportunity" title="Permanent link">&para;</a></h2>
+<p>If the non-vendored LTX-family runtime spike fails, most later DramaBox items
+should not promote.</p>
+<h2 id="proposed-direction">Proposed direction<a class="headerlink" href="#proposed-direction" title="Permanent link">&para;</a></h2>
+<p>Run a tightly bounded runtime spike around:</p>
 <ul>
-<li>Cloned TTS should prefer progressive playback over full-utterance buffering
-  when the engine can support chunked output.</li>
-<li>The package may implement chunking by text batching and progressive enqueueing;
-  it does not need to promise true token-level or diffusion-step streaming.</li>
-<li>Cancellation is per utterance. <code>stop_speaking()</code> and superseding user input
-  must stop playback immediately and prevent future chunk enqueueing on a
-  best-effort basis.</li>
-<li>The cancellation boundary is chunk/batch level unless an engine can do better.
-  The package must not pretend mid-step model cancellation is universal.</li>
+<li>published <code>ltx-core</code> / <code>ltx-pipelines</code> where possible;</li>
+<li>minimal local glue where published APIs are missing;</li>
+<li>one prompt-to-WAV path on supported Linux/CUDA hardware.</li>
 </ul>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<p>Candidate scope:</p>
 <ul>
-<li>Lower time-to-first-audio for cloned voices.</li>
-<li>Better interactive responsiveness in the REPL and browser flows.</li>
-<li>The policy fits the existing audio-player architecture instead of requiring a
-  completely different playback stack.</li>
+<li>warm prompt encoding;</li>
+<li>optional Gemma 4-bit load;</li>
+<li>audio-only embeddings processor;</li>
+<li>audio-only transformer builder;</li>
+<li>reference-latent conditioning.</li>
 </ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<h2 id="why-it-might-matter">Why it might matter<a class="headerlink" href="#why-it-might-matter" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Chunk boundaries can affect prosody compared with one-shot full-utterance
-  synthesis.</li>
-<li>Cancellation cannot always interrupt a model inside its current inference
-  step.</li>
+<li>stop/go gate for the whole track;</li>
+<li>potentially reusable for other LTX-family engines later.</li>
 </ul>
-<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<h2 id="promotion-criteria">Promotion criteria<a class="headerlink" href="#promotion-criteria" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Base TTS and cloned TTS are allowed to have different delivery implementations
-  as long as their user-facing behavior stays honest.</li>
+<li>a real non-vendored prompt-to-WAV path works on supported hardware;</li>
+<li>no copied upstream runtime tree is needed;</li>
+<li>the missing pieces are thin enough to own locally.</li>
 </ul>
-<h2 id="enforcement">Enforcement<a class="headerlink" href="#enforcement" title="Permanent link">&para;</a></h2>
+<h2 id="validation-ideas">Validation ideas<a class="headerlink" href="#validation-ideas" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Do not regress the clone path back to full buffered playback by default
-  without revisiting this ADR.</li>
-<li>Keep cancellation state per utterance rather than as one global mutable flag.</li>
-<li>New clone engines should either implement chunked output or clearly degrade to
-  buffered mode without claiming equivalent responsiveness.</li>
+<li>cold/warm load timing;</li>
+<li>explicit artifact download and cache reuse;</li>
+<li>one no-reference sample and one reference-conditioned sample;</li>
+<li>recorded failure modes when published LTX packages are insufficient.</li>
 </ul>
-<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<h2 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>tests/test_cloned_tts_cancellation.py</code></li>
-<li><code>tests/test_voice_cloner_engine_dispatch.py</code></li>
+<li>does not promise a production-ready engine;</li>
+<li>does not promise Apple support;</li>
+<li>does not authorize vendoring the DramaBox repo if the spike fails.</li>
 </ul>
-<h2 id="backlog-links">Backlog links<a class="headerlink" href="#backlog-links" title="Permanent link">&para;</a></h2>
+<h2 id="guidance-for-future-agents">Guidance for future agents<a class="headerlink" href="#guidance-for-future-agents" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>docs/backlog/completed/021_streaming_and_cancellation_for_cloned_tts.md</code></li>
-</ul>
-<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../0002_barge_in_interruption/">0002_barge_in_interruption.md</a></li>
-<li><code>abstractvoice/vm/tts_mixin.py</code></li>
-<li><code>abstractvoice/tts/tts_engine.py</code></li>
+<li>treat this as the track’s main stop/go gate;</li>
+<li>if unpublished upstream LTX code becomes necessary, stop and re-evaluate the
+  whole non-vendoring premise.</li>
 </ul>
 
 
@@ -1409,10 +1235,10 @@ interactive flows feel frozen even when the total synthesis time is acceptable.<
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

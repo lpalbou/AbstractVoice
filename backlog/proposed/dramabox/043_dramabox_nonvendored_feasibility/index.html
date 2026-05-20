@@ -1,0 +1,1673 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/proposed/dramabox/043_dramabox_nonvendored_feasibility/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>043 dramabox nonvendored feasibility - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#task-043-evaluate-non-vendored-dramabox-integration-feasibility" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              043 dramabox nonvendored feasibility
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#task-043-evaluate-non-vendored-dramabox-integration-feasibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 043: Evaluate non-vendored DramaBox integration feasibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main Goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secondary-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secondary Goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context / Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-code-reality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Code Reality
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-options-and-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research, Options, and References
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Research, Options, and References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-vendor-dramabox-or-its-copied-ltx-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: Vendor DramaBox or its copied LTX runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-wrap-the-dramabox-repo-as-an-external-subprocess-or-sidecar-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: Wrap the DramaBox repo as an external subprocess or sidecar environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-depend-on-upstream-ltx-core-ltx-pipelines-write-an-abstractvoice-native-dramabox-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option C: Depend on upstream ltx-core + ltx-pipelines, write an AbstractVoice-native DramaBox runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-d-depend-on-ltx-core-only-reimplement-the-minimum-needed-wrappers-locally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option D: Depend on ltx-core only, reimplement the minimum needed wrappers locally
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pros-and-cons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pros and Cons
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pros and Cons">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pros" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pros
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cons
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estimated-effort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estimated Effort
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Estimated Effort">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-0-proof-of-load-spike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 0: proof-of-load spike
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-minimal-abstractvoice-native-experimental-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: minimal AbstractVoice-native experimental engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-production-quality-optional-extra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: production-quality optional extra
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#overall-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overall assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#suggested-implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suggested Implementation Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#promotion-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Promotion Criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success Criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#guidance-for-future-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guidance for Future Agents
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>043 dramabox nonvendored feasibility</h1>
+
+<h2 id="task-043-evaluate-non-vendored-dramabox-integration-feasibility">Task 043: Evaluate non-vendored DramaBox integration feasibility<a class="headerlink" href="#task-043-evaluate-non-vendored-dramabox-integration-feasibility" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-05-20<br />
+<strong>Status</strong>: Proposed<br />
+<strong>Priority</strong>: P2</p>
+<hr />
+<h2 id="main-goals">Main Goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Determine whether <code>ResembleAI/Dramabox</code> can be integrated into AbstractVoice <strong>without vendoring upstream runtime/model code</strong>.</li>
+<li>Bound the likely engineering effort for a clean integration against existing <code>VoiceManager</code> / adapter / cloning abstractions.</li>
+<li>Record the success conditions and likely failure modes before any implementation starts.</li>
+</ul>
+<h2 id="secondary-goals">Secondary Goals<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Preserve the project preference for explicit downloads, minimal surprise runtime behavior, and clean package boundaries.</li>
+<li>Document the pros and cons so a later agent can decide whether to promote this into a real implementation task.</li>
+</ul>
+<hr />
+<h2 id="context-problem-statement">Context / Problem Statement<a class="headerlink" href="#context-problem-statement" title="Permanent link">&para;</a></h2>
+<p>DramaBox is attractive because it combines:</p>
+<ul>
+<li>prompt-directed expressive TTS;</li>
+<li>optional voice-reference conditioning for timbre cloning;</li>
+<li>a stronger “performance” surface than the current local engines.</li>
+</ul>
+<p>However, the upstream project does <strong>not</strong> ship as a clean Python SDK. The public release is a repository with:</p>
+<ul>
+<li>custom inference scripts;</li>
+<li>a copied <code>ltx2/</code> runtime tree;</li>
+<li>pinned CUDA-heavy dependencies;</li>
+<li>large model artifacts;</li>
+<li>a default Gemma 3 12B 4-bit text encoder path.</li>
+</ul>
+<p>The maintainership preference for AbstractVoice is to <strong>avoid vendoring external code when possible</strong>. That makes the key question:</p>
+<blockquote>
+<p>Can we write the integration ourselves against upstream packages and our own abstractions, without copying DramaBox internals into this repo?</p>
+</blockquote>
+<hr />
+<h2 id="current-code-reality">Current Code Reality<a class="headerlink" href="#current-code-reality" title="Permanent link">&para;</a></h2>
+<ul>
+<li>This branch now has a package-owned directed-speech/request seam in:</li>
+<li><code>abstractvoice/speech_request.py</code></li>
+<li><code>abstractvoice/vm/tts_mixin.py</code></li>
+<li>This branch now also has a shared torch runtime and explicit fallback seam in:</li>
+<li><code>abstractvoice/compute/torch_runtime.py</code></li>
+<li>multiple heavy engine runtimes that already reuse it</li>
+<li>AbstractVoice base/local TTS engines are selected through <code>abstractvoice/adapters/tts_registry.py</code>.</li>
+<li>Optional cloning engines are loaded lazily through <code>abstractvoice/cloning/manager.py</code>.</li>
+<li>Heavy engines already live behind explicit extras in <code>pyproject.toml</code> and explicit prefetch flows in:</li>
+<li><code>abstractvoice/prefetch.py</code></li>
+<li><code>abstractvoice/__main__.py</code></li>
+<li>The REPL and web flows are intentionally offline-first and should not trigger surprise multi-GB downloads during normal use.</li>
+<li>The repo already includes <strong>derived/vendored model code</strong> in two places when that removed a worse integration burden:</li>
+<li><code>abstractvoice/audiodit/*</code></li>
+<li><code>abstractvoice/qwen3_asr/*</code></li>
+<li>The repo also already tolerates a less ideal external-model path in one place:</li>
+<li><code>abstractvoice/cloning/engine_chroma.py</code> uses <code>trust_remote_code=True</code>.</li>
+</ul>
+<p>DramaBox-specific findings from local inspection:</p>
+<ul>
+<li>Upstream ships no <code>dramabox</code> package on PyPI.</li>
+<li>Upstream runtime is centered around:</li>
+<li><code>src/inference.py</code></li>
+<li><code>src/inference_server.py</code></li>
+<li><code>src/model_downloader.py</code></li>
+<li><code>src/audio_conditioning.py</code></li>
+<li>The upstream runtime depends heavily on LTX components, but those LTX pieces now also exist as standalone upstream packages:</li>
+<li><code>ltx-core</code></li>
+<li><code>ltx-pipelines</code></li>
+<li>Important caveat: local inspection showed version skew between the upstream LTX repo and published packages:</li>
+<li>LTX repo metadata currently says <code>1.1.3</code></li>
+<li><code>pip index versions ltx-core</code> and <code>ltx-pipelines</code> currently expose <code>1.0.0</code></li>
+<li>DramaBox runtime relies on custom features that are <strong>not</strong> a trivial one-line use of the published LTX helpers, including:</li>
+<li>a warm/cached prompt encoder path;</li>
+<li><code>bitsandbytes</code> 4-bit Gemma loading;</li>
+<li>audio-only stripping of video text-embedding components;</li>
+<li>custom audio reference conditioning behavior;</li>
+<li>custom audio-only transformer builder logic;</li>
+<li>prompt duration heuristics and laughter/pause budgeting;</li>
+<li>CFG-aware rescale heuristics;</li>
+<li>a latent silence-boundary patch for long outputs;</li>
+<li>optional watermark application.</li>
+</ul>
+<p>Operational/product constraints from upstream material:</p>
+<ul>
+<li>Language: English-first.</li>
+<li>Hardware: effectively CUDA/Linux first; upstream reports roughly 24 GB peak VRAM and H100-class warm-server expectations.</li>
+<li>License: LTX-2 Community License, not MIT/Apache-style permissive packaging.</li>
+</ul>
+<hr />
+<h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Do <strong>not</strong> vendor the DramaBox repo or the copied upstream <code>ltx2/</code> tree into AbstractVoice.</li>
+<li>Keep the public <code>VoiceManager</code> contract stable.</li>
+<li>Keep the integration behind an explicit optional extra.</li>
+<li>Preserve explicit-prefetch and no-surprise-download behavior.</li>
+<li>Prefer not to introduce a new large <code>trust_remote_code</code> dependency path unless a separate decision explicitly accepts it.</li>
+<li>Treat Linux/CUDA-only support as acceptable for an experimental extra, but do not pretend this is an Apple/local-desktop general engine.</li>
+<li>Keep model/license caveats explicit in docs.</li>
+</ul>
+<hr />
+<h2 id="research-options-and-references">Research, Options, and References<a class="headerlink" href="#research-options-and-references" title="Permanent link">&para;</a></h2>
+<h3 id="option-a-vendor-dramabox-or-its-copied-ltx-runtime">Option A: Vendor DramaBox or its copied LTX runtime<a class="headerlink" href="#option-a-vendor-dramabox-or-its-copied-ltx-runtime" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Summary</strong>: Copy upstream runtime code into AbstractVoice and adapt it locally.</li>
+<li><strong>Pros</strong>:</li>
+<li>Fastest path to a technically working integration.</li>
+<li>Lowest uncertainty about reproducing upstream inference behavior.</li>
+<li><strong>Cons</strong>:</li>
+<li>Conflicts with current maintainership preference.</li>
+<li>High long-term merge/maintenance burden.</li>
+<li>Imports a large body of external code into this repo.</li>
+<li>Makes future upstream security/behavior audits more expensive.</li>
+<li><strong>Status</strong>: Rejected for now unless every thinner option fails and the feature is strategically important enough to justify the cost.</li>
+</ul>
+<p>References:
+- <code>docs/development.md</code>
+- <code>docs/dependencies.md</code>
+- <code>third_party_licenses/README.md</code></p>
+<h3 id="option-b-wrap-the-dramabox-repo-as-an-external-subprocess-or-sidecar-environment">Option B: Wrap the DramaBox repo as an external subprocess or sidecar environment<a class="headerlink" href="#option-b-wrap-the-dramabox-repo-as-an-external-subprocess-or-sidecar-environment" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Summary</strong>: Treat upstream DramaBox as a separate installed tool/runtime and call it from AbstractVoice.</li>
+<li><strong>Pros</strong>:</li>
+<li>No vendored code in this repo.</li>
+<li>Minimal reimplementation effort.</li>
+<li><strong>Cons</strong>:</li>
+<li>Weakest integration quality.</li>
+<li>Extra environment management burden for users.</li>
+<li>Harder to align with <code>VoiceManager</code> lifecycle, preload, errors, and portability.</li>
+<li>Makes tests, packaging, and support much messier.</li>
+<li>Feels closer to “call a demo script” than to a first-class engine.</li>
+<li><strong>Status</strong>: Possible as a temporary spike, but not a good long-term AbstractVoice engine design.</li>
+</ul>
+<p>References:
+- <code>/tmp/DramaBox/README.md</code>
+- <code>/tmp/DramaBox/src/inference.py</code>
+- <code>/tmp/DramaBox/src/inference_server.py</code></p>
+<h3 id="option-c-depend-on-upstream-ltx-core-ltx-pipelines-write-an-abstractvoice-native-dramabox-runtime">Option C: Depend on upstream <code>ltx-core</code> + <code>ltx-pipelines</code>, write an AbstractVoice-native DramaBox runtime<a class="headerlink" href="#option-c-depend-on-upstream-ltx-core-ltx-pipelines-write-an-abstractvoice-native-dramabox-runtime" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Summary</strong>: Use official upstream LTX packages as dependencies, then write local glue code for the DramaBox-specific inference path.</li>
+<li><strong>Pros</strong>:</li>
+<li>Best non-vendored fit if upstream package APIs are good enough.</li>
+<li>Keeps the heavy/model-specific behavior in one local runtime wrapper.</li>
+<li>Preserves direct integration with AbstractVoice adapters/cloning abstractions.</li>
+<li><strong>Cons</strong>:</li>
+<li>Still requires meaningful custom runtime work.</li>
+<li>LTX package version skew is a real risk.</li>
+<li><code>ltx-pipelines</code> pulls a fairly broad dependency surface for an audio-only use case.</li>
+<li>Upstream <code>PromptEncoder</code> does not obviously expose DramaBox’s warm/audio-only/4-bit path directly.</li>
+<li><strong>Status</strong>: Best current candidate.</li>
+</ul>
+<p>References:
+- <code>/tmp/LTX-2/packages/ltx-core/pyproject.toml</code>
+- <code>/tmp/LTX-2/packages/ltx-pipelines/pyproject.toml</code>
+- <code>/tmp/LTX-2/packages/ltx-pipelines/src/ltx_pipelines/utils/blocks.py</code>
+- <code>/tmp/DramaBox/src/inference_server.py</code>
+- <code>/tmp/DramaBox/src/audio_conditioning.py</code></p>
+<h3 id="option-d-depend-on-ltx-core-only-reimplement-the-minimum-needed-wrappers-locally">Option D: Depend on <code>ltx-core</code> only, reimplement the minimum needed wrappers locally<a class="headerlink" href="#option-d-depend-on-ltx-core-only-reimplement-the-minimum-needed-wrappers-locally" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Summary</strong>: Avoid <code>ltx-pipelines</code> and write local equivalents for prompt encoding, audio conditioning, audio decode, and warm model lifecycle.</li>
+<li><strong>Pros</strong>:</li>
+<li>Cleanest long-term architecture.</li>
+<li>Smallest external dependency surface.</li>
+<li>Avoids carrying unrelated <code>ltx-pipelines</code> dependencies for an audio-only engine.</li>
+<li><strong>Cons</strong>:</li>
+<li>Highest initial implementation effort.</li>
+<li>More behavior to validate against upstream DramaBox.</li>
+<li>Greater risk of subtle inference drift.</li>
+<li><strong>Status</strong>: Good fallback only if <code>ltx-pipelines</code> proves too unstable or too heavy.</li>
+</ul>
+<p>References:
+- <code>/tmp/LTX-2/packages/ltx-core/src/ltx_core/*</code>
+- <code>/tmp/LTX-2/packages/ltx-pipelines/src/ltx_pipelines/utils/blocks.py</code></p>
+<hr />
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p><strong>Proposed direction</strong>: do <strong>not</strong> start a real engine integration yet. If this idea is promoted, begin with a <strong>proof-of-load spike</strong> using upstream <code>ltx-core</code> plus <code>ltx-pipelines</code>, with no vendored DramaBox code.</p>
+<p>The spike should answer one narrow question first:</p>
+<blockquote>
+<p>Can published upstream LTX packages, plus a thin local runtime wrapper, load DramaBox checkpoints and produce a repeatable WAV on supported CUDA hardware without copying upstream runtime code?</p>
+</blockquote>
+<p>If the answer is “no” because of version skew or missing APIs, stop and re-evaluate before writing a larger adapter.</p>
+<p><strong>Preferred product shape if the spike succeeds</strong>:</p>
+<ul>
+<li>first integrate as a <strong>cloning engine</strong> (<code>cloning_engine="dramabox"</code>) because the existing clone store already carries reference audio and voice lifecycle;</li>
+<li>only evaluate a base <code>tts_engine="dramabox"</code> path later if the no-reference and fixed-profile UX is worth the extra surface.</li>
+</ul>
+<p><strong>Why</strong>:</p>
+<ul>
+<li>This is the cleanest path that respects the non-vendoring preference.</li>
+<li>It matches AbstractVoice’s existing optional-heavy-engine pattern.</li>
+<li>It avoids prematurely committing to a large maintenance burden before we know whether upstream packages are stable enough.</li>
+<li>It now has a cleaner landing zone than it did before the branch added a
+  package-owned request/capability seam and shared torch runtime policy.</li>
+</ul>
+<hr />
+<h2 id="pros-and-cons">Pros and Cons<a class="headerlink" href="#pros-and-cons" title="Permanent link">&para;</a></h2>
+<h3 id="pros">Pros<a class="headerlink" href="#pros" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Strongest candidate in this class for <strong>expressive, prompt-directed performance speech</strong>.</li>
+<li>Better fit than current local engines for theatrical/character/dialogue use cases.</li>
+<li>Optional voice-reference conditioning maps naturally onto the existing clone-store concept.</li>
+<li>Likely avoids the <code>reference_text</code> dependency that current local clone engines often need, because the upstream path conditions directly on reference audio.</li>
+<li>Could be valuable as a clearly-labeled experimental CUDA-only extra even if it never becomes a default engine.</li>
+</ul>
+<h3 id="cons">Cons<a class="headerlink" href="#cons" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Narrower fit than current defaults: not a general-purpose local assistant TTS engine.</li>
+<li>English-first and not a serious replacement for current multilingual paths.</li>
+<li>Very heavy runtime and artifact footprint.</li>
+<li>Operationally much closer to <code>chroma</code> than to <code>piper</code>/<code>supertonic</code>.</li>
+<li>Upstream is repo-centric, not SDK-centric.</li>
+<li>Published LTX package lag raises a real packaging risk.</li>
+<li>Warm runtime behavior depends on custom prompt-encoder logic that we would need to reproduce ourselves.</li>
+<li>License terms are materially less convenient than MIT/Apache-style engines.</li>
+</ul>
+<hr />
+<h2 id="estimated-effort">Estimated Effort<a class="headerlink" href="#estimated-effort" title="Permanent link">&para;</a></h2>
+<p>These are order-of-magnitude estimates for a maintainer with appropriate Linux/CUDA hardware already available.</p>
+<h3 id="phase-0-proof-of-load-spike">Phase 0: proof-of-load spike<a class="headerlink" href="#phase-0-proof-of-load-spike" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Rough effort: <strong>2 to 4 engineer-days</strong></li>
+<li>Goal:</li>
+<li>install/resolve upstream LTX dependencies cleanly;</li>
+<li>download DramaBox + Gemma artifacts explicitly;</li>
+<li>prove one successful local inference call from a thin local wrapper.</li>
+</ul>
+<h3 id="phase-1-minimal-abstractvoice-native-experimental-engine">Phase 1: minimal AbstractVoice-native experimental engine<a class="headerlink" href="#phase-1-minimal-abstractvoice-native-experimental-engine" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Rough effort: <strong>1 to 2 engineer-weeks</strong></li>
+<li>Scope:</li>
+<li>local runtime wrapper;</li>
+<li>explicit prefetch path;</li>
+<li>single-engine synthesis to WAV bytes;</li>
+<li>failure UX and cache handling;</li>
+<li>no streaming guarantees;</li>
+<li>no Apple path;</li>
+<li>no vendored upstream runtime code.</li>
+</ul>
+<h3 id="phase-2-production-quality-optional-extra">Phase 2: production-quality optional extra<a class="headerlink" href="#phase-2-production-quality-optional-extra" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Rough effort: <strong>2 to 4 additional engineer-weeks</strong></li>
+<li>Scope:</li>
+<li>clone-store integration;</li>
+<li>preload/unload behavior;</li>
+<li>tests and docs;</li>
+<li>plugin/catalog exposure;</li>
+<li>packaging hardening;</li>
+<li>clear license/deployment guidance.</li>
+</ul>
+<h3 id="overall-assessment">Overall assessment<a class="headerlink" href="#overall-assessment" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Technical feasibility</strong>: moderate.</li>
+<li><strong>Packaging/deployment fit for AbstractVoice</strong>: weak to moderate.</li>
+<li><strong>Likelihood of success as an experimental Linux/CUDA extra</strong>: reasonable.</li>
+<li><strong>Likelihood of success as a broadly recommended local engine</strong>: low.</li>
+</ul>
+<hr />
+<h2 id="suggested-implementation-plan">Suggested Implementation Plan<a class="headerlink" href="#suggested-implementation-plan" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Run a proof-of-load spike in an isolated Linux/CUDA environment.</li>
+<li>Prefer <code>ltx-core</code> + <code>ltx-pipelines</code> over copied upstream runtime code.</li>
+<li>Write a tiny local <code>dramabox/runtime.py</code> wrapper that does only:</li>
+<li>artifact resolution;</li>
+<li>prompt encoding;</li>
+<li>audio reference encoding;</li>
+<li>audio-only transformer load;</li>
+<li>denoising;</li>
+<li>audio decode to WAV bytes.</li>
+<li>Reproduce only the minimum Dramabox-specific heuristics needed for sane first output:</li>
+<li>audio-only model config/load path;</li>
+<li>reference-audio conditioning;</li>
+<li>duration estimate;</li>
+<li>guidance parameters;</li>
+<li>rescale rule;</li>
+<li>long-output silence fix if still needed.</li>
+<li>If the spike requires unpublished upstream LTX code, a Git dependency, or substantial local code copied from upstream helpers, stop and explicitly revisit whether the non-vendoring rule still holds.</li>
+</ul>
+<hr />
+<h2 id="promotion-criteria">Promotion Criteria<a class="headerlink" href="#promotion-criteria" title="Permanent link">&para;</a></h2>
+<p>Promote this to <code>planned/</code> only if all of the following are true:</p>
+<ul>
+<li>a Linux/CUDA spike produces real speech from a thin local wrapper;</li>
+<li>the wrapper does not require vendoring the DramaBox repo or copied LTX runtime tree;</li>
+<li>dependency installation is repeatable enough for an explicit optional extra;</li>
+<li>the resulting engine quality is meaningfully better than existing local options for the targeted expressive-use-case lane;</li>
+<li>the maintainer is willing to support a CUDA-only, English-first, heavy experimental engine in docs and user support.</li>
+</ul>
+<hr />
+<h2 id="success-criteria">Success Criteria<a class="headerlink" href="#success-criteria" title="Permanent link">&para;</a></h2>
+<ul>
+<li>We know whether a non-vendored integration is realistic before writing a large adapter.</li>
+<li>We have an explicit record of the packaging, runtime, and maintenance trade-offs.</li>
+<li>Future implementation work starts from a specific spike plan instead of redoing the same research.</li>
+</ul>
+<hr />
+<h2 id="test-plan">Test Plan<a class="headerlink" href="#test-plan" title="Permanent link">&para;</a></h2>
+<p>Before promotion:</p>
+<ul>
+<li>Verify dependency resolution on the intended target platform.</li>
+<li>Prove explicit artifact download and cache reuse.</li>
+<li>Generate at least one no-reference sample and one reference-conditioned sample.</li>
+<li>Measure cold-load and warm-request latency.</li>
+<li>Record peak memory behavior and failure modes.</li>
+<li>Confirm whether the upstream package versions on PyPI are sufficient, or whether the spike quietly relied on a repo checkout / unpublished code.</li>
+</ul>
+<hr />
+<h2 id="guidance-for-future-agents">Guidance for Future Agents<a class="headerlink" href="#guidance-for-future-agents" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Re-check upstream LTX package publishing status before implementation; the package-lag finding here may become stale.</li>
+<li>Re-check DramaBox license terms before committing implementation work.</li>
+<li>Do not assume Apple/MPS support.</li>
+<li>Do not start by copying upstream helper files into AbstractVoice unless a separate decision explicitly authorizes that tradeoff.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

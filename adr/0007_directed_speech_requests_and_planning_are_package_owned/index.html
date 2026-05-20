@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/adr/0004_streaming_and_cancellation_for_cloned_tts/">
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/adr/0007_directed_speech_requests_and_planning_are_package_owned/">
       
       
-        <link rel="prev" href="../0003_cloning_reference_text_fallback/">
-      
-      
-        <link rel="next" href="../0005_torch_device_and_dtype_policy/">
       
       
         
@@ -27,7 +23,7 @@
     
     
       
-        <title>ADR 0004 - Cloned TTS Streaming - AbstractVoice</title>
+        <title>ADR 0007: Directed speech requests and planning are package-owned - AbstractVoice</title>
       
     
     
@@ -68,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0004-cloned-tts-favors-early-playback-and-per-utterance-cancellation" class="md-skip">
+        <a href="#adr-0007-directed-speech-requests-and-planning-are-package-owned" class="md-skip">
           Skip to content
         </a>
       
@@ -104,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0004 - Cloned TTS Streaming
+              ADR 0007: Directed speech requests and planning are package-owned
             
           </span>
         </div>
@@ -715,20 +711,18 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
@@ -749,7 +743,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -904,37 +898,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR 0004 - Cloned TTS Streaming
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
         
   
   
@@ -950,142 +917,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#enforcement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enforcement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#validation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Validation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#backlog-links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Backlog links
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1288,71 +1119,154 @@
   
 
 
-<h1 id="adr-0004-cloned-tts-favors-early-playback-and-per-utterance-cancellation">ADR 0004: Cloned TTS favors early playback and per-utterance cancellation<a class="headerlink" href="#adr-0004-cloned-tts-favors-early-playback-and-per-utterance-cancellation" title="Permanent link">&para;</a></h1>
+<h1 id="adr-0007-directed-speech-requests-and-planning-are-package-owned">ADR 0007: Directed speech requests and planning are package-owned<a class="headerlink" href="#adr-0007-directed-speech-requests-and-planning-are-package-owned" title="Permanent link">&para;</a></h1>
 <p>Status: Accepted.</p>
 <h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
-<p>Cloned TTS is materially heavier than the light local TTS paths. Users judge the
-experience mainly by:</p>
+<p>AbstractVoice already owns the user-facing semantics for <code>provider</code>, <code>model</code>,
+<code>profile</code>, <code>voice</code>, <code>instructions</code>, <code>quality_preset</code>, and clone residency.
+That policy is explicit in ADR 0006.</p>
+<p>The Scenema-track proposals introduce the next missing layer above today's
+text-first TTS surface:</p>
 <ul>
-<li>how quickly they hear the first audio;</li>
-<li>whether new user input can stop the current response.</li>
+<li>richer request semantics such as pacing, target duration, scene context,
+  action cues, ambient/background audio, and output layout;</li>
+<li>per-engine capability reporting and explicit degradation instead of silent
+  best-effort guessing;</li>
+<li>package-owned planning and request compilation for advanced speech engines.</li>
 </ul>
-<p>Waiting for a full cloned utterance to finish before playback makes the REPL and
-interactive flows feel frozen even when the total synthesis time is acceptable.</p>
+<p>Current code now has the start of that package-level contract internally:</p>
+<ul>
+<li><code>abstractvoice/speech_request.py</code> defines package-owned <code>SpeechRequest</code>,
+  <code>SpeechCapability</code>, and <code>SpeechCapabilities</code> helpers;</li>
+<li><code>VoiceManager</code> compiles current call sites into that internal request layer;</li>
+<li><code>VoiceManager.get_tts_capabilities()</code> already reports support as <code>native</code>,
+  <code>emulated</code>, <code>conditional</code>, or <code>unsupported</code>.</li>
+</ul>
+<p>What does not exist yet is a broadened raw adapter contract for richer directed
+speech. <code>TTSAdapter</code> is still fundamentally text-first, and the new
+directed-speech fields are mostly package-owned metadata and capability status
+today rather than engine-wired generation controls.</p>
+<p>If future engines add richer speech controls through ad hoc kwargs or if
+AbstractCore starts owning speech-planning semantics, the package boundary will
+invert. AbstractVoice would become an execution detail for semantics it no
+longer controls.</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Cloned TTS should prefer progressive playback over full-utterance buffering
-  when the engine can support chunked output.</li>
-<li>The package may implement chunking by text batching and progressive enqueueing;
-  it does not need to promise true token-level or diffusion-step streaming.</li>
-<li>Cancellation is per utterance. <code>stop_speaking()</code> and superseding user input
-  must stop playback immediately and prevent future chunk enqueueing on a
-  best-effort basis.</li>
-<li>The cancellation boundary is chunk/batch level unless an engine can do better.
-  The package must not pretend mid-step model cancellation is universal.</li>
+<li>AbstractVoice owns the authoritative directed-speech contract above the raw
+  adapter layer.</li>
+<li>That contract is currently represented internally by package-owned request and
+  capability types in <code>abstractvoice/speech_request.py</code>. Future result metadata
+  may use <code>SpeechResult</code> or an equivalent typed form when needed.</li>
+<li>The first version must stay small and add only fields with a real caller and
+  a real engine or planner consumer. Candidate fields may include:</li>
+<li><code>pace</code></li>
+<li><code>target_duration_s</code></li>
+<li><code>actions</code></li>
+<li><code>scene_context</code></li>
+<li><code>ambient_audio</code></li>
+<li><code>background_sfx</code></li>
+<li><code>output_channels</code></li>
+<li>Existing public entry points such as <code>VoiceManager.speak()</code>,
+  <code>VoiceManager.speak_to_bytes()</code>, and current plugin/server payloads should
+  compile into that contract internally instead of breaking the current public
+  API.</li>
+<li>The raw adapter contract does not need to expand immediately. The package may
+  continue compiling richer request intent into the current text-first adapter
+  layer until a later ADR or implementation need justifies a wider adapter
+  surface.</li>
+<li>Package-owned selector semantics from ADR 0006 remain in force. New directed
+  speech fields must not overload <code>profile</code>, <code>voice</code>, <code>model</code>, or
+  <code>instructions</code> with hidden meanings.</li>
+<li>Every directed-speech field exposed beyond today's stable text-first subset
+  must have a package-owned capability state:</li>
+<li><code>native</code>: the engine/runtime supports the field directly;</li>
+<li><code>emulated</code>: AbstractVoice or engine glue can implement the effect with a
+    documented translation and trade-off;</li>
+<li><code>conditional</code>: AbstractVoice can forward the field or orchestrate it, but
+    provider/model support is endpoint-specific or not yet in the package
+    allowlist;</li>
+<li><code>unsupported</code>: the request cannot be honored.</li>
+<li>Unsupported fields must never disappear silently. The package must either:</li>
+<li>reject the request clearly; or</li>
+<li>surface explicit degradation or capability metadata showing what was not
+    honored.</li>
+<li>Directed-speech planning and degradation rules stay inside AbstractVoice.
+  Integrations such as AbstractCore may serialize requests and results as
+  dict/JSON payloads, but they do not define or reinterpret the semantics.</li>
+<li>If future reuse justifies a shared neutral contracts package, only schemas and
+  enums may be extracted. Planning logic, degradation policy, and request
+  compilation remain AbstractVoice-owned unless a later ADR changes that
+  boundary.</li>
+<li>Simple engines are allowed to support only the text-first subset plus the
+  stable selectors already defined by current ADRs. They should report richer
+  fields as unsupported rather than faking support.</li>
 </ul>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Lower time-to-first-audio for cloned voices.</li>
-<li>Better interactive responsiveness in the REPL and browser flows.</li>
-<li>The policy fits the existing audio-player architecture instead of requiring a
-  completely different playback stack.</li>
+<li>Scenema-class work gets a package-owned seam before engine-specific runtime
+  work begins.</li>
+<li>Integrations can stay thin and honest because they forward package-owned
+  semantics instead of inventing their own request vocabulary.</li>
+<li>Capability reporting becomes auditable across simple and advanced engines.</li>
 </ul>
 <h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Chunk boundaries can affect prosody compared with one-shot full-utterance
-  synthesis.</li>
-<li>Cancellation cannot always interrupt a model inside its current inference
-  step.</li>
+<li>AbstractVoice must design and maintain a richer request contract instead of
+  leaving that work to integrations or engine-specific wrappers.</li>
+<li>Some future requests will fail explicitly where a hidden best-effort fallback
+  might have seemed more convenient.</li>
 </ul>
 <h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Base TTS and cloned TTS are allowed to have different delivery implementations
-  as long as their user-facing behavior stays honest.</li>
+<li>The adapter layer may stay narrower than the package-level request contract as
+  long as request compilation, capability reporting, and degradation remain
+  explicit.</li>
 </ul>
 <h2 id="enforcement">Enforcement<a class="headerlink" href="#enforcement" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Do not regress the clone path back to full buffered playback by default
-  without revisiting this ADR.</li>
-<li>Keep cancellation state per utterance rather than as one global mutable flag.</li>
-<li>New clone engines should either implement chunked output or clearly degrade to
-  buffered mode without claiming equivalent responsiveness.</li>
+<li>Do not add engine-specific directed-speech semantics as undocumented kwargs on
+  <code>VoiceManager</code>, plugin surfaces, or integration payloads when they belong in
+  the package-owned contract.</li>
+<li>Do not silently reinterpret unsupported fields as plain text decoration or as
+  generic <code>instructions</code> without capability reporting.</li>
+<li>Do not claim support for a directed-speech field merely because the internal
+  request object can carry it. Support remains <code>unsupported</code> until the package
+  wires that field to real engine or planner behavior.</li>
+<li>Keep planning, capability mapping, and degradation rules in AbstractVoice.
+  AbstractCore and other integrations should remain serialization and transport
+  layers.</li>
+<li>Changes to the directed-speech contract, capability states, or degradation
+  rules require an ADR update or a superseding ADR.</li>
 </ul>
 <h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>tests/test_cloned_tts_cancellation.py</code></li>
-<li><code>tests/test_voice_cloner_engine_dispatch.py</code></li>
+<li>Extend <code>tests/test_abstractcore_plugin.py</code> so richer request payloads can pass
+  through dict/JSON boundaries without redefining package semantics in the
+  plugin layer.</li>
+<li>Add request-compilation tests for <code>VoiceManager.speak()</code>,
+  <code>VoiceManager.speak_to_bytes()</code>, and any new directed-speech helper surface.</li>
+<li>Add capability-reporting tests that cover at least one <code>native</code>, one
+  <code>emulated</code>, one <code>conditional</code>, and one <code>unsupported</code> field.</li>
+<li>Update <code>docs/api.md</code> and <code>docs/architecture.md</code> when a public directed-speech
+  request surface becomes user-facing.</li>
 </ul>
 <h2 id="backlog-links">Backlog links<a class="headerlink" href="#backlog-links" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>docs/backlog/completed/021_streaming_and_cancellation_for_cloned_tts.md</code></li>
+<li><code>docs/backlog/planned/scenema/044_package_owned_directed_speech_request_and_capabilities.md</code></li>
+<li><code>docs/backlog/planned/scenema/045_shared_runtime_foundation_for_advanced_speech_engines.md</code></li>
+<li><code>docs/backlog/planned/scenema/046_scenema_class_python_runtime_spike.md</code></li>
+<li><code>docs/backlog/planned/scenema/047_device_agnostic_runtime_and_apple_silicon_path.md</code></li>
 </ul>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../0002_barge_in_interruption/">0002_barge_in_interruption.md</a></li>
+<li><a href="../0006_voice_overlays_are_package_owned_not_generic_adapters/">0006_voice_overlays_are_package_owned_not_generic_adapters.md</a></li>
+<li><a href="../0005_torch_device_and_dtype_policy/">0005_torch_device_and_dtype_policy.md</a></li>
+<li><a href="../../architecture/">../architecture.md</a></li>
+<li><code>abstractvoice/speech_request.py</code></li>
 <li><code>abstractvoice/vm/tts_mixin.py</code></li>
-<li><code>abstractvoice/tts/tts_engine.py</code></li>
+<li><code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
+<li><code>abstractvoice/examples/web_ui.py</code></li>
 </ul>
 
 

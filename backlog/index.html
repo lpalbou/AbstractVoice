@@ -990,7 +990,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Backlog (how we work)">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current snapshot
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Current snapshot">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1014,6 +1025,28 @@
     <span class="md-ellipsis">
       
         Folder layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-planned-scenema-track" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current planned Scenema track
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-proposed-dramabox-track" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current proposed DramaBox track
       
     </span>
   </a>
@@ -1077,6 +1110,14 @@
 
 <h2 id="backlog-how-we-work">Backlog (how we work)<a class="headerlink" href="#backlog-how-we-work" title="Permanent link">&para;</a></h2>
 <p>This folder is the <strong>single source of truth</strong> for planned and completed work in AbstractVoice.</p>
+<h2 id="current-snapshot">Current snapshot<a class="headerlink" href="#current-snapshot" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Updated: 2026-05-20</li>
+<li>Planned: 16</li>
+<li>Proposed: 9</li>
+<li>Completed: 28</li>
+<li>Recurrent: 1</li>
+</ul>
 <h3 id="principles">Principles<a class="headerlink" href="#principles" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Backlog items are self-contained</strong>: each task includes the outcome of research, key constraints, design choices, and the reasons for those choices (with references).</li>
@@ -1092,11 +1133,58 @@
 <li><code>docs/backlog/completed/</code>: finished tasks with a completion report</li>
 <li><code>docs/backlog/recurrent/</code>: checklists to run after development cycles</li>
 </ul>
+<p>For larger work tracks, a topical subfolder under <code>planned/</code> or <code>proposed/</code> is
+allowed when it improves readability and the folder includes a short
+<code>README.md</code> that explains scope, lifecycle state, and recommended sequencing.</p>
+<h2 id="current-planned-scenema-track">Current planned Scenema track<a class="headerlink" href="#current-planned-scenema-track" title="Permanent link">&para;</a></h2>
+<p>These items were promoted from <code>docs/backlog/proposed/scenema/</code> on 2026-05-20.
+Only the runtime spike is Scenema-specific; the other items are broader
+prerequisites that remain reusable beyond Scenema. The internal
+request/capability seam and shared torch runtime seam already exist on the
+<code>scenema</code> branch, so the remaining planned work is now a rollout/hardening
+track rather than a greenfield design track. Recommended implementation order:</p>
+<ol>
+<li><code>docs/backlog/planned/scenema/044_package_owned_directed_speech_request_and_capabilities.md</code></li>
+<li><code>docs/backlog/planned/scenema/045_shared_runtime_foundation_for_advanced_speech_engines.md</code></li>
+<li><code>docs/backlog/planned/scenema/046_scenema_class_python_runtime_spike.md</code></li>
+<li><code>docs/backlog/planned/scenema/047_device_agnostic_runtime_and_apple_silicon_path.md</code></li>
+</ol>
+<p>Rationale:</p>
+<ul>
+<li>finish the package-owned request rollout before widening runtime and
+  integration work further;</li>
+<li>harden the shared dependency/runtime foundation before adding another heavy
+  optional backend;</li>
+<li>prove a Linux/CUDA rewrite path before claiming a serious Apple/MPS path;</li>
+<li>keep the former planning-boundary work folded into <code>044</code>, where ADR 0007 and
+  the rollout now make it enforceable instead of duplicative.</li>
+</ul>
+<h2 id="current-proposed-dramabox-track">Current proposed DramaBox track<a class="headerlink" href="#current-proposed-dramabox-track" title="Permanent link">&para;</a></h2>
+<p>These items are grouped under <code>docs/backlog/proposed/dramabox/</code>. They are
+still proposal-grade because the non-vendored LTX-family runtime spike remains
+the main stop/go gate. Recommended reading order:</p>
+<ol>
+<li><code>docs/backlog/proposed/dramabox/043_dramabox_nonvendored_feasibility.md</code></li>
+<li><code>docs/backlog/proposed/dramabox/049_package_owned_expressive_prompt_mapping_and_reference_audio_conditioning.md</code></li>
+<li><code>docs/backlog/proposed/dramabox/050_advanced_speech_output_layout_and_result_metadata.md</code></li>
+<li><code>docs/backlog/proposed/dramabox/051_ltx_audio_runtime_spike_for_dramabox.md</code></li>
+<li><code>docs/backlog/proposed/dramabox/052_dramabox_clone_engine_integration.md</code></li>
+<li><code>docs/backlog/proposed/dramabox/053_dramabox_base_tts_engine_and_capability_rollout.md</code></li>
+<li><code>docs/backlog/proposed/dramabox/054_dramabox_apple_silicon_validation_and_explicit_degradation.md</code></li>
+</ol>
+<p>Rationale:</p>
+<ul>
+<li>capture reusable abstractions even if DramaBox never ships;</li>
+<li>keep the runtime spike separate from later engine-surface work;</li>
+<li>keep Apple validation explicitly last instead of silently assumed.</li>
+</ul>
 <hr />
 <h2 id="naming-convention">Naming convention<a class="headerlink" href="#naming-convention" title="Permanent link">&para;</a></h2>
 <p>Create new tasks as:</p>
 <ul>
 <li><code>docs/backlog/planned/{NNN}_{short_description}.md</code></li>
+<li><code>docs/backlog/planned/{track}/{NNN}_{short_description}.md</code> for established
+  multi-item tracks</li>
 </ul>
 <p>Rules:
 - <strong>NNN</strong>: zero-padded integer (e.g. <code>017</code>)
@@ -1126,7 +1214,9 @@
 <h2 id="work-process-development-cycle">Work process (development cycle)<a class="headerlink" href="#work-process-development-cycle" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Think, design, and plan</strong> with long-term consequences in mind; prefer the cleanest, simplest, most efficient approach.</li>
-<li><strong>Write the task</strong> in <code>docs/backlog/planned/{NNN}_{short_description}.md</code> (self-contained, with research and decisions).</li>
+<li><strong>Write the task</strong> in <code>docs/backlog/planned/{NNN}_{short_description}.md</code>
+   or <code>docs/backlog/planned/{track}/{NNN}_{short_description}.md</code>
+   (self-contained, with research and decisions).</li>
 <li><strong>Implement</strong> the task.</li>
 <li><strong>Test</strong> and fix issues.</li>
 <li><strong>Only when all tests pass</strong>, move the task to <code>docs/backlog/completed/</code> and add the completion report at the end.</li>
@@ -1135,7 +1225,10 @@
 </ol>
 <p>Proposed items should be promoted before implementation when they become
 accepted work. If an agent completes a small proposed item in one cycle, the
-completed report must say it was promoted from <code>docs/backlog/proposed/</code>.</p>
+completed report must say it was promoted from <code>docs/backlog/proposed/</code>.
+If a whole topical proposal track is accepted, move the existing files into
+<code>docs/backlog/planned/{track}/</code> and update the track <code>README.md</code> instead of
+duplicating them.</p>
 
 
 

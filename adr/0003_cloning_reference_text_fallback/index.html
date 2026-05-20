@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0003-voice-cloning-reference-text-automatic-fallback-strategy" class="md-skip">
+        <a href="#adr-0003-cloning-reference-text-is-first-class-and-auto-filled-once" class="md-skip">
           Skip to content
         </a>
       
@@ -885,6 +885,8 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
           
@@ -927,23 +929,14 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#adr-0003-voice-cloning-reference-text-automatic-fallback-strategy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ADR 0003: Voice cloning reference text (automatic fallback strategy)
-      
-    </span>
-  </a>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#context" class="md-nav__link">
@@ -965,14 +958,25 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Decision">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-store-reference_text-per-cloned-voice-and-treat-it-as-a-first-class-quality-control-input" class="md-nav__link">
+  <a href="#positive" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1) Store reference_text per cloned voice and treat it as a first-class quality control input
+        Positive
       
     </span>
   </a>
@@ -980,10 +984,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-reference_text-is-optional-user-input-if-present-it-overrides-auto-stt" class="md-nav__link">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2) reference_text is optional user input; if present, it overrides auto-STT
+        Negative
       
     </span>
   </a>
@@ -991,32 +995,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-default-fallback-when-reference_text-is-missing-one-time-auto-generation-then-persist" class="md-nav__link">
+  <a href="#neutral" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3) Default fallback when reference_text is missing: one-time auto-generation, then persist
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-stt-strategy-for-auto-generated-reference_text-3-pass-consensus" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4) STT strategy for auto-generated reference_text: 3-pass consensus
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-optional-quality-mode-future-closed-loop-selection-of-ref_text-candidates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5) Optional “quality mode” (future): closed-loop selection of ref_text candidates
+        Neutral
       
     </span>
   </a>
@@ -1029,10 +1011,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#enforcement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        Enforcement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backlog-links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backlog links
       
     </span>
   </a>
@@ -1139,23 +1143,14 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#adr-0003-voice-cloning-reference-text-automatic-fallback-strategy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ADR 0003: Voice cloning reference text (automatic fallback strategy)
-      
-    </span>
-  </a>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#context" class="md-nav__link">
@@ -1177,14 +1172,25 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Decision">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-store-reference_text-per-cloned-voice-and-treat-it-as-a-first-class-quality-control-input" class="md-nav__link">
+  <a href="#positive" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1) Store reference_text per cloned voice and treat it as a first-class quality control input
+        Positive
       
     </span>
   </a>
@@ -1192,10 +1198,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-reference_text-is-optional-user-input-if-present-it-overrides-auto-stt" class="md-nav__link">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2) reference_text is optional user input; if present, it overrides auto-STT
+        Negative
       
     </span>
   </a>
@@ -1203,32 +1209,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-default-fallback-when-reference_text-is-missing-one-time-auto-generation-then-persist" class="md-nav__link">
+  <a href="#neutral" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3) Default fallback when reference_text is missing: one-time auto-generation, then persist
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-stt-strategy-for-auto-generated-reference_text-3-pass-consensus" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4) STT strategy for auto-generated reference_text: 3-pass consensus
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-optional-quality-mode-future-closed-loop-selection-of-ref_text-candidates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5) Optional “quality mode” (future): closed-loop selection of ref_text candidates
+        Neutral
       
     </span>
   </a>
@@ -1241,10 +1225,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#enforcement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        Enforcement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backlog-links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backlog links
       
     </span>
   </a>
@@ -1282,80 +1288,78 @@
   
 
 
-  <h1>ADR 0003 - Reference Text Fallback</h1>
-
-<h2 id="adr-0003-voice-cloning-reference-text-automatic-fallback-strategy">ADR 0003: Voice cloning reference text (automatic fallback strategy)<a class="headerlink" href="#adr-0003-voice-cloning-reference-text-automatic-fallback-strategy" title="Permanent link">&para;</a></h2>
-<p><strong>Date</strong>: 2026-01-23<br />
-<strong>Status</strong>: Accepted (amended 2026-01-28)  </p>
-<hr />
+<h1 id="adr-0003-cloning-reference-text-is-first-class-and-auto-filled-once">ADR 0003: Cloning reference text is first-class and auto-filled once<a class="headerlink" href="#adr-0003-cloning-reference-text-is-first-class-and-auto-filled-once" title="Permanent link">&para;</a></h1>
+<p>Status: Accepted. Amended 2026-01-28.</p>
 <h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
-<p>Our cloning engines condition on a <strong>reference transcript</strong> + the generation text:</p>
-<ul>
-<li><code>f5_tts</code>: <strong><code>ref_text + gen_text</code></strong></li>
-<li><code>chroma</code>: <code>prompt_text</code> (reference transcript) + <code>prompt_audio</code> (reference audio)</li>
-</ul>
-<p>This means <code>reference_text</code> is not “metadata”: it directly influences generation.</p>
-<p>If <code>ref_text</code> is wrong (e.g. noisy ASR), the model can:</p>
-<ul>
-<li>“bleed” wrong words into the output (hallucinated repetitions)</li>
-<li>degrade speaker similarity and prosody</li>
-</ul>
-<p>We want a high-quality, automatic experience even when the user does <strong>not</strong> provide <code>reference_text</code>.</p>
-<hr />
+<p>Several cloning engines depend on both reference audio and a reference
+transcript. That transcript is not decorative metadata. It directly affects
+speaker similarity, intelligibility, and prompt stability.</p>
+<p>If the transcript is wrong, the system can bleed incorrect words into the
+output, degrade prosody, or repeatedly pay the cost of re-transcribing the same
+reference. Users should be allowed to provide the transcript themselves, but the
+default experience still needs a robust automatic fallback.</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<h3 id="1-store-reference_text-per-cloned-voice-and-treat-it-as-a-first-class-quality-control-input">1) Store <code>reference_text</code> per cloned voice and treat it as a first-class quality control input<a class="headerlink" href="#1-store-reference_text-per-cloned-voice-and-treat-it-as-a-first-class-quality-control-input" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Each cloned voice in <code>VoiceCloneStore</code> stores <code>reference_text</code>.</li>
-<li>The system can update it once and reuse it for all future utterances.</li>
+<li><code>reference_text</code> is a first-class property of a stored cloned voice.</li>
+<li>User-provided <code>reference_text</code> wins over automatic STT and is persisted for
+  reuse.</li>
+<li>When <code>reference_text</code> is missing, AbstractVoice generates it once, persists
+  it, and reuses it for later synthesis instead of retranscribing per
+  utterance.</li>
+<li>The automatic fallback is engine-agnostic at the manager/store layer. Clone
+  engines should consume the stored transcript rather than inventing their own
+  private fallback rules.</li>
+<li>Automatic fallback uses conservative normalization and a 3-pass STT consensus
+  strategy before persistence.</li>
+<li>If no usable transcript can be produced, the system fails clearly and asks for
+  a better sample or manual text instead of silently proceeding with degraded
+  prompts.</li>
 </ul>
-<h3 id="2-reference_text-is-optional-user-input-if-present-it-overrides-auto-stt">2) <code>reference_text</code> is optional user input; if present, it overrides auto-STT<a class="headerlink" href="#2-reference_text-is-optional-user-input-if-present-it-overrides-auto-stt" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Users may provide <code>reference_text</code> at clone time, or set it later.</li>
-<li>If user-provided text exists, we <strong>do not</strong> run STT auto-fallback.</li>
-</ul>
-<h3 id="3-default-fallback-when-reference_text-is-missing-one-time-auto-generation-then-persist">3) Default fallback when <code>reference_text</code> is missing: one-time auto-generation, then persist<a class="headerlink" href="#3-default-fallback-when-reference_text-is-missing-one-time-auto-generation-then-persist" title="Permanent link">&para;</a></h3>
-<p>When <code>reference_text</code> is missing:</p>
-<ul>
-<li>Generate it <strong>once</strong> (not per utterance) via STT.</li>
-<li>Apply conservative normalization (punctuation, whitespace).</li>
-<li>Persist it into the voice store (with metadata marking it as auto-generated).</li>
-</ul>
-<p>This avoids repeating the “poisoned prompt” problem across utterances.</p>
-<p>Implementation note:</p>
-<ul>
-<li>We do this lazily at <strong>first speak</strong> (not at clone-time) so cloning remains offline-first and does not force
-  STT downloads during <code>/clone ...</code> flows.</li>
-<li>This fallback is <strong>engine-agnostic</strong> and must behave the same for <code>f5_tts</code> and <code>chroma</code>.</li>
-</ul>
-<h3 id="4-stt-strategy-for-auto-generated-reference_text-3-pass-consensus">4) STT strategy for auto-generated <code>reference_text</code>: 3-pass consensus<a class="headerlink" href="#4-stt-strategy-for-auto-generated-reference_text-3-pass-consensus" title="Permanent link">&para;</a></h3>
-<p>To reduce occasional ASR instability, we run STT <strong>3 times</strong> and select a consensus transcript:</p>
-<ul>
-<li>Normalize each candidate (whitespace + sentence-ending punctuation).</li>
-<li>If a majority exists (2/3 match after normalization), choose it.</li>
-<li>Otherwise, choose the “closest” candidate (minimum total edit distance to the others).</li>
-</ul>
-<p>If STT produces no usable text, we fail with a clear error and require the user to set <code>reference_text</code> manually.</p>
-<h3 id="5-optional-quality-mode-future-closed-loop-selection-of-ref_text-candidates">5) Optional “quality mode” (future): closed-loop selection of ref_text candidates<a class="headerlink" href="#5-optional-quality-mode-future-closed-loop-selection-of-ref_text-candidates" title="Permanent link">&para;</a></h3>
-<p>If we need better robustness than single-pass ASR:</p>
-<ul>
-<li>Generate several candidate transcripts (different STT models/decoding/normalizations).</li>
-<li>Synthesize a short probe phrase for each candidate.</li>
-<li>Select the candidate that maximizes speaker similarity vs reference audio (speaker embeddings).</li>
-</ul>
-<p>This optimizes the true objective (speaker similarity) rather than ASR accuracy alone.</p>
-<hr />
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>We accept that fully automatic fallback is probabilistic, but we constrain the blast radius
-  by persisting a best-effort transcript once and enabling easy correction.</li>
-<li>We prefer deterministic behavior (one-time preprocessing + caching) over silent repeated
-  re-transcription.</li>
+<li>Clone quality becomes more stable across utterances.</li>
+<li>Users can fix transcript quality once and get the benefit on all future
+  synthesis.</li>
+<li>The store captures provenance such as manual versus ASR-generated text.</li>
 </ul>
-<hr />
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The first synthesis for a newly created voice may pay a one-time STT cost.</li>
+<li>The automatic fallback remains probabilistic and can still be wrong on noisy
+  references.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The fallback is intentionally manager-owned rather than engine-owned, so clone
+  engines stay simpler and more consistent.</li>
+</ul>
+<h2 id="enforcement">Enforcement<a class="headerlink" href="#enforcement" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Clone engines that require transcript conditioning must consume
+  store-managed <code>reference_text</code> passed through <code>VoiceCloner</code>.</li>
+<li>Do not re-transcribe reference audio on every utterance.</li>
+<li>Preserve <code>reference_text_source</code> provenance in the store when the text is set
+  manually or via ASR.</li>
+<li>Any change to the automatic fallback strategy must keep the engine-agnostic
+  contract or explicitly supersede this ADR.</li>
+</ul>
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>tests/test_cloning_reference_text_autofallback.py</code></li>
+<li><code>tests/test_reference_text_autofallback_offline_cached_model.py</code></li>
+<li><code>tests/test_voice_cloning_store.py</code></li>
+</ul>
+<h2 id="backlog-links">Backlog links<a class="headerlink" href="#backlog-links" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>docs/backlog/completed/020_cloning_reference_text_autofallback.md</code></li>
+<li><code>docs/backlog/planned/031_chroma_cloning_quality_improvements.md</code></li>
+</ul>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>docs/adr/0002_barge_in_interruption.md</code></li>
-<li>Backlog: <code>docs/backlog/completed/020_cloning_reference_text_autofallback.md</code></li>
+<li><a href="../0004_streaming_and_cancellation_for_cloned_tts/">0004_streaming_and_cancellation_for_cloned_tts.md</a></li>
+<li><code>abstractvoice/cloning/manager.py</code></li>
+<li><code>abstractvoice/cloning/store.py</code></li>
 </ul>
 
 

@@ -1940,7 +1940,13 @@ integration code:
 - <code>list_cloned_voices(provider: str | None = None, model: str | None = None) -&gt; list[dict]</code>
 - <code>list_voices(...) -&gt; list[dict]</code> (alias of <code>list_tts_voices(...)</code>)
 - <code>available_providers() -&gt; {tts, stt, cloning, providers, details}</code>
+- <code>compatibility_catalog() -&gt; {version, providers}</code>
 - <code>voice_catalog() -&gt; {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}</code>
+- <code>voice_catalog()</code> also includes additive capability metadata:
+  - <code>controls</code>: legacy control map kept backward-compatible for existing clients
+  - <code>tts_capabilities</code>: richer per-field support truth (<code>native|emulated|conditional|unsupported</code>) for newer clients
+  - <code>speech_request_contract</code>: current request contract id (currently <code>"speech_request_v1"</code>)
+  - <code>compatibility_catalog</code>: package-owned provider/model feature matrix across <code>tts</code>, <code>stt</code>, and <code>cloning</code>
 - <code>tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -&gt; bytes | artifact_ref</code>
 - <code>stt(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code>
 - <code>transcribe(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code></p>
@@ -1967,7 +1973,23 @@ AbstractCore/Gateway:
 - <code>tts_catalog_by_provider[provider]</code> contains <code>models</code>, <code>model_variants</code>,
   <code>voices</code>, <code>profiles</code>, <code>cloned_voices</code>, <code>voices_by_model</code>, and <code>formats</code>
 - <code>stt_catalog_by_provider[provider]</code> contains <code>models</code>, <code>model_variants</code>, and
-  <code>formats</code></p>
+  <code>formats</code>
+- <code>controls</code> remains the legacy compatibility surface for control discovery
+  and still uses simple <code>supported</code> booleans for fields such as <code>speed</code>,
+  <code>quality_preset</code>, <code>instructions</code>, <code>profile</code>, and <code>voice_clone</code>
+- <code>tts_capabilities</code> is the newer truthful capability map for engine-aware
+  clients and reports <code>support</code> plus optional <code>reason</code> per field
+  - support values may be <code>native</code>, <code>emulated</code>, <code>conditional</code>, or <code>unsupported</code>
+  - <code>conditional</code> means AbstractVoice forwards or orchestrates the feature, but
+    actual backend support can still vary by provider or endpoint
+- <code>speech_request_contract</code> versions the richer package-owned request shape
+  without forcing older clients to understand it
+- <code>compatibility_catalog</code> is the central matrix for provider/model capability
+  queries across <code>tts</code>, <code>stt</code>, and <code>cloning</code>
+  - each provider entry can define provider-wide defaults plus explicit model
+    records
+  - feature support is surface-specific, for example <code>tts.bytes</code> vs
+    <code>tts.playback</code></p>
 <p>The lighter helper methods are convenience views over that same abstraction:
 - <code>available_providers()</code> for provider selectors
 - <code>list_models(...)</code> / <code>list_tts_models(...)</code> / <code>list_stt_models(...)</code> for

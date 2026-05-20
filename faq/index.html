@@ -1034,6 +1034,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#how-can-i-remove-background-music-from-a-reference-clip-before-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How can I remove background music from a reference clip before cloning?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#can-i-move-cloned-voices-between-machines" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1821,6 +1832,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#how-can-i-remove-background-music-from-a-reference-clip-before-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How can I remove background music from a reference clip before cloning?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#can-i-move-cloned-voices-between-machines" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2197,6 +2219,59 @@ or <code>abstractvoice-prefetch ...</code>.</p>
 <li>AudioDiT normalizes to 24 kHz and clips prompt audio to 15 seconds.</li>
 <li>OmniVoice currently supports one reference audio file for a clone prompt.</li>
 <li>Chroma normalizes prompt audio to 24 kHz mono and clips to 30 seconds.</li>
+</ul>
+<h3 id="how-can-i-remove-background-music-from-a-reference-clip-before-cloning">How can I remove background music from a reference clip before cloning?<a class="headerlink" href="#how-can-i-remove-background-music-from-a-reference-clip-before-cloning" title="Permanent link">&para;</a></h3>
+<p>AbstractVoice does not bundle a music-removal model. A practical reproducible
+workflow is:</p>
+<ol>
+<li>Use <code>ffmpeg</code> to extract audio from the source video or container.</li>
+<li>Use <code>demucs</code> to separate the track into <code>vocals.wav</code> and <code>no_vocals.wav</code>.</li>
+<li>Use the isolated vocal stem as your cloning reference, then trim it to the
+   cleanest 6-15 second speech segment you can find.</li>
+</ol>
+<p>Install the tools first:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>demucs
+</code></pre></div>
+<p>You also need a working <code>ffmpeg</code> binary on <code>PATH</code> from your OS package manager
+or Homebrew.</p>
+<p>Example: extract the audio from a local MP4 into WAV:</p>
+<div class="highlight"><pre><span></span><code>ffmpeg<span class="w"> </span>-y<span class="w"> </span>-i<span class="w"> </span>input.mp4<span class="w"> </span>-vn<span class="w"> </span>-acodec<span class="w"> </span>pcm_s16le<span class="w"> </span>-ar<span class="w"> </span><span class="m">44100</span><span class="w"> </span>-ac<span class="w"> </span><span class="m">2</span><span class="w"> </span>extracted.wav
+</code></pre></div>
+<p>Example: run vocal separation:</p>
+<div class="highlight"><pre><span></span><code>demucs<span class="w"> </span>--two-stems<span class="o">=</span>vocals<span class="w"> </span>-o<span class="w"> </span>separated<span class="w"> </span>extracted.wav
+</code></pre></div>
+<p>That writes two files under a model-named output directory, typically:</p>
+<ul>
+<li><code>separated/htdemucs/extracted/vocals.wav</code></li>
+<li><code>separated/htdemucs/extracted/no_vocals.wav</code></li>
+</ul>
+<p><code>--two-stems=vocals</code> tells Demucs to keep a vocal stem and a combined
+everything-else stem. On first run, Demucs may download model weights.</p>
+<p>If the isolated vocal stem still has too much bleed, try the older
+<code>mdx_extra_q</code> model:</p>
+<div class="highlight"><pre><span></span><code>demucs<span class="w"> </span>-n<span class="w"> </span>mdx_extra_q<span class="w"> </span>--two-stems<span class="o">=</span>vocals<span class="w"> </span>-o<span class="w"> </span>separated<span class="w"> </span>extracted.wav
+</code></pre></div>
+<p>After separation, trim to the cleanest speech window:</p>
+<div class="highlight"><pre><span></span><code>ffmpeg<span class="w"> </span>-y<span class="w"> </span>-i<span class="w"> </span>separated/htdemucs/extracted/vocals.wav<span class="w"> </span>-ss<span class="w"> </span><span class="m">00</span>:00:12<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>reference_clean.wav
+</code></pre></div>
+<p>Then clone from the cleaned file. REPL example:</p>
+<div class="highlight"><pre><span></span><code>/clone /path/to/reference_clean.wav my_voice --engine omnivoice --text &quot;Exact transcript of the reference audio.&quot;
+</code></pre></div>
+<p>Library example:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">cloning_engine</span><span class="o">=</span><span class="s2">&quot;omnivoice&quot;</span><span class="p">)</span>
+<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span>
+    <span class="s2">&quot;reference_clean.wav&quot;</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;my_voice&quot;</span><span class="p">,</span>
+    <span class="n">reference_text</span><span class="o">=</span><span class="s2">&quot;Exact transcript of the reference audio.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Practical notes:</p>
+<ul>
+<li>Separation is not perfect. Some music bleed or reverb can remain.</li>
+<li>A short clean stem usually clones better than a longer noisy one.</li>
+<li>Use only audio you have the rights and consent to clone.</li>
 </ul>
 <h3 id="can-i-move-cloned-voices-between-machines">Can I move cloned voices between machines?<a class="headerlink" href="#can-i-move-cloned-voices-between-machines" title="Permanent link">&para;</a></h3>
 <p>Yes. Use the REPL export/import commands:</p>
