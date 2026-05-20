@@ -10,6 +10,13 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-05-20
+
+### Fixed
+- Restored Python 3.9 compatibility for the new speech-request test module by
+  adding `from __future__ import annotations`, so the release workflow no
+  longer fails on the 3.9 test leg.
+
 ## [0.10.7] - 2026-05-20
 
 ### Fixed

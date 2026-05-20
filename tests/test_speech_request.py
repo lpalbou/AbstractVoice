@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abstractvoice.speech_request import (
     SpeechCapabilities,
     SpeechCapability,
