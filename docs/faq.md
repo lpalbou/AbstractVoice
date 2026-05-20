@@ -377,6 +377,83 @@ Engine notes:
 - OmniVoice currently supports one reference audio file for a clone prompt.
 - Chroma normalizes prompt audio to 24 kHz mono and clips to 30 seconds.
 
+### How can I remove background music from a reference clip before cloning?
+
+AbstractVoice does not bundle a music-removal model. A practical reproducible
+workflow is:
+
+1. Use `ffmpeg` to extract audio from the source video or container.
+2. Use `demucs` to separate the track into `vocals.wav` and `no_vocals.wav`.
+3. Use the isolated vocal stem as your cloning reference, then trim it to the
+   cleanest 6-15 second speech segment you can find.
+
+Install the tools first:
+
+```bash
+python -m pip install demucs
+```
+
+You also need a working `ffmpeg` binary on `PATH` from your OS package manager
+or Homebrew.
+
+Example: extract the audio from a local MP4 into WAV:
+
+```bash
+ffmpeg -y -i input.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 2 extracted.wav
+```
+
+Example: run vocal separation:
+
+```bash
+demucs --two-stems=vocals -o separated extracted.wav
+```
+
+That writes two files under a model-named output directory, typically:
+
+- `separated/htdemucs/extracted/vocals.wav`
+- `separated/htdemucs/extracted/no_vocals.wav`
+
+`--two-stems=vocals` tells Demucs to keep a vocal stem and a combined
+everything-else stem. On first run, Demucs may download model weights.
+
+If the isolated vocal stem still has too much bleed, try the older
+`mdx_extra_q` model:
+
+```bash
+demucs -n mdx_extra_q --two-stems=vocals -o separated extracted.wav
+```
+
+After separation, trim to the cleanest speech window:
+
+```bash
+ffmpeg -y -i separated/htdemucs/extracted/vocals.wav -ss 00:00:12 -t 8 reference_clean.wav
+```
+
+Then clone from the cleaned file. REPL example:
+
+```text
+/clone /path/to/reference_clean.wav my_voice --engine omnivoice --text "Exact transcript of the reference audio."
+```
+
+Library example:
+
+```python
+from abstractvoice import VoiceManager
+
+vm = VoiceManager(cloning_engine="omnivoice")
+voice_id = vm.clone_voice(
+    "reference_clean.wav",
+    name="my_voice",
+    reference_text="Exact transcript of the reference audio.",
+)
+```
+
+Practical notes:
+
+- Separation is not perfect. Some music bleed or reverb can remain.
+- A short clean stem usually clones better than a longer noisy one.
+- Use only audio you have the rights and consent to clone.
+
 ### Can I move cloned voices between machines?
 
 Yes. Use the REPL export/import commands:

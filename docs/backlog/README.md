@@ -2,6 +2,14 @@
 
 This folder is the **single source of truth** for planned and completed work in AbstractVoice.
 
+## Current snapshot
+
+- Updated: 2026-05-20
+- Planned: 12
+- Proposed: 9
+- Completed: 28
+- Recurrent: 1
+
 ### Principles
 
 - **Backlog items are self-contained**: each task includes the outcome of research, key constraints, design choices, and the reasons for those choices (with references).
@@ -17,6 +25,31 @@ This folder is the **single source of truth** for planned and completed work in 
 - `docs/backlog/proposed/`: plausible ideas and follow-ups not yet committed
 - `docs/backlog/completed/`: finished tasks with a completion report
 - `docs/backlog/recurrent/`: checklists to run after development cycles
+
+For larger proposal tracks, a topical subfolder under `proposed/` is allowed
+when it improves readability and the folder includes a short `README.md` that
+explains scope and promotion order.
+
+## Current proposed Scenema track
+
+These items form the current proposal set created from the Scenema evaluation.
+Only the runtime spike is Scenema-specific; the other items are broader
+prerequisites that remain reusable beyond Scenema. Recommended promotion order:
+
+1. `docs/backlog/proposed/scenema/044_package_owned_directed_speech_request_and_capabilities.md`
+2. `docs/backlog/proposed/scenema/048_abstractvoice_owned_speech_planning_boundary.md`
+3. `docs/backlog/proposed/scenema/045_shared_runtime_foundation_for_advanced_speech_engines.md`
+4. `docs/backlog/proposed/scenema/046_scenema_class_python_runtime_spike.md`
+5. `docs/backlog/proposed/scenema/047_device_agnostic_runtime_and_apple_silicon_path.md`
+
+Rationale:
+
+- define package-owned request semantics before integrating a scene-aware engine;
+- keep `abstractvoice` as the owner of speech planning semantics instead of
+  pushing them upward into `abstractcore`;
+- agree on the shared dependency/runtime foundation before adding another heavy
+  optional backend;
+- prove a Linux/CUDA rewrite path before attempting Apple/MPS portability.
 
 ---
 

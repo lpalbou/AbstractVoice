@@ -1,71 +1,85 @@
-## ADR 0002: Barge-in (Interrupt TTS When User Starts Speaking)
+# ADR 0002: Barge-in and voice-mode interruption semantics
 
-**Date**: 2026-01-23  
-**Status**: Accepted (phased)
+Status: Accepted. Amended 2026-02-04.
 
-**Amendment (2026-02-04)**: Phase 1 shipped with an explicit `stop` mode (stop-phrase barge-in without AEC) and a stricter `wait` mode (pause mic processing during TTS). The sections below reflect current behavior and implementation.
+## Context
 
----
+Interactive voice systems feel broken when the assistant keeps talking after the
+user has clearly tried to interrupt it. The hard part is that speaker playback
+leaks into the microphone. Without echo cancellation, a naive "interrupt on any
+speech" policy causes self-interruption and unstable turn-taking.
 
-## Context / Problem
+AbstractVoice therefore needs an interruption policy that is honest about the
+difference between:
 
-We want a natural conversation: while the assistant is speaking, the user can start speaking and the assistant stops immediately (“barge-in”).
-
-The hard part is that the microphone hears:
-- user speech (desired)
-- the assistant audio coming from the speakers (echo/feedback)
-
-Without **echo cancellation**, VAD/STT will often detect the assistant’s own voice and self-interrupt.
-
----
-
-## Investigation (Jan 2026)
-
-There are open-source acoustic echo cancellation (AEC) options (WebRTC APM, SpeexDSP), and Python bindings exist, but:
-
-- Many require compilation toolchains, have limited platform wheels, or introduce install friction.
-- Some are Linux/macOS only in practice (wheel availability varies).
-
-This conflicts with our core constraint: **easy pip install on Windows/macOS/Linux**.
-
----
+- strict turn-taking;
+- stop-phrase interruption while the assistant is speaking;
+- true speech-triggered barge-in.
 
 ## Decision
 
-### Phase 1 (default, out-of-box)
+- Voice interruption is an explicit mode contract, not an implementation detail.
+- The supported voice modes are:
+  - `wait`: pause mic processing during TTS playback;
+  - `stop`: keep mic processing active but suppress normal transcriptions during
+    TTS and keep stop-phrase interruption available;
+  - `full`: allow speech-triggered interruption during TTS, intended for AEC or
+    headset scenarios;
+  - `ptt`: push-to-talk tuned capture profile that behaves like `stop` while the
+    assistant is speaking.
+- The default mode is `wait` unless a later ADR changes it. That default is
+  intentionally reliability-first rather than "most magical."
+- Stop phrases are a first-class interruption path and must work without AEC.
+- AEC remains an optional extra. True speech-triggered barge-in on speakers is
+  not part of the default install contract.
 
-We support “interactive discussion” with **voice modes** that are robust without AEC, plus a **stop phrase**:
+## Consequences
 
-- **wait mode (turn-taking)**: pause mic processing during TTS playback. This is the most robust way to avoid self-interruption on speakers, but it means there is **no voice barge-in** (and no stop-phrase detection) while audio is playing.
-- **stop mode (recommended on speakers)**: keep mic processing running, but during TTS:
-  - suppress normal transcriptions
-  - disable “interrupt on any speech”
-  - keep a rolling stop-phrase detector active so the user can still say **“ok stop”** / **“okay stop”** to cut playback
-- **full mode (barge-in by speech)**: keep listening and allow barge-in by detected speech. Best with AEC or a headset; on speakers, echo can still cause false barge-in (mitigated by heuristics).
-- **Stop phrase interruption (available while listening)**: saying **“ok stop”** / **“okay stop”** stops TTS playback without requiring echo cancellation. A conservative bare **“stop”** is supported but requires confirmation to reduce false hits.
+### Positive
 
-Rationale: without AEC, “interrupt on any speech” is unreliable because the mic hears the assistant audio too. A stop phrase is robust and works everywhere.
+- The user-facing behavior is predictable and portable across machines.
+- The package can offer interruption without pretending that all environments
+  support real barge-in equally well.
+- Optional AEC can improve the experience without becoming a hard dependency.
 
-### Phase 2 (optional advanced barge-in)
+### Negative
 
-Add optional barge-in via AEC as an **extra** (opt-in dependency group), if and only if:
-- it is MIT/Apache/BSD licensed
-- it has reliable wheels for the major platforms, or we accept it as “advanced”
+- Users may need to choose between robustness and immediacy.
+- `full` mode on speakers can still misbehave without AEC or a headset.
+- Integrators must expose or document the mode choice instead of assuming one
+  universal default.
 
-Candidate packages to re-evaluate:
-- WebRTC audio processing AEC bindings (PyPI packages emerging in 2025)
-- SpeexDSP AEC bindings
+### Neutral
 
----
+- The interruption contract spans recognition, playback, REPL UX, and optional
+  AEC, so changes often touch multiple layers.
 
-## Best simulation when AEC is not available
+## Enforcement
 
-If we cannot reliably deploy AEC out-of-box, the best “natural” simulation is:
+- Do not silently collapse `wait`, `stop`, `full`, and `ptt` into the same
+  behavior.
+- Do not claim true speech-triggered barge-in on speakers unless the active path
+  actually supports it.
+- Changes to default mode semantics, stop-phrase behavior, or AEC assumptions
+  require an ADR update or superseding ADR.
+- User-facing docs must describe the echo/self-interruption caveat for `full`
+  mode.
 
-- default to a **non-self-interrupting mode** (wait/stop, depending on UX needs)
-- allow instant user control via:
-  - REPL `/stop`, `/pause`, `/resume`
-  - optional keyboard push-to-talk / push-to-stop
+## Validation
 
-And (only if we can do it robustly) add an “echo-aware VAD” heuristic in the future
-(correlation against recently played audio) to approximate barge-in without heavy deps.
+- `tests/test_adr0002_phase1.py`
+- `tests/test_adr0002_phase2_optional_aec.py`
+- `tests/test_full_mode_echo_gate.py`
+- `tests/test_voice_recognizer_ptt_profile.py`
+
+## Backlog links
+
+- `docs/backlog/completed/015_adr0002_phase1_wait_mode_stop_phrase.md`
+- `docs/backlog/completed/016_adr0002_phase2_optional_aec.md`
+
+## Related
+
+- [0001-local_assistant_out_of_box.md](./0001-local_assistant_out_of_box.md)
+- [../architecture.md](../architecture.md)
+- `abstractvoice/recognition.py`
+- `abstractvoice/vm/core.py`
