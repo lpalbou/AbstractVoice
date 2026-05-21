@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/planned/036_voice_profile_abstraction/">
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/proposed/0055_elevenlabs_music_backend_boundary_learnings/">
       
       
       
@@ -23,7 +23,7 @@
     
     
       
-        <title>036 voice profile abstraction - AbstractVoice</title>
+        <title>0055 elevenlabs music backend boundary learnings - AbstractVoice</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#task-036-voice-profile-abstraction-cross-engine-api-exposure" class="md-skip">
+        <a href="#task-055-elevenlabs-music-backend-boundary-learnings-for-voice" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              036 voice profile abstraction
+              0055 elevenlabs music backend boundary learnings
             
           </span>
         </div>
@@ -982,10 +982,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#task-036-voice-profile-abstraction-cross-engine-api-exposure" class="md-nav__link">
+  <a href="#task-055-elevenlabs-music-backend-boundary-learnings-for-voice" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Task 036: Voice profile abstraction (cross-engine) + API exposure
+        Task 055: ElevenLabs Music backend boundary learnings for voice
       
     </span>
   </a>
@@ -993,10 +993,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#main-goals" class="md-nav__link">
+  <a href="#context" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Main goals
+        Context
       
     </span>
   </a>
@@ -1004,10 +1004,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#context-problem" class="md-nav__link">
+  <a href="#current-code-reality" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context / problem
+        Current code reality
       
     </span>
   </a>
@@ -1015,82 +1015,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proposed-design" class="md-nav__link">
+  <a href="#problem-or-opportunity" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proposed design
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Proposed design">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1) Types
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-common-engine-interface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2) Common engine interface
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-voicemanager-surface-library-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3) VoiceManager surface (library API)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-repl-ux" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4) REPL UX
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-abstractcore-integration-exposure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5) AbstractCore integration exposure
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-planned-work" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related planned work
+        Problem or opportunity
       
     </span>
   </a>
@@ -1098,10 +1026,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implementation-plan" class="md-nav__link">
+  <a href="#proposed-direction" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Implementation plan
+        Proposed direction
       
     </span>
   </a>
@@ -1109,10 +1037,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#success-criteria" class="md-nav__link">
+  <a href="#why-it-might-matter" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Success criteria
+        Why it might matter
       
     </span>
   </a>
@@ -1120,10 +1048,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implementation-notes-2026-04-07" class="md-nav__link">
+  <a href="#promotion-criteria" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Implementation notes (2026-04-07)
+        Promotion criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-ideas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation ideas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#guidance-for-future-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guidance for future agents
       
     </span>
   </a>
@@ -1150,143 +1111,69 @@
   
 
 
-  <h1>036 voice profile abstraction</h1>
+  <h1>0055 elevenlabs music backend boundary learnings</h1>
 
-<h2 id="task-036-voice-profile-abstraction-cross-engine-api-exposure">Task 036: Voice profile abstraction (cross-engine) + API exposure<a class="headerlink" href="#task-036-voice-profile-abstraction-cross-engine-api-exposure" title="Permanent link">&para;</a></h2>
-<p><strong>Date</strong>: 2026-04-07<br />
-<strong>Status</strong>: Implemented<br />
-<strong>Priority</strong>: P1  </p>
+<h2 id="task-055-elevenlabs-music-backend-boundary-learnings-for-voice">Task 055: ElevenLabs Music backend boundary learnings for voice<a class="headerlink" href="#task-055-elevenlabs-music-backend-boundary-learnings-for-voice" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-05-21<br />
+<strong>Status</strong>: Proposed<br />
+<strong>Priority</strong>: P2</p>
 <hr />
-<h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>AbstractMusic added an ElevenLabs remote backend scoped only to the official Music API. That work
+is relevant to AbstractVoice because ElevenLabs is also a voice/TTS provider, but the packages must
+not accidentally blur capability boundaries.</p>
+<h2 id="current-code-reality">Current code reality<a class="headerlink" href="#current-code-reality" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Define a <strong>single cross-engine “voice profile” abstraction</strong> that can represent:</li>
-<li>local preset voices (OmniVoice / AudioDiT / Piper curated presets)</li>
-<li>commercial provider voices (e.g. OpenAI built-ins and custom voice ids)</li>
-<li>(optionally later) cloned voices stored in the local voice store</li>
-<li>Expose a <strong>common interface</strong> on engines so callers can:</li>
-<li>list available profiles for the active engine</li>
-<li>select/apply a profile by id</li>
-<li>query the currently active profile</li>
-<li>Provide a <strong>single REPL UX</strong>:</li>
-<li><code>/profile list</code></li>
-<li><code>/profile &lt;name&gt;</code></li>
-<li><code>/profile show</code></li>
-<li>Ensure the abstraction is usable for:</li>
-<li><strong>third-party integrations</strong> (library API)</li>
-<li><strong>AbstractCore integrations</strong> (capability plugin + tool wiring)</li>
+<li>AbstractMusic now uses a stdlib-only remote client pattern for provider APIs so the base package
+  remains lightweight.</li>
+<li>The music backend is intentionally limited to <code>/v1/music</code> and <code>/v1/music/plan</code>; it does not call
+  ElevenLabs TTS, speech-to-speech, voice design, cloning, or voice APIs.</li>
+<li>Runtime credentials are configured with <code>ELEVENLABS_API_KEY</code> / <code>ELEVENLABS_BASE_URL</code>, which may
+  also be useful to voice providers if AbstractVoice later chooses to support ElevenLabs.</li>
+<li>A live AbstractMusic smoke reached ElevenLabs but returned HTTP 402 <code>limited_access</code>, meaning the
+  key authenticated but the account tier did not include Music API access.</li>
 </ul>
-<hr />
-<h2 id="context-problem">Context / problem<a class="headerlink" href="#context-problem" title="Permanent link">&para;</a></h2>
-<p>We currently plan per-engine profile UX (e.g. <code>/omnivoice profile ...</code>, <code>/audiodit profile ...</code>), which causes:
-- duplicated REPL command surfaces per engine
-- duplicated integration glue in AbstractCore/server layers
-- unclear “source of truth” for what a “profile” means across engines</p>
-<p>Instead, profiles should be engine-agnostic at the UX/API layer:
-- users select an engine (<code>tts_engine</code>)
-- then apply a profile to the <strong>currently selected engine</strong></p>
-<p>At the engine layer this becomes:
-- <code>selected_engine.get_profiles()</code>
-- <code>selected_engine.set_profile(selected_profile_id)</code></p>
-<hr />
-<h2 id="proposed-design">Proposed design<a class="headerlink" href="#proposed-design" title="Permanent link">&para;</a></h2>
-<h3 id="1-types">1) Types<a class="headerlink" href="#1-types" title="Permanent link">&para;</a></h3>
-<p>Introduce a provider-agnostic profile type (exact module path is flexible):</p>
+<h2 id="problem-or-opportunity">Problem or opportunity<a class="headerlink" href="#problem-or-opportunity" title="Permanent link">&para;</a></h2>
+<p>If AbstractVoice later adds an ElevenLabs provider, it should reuse the lightweight provider-client
+lessons without coupling itself to AbstractMusic or assuming that Music API account access implies
+Voice API access.</p>
+<h2 id="proposed-direction">Proposed direction<a class="headerlink" href="#proposed-direction" title="Permanent link">&para;</a></h2>
+<p>Keep any future ElevenLabs voice support in AbstractVoice as its own voice-scoped provider:</p>
 <ul>
-<li><code>VoiceProfile</code></li>
-<li><code>engine_id: str</code> (e.g. <code>omnivoice|audiodit|piper|openai|...</code>)</li>
-<li><code>profile_id: str</code> (stable id within the engine, e.g. <code>female_01</code>, <code>en_female_01</code>, <code>alloy</code>)</li>
-<li><code>label: str</code> (human-friendly)</li>
-<li><code>description: str | None</code></li>
-<li><code>params: dict[str, Any]</code> (engine-specific; validated best-effort by the engine)</li>
-<li><code>tags: dict[str, str] | None</code> (e.g. gender, language, style)</li>
-<li><code>provenance: dict[str, Any] | None</code> (optional; required for consent-gated voices)</li>
+<li>implement only voice/TTS/STT endpoints that belong to AbstractVoice;</li>
+<li>use stdlib HTTP or a minimal internal adapter first, not the full SDK by default;</li>
+<li>keep generated voice artifacts, request metadata, errors, and account-tier diagnostics explicit;</li>
+<li>avoid importing AbstractMusic or sharing backend classes across packages.</li>
 </ul>
-<p>Notes:
-- Keep <code>profile_id</code> <strong>engine-local</strong> so <code>/profile female_01</code> works naturally once an engine is selected.
-- For cross-engine addressing (optional), we can support a qualified id convention like <code>omnivoice:female_01</code>.</p>
-<h3 id="2-common-engine-interface">2) Common engine interface<a class="headerlink" href="#2-common-engine-interface" title="Permanent link">&para;</a></h3>
-<p>Add a shared profile interface that engines can implement (e.g. Protocol / base mixin):</p>
+<h2 id="why-it-might-matter">Why it might matter<a class="headerlink" href="#why-it-might-matter" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>get_profiles() -&gt; list[VoiceProfile]</code></li>
-<li><code>set_profile(profile_id: str) -&gt; bool</code></li>
-<li><code>get_active_profile() -&gt; VoiceProfile | None</code></li>
+<li>prevents cross-capability leakage between music and voice;</li>
+<li>preserves the lightweight base-package pattern used across the framework;</li>
+<li>lets AbstractVoice handle ElevenLabs voice-specific terms, tiers, models, and errors separately.</li>
 </ul>
-<p>Design constraints:
-- Default implementations should exist (return empty list / False / None) so engines without profiles remain compatible.
-- Profile application must be <strong>idempotent</strong> and safe to call multiple times.</p>
-<h3 id="3-voicemanager-surface-library-api">3) VoiceManager surface (library API)<a class="headerlink" href="#3-voicemanager-surface-library-api" title="Permanent link">&para;</a></h3>
-<p>Expose an engine-agnostic surface on <code>VoiceManager</code>:</p>
+<h2 id="promotion-criteria">Promotion criteria<a class="headerlink" href="#promotion-criteria" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>vm.get_profiles(kind="tts") -&gt; list[VoiceProfile]</code> (delegates to the active TTS engine)</li>
-<li><code>vm.set_profile(profile_id: str, *, kind="tts") -&gt; bool</code></li>
-<li><code>vm.get_active_profile(kind="tts") -&gt; VoiceProfile | None</code></li>
+<li>there is an explicit product need for ElevenLabs voice/TTS/STT in AbstractVoice;</li>
+<li>official ElevenLabs voice endpoint behavior, output formats, streaming behavior, and account-tier
+  errors are reviewed against current docs;</li>
+<li>the provider can be added without heavy dependencies in the base install.</li>
 </ul>
-<p>Optional: allow a per-call override in <code>speak_to_bytes</code>/<code>speak_to_file</code> (only if it remains non-ambiguous and thread-safe).</p>
-<h3 id="4-repl-ux">4) REPL UX<a class="headerlink" href="#4-repl-ux" title="Permanent link">&para;</a></h3>
-<p>Implement a single <code>/profile</code> command:
-- <code>/profile list</code> → lists profiles for the active <code>tts_engine</code>
-- <code>/profile &lt;name&gt;</code> → applies the profile for the active <code>tts_engine</code>
-- <code>/profile show</code> → prints current profile + engine id</p>
-<p>No engine-specific commands like <code>/omnivoice profile ...</code> or <code>/audiodit profile ...</code>.</p>
-<h3 id="5-abstractcore-integration-exposure">5) AbstractCore integration exposure<a class="headerlink" href="#5-abstractcore-integration-exposure" title="Permanent link">&para;</a></h3>
-<p>We want profiles to be forwardable through AbstractCore/server layers without engine-specific glue.</p>
-<p>Proposed capability/plugin behavior (exact contract to align with AbstractCore):
-- Accept an optional <code>profile</code> parameter on TTS calls (per request).
-- Apply <code>profile</code> to the active engine <strong>before synthesis</strong>.
-- Expose the effective <code>engine_id</code> + <code>profile_id</code> in returned metadata/artifact metadata when available.</p>
-<p>Thread-safety note:
-- If a single <code>VoiceManager</code> is shared across concurrent requests, “setting a profile” mutates engine state.
-- For production servers, the preferred pattern may be:
-  - per-session <code>VoiceManager</code> instances, or
-  - per-request isolated engines, or
-  - a lock + “apply profile → synth → restore previous profile” pattern (if supported).</p>
-<p>This task should define the recommended pattern and document it.</p>
-<hr />
-<h2 id="related-planned-work">Related planned work<a class="headerlink" href="#related-planned-work" title="Permanent link">&para;</a></h2>
+<h2 id="validation-ideas">Validation ideas<a class="headerlink" href="#validation-ideas" title="Permanent link">&para;</a></h2>
 <ul>
-<li>OmniVoice presets: <code>docs/backlog/planned/033_omnivoice_preset_voice_profiles.md</code></li>
-<li>AudioDiT presets: <code>docs/backlog/planned/034_audiodit_preset_voice_profiles.md</code></li>
-<li>Piper true voice selection + presets: <code>docs/backlog/planned/035_piper_voice_profiles_and_voice_selection.md</code></li>
-<li>OpenAI voices mapping: <code>docs/backlog/planned/013_openai_compatible_audio_endpoint.md</code></li>
+<li>mocked HTTP tests for request shape, binary output handling, and sanitized error messages;</li>
+<li>opt-in live smoke gated behind <code>ELEVENLABS_API_KEY</code>;</li>
+<li>tests proving voice support does not import or depend on AbstractMusic.</li>
 </ul>
-<hr />
-<h2 id="implementation-plan">Implementation plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h2>
+<h2 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Add <code>VoiceProfile</code> type + engine interface (default no-op implementations).</li>
-<li>Implement <code>/profile</code> in the REPL (wired to <code>VoiceManager</code>).</li>
-<li>Implement profile support in at least one engine first (OmniVoice or Piper) to validate the contract end-to-end.</li>
-<li>Add unit tests:</li>
-<li>listing profiles</li>
-<li>applying profiles</li>
-<li>ensuring engines without profiles behave unchanged</li>
-<li>Document:</li>
-<li>determinism caveats (seeds, accelerators)</li>
-<li>concurrency + server guidance</li>
+<li>does not authorize implementing ElevenLabs voice now;</li>
+<li>does not move music generation into AbstractVoice;</li>
+<li>does not create a shared ElevenLabs SDK dependency between packages.</li>
 </ul>
-<hr />
-<h2 id="success-criteria">Success criteria<a class="headerlink" href="#success-criteria" title="Permanent link">&para;</a></h2>
-<ul>
-<li>A user can run:</li>
-<li><code>/tts_engine omnivoice</code></li>
-<li><code>/profile list</code></li>
-<li><code>/profile female_01</code></li>
-<li><code>/speak ...</code></li>
-<li>Third-party integration can call:</li>
-<li><code>vm.get_profiles(...)</code> and <code>vm.set_profile(...)</code></li>
-<li>AbstractCore integration can forward a <code>profile</code> parameter without engine-specific code.</li>
-</ul>
-<hr />
-<h2 id="implementation-notes-2026-04-07">Implementation notes (2026-04-07)<a class="headerlink" href="#implementation-notes-2026-04-07" title="Permanent link">&para;</a></h2>
-<p>Implemented in this repo:
-- Type + loader: <code>abstractvoice/voice_profiles.py</code>
-- Adapter interface: <code>abstractvoice/adapters/base.py</code> (optional <code>get_profiles/set_profile/get_active_profile</code>)
-- VoiceManager API: <code>abstractvoice/vm/manager.py</code>
-- REPL UX: <code>abstractvoice/examples/cli_repl.py</code> (<code>/profile list|show|&lt;id&gt;</code>)
-- Built-in demo pack (OmniVoice): <code>abstractvoice/assets/voice_profiles/omnivoice_profiles.json</code>
-- AbstractCore tool wiring: <code>abstractvoice/integrations/abstractcore.py</code> (<code>voice_profile_list</code>, <code>voice_profile_set</code>)</p>
-<p>Validation on OmniVoice:
-- Prefetch OmniVoice weights: <code>python -m abstractvoice download --omnivoice</code>
-- In REPL: <code>/tts_engine omnivoice</code> → <code>/profile list</code> → <code>/profile female_01</code> → <code>/speak ...</code></p>
+<h2 id="guidance-for-future-agents">Guidance for future agents<a class="headerlink" href="#guidance-for-future-agents" title="Permanent link">&para;</a></h2>
+<p>Use the AbstractMusic backend as a pattern for provider boundary and dependency discipline, not as a
+runtime dependency. Re-check official ElevenLabs docs before implementation because endpoint
+contracts and tier restrictions can change.</p>
 
 
 

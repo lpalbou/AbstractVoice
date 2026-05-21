@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/planned/033_omnivoice_preset_voice_profiles/">
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/completed/0056_normalize_abstractcore_capability_residency_truth/">
       
       
       
@@ -23,7 +23,7 @@
     
     
       
-        <title>033 omnivoice preset voice profiles - AbstractVoice</title>
+        <title>Task 056: Normalize AbstractCore capability residency truth - AbstractVoice</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#task-033-omnivoice-preset-voice-profiles-malefemale-sets" class="md-skip">
+        <a href="#task-056-normalize-abstractcore-capability-residency-truth" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              033 omnivoice preset voice profiles
+              Task 056: Normalize AbstractCore capability residency truth
             
           </span>
         </div>
@@ -974,23 +974,14 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#task-033-omnivoice-preset-voice-profiles-malefemale-sets" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Task 033: OmniVoice preset voice profiles (male/female sets)
-      
-    </span>
-  </a>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#main-goals" class="md-nav__link">
@@ -1004,10 +995,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#secondary-goals" class="md-nav__link">
+  <a href="#context-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Secondary goals
+        Context / problem statement
       
     </span>
   </a>
@@ -1015,10 +1006,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#context-problem" class="md-nav__link">
+  <a href="#current-code-reality" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context / problem
+        Current code reality
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
       
     </span>
   </a>
@@ -1033,56 +1046,6 @@
       
     </span>
   </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#proposed-design" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Proposed design
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Proposed design">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-dependency-shared-voice-profile-abstraction-task-036" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1) Dependency: shared “voice profile” abstraction (Task 036)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-preset-set-6-curated-profiles" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2) Preset set: 6 curated profiles
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-storage-override-rules" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3) Storage + override rules
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1108,6 +1071,67 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Report">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#files-touched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files touched
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1128,107 +1152,130 @@
   
 
 
-  <h1>033 omnivoice preset voice profiles</h1>
-
-<h2 id="task-033-omnivoice-preset-voice-profiles-malefemale-sets">Task 033: OmniVoice preset voice profiles (male/female sets)<a class="headerlink" href="#task-033-omnivoice-preset-voice-profiles-malefemale-sets" title="Permanent link">&para;</a></h2>
-<p><strong>Date</strong>: 2026-04-06<br />
-<strong>Status</strong>: Planned<br />
-<strong>Priority</strong>: P2  </p>
+<h1 id="task-056-normalize-abstractcore-capability-residency-truth">Task 056: Normalize AbstractCore capability residency truth<a class="headerlink" href="#task-056-normalize-abstractcore-capability-residency-truth" title="Permanent link">&para;</a></h1>
+<p><strong>Date</strong>: 2026-05-21
+<strong>Status</strong>: Completed
+<strong>Priority</strong>: P1
+<strong>Promoted from</strong>: <code>docs/backlog/proposed/0056_normalize_abstractcore_capability_residency_truth.md</code>
+<strong>Completed</strong>: 2026-05-21</p>
 <hr />
 <h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Ship a small set of <strong>curated OmniVoice “voice profiles”</strong> that users can select easily:</li>
-<li><strong>3 male</strong> presets</li>
-<li><strong>3 female</strong> presets</li>
-<li>Make profiles <strong>stable across turns</strong> (same voice within a discussion).</li>
-<li>For strong persistence, prefer anchoring the voice in a cached, tokenized prompt (<code>voice_clone_prompt</code>) rather than relying on voice-design RNG alone.</li>
+<li>Make cloned TTS residency load responses distinguish first warm from reuse.</li>
+<li>Add <code>loaded</code> plus <code>engine_cached_before/after</code> for event truth, while keeping <code>resident</code> for
+  backward compatibility (then deprecate <code>resident</code> once Core stops reading it).</li>
 </ul>
-<h2 id="secondary-goals">Secondary goals<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
+<h2 id="context-problem-statement">Context / problem statement<a class="headerlink" href="#context-problem-statement" title="Permanent link">&para;</a></h2>
+<p>AbstractVoice already exposes the right AbstractCore-facing capability boundary:</p>
 <ul>
-<li>Provide a clean cross-engine UX in the REPL:</li>
-<li><code>/profile list</code> (lists profiles for the currently selected <code>tts_engine</code>)</li>
-<li><code>/profile &lt;name&gt;</code> (applies the profile to the currently selected <code>tts_engine</code>)</li>
-<li><code>/profile show</code> (shows the active profile, if any)</li>
-<li>Provide a library surface (non-REPL) via a common engine interface:</li>
-<li><code>selected_engine.get_profiles()</code></li>
-<li><code>selected_engine.set_profile(selected_profile_id)</code></li>
+<li><code>available_providers()</code></li>
+<li><code>list_models(kind="tts"|"stt"|"cloning", provider=...)</code></li>
+<li><code>load_resident_model(...)</code></li>
+<li><code>list_resident_models(...)</code></li>
+<li><code>unload_resident_model(...)</code></li>
 </ul>
-<hr />
-<h2 id="context-problem">Context / problem<a class="headerlink" href="#context-problem" title="Permanent link">&para;</a></h2>
-<p>OmniVoice supports “voice design” via:
-- <code>instruct</code> (voice attributes like age/gender/pitch/accent)
-- <code>seed</code> (stability of the designed voice across turns)
-- sampling controls (<code>position_temperature</code>, <code>class_temperature</code>, etc.)</p>
-<p>Today, users must assemble these settings manually. This is error-prone and makes it harder to quickly compare voices or provide a consistent “default voice pack” UX.
-In practice, voice-design determinism is <strong>best-effort</strong> (accelerators like MPS can remain nondeterministic). For robust persistence, it is preferable to cache a tokenized reference prompt once and reuse it for subsequent synthesis.</p>
-<hr />
+<p>The residency implementation is intentionally clone-TTS focused. That is still the right scope:
+base TTS and STT warmup should not be reported as loaded unless there is measured evidence and a
+real in-process runtime to control.</p>
+<p>The remaining issue is event truth. Core can list and unload loaded cloned TTS engines, but the
+load response does not reliably tell Core whether the call created/warmed a new runtime or reused an
+already cached one.</p>
+<h2 id="current-code-reality">Current code reality<a class="headerlink" href="#current-code-reality" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
+<li><code>_VoiceCapability.load_resident_model(...)</code> implements real cloned-TTS warmup for
+    <code>task="tts", provider="cloned"</code>.</li>
+<li><code>_VoiceCapability.list_resident_models(...)</code> reports process-local clone-engine state.</li>
+<li><code>_VoiceCapability.unload_resident_model(...)</code> unloads cloned TTS engines.</li>
+<li><code>_AudioCapability</code> returns structured <code>not_implemented_yet</code> for STT residency and lists no
+    loaded STT runtimes.</li>
+<li><code>VoiceManager.preload_cloning_engine(...)</code> delegates to clone-engine preload state.</li>
+<li><code>abstractvoice/cloning/manager.py</code></li>
+<li><code>VoiceCloner.preload_engine(...)</code> currently reports <code>engine_cached</code> based on the post-load
+    <code>self._engines</code> mapping, but <code>_get_engine(...)</code> always inserts the engine into the cache.
+    That makes <code>engine_cached</code> true even on a first warm, so Core cannot distinguish first load vs reuse.</li>
+<li>Core's <code>/acore/models/load</code> derives <code>loaded_new</code> from returned runtime fields. If AbstractVoice
+  only reports post-load <code>engine_cached</code>, Core can misread a first warm as a reuse.</li>
+</ul>
+<h2 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h2>
+<ul>
+<li>ADR: <code>docs/adr/0006_voice_overlays_are_package_owned_not_generic_adapters.md</code></li>
+<li>Backlog:</li>
+<li><code>docs/backlog/completed/042_capability_residency_hooks.md</code></li>
+</ul>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Keep the residency scope narrow. Do not add generic base TTS/STT residency now.</p>
+<p>Fix the cloned-TTS response contract so AbstractCore can distinguish:</p>
+<ul>
+<li>engine was already cached before the request;</li>
+<li>engine became cached because of the request;</li>
+<li>the load call should be treated as "newly loaded" vs "already loaded" (if AbstractCore continues
+  to expose <code>loaded_new</code>).</li>
+</ul>
+<p>If the existing preload path already knows that a separate warmup step happened, it may also return
+<code>warmed_new</code>, but that is not required for the first fix.</p>
 <h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Avoid bundling large binary assets (no shipping WAVs).</li>
-<li>Keep offline-first semantics for local engines; OmniVoice is optional and heavy, so presets must not force downloads.</li>
-<li>Presets should be <strong>documented as best-effort</strong>:</li>
-<li>accelerators (MPS/CUDA) can introduce nondeterminism</li>
-<li>different OmniVoice versions may shift perceptual output slightly</li>
+<li>Do not report configured or catalog-listed voice providers as loaded.</li>
+<li>Do not add fake base TTS/STT warmup just for symmetry with image or text.</li>
+<li>Do not leak prompts, voice-private data, API keys, or generated audio into residency records.</li>
+<li>Preserve existing <code>resident</code> and <code>engine_cached</code> fields for backward compatibility while adding
+  better event-truth fields.</li>
 </ul>
-<hr />
-<h2 id="proposed-design">Proposed design<a class="headerlink" href="#proposed-design" title="Permanent link">&para;</a></h2>
-<h3 id="1-dependency-shared-voice-profile-abstraction-task-036">1) Dependency: shared “voice profile” abstraction (Task 036)<a class="headerlink" href="#1-dependency-shared-voice-profile-abstraction-task-036" title="Permanent link">&para;</a></h3>
-<p>OmniVoice profiles should be implemented through a common cross-engine interface so that:
-- the REPL can expose a single <code>/profile ...</code> command (no <code>/omnivoice profile ...</code> special-casing)
-- AbstractCore integrations can forward profile selection without knowing per-engine parameters</p>
-<p>See: <code>docs/backlog/completed/036_voice_profile_abstraction.md</code>.</p>
-<p>Minimum viable profile payload for OmniVoice:</p>
-<ul>
-<li><code>engine: "omnivoice"</code></li>
-<li><code>name: str</code></li>
-<li><code>params</code>:</li>
-<li><code>instruct: str</code></li>
-<li><code>seed: int</code></li>
-<li><code>num_step: int</code></li>
-<li><code>guidance_scale: float</code></li>
-<li><code>position_temperature: float</code></li>
-<li><code>class_temperature: float</code></li>
-<li>optional persistence:<ul>
-<li><code>persistent_prompt: bool</code> (enable prompt-token caching)</li>
-<li><code>prompt_text: str</code> (reference prompt text used to build the cached prompt)</li>
-<li><code>prompt_duration_s: float</code> (reference prompt duration)</li>
-</ul>
-</li>
-</ul>
-<h3 id="2-preset-set-6-curated-profiles">2) Preset set: 6 curated profiles<a class="headerlink" href="#2-preset-set-6-curated-profiles" title="Permanent link">&para;</a></h3>
-<p>Example naming convention:
-- <code>female_01</code>, <code>female_02</code>, <code>female_03</code>
-- <code>male_01</code>, <code>male_02</code>, <code>male_03</code></p>
-<p>Each profile should include:
-- a short <code>instruct</code> string built from the documented “valid items”
-- a fixed <code>seed</code> for stability
-- a quality preset mapping (<code>low|standard|high</code>; aliases: <code>fast</code>, <code>balanced</code>) or explicit <code>num_step</code> defaults</p>
-<h3 id="3-storage-override-rules">3) Storage + override rules<a class="headerlink" href="#3-storage-override-rules" title="Permanent link">&para;</a></h3>
-<p>Profiles can live as a simple JSON asset, e.g.:
-- <code>abstractvoice/assets/voice_profiles/omnivoice_profiles.json</code></p>
-<p>Rules:
-- Built-in profiles are read-only defaults.
-- Users can provide custom profiles via a local config override path (optional).</p>
-<hr />
 <h2 id="implementation-plan">Implementation plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Add built-in profiles (JSON asset + loader) for OmniVoice.</li>
-<li>Implement OmniVoice adapter profile provider methods:</li>
-<li><code>get_profiles()</code> (returns the available OmniVoice profiles)</li>
-<li><code>set_profile(profile_id)</code> (applies <code>instruct</code>/<code>seed</code>/temps)</li>
-<li><code>get_active_profile()</code> (best-effort)</li>
-<li>Wire the REPL <code>/profile ...</code> command to the active engine via Task 036 (no engine-specific profile commands).</li>
-<li>Update docs (<code>docs/repl_guide.md</code>, <code>docs/faq.md</code>) with examples and determinism caveats.</li>
-</ul>
-<hr />
+<ol>
+<li>In the clone engine preload path, compute <code>engine_cached_before</code> before calling the engine
+   factory/cache.</li>
+<li>Return <code>engine_cached_before</code> and <code>engine_cached_after</code> in addition to the existing <code>engine_cached</code>.</li>
+<li>Add <code>loaded</code> as a forward-looking alias for <code>resident</code> (do not remove <code>resident</code> until AbstractCore
+   is updated to prefer <code>loaded</code> and tests confirm no regressions).</li>
+<li>Propagate those fields through <code>VoiceManager.preload_cloning_engine(...)</code>.</li>
+<li>Propagate those fields through <code>_VoiceCapability.load_resident_model(...)</code>.</li>
+<li>Keep non-cloned TTS and STT residency returning explicit <code>not_implemented_yet</code>.</li>
+</ol>
 <h2 id="success-criteria">Success criteria<a class="headerlink" href="#success-criteria" title="Permanent link">&para;</a></h2>
 <ul>
-<li>A user can run:</li>
-<li><code>/tts_engine omnivoice</code></li>
-<li><code>/profile female_01</code></li>
-<li><code>/speak ...</code></li>
-<li>and get a stable voice across turns without needing to remember parameter details.</li>
-<li>Profiles are deterministic <strong>best-effort</strong> when <code>seed</code> is fixed; for strong persistence, profiles can build and reuse a cached tokenized prompt (one-time cost, then fast).</li>
+<li>First cloned TTS warm returns <code>loaded=true</code>.</li>
+<li>Rewarming the same cloned TTS engine returns <code>loaded=true</code>.</li>
+<li>Core <code>/acore/models/loaded?task=tts</code> reports only real in-process clone-engine state.</li>
+<li>Base TTS and STT residency do not report false positives.</li>
+</ul>
+<h2 id="test-plan">Test plan<a class="headerlink" href="#test-plan" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Add plugin tests for first warm versus repeated warm.</li>
+<li>Keep existing non-cloned TTS/STT deferred-support tests.</li>
+<li>Add or run a Core integration test that exercises <code>/acore/models/load</code> for cloned TTS through the
+  capability plugin.</li>
+</ul>
+<hr />
+<h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
+<h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Fixed cloned-TTS residency event truth by reporting whether the clone engine cache existed before
+  the request (<code>engine_cached_before</code>) and after (<code>engine_cached_after</code>).</li>
+<li>Added <code>loaded</code> as a forward-looking alias for <code>resident</code> in residency responses (kept <code>resident</code>
+  for backward compatibility).</li>
+<li>Updated plugin residency tests to cover first warm vs repeated warm and to assert <code>loaded</code> is
+  present/consistent.</li>
+<li>Added a focused unit test for <code>VoiceCloner.preload_engine(...)</code> to lock down the new before/after
+  cache-truth fields.</li>
+<li>Added <code>pythonpath = [\".\"]</code> to pytest config so <code>pytest</code> (entrypoint script) runs tests against the
+  local checkout consistently (matching <code>python -m pytest</code> behavior).</li>
+</ul>
+<h3 id="files-touched">Files touched<a class="headerlink" href="#files-touched" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>abstractvoice/cloning/manager.py</code></li>
+<li><code>abstractvoice/integrations/abstractcore_plugin.py</code></li>
+<li><code>tests/test_abstractcore_plugin.py</code></li>
+<li><code>tests/test_voice_cloner_engine_dispatch.py</code></li>
+<li><code>pyproject.toml</code></li>
+<li><code>docs/backlog/completed/0056_normalize_abstractcore_capability_residency_truth.md</code></li>
+</ul>
+<h3 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Focused plugin residency: <code>pytest -q tests/test_abstractcore_plugin.py -k residency</code> -&gt; passed.</li>
+<li>Focused cloner cache truth: <code>pytest -q tests/test_voice_cloner_engine_dispatch.py -k preload_reports</code> -&gt; passed.</li>
+<li>CI/release gate: <code>python -m pytest -q -m "not integration and not model_download"</code> -&gt; passed (203 passed, 3 skipped).</li>
 </ul>
 
 
