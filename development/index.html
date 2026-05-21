@@ -1274,9 +1274,12 @@
 <h2 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q
 </code></pre></div>
-<p>For CI/release runs, keep model-download and optional integration tests out of
-the default pass:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;not integration and not model_download&quot;</span>
+<p>For CI/release runs, the default pytest config skips optional integration,
+model-download, and slow tests (see <code>pyproject.toml</code> <code>addopts</code>).</p>
+<p>To run the heavier buckets explicitly:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>-m<span class="w"> </span>integration
+python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>-m<span class="w"> </span>model_download
+python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>-m<span class="w"> </span>slow
 </code></pre></div>
 <h2 id="ci-and-releases">CI and releases<a class="headerlink" href="#ci-and-releases" title="Permanent link">&para;</a></h2>
 <p>AbstractVoice mirrors the AbstractCore release shape:</p>

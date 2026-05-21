@@ -133,6 +133,18 @@
          <lastmod>2026-05-21</lastmod>
     </url>
     <url>
+         <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/0057_abstractcore_plugin_audio_discovery_surface/</loc>
+         <lastmod>2026-05-21</lastmod>
+    </url>
+    <url>
+         <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/0058_cohere_transcribe_stt_integration/</loc>
+         <lastmod>2026-05-21</lastmod>
+    </url>
+    <url>
+         <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/0059_local_model_preload_and_residency/</loc>
+         <lastmod>2026-05-21</lastmod>
+    </url>
+    <url>
          <loc>https://www.lpalbou.info/AbstractVoice/backlog/completed/005_voice_manager_refactor/</loc>
          <lastmod>2026-05-21</lastmod>
     </url>

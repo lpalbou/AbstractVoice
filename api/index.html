@@ -409,6 +409,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#residency-local-engine-preloadunload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Residency (local engine preload/unload)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1323,6 +1334,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#residency-local-engine-preloadunload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Residency (local engine preload/unload)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1743,6 +1765,42 @@ For other non-Piper providers (e.g. OmniVoice or remote OpenAI-compatible provid
 </li>
 <li>Backward-compatible method; Piper voice selection is currently best-effort.</li>
 </ul>
+<h3 id="residency-local-engine-preloadunload">Residency (local engine preload/unload)<a class="headerlink" href="#residency-local-engine-preloadunload" title="Permanent link">&para;</a></h3>
+<p>AbstractVoice is <strong>remote-first</strong> by default, but local engines benefit from explicit
+process-startup warmup. These methods are <strong>best-effort</strong> and are meaningful only
+for <strong>local</strong> providers (remote OpenAI/OpenAI-compatible are treated as configured,
+not resident).</p>
+<ul>
+<li><code>preload_tts_engine(*, warmup: bool = True, warmup_text: str | None = None, warmup_format: str = "wav") -&gt; dict</code></li>
+<li>Forces the active local base TTS runtime to load weights into memory.</li>
+<li>
+<p>When <code>warmup=True</code>, also synthesizes a short sample to prime kernels/caches.</p>
+</li>
+<li>
+<p><code>unload_tts_engine() -&gt; dict</code></p>
+</li>
+<li>
+<p>Best-effort release of loaded local base TTS weights/sessions.</p>
+</li>
+<li>
+<p><code>preload_stt_engine(*, warmup: bool = False, warmup_audio_path: str | None = None, language: str | None = None) -&gt; dict</code></p>
+</li>
+<li>Forces the configured local STT runtime to load weights into memory.</li>
+<li>
+<p>When <code>warmup=True</code>, also runs one transcription on <code>warmup_audio_path</code> when provided.</p>
+</li>
+<li>
+<p><code>unload_stt_engine() -&gt; dict</code></p>
+</li>
+<li>
+<p>Best-effort release of loaded local STT weights/pipelines (drops adapter refs so next use reloads cleanly).</p>
+</li>
+<li>
+<p><code>list_resident_components() -&gt; list[dict]</code></p>
+</li>
+<li>Process-local introspection used by the AbstractCore plugin residency surface.</li>
+<li>Returns clone engines plus base TTS/STT residency (when determinable).</li>
+</ul>
 <h2 id="stt-audio-text">STT (audio → text)<a class="headerlink" href="#stt-audio-text" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>transcribe_file(audio_path: str, language: str | None = None) -&gt; str</code></li>
@@ -1899,7 +1957,7 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 <h2 id="performance-note-prefetch-vs-preload-important-for-servers">Performance note: prefetch vs preload (important for servers)<a class="headerlink" href="#performance-note-prefetch-vs-preload-important-for-servers" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Prefetch</strong> (download to disk): <code>python -m abstractvoice download ...</code> / <code>abstractvoice-prefetch ...</code></li>
-<li><strong>Preload</strong> (load into memory): create a <strong>long-lived</strong> <code>VoiceManager</code> (or adapter) and reuse it.</li>
+<li><strong>Preload</strong> (load into memory): create a <strong>long-lived</strong> <code>VoiceManager</code> (or adapter) and reuse it, optionally calling <code>preload_tts_engine()</code> / <code>preload_stt_engine()</code> once at process startup.</li>
 </ul>
 <p>If you construct a new <code>VoiceManager</code> for every request, heavy engines (AudioDiT/OmniVoice) will pay a large one-time cost repeatedly (imports + weight load + accelerator kernel compilation).</p>
 <p>Recommended pattern (server/process startup):</p>
@@ -1913,6 +1971,10 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
     <span class="n">remote_api_key</span><span class="o">=</span><span class="s2">&quot;sk-...&quot;</span><span class="p">,</span>
     <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
+
+<span class="c1"># Optional explicit warmup for local providers.</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">preload_tts_engine</span><span class="p">(</span><span class="n">warmup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">warmup_text</span><span class="o">=</span><span class="s2">&quot;Hello.&quot;</span><span class="p">)</span>
+<span class="c1"># vm.preload_stt_engine(warmup=True, warmup_audio_path=&quot;hello.wav&quot;, language=&quot;en&quot;)</span>
 </code></pre></div>
 <h2 id="integrations-abstractframework-ecosystem">Integrations (AbstractFramework ecosystem)<a class="headerlink" href="#integrations-abstractframework-ecosystem" title="Permanent link">&para;</a></h2>
 <p>AbstractVoice is designed to work standalone, and also integrate cleanly into the AbstractFramework ecosystem (AbstractCore + AbstractRuntime). Overview and links: <code>README.md</code>.</p>
@@ -1930,6 +1992,11 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 - a voice backend (<code>backend_id="abstractvoice:default"</code>) for TTS+STT
 - an audio backend (<code>backend_id="abstractvoice:stt"</code>) for STT-only</p>
 <p>Audio outputs can optionally be stored into an AbstractRuntime-like <code>artifact_store</code> via the duck-typed adapter in <code>abstractvoice/artifacts.py</code>.</p>
+<p>Discovery note (generic capability discovery):
+- The voice backend exposes rich discovery helpers (<code>available_providers()</code>, <code>list_models(kind=...)</code>, <code>voice_catalog()</code>, etc).
+- The audio backend implements the minimal generic discovery contract used by <code>llm.capabilities.*</code> for STT-only routing:
+  - <code>available_providers(task=None)</code>
+  - <code>list_models(task=None, provider=...|provider_id=...)</code></p>
 <p>The voice backend also exposes thin catalog discovery methods for Core/Gateway
 integration code:
 - <code>list_profiles(kind="tts") -&gt; list[dict]</code>
@@ -1952,6 +2019,12 @@ integration code:
   - <code>tts_capabilities</code>: richer per-field support truth (<code>native|emulated|conditional|unsupported</code>) for newer clients
   - <code>speech_request_contract</code>: current request contract id (currently <code>"speech_request_v1"</code>)
   - <code>compatibility_catalog</code>: package-owned provider/model feature matrix across <code>tts</code>, <code>stt</code>, and <code>cloning</code>
+- Residency / warmup (local engines only; remote providers remain “configured”):
+  - <code>load_resident_model(request: dict) -&gt; dict</code>
+    - voice backend: clone engines (<code>provider="cloned"</code>) and local base TTS (<code>provider="piper"|"supertonic"|"omnivoice"|"audiodit"|...</code>)
+    - audio backend: local STT (<code>provider="faster-whisper"|"transformers-asr"|...</code>)
+  - <code>list_resident_models(filters: dict | None = None) -&gt; list[dict]</code>
+  - <code>unload_resident_model(request: dict) -&gt; dict</code>
 - <code>tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -&gt; bytes | artifact_ref</code>
 - <code>stt(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code>
 - <code>transcribe(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code></p>
