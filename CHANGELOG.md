@@ -10,6 +10,15 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.12] - 2026-05-21
+
+### Changed
+- Improved cloned-TTS residency reporting through the AbstractCore capability
+  plugin by adding a forward-looking `loaded` field plus
+  `engine_cached_before/engine_cached_after` details, allowing callers to
+  distinguish first warm from reuse while keeping `resident` for backward
+  compatibility.
+
 ## [0.10.11] - 2026-05-20
 
 ### Added

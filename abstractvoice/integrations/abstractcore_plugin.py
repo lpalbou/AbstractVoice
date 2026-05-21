@@ -1325,6 +1325,7 @@ class _BaseVoice:
             "provider": provider,
             "model": model,
             "state": str(state),
+            "loaded": False,
             "resident": False,
             "local": _coerce_bool(local, False) if local is not None else False,
             "unloadable": bool(unloadable),
@@ -1398,6 +1399,7 @@ class _BaseVoice:
             "provider": "cloned",
             "model": engine,
             "state": str(state),
+            "loaded": bool(resident),
             "resident": bool(resident),
             "local": bool(local),
             "unloadable": bool(unloadable),
@@ -1459,6 +1461,10 @@ class _BaseVoice:
             "warmed_via": result.get("warmed_via"),
             "runtime_info": _json_safe(result.get("runtime_info") or {}),
         }
+        if "engine_cached_before" in result:
+            details["engine_cached_before"] = bool(result.get("engine_cached_before"))
+        if "engine_cached_after" in result:
+            details["engine_cached_after"] = bool(result.get("engine_cached_after"))
         if "voice_prepared" in result:
             details["voice_prepared"] = bool(result.get("voice_prepared"))
         if result.get("voice_prepare_error"):

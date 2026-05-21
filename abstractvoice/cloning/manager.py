@@ -168,7 +168,9 @@ class VoiceCloner:
                     )
                 engine_name = voice_engine
 
+        engine_cached_before = engine_name in self._engines
         inst = self._get_engine(engine_name)
+        engine_cached_after = engine_name in self._engines
         local = engine_name not in _REMOTE_CLONING_ENGINES
         warmed_via_steps: list[str] = ["engine_instance"]
         voice_prepared = False
@@ -216,7 +218,9 @@ class VoiceCloner:
             "local": bool(local),
             "unloadable": True,
             "warmed_via": "+".join(warmed_via_steps),
-            "engine_cached": engine_name in self._engines,
+            "engine_cached": bool(engine_cached_after),
+            "engine_cached_before": bool(engine_cached_before),
+            "engine_cached_after": bool(engine_cached_after),
             "runtime_info": runtime_info,
         }
         if voice_text:

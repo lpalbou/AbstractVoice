@@ -108,9 +108,9 @@ cloned TTS.
 
 ## Backlog links
 
-- `docs/backlog/planned/036_voice_profile_abstraction.md`
+- `docs/backlog/completed/036_voice_profile_abstraction.md`
 - `docs/backlog/completed/039_abstractcore_plugin_voice_catalog_surface.md`
-- `docs/backlog/proposed/042_capability_residency_hooks.md`
+- `docs/backlog/completed/042_capability_residency_hooks.md`
 
 ## Related
 

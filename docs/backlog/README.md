@@ -4,10 +4,10 @@ This folder is the **single source of truth** for planned and completed work in 
 
 ## Current snapshot
 
-- Updated: 2026-05-20
-- Planned: 16
-- Proposed: 9
-- Completed: 28
+- Updated: 2026-05-21
+- Planned: 15
+- Proposed: 10
+- Completed: 31
 - Recurrent: 1
 
 ### Principles
@@ -73,6 +73,12 @@ Rationale:
 - capture reusable abstractions even if DramaBox never ships;
 - keep the runtime spike separate from later engine-surface work;
 - keep Apple validation explicitly last instead of silently assumed.
+
+## Other current proposed items
+
+- `docs/backlog/proposed/0055_elevenlabs_music_backend_boundary_learnings.md`: captures lessons
+  from AbstractMusic's ElevenLabs Music backend so any future ElevenLabs voice work stays scoped to
+  AbstractVoice and does not couple to music runtime code.
 
 ---
 

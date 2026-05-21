@@ -1,8 +1,9 @@
 ## Task 036: Voice profile abstraction (cross-engine) + API exposure
 
 **Date**: 2026-04-07  
-**Status**: Implemented  
+**Status**: Completed  
 **Priority**: P1  
+**Completed**: 2026-04-07  
 
 ---
 
@@ -163,3 +164,33 @@ Implemented in this repo:
 Validation on OmniVoice:
 - Prefetch OmniVoice weights: `python -m abstractvoice download --omnivoice`
 - In REPL: `/tts_engine omnivoice` → `/profile list` → `/profile female_01` → `/speak ...`
+
+---
+
+## Report
+
+### Summary
+
+- Added a cross-engine `VoiceProfile` abstraction plus lookup/loader helpers.
+- Added optional adapter profile methods (`get_profiles`, `set_profile`, `get_active_profile`)
+  with safe defaults for engines that do not support profiles.
+- Exposed a profile API on `VoiceManager` (`get_profiles`, `set_profile`, `get_active_profile`).
+- Added REPL UX (`/profile list|show|<id>`) through the shared `VoiceManager` surface.
+- Added AbstractCore integration tool wiring for profile list/set.
+
+### Files touched
+
+- `abstractvoice/voice_profiles.py`
+- `abstractvoice/adapters/base.py`
+- `abstractvoice/vm/manager.py`
+- `abstractvoice/examples/cli_repl.py`
+- `abstractvoice/assets/voice_profiles/omnivoice_profiles.json`
+- `abstractvoice/integrations/abstractcore.py`
+- `tests/test_voice_profiles_abstraction.py`
+- `tests/test_abstractcore_plugin.py`
+- `docs/backlog/completed/036_voice_profile_abstraction.md`
+
+### Validation
+
+- Focused abstraction: `pytest -q tests/test_voice_profiles_abstraction.py` -> 2 passed.
+- Focused plugin/profile: `pytest -q tests/test_abstractcore_plugin.py -k profile` -> 5 passed.

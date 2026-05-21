@@ -322,6 +322,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 python_classes = ["Test*"]
+pythonpath = ["."]
 markers = [
     "integration: integration tests that may require sibling repos or optional engines",
     "model_download: tests that may download or require cached model artifacts",

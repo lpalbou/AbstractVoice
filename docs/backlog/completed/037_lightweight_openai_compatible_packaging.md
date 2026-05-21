@@ -396,7 +396,7 @@ Configure the plugin host with:
 - **Backlog tasks**:
   - `docs/backlog/planned/013_openai_compatible_audio_endpoint.md`
   - `docs/backlog/planned/027_refresh_dependency_check.md`
-  - `docs/backlog/planned/036_voice_profile_abstraction.md`
+  - `docs/backlog/completed/036_voice_profile_abstraction.md`
   - `docs/backlog/proposed/2026-05-07_lightweight_openai_compatible_packaging.md`
 - **Key implementation files**:
   - `pyproject.toml`

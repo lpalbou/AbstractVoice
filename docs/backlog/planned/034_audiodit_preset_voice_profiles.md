@@ -87,7 +87,7 @@ AudioDiT profiles should be exposed through the same cross-engine interface as o
 - the REPL can expose a single `/profile ...` surface (no `/audiodit profile ...` special-casing)
 - AbstractCore and third-party integrations can forward `profile_id` without engine-specific glue
 
-See: `docs/backlog/planned/036_voice_profile_abstraction.md`.
+See: `docs/backlog/completed/036_voice_profile_abstraction.md`.
 
 Minimum viable profile payload:
 - `engine: "audiodit"`
@@ -124,4 +124,3 @@ Profiles should be stored as a JSON asset and applied through:
 
 - A user can select a profile and get a stable-sounding AudioDiT voice across turns without needing cloning.
 - The implementation does not add large assets and does not create surprise downloads.
-

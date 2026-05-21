@@ -49,7 +49,7 @@ Curated Piper presets should be exposed through the same cross-engine profile in
 - the REPL can use a single `/profile ...` command regardless of engine
 - AbstractCore / third-party integrations can forward profile selection without Piper-specific logic
 
-See: `docs/backlog/planned/036_voice_profile_abstraction.md`.
+See: `docs/backlog/completed/036_voice_profile_abstraction.md`.
 
 ### 1) Expand Piper model catalog to support multiple voices per language
 
@@ -108,4 +108,3 @@ These curated presets should be surfaced via the shared profile interface:
 - With `tts_engine=piper`, users can select curated presets via `/profile ...` (Task 036) without needing to remember raw `voice_id` values.
 - Users can select from a small curated preset list without editing code.
 - Existing behavior remains intact when users never call `set_voice` (default per-language voice still works).
-

@@ -179,6 +179,35 @@ def test_voice_cloner_preload_and_list_loaded_engines(tmp_path: Path):
     assert calls == ["preload", "unload"]
 
 
+def test_voice_cloner_preload_reports_engine_cached_before_and_after(tmp_path: Path, monkeypatch):
+    from abstractvoice.cloning.manager import VoiceCloner
+    from abstractvoice.cloning.store import VoiceCloneStore
+
+    class DummyEngine:
+        def preload(self):
+            return None
+
+    store = VoiceCloneStore(base_dir=tmp_path / "store")
+    cloner = VoiceCloner(store=store, allow_downloads=False)
+
+    def fake_get_engine(engine: str):
+        if engine not in cloner._engines:
+            cloner._engines[engine] = DummyEngine()
+        return cloner._engines[engine]
+
+    monkeypatch.setattr(cloner, "_get_engine", fake_get_engine)
+
+    warmed = cloner.preload_engine("omnivoice")
+    assert warmed["engine_cached_before"] is False
+    assert warmed["engine_cached_after"] is True
+    assert warmed["engine_cached"] is True
+
+    warmed_repeat = cloner.preload_engine("omnivoice")
+    assert warmed_repeat["engine_cached_before"] is True
+    assert warmed_repeat["engine_cached_after"] is True
+    assert warmed_repeat["engine_cached"] is True
+
+
 def test_voice_cloner_preload_with_voice_warms_voice_path(tmp_path: Path):
     import numpy as np
     import soundfile as sf

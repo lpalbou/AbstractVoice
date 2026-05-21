@@ -108,7 +108,7 @@ AbstractVoice also has “voices”, but today that primarily means **local clon
 To support commercial TTS/STT/cloning cleanly (and keep local presets consistent), we should introduce a **provider-agnostic voice profile** concept with a **common engine interface**.
 
 This should be tracked as a dedicated foundational task:
-- `docs/backlog/planned/036_voice_profile_abstraction.md`
+- `docs/backlog/completed/036_voice_profile_abstraction.md`
 
 - **VoiceProfile** (concept)
   - `engine_id`: which backend applies this profile (`piper|audiodit|omnivoice|openai|...`)
@@ -134,7 +134,7 @@ Related planned work:
 - OmniVoice presets: `docs/backlog/planned/033_omnivoice_preset_voice_profiles.md`
 - AudioDiT presets: `docs/backlog/planned/034_audiodit_preset_voice_profiles.md`
 - Piper true voice selection + presets: `docs/backlog/planned/035_piper_voice_profiles_and_voice_selection.md`
- - Cross-engine profile abstraction: `docs/backlog/planned/036_voice_profile_abstraction.md`
+ - Cross-engine profile abstraction: `docs/backlog/completed/036_voice_profile_abstraction.md`
 
 OpenAI-specific mapping:
 - The OpenAI TTS adapter should accept `voice` as either:

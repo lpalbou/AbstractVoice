@@ -1,8 +1,10 @@
 ## Task 042: Capability-level residency hooks for AbstractCore cloned TTS warmup
 
 **Date**: 2026-05-19  
-**Status**: Proposed  
+**Status**: Completed  
 **Priority**: P1
+**Promoted from**: `docs/backlog/proposed/042_capability_residency_hooks.md`  
+**Completed**: 2026-05-19  
 
 ---
 
@@ -249,3 +251,37 @@ plugin.
 - plugin tests for unload of a warmed clone engine;
 - failure tests for non-cloned TTS or STT residency requests returning a clear deferred-support
   result.
+
+---
+
+## Report
+
+### Summary
+
+- Added cloned-TTS-only residency hooks on the AbstractCore capability plugin boundary:
+  load, list, and unload resident clone engines.
+- Kept residency truth narrow: base TTS and STT residency requests return structured
+  `not_implemented_yet` responses (no false “loaded” claims).
+- Wired residency work through the existing process-local `VoiceManager` and cloner cache so warm
+  and unload reuse existing state instead of inventing a second cache.
+- Added focused plugin tests covering warm/list/unload and deferred-support responses.
+- Shipped in release `0.10.5` (2026-05-19) with a changelog entry describing the residency surface.
+
+### Files touched
+
+- `abstractvoice/integrations/abstractcore_plugin.py`
+- `abstractvoice/vm/tts_mixin.py`
+- `abstractvoice/cloning/manager.py`
+- `tests/test_abstractcore_plugin.py`
+- `CHANGELOG.md`
+- `docs/adr/0006_voice_overlays_are_package_owned_not_generic_adapters.md`
+- `docs/backlog/completed/042_capability_residency_hooks.md`
+
+### Validation
+
+- Focused: `pytest -q tests/test_abstractcore_plugin.py -k residency` -> 3 passed.
+
+### Follow-ups
+
+- `docs/backlog/completed/0056_normalize_abstractcore_capability_residency_truth.md` (event-truth:
+  distinguish first warm vs reuse without broadening residency scope).

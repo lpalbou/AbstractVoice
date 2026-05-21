@@ -56,7 +56,7 @@ OmniVoice profiles should be implemented through a common cross-engine interface
 - the REPL can expose a single `/profile ...` command (no `/omnivoice profile ...` special-casing)
 - AbstractCore integrations can forward profile selection without knowing per-engine parameters
 
-See: `docs/backlog/planned/036_voice_profile_abstraction.md`.
+See: `docs/backlog/completed/036_voice_profile_abstraction.md`.
 
 Minimum viable profile payload for OmniVoice:
 
@@ -116,4 +116,3 @@ Rules:
   - `/speak ...`
   - and get a stable voice across turns without needing to remember parameter details.
 - Profiles are deterministic **best-effort** when `seed` is fixed; for strong persistence, profiles can build and reuse a cached tokenized prompt (one-time cost, then fast).
-

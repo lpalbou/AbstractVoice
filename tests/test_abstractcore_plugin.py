@@ -1316,6 +1316,7 @@ def test_voice_capability_clone_residency_round_trip(monkeypatch):
         def preload_cloning_engine(self, *, engine=None, voice=None, language=None, speed=None):
             _ = (language, speed)
             eng = str(engine or self.cloning_engine)
+            cached_before = eng in self._loaded
             self._loaded.add(eng)
             return {
                 "engine": eng,
@@ -1325,6 +1326,8 @@ def test_voice_capability_clone_residency_round_trip(monkeypatch):
                 "local": True,
                 "unloadable": True,
                 "engine_cached": True,
+                "engine_cached_before": bool(cached_before),
+                "engine_cached_after": True,
                 "warmed_via": "engine_preload",
                 "runtime_info": {"requested_device": "cpu"},
             }
@@ -1368,12 +1371,23 @@ def test_voice_capability_clone_residency_round_trip(monkeypatch):
     assert loaded["provider"] == "cloned"
     assert loaded["model"] == "omnivoice"
     assert loaded["state"] == "resident"
+    assert loaded["loaded"] is True
     assert loaded["resident"] is True
     assert loaded["details"]["warmed_via"] == "engine_preload"
+    assert loaded["details"]["engine_cached_before"] is False
+    assert loaded["details"]["engine_cached_after"] is True
     assert any(item["cloning_engine"] == "omnivoice" for item in created)
+
+    loaded_repeat = cap.load_resident_model({"task": "tts", "provider": "cloned", "model": "omnivoice"})
+    assert loaded_repeat["model"] == "omnivoice"
+    assert loaded_repeat["loaded"] is True
+    assert loaded_repeat["resident"] is True
+    assert loaded_repeat["details"]["engine_cached_before"] is True
+    assert loaded_repeat["details"]["engine_cached_after"] is True
 
     loaded_from_voice = cap.load_resident_model({"task": "tts", "provider": "cloned", "options": {"voice": "clone-1"}})
     assert loaded_from_voice["model"] == "audiodit"
+    assert loaded_from_voice["loaded"] is True
     assert loaded_from_voice["options"] == {"voice": "clone-1"}
     assert any(item["cloning_engine"] == "audiodit" for item in created)
 
@@ -1386,6 +1400,7 @@ def test_voice_capability_clone_residency_round_trip(monkeypatch):
     unloaded = cap.unload_resident_model({"task": "tts", "provider": "cloned", "model": "omnivoice"})
     assert unloaded["model"] == "omnivoice"
     assert unloaded["state"] == "unloaded"
+    assert unloaded["loaded"] is False
     assert unloaded["resident"] is False
     assert unloaded["unloaded"] is True
     assert unloaded["details"]["unloaded_count"] >= 1
@@ -1401,10 +1416,12 @@ def test_voice_capability_clone_residency_defers_base_tts_and_stt(monkeypatch):
 
     base_tts = cap.load_resident_model({"task": "tts", "provider": "omnivoice", "model": "default"})
     assert base_tts["state"] == "not_implemented"
+    assert base_tts["loaded"] is False
     assert base_tts["error"]["code"] == "not_implemented_yet"
 
     stt = cap.load_resident_model({"task": "stt", "provider": "faster-whisper", "model": "base"})
     assert stt["state"] == "not_implemented"
+    assert stt["loaded"] is False
     assert stt["error"]["code"] == "not_implemented_yet"
     assert cap.list_resident_models({"task": "stt"}) == []
 
@@ -1419,6 +1436,7 @@ def test_audio_capability_clone_residency_is_not_implemented(monkeypatch):
 
     loaded = cap.load_resident_model({"task": "tts", "provider": "cloned", "model": "omnivoice"})
     assert loaded["state"] == "not_implemented"
+    assert loaded["loaded"] is False
     assert loaded["error"]["code"] == "not_implemented_yet"
     assert cap.list_resident_models({"task": "tts", "provider": "cloned"}) == []
 
