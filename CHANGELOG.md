@@ -10,6 +10,31 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.13] - 2026-05-21
+
+### Added
+- Added Cohere Transcribe (03-2026) as a curated `transformers-asr` local STT
+  model (`CohereLabs/cohere-transcribe-03-2026`), including AbstractCore plugin
+  discovery and a dedicated inference path that does not require
+  `trust_remote_code`.
+- Added true local engine residency controls:
+  - `VoiceManager.preload_tts_engine(...)` / `unload_tts_engine()` for local base TTS,
+  - `VoiceManager.preload_stt_engine(...)` / `unload_stt_engine()` for local STT,
+  - AbstractCore plugin `load_resident_model` / `list_resident_models` / `unload_resident_model`
+    now support local base TTS (voice backend) and local STT (audio backend).
+- Added `examples/bench_preload_local_models.py` to benchmark cold start vs preloaded generation/transcribe time.
+
+### Changed
+- Raised the Transformers optional dependency floor to `transformers>=5.4.0`
+  (Python >=3.10) to match Cohere Transcribe's native Transformers support
+  requirement.
+
+### Fixed
+- Added the missing provider/model discovery surface to the AbstractCore plugin
+  STT-only audio backend (`abstractvoice:stt`), so generic capability discovery
+  can enumerate STT providers and models without special-casing audio.
+- Fixed the curated Piper Spanish model mapping to use a valid upstream voice (`es_ES-davefx-medium`).
+
 ## [0.10.12] - 2026-05-21
 
 ### Changed

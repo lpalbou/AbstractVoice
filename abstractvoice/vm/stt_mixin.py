@@ -8,6 +8,176 @@ from .common import import_voice_recognizer
 
 
 class SttMixin:
+    def preload_stt_engine(
+        self,
+        *,
+        warmup: bool = False,
+        warmup_audio_path: str | None = None,
+        language: str | None = None,
+    ) -> dict:
+        """Best-effort preload for the configured STT adapter (local engines only)."""
+
+        engine = str(getattr(self, "_stt_engine_preference", "openai") or "openai").strip().lower().replace("-", "_")
+        if engine in {"remote", "compatible"}:
+            engine = "openai_compatible"
+        if engine in {"openai", "openai_compatible"}:
+            return {
+                "component": "stt_engine",
+                "engine": "openai" if engine == "openai" else "openai-compatible",
+                "state": "configured",
+                "resident": False,
+                "local": False,
+                "unloadable": False,
+            }
+
+        adapter = None
+        try:
+            adapter = self._get_stt_adapter()
+        except Exception as e:
+            return {
+                "component": "stt_engine",
+                "engine": str(engine).replace("_", "-"),
+                "state": "failed",
+                "resident": False,
+                "local": True,
+                "unloadable": True,
+                "error": str(e),
+            }
+
+        if adapter is None:
+            return {
+                "component": "stt_engine",
+                "engine": str(engine).replace("_", "-"),
+                "state": "failed",
+                "resident": False,
+                "local": True,
+                "unloadable": True,
+                "error": "no_stt_adapter",
+            }
+
+        engine_id = (
+            str(getattr(adapter, "engine_id", None) or getattr(adapter, "provider", None) or "")
+            .strip()
+            .lower()
+            .replace("_", "-")
+            or None
+        )
+        if not engine_id:
+            engine_id = str(engine).strip().lower().replace("_", "-") or None
+        model_id = None
+        try:
+            model_id = getattr(adapter, "model_id", None) or getattr(self, "stt_model", None) or getattr(self, "whisper_model", None)
+        except Exception:
+            model_id = None
+
+        warm_ok = False
+        warm_error = None
+        if bool(warmup) and warmup_audio_path:
+            try:
+                _ = adapter.transcribe(str(warmup_audio_path), language=language)
+                warm_ok = True
+            except Exception as e:
+                warm_error = str(e)
+
+        return {
+            "component": "stt_engine",
+            "engine": engine_id,
+            "model": str(model_id).strip() if isinstance(model_id, str) and str(model_id).strip() else None,
+            "state": "resident",
+            "resident": True,
+            "local": True,
+            "unloadable": True,
+            "warmed": bool(warm_ok),
+            "warm_error": warm_error,
+        }
+
+    def unload_stt_engine(self) -> dict:
+        """Best-effort unload for the configured STT adapter (local engines only)."""
+
+        adapter = getattr(self, "stt_adapter", None)
+        if adapter is None:
+            return {
+                "component": "stt_engine",
+                "engine": None,
+                "unloaded": False,
+                "state": "not_loaded",
+                "resident": False,
+                "local": False,
+                "unloadable": False,
+            }
+
+        engine_id = str(getattr(adapter, "engine_id", None) or getattr(adapter, "provider", None) or "").strip().lower().replace("_", "-") or None
+        if engine_id in {"openai", "openai-compatible"} or engine_id is None:
+            return {
+                "component": "stt_engine",
+                "engine": engine_id,
+                "unloaded": False,
+                "state": "configured",
+                "resident": False,
+                "local": False,
+                "unloadable": False,
+            }
+
+        unloaded = False
+        error = None
+        try:
+            # Adapter-specific hook if it exists.
+            if hasattr(adapter, "unload"):
+                adapter.unload()
+                unloaded = True
+            else:
+                # Best-effort: drop heavy references for common adapters.
+                if hasattr(adapter, "_model"):
+                    setattr(adapter, "_model", None)
+                    unloaded = True
+                if hasattr(adapter, "_pipeline"):
+                    setattr(adapter, "_pipeline", None)
+                    unloaded = True
+                if hasattr(adapter, "_qwen3_model"):
+                    setattr(adapter, "_qwen3_model", None)
+                if hasattr(adapter, "_qwen3_processor"):
+                    setattr(adapter, "_qwen3_processor", None)
+                if hasattr(adapter, "_cohere_model"):
+                    setattr(adapter, "_cohere_model", None)
+                if hasattr(adapter, "_cohere_processor"):
+                    setattr(adapter, "_cohere_processor", None)
+        except Exception as e:
+            error = str(e)
+            unloaded = False
+
+        # Drop adapter reference so next use reloads cleanly.
+        try:
+            setattr(self, "stt_adapter", None)
+        except Exception:
+            pass
+
+        try:
+            import gc
+
+            gc.collect()
+        except Exception:
+            pass
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            if hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache"):
+                torch.mps.empty_cache()
+        except Exception:
+            pass
+
+        return {
+            "component": "stt_engine",
+            "engine": engine_id,
+            "unloaded": bool(unloaded),
+            "state": "unloaded" if unloaded else "failed",
+            "resident": False,
+            "local": True,
+            "unloadable": True,
+            "error": error,
+        }
+
     def transcribe_from_bytes(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
         stt = self._get_stt_adapter()
         if stt is not None and hasattr(stt, "transcribe_from_bytes"):

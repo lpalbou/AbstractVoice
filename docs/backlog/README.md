@@ -7,7 +7,7 @@ This folder is the **single source of truth** for planned and completed work in 
 - Updated: 2026-05-21
 - Planned: 15
 - Proposed: 10
-- Completed: 31
+- Completed: 34
 - Recurrent: 1
 
 ### Principles
@@ -86,12 +86,12 @@ Rationale:
 
 Create new tasks as:
 
-- `docs/backlog/planned/{NNN}_{short_description}.md`
-- `docs/backlog/planned/{track}/{NNN}_{short_description}.md` for established
+- `docs/backlog/planned/{NNNN}_{short_description}.md`
+- `docs/backlog/planned/{track}/{NNNN}_{short_description}.md` for established
   multi-item tracks
 
 Rules:
-- **NNN**: zero-padded integer (e.g. `017`)
+- **NNNN**: zero-padded integer (e.g. `0058`). Older tasks may use legacy 3-digit prefixes.
 - **short_description**: snake_case, concise
 
 Note: older tasks may use legacy names; do not rename unless a dedicated cleanup task exists.

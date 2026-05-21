@@ -70,11 +70,15 @@ Core support:
 python -m pytest -q
 ```
 
-For CI/release runs, keep model-download and optional integration tests out of
-the default pass:
+For CI/release runs, the default pytest config skips optional integration,
+model-download, and slow tests (see `pyproject.toml` `addopts`).
+
+To run the heavier buckets explicitly:
 
 ```bash
-python -m pytest -q -m "not integration and not model_download"
+python -m pytest -q -m integration
+python -m pytest -q -m model_download
+python -m pytest -q -m slow
 ```
 
 ## CI and releases

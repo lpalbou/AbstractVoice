@@ -169,6 +169,31 @@ For other non-Piper providers (e.g. OmniVoice or remote OpenAI-compatible provid
 - `set_voice(language: str, voice_id: str) -> bool`
   - Backward-compatible method; Piper voice selection is currently best-effort.
 
+### Residency (local engine preload/unload)
+
+AbstractVoice is **remote-first** by default, but local engines benefit from explicit
+process-startup warmup. These methods are **best-effort** and are meaningful only
+for **local** providers (remote OpenAI/OpenAI-compatible are treated as configured,
+not resident).
+
+- `preload_tts_engine(*, warmup: bool = True, warmup_text: str | None = None, warmup_format: str = "wav") -> dict`
+  - Forces the active local base TTS runtime to load weights into memory.
+  - When `warmup=True`, also synthesizes a short sample to prime kernels/caches.
+
+- `unload_tts_engine() -> dict`
+  - Best-effort release of loaded local base TTS weights/sessions.
+
+- `preload_stt_engine(*, warmup: bool = False, warmup_audio_path: str | None = None, language: str | None = None) -> dict`
+  - Forces the configured local STT runtime to load weights into memory.
+  - When `warmup=True`, also runs one transcription on `warmup_audio_path` when provided.
+
+- `unload_stt_engine() -> dict`
+  - Best-effort release of loaded local STT weights/pipelines (drops adapter refs so next use reloads cleanly).
+
+- `list_resident_components() -> list[dict]`
+  - Process-local introspection used by the AbstractCore plugin residency surface.
+  - Returns clone engines plus base TTS/STT residency (when determinable).
+
 ## STT (audio → text)
 
 - `transcribe_file(audio_path: str, language: str | None = None) -> str`
@@ -324,7 +349,7 @@ See also: `docs/installation.md`, `docs/model-management.md`, and `docs/voices-a
 ## Performance note: prefetch vs preload (important for servers)
 
 - **Prefetch** (download to disk): `python -m abstractvoice download ...` / `abstractvoice-prefetch ...`
-- **Preload** (load into memory): create a **long-lived** `VoiceManager` (or adapter) and reuse it.
+- **Preload** (load into memory): create a **long-lived** `VoiceManager` (or adapter) and reuse it, optionally calling `preload_tts_engine()` / `preload_stt_engine()` once at process startup.
 
 If you construct a new `VoiceManager` for every request, heavy engines (AudioDiT/OmniVoice) will pay a large one-time cost repeatedly (imports + weight load + accelerator kernel compilation).
 
@@ -341,6 +366,10 @@ vm = VoiceManager(
     remote_api_key="sk-...",
     allow_downloads=False,
 )
+
+# Optional explicit warmup for local providers.
+vm.preload_tts_engine(warmup=True, warmup_text="Hello.")
+# vm.preload_stt_engine(warmup=True, warmup_audio_path="hello.wav", language="en")
 ```
 
 ## Integrations (AbstractFramework ecosystem)
@@ -365,6 +394,12 @@ The plugin registers:
 
 Audio outputs can optionally be stored into an AbstractRuntime-like `artifact_store` via the duck-typed adapter in `abstractvoice/artifacts.py`.
 
+Discovery note (generic capability discovery):
+- The voice backend exposes rich discovery helpers (`available_providers()`, `list_models(kind=...)`, `voice_catalog()`, etc).
+- The audio backend implements the minimal generic discovery contract used by `llm.capabilities.*` for STT-only routing:
+  - `available_providers(task=None)`
+  - `list_models(task=None, provider=...|provider_id=...)`
+
 The voice backend also exposes thin catalog discovery methods for Core/Gateway
 integration code:
 - `list_profiles(kind="tts") -> list[dict]`
@@ -387,6 +422,12 @@ integration code:
   - `tts_capabilities`: richer per-field support truth (`native|emulated|conditional|unsupported`) for newer clients
   - `speech_request_contract`: current request contract id (currently `"speech_request_v1"`)
   - `compatibility_catalog`: package-owned provider/model feature matrix across `tts`, `stt`, and `cloning`
+- Residency / warmup (local engines only; remote providers remain “configured”):
+  - `load_resident_model(request: dict) -> dict`
+    - voice backend: clone engines (`provider="cloned"`) and local base TTS (`provider="piper"|"supertonic"|"omnivoice"|"audiodit"|...`)
+    - audio backend: local STT (`provider="faster-whisper"|"transformers-asr"|...`)
+  - `list_resident_models(filters: dict | None = None) -> list[dict]`
+  - `unload_resident_model(request: dict) -> dict`
 - `tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -> bytes | artifact_ref`
 - `stt(audio, *, provider=None, model=None, language=None, ...) -> str`
 - `transcribe(audio, *, provider=None, model=None, language=None, ...) -> str`

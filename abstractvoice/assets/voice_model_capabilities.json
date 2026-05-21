@@ -388,7 +388,51 @@
               }
             }
           },
-          "models": {}
+          "models": {
+            "CohereLabs/cohere-transcribe-03-2026": {
+              "card": {
+                "name": "Cohere Transcribe (03-2026)",
+                "provider": "Cohere Labs",
+                "source": "Hugging Face",
+                "repo_id": "CohereLabs/cohere-transcribe-03-2026",
+                "url": "https://huggingface.co/CohereLabs/cohere-transcribe-03-2026",
+                "task": "automatic-speech-recognition",
+                "modalities": ["audio-in", "text-out"],
+                "architecture": "Conformer encoder + Transformer decoder",
+                "parameter_count": 2000000000,
+                "license": "apache-2.0",
+                "sample_rate_hz": 16000,
+                "supported_languages": ["ar", "de", "el", "en", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt", "vi", "zh"],
+                "hf_gated": {
+                  "gated": true,
+                  "notes": "Hugging Face gating applies; access requires accepting the model's conditions (contact info sharing)."
+                },
+                "strengths": [
+                  "High-accuracy multilingual transcription across 14 languages.",
+                  "Designed for efficient transcription (real-time factor improvements claimed vs similarly-sized ASR models)."
+                ],
+                "limitations": [
+                  "No explicit automatic language detection; works best when a single language is pre-specified.",
+                  "No timestamps or speaker diarization.",
+                  "Can be eager to transcribe non-speech; benefits from VAD/noise gate in noisy/silent segments."
+                ],
+                "recommended_runtime": {
+                  "transformers_min_version": "5.4.0"
+                }
+              },
+              "surfaces": {
+                "transcribe": {
+                  "language": {
+                    "support": "native",
+                    "metadata": {
+                      "recommended": true,
+                      "notes": "This model performs best when `language` is set (no reliable auto language detection)."
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

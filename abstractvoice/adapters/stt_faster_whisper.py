@@ -31,6 +31,10 @@ class FasterWhisperAdapter(STTAdapter):
     This adapter provides local speech-to-text with CTranslate2-backed
     inference and low-memory quantized options.
     """
+
+    ENGINE_ID = "faster-whisper"
+    engine_id = ENGINE_ID
+    provider = ENGINE_ID
     
     # Supported models (size -> (parameters, speed, accuracy))
     MODELS = {
@@ -76,6 +80,10 @@ class FasterWhisperAdapter(STTAdapter):
             compute_type: Computation type ('int8', 'float16', 'float32')
                          int8 provides 60% memory reduction with minimal accuracy loss
         """
+        self.engine_id = self.ENGINE_ID
+        self.provider = self.ENGINE_ID
+        self.model_id = str(model_size or "base").strip() or "base"
+
         self._faster_whisper_available = False
         self._model = None
         self._model_size = model_size
@@ -190,6 +198,10 @@ class FasterWhisperAdapter(STTAdapter):
                         os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = old_disable_pb
             
             self._model_size = model_size
+            try:
+                self.model_id = str(model_size)
+            except Exception:
+                pass
             self._device = device
             self._compute_type = compute_type
             
@@ -203,6 +215,19 @@ class FasterWhisperAdapter(STTAdapter):
                 # Offline mode: model might simply not be cached locally.
                 logger.info(f"ℹ️ Faster-Whisper model '{model_size}' not available locally (offline mode).")
             return False
+
+    def unload(self) -> None:
+        """Best-effort release of the loaded model to free memory."""
+        try:
+            self._model = None
+        except Exception:
+            pass
+        try:
+            import gc
+
+            gc.collect()
+        except Exception:
+            pass
     
     def transcribe(
         self,
@@ -439,7 +464,13 @@ class FasterWhisperAdapter(STTAdapter):
             logger.debug(f"Model {model_size} already loaded")
             return True
         
-        return self._load_model(model_size, self._device, self._compute_type)
+        ok = self._load_model(model_size, self._device, self._compute_type)
+        if ok:
+            try:
+                self.model_id = str(model_size)
+            except Exception:
+                pass
+        return ok
     
     def get_info(self) -> Dict[str, Any]:
         """Get metadata about Faster-Whisper engine.

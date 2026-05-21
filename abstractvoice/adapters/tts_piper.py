@@ -41,7 +41,7 @@ class PiperTTSAdapter(TTSAdapter):
         'en': ('en/en_US/amy/medium', 'en_US-amy-medium'),         # US English, female voice
         'fr': ('fr/fr_FR/siwis/medium', 'fr_FR-siwis-medium'),     # France French
         'de': ('de/de_DE/thorsten/medium', 'de_DE-thorsten-medium'), # German
-        'es': ('es/es_ES/carlfm/medium', 'es_ES-carlfm-medium'),   # Spain Spanish
+        'es': ('es/es_ES/davefx/medium', 'es_ES-davefx-medium'),   # Spain Spanish
         'ru': ('ru/ru_RU/dmitri/medium', 'ru_RU-dmitri-medium'),   # Russian
         'zh': ('zh/zh_CN/huayan/medium', 'zh_CN-huayan-medium'),   # Mandarin Chinese
     }
@@ -426,7 +426,24 @@ class PiperTTSAdapter(TTSAdapter):
             raise RuntimeError("Piper TTS is not available. Install with: pip install piper-tts>=1.2.0")
         
         if not self._voice:
-            raise RuntimeError(f"No voice loaded. Call set_language() first.")
+            # Best-effort lazy reload so callers can explicitly unload and later
+            # synthesize without needing to rewire the adapter.
+            lang = str(
+                getattr(self, "_current_language", None)
+                or getattr(self, "_requested_language", None)
+                or "en"
+            ).strip().lower() or "en"
+            try:
+                self.set_language(lang)
+            except Exception:
+                pass
+            if not self._voice:
+                reason = None
+                try:
+                    reason = self.get_unavailable_reason()
+                except Exception:
+                    reason = None
+                raise RuntimeError(reason or "No voice loaded. Call set_language() first.")
         
         try:
             # Piper synthesize returns an iterable of AudioChunk objects
@@ -454,7 +471,22 @@ class PiperTTSAdapter(TTSAdapter):
             raise RuntimeError("Piper TTS is not available. Install with: pip install piper-tts>=1.2.0")
 
         if not self._voice:
-            raise RuntimeError("No voice loaded. Call set_language() first.")
+            lang = str(
+                getattr(self, "_current_language", None)
+                or getattr(self, "_requested_language", None)
+                or "en"
+            ).strip().lower() or "en"
+            try:
+                self.set_language(lang)
+            except Exception:
+                pass
+            if not self._voice:
+                reason = None
+                try:
+                    reason = self.get_unavailable_reason()
+                except Exception:
+                    reason = None
+                raise RuntimeError(reason or "No voice loaded. Call set_language() first.")
 
         try:
             sr = int(getattr(self, "_sample_rate", 0) or 0) or int(self.get_sample_rate())
@@ -592,7 +624,26 @@ class PiperTTSAdapter(TTSAdapter):
         Returns:
             True if Piper can be used, False otherwise
         """
-        return self._piper_available and self._voice is not None
+        if not bool(getattr(self, "_piper_available", False)):
+            return False
+        if self._voice is not None:
+            return True
+        # When downloads are allowed, treat Piper as available even if the
+        # voice isn't loaded yet (it can be loaded on-demand).
+        if bool(getattr(self, "_allow_downloads", True)):
+            return True
+        # Offline-first: only claim availability if the requested voice artifacts
+        # exist locally.
+        lang = str(
+            getattr(self, "_current_language", None)
+            or getattr(self, "_requested_language", None)
+            or "en"
+        ).strip().lower() or "en"
+        try:
+            model_path, config_path = self._get_model_path(lang)
+        except Exception:
+            return False
+        return bool(model_path.exists() and config_path.exists())
 
     def get_unavailable_reason(self) -> str | None:
         """Return an actionable reason when Piper cannot synthesize."""
@@ -610,6 +661,12 @@ class PiperTTSAdapter(TTSAdapter):
             or getattr(self, "_requested_language", None)
             or "en"
         ).strip().lower() or "en"
+        try:
+            model_path, config_path = self._get_model_path(lang)
+            if model_path.exists() and config_path.exists():
+                return f"Piper voice for '{lang}' is unloaded. Call set_language('{lang}') to reload."
+        except Exception:
+            pass
         return (
             f"Piper voice model for '{lang}' is not available locally.\n"
             f"Run: python -m abstractvoice download --piper {lang}\n"

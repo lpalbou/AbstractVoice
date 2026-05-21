@@ -1295,6 +1295,37 @@ def test_audio_capability_injection_transcribe():
     assert cap.transcribe(b"audio") == "ok"
 
 
+def test_audio_capability_discovery_surface_supports_generic_contract(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://remote.test/v1")
+    monkeypatch.setattr(
+        plugin,
+        "_local_stt_engine_available",
+        lambda engine: plugin._norm_engine_id(engine) in {"faster-whisper", "transformers-asr"},
+    )
+
+    class _Owner:
+        config = {}
+
+    cap = _AudioCapability(_Owner())
+
+    providers = cap.available_providers("audio")
+    assert providers["stt"] == ["openai", "openai-compatible", "faster-whisper", "transformers-asr"]
+    assert providers["providers"] == providers["stt"]
+    assert providers["active_stt_provider"] == "openai"
+    assert providers["details"]["stt"]["openai"]["remote"] is True
+
+    assert cap.list_models("audio", provider_id="openai")[:2] == ["gpt-4o-transcribe", "gpt-4o-mini-transcribe"]
+    assert cap.list_models("audio", provider="openai:whisper-1") == ["whisper-1"]
+    assert "large-v3" in cap.list_models("audio", provider_id="faster-whisper")
+
+    assert cap.available_providers("tts")["providers"] == []
+    assert cap.list_models("tts") == []
+
+
 def test_voice_capability_clone_residency_round_trip(monkeypatch):
     import abstractvoice.integrations.abstractcore_plugin as plugin
 
@@ -1415,9 +1446,9 @@ def test_voice_capability_clone_residency_defers_base_tts_and_stt(monkeypatch):
     cap = _VoiceCapability(_Owner())
 
     base_tts = cap.load_resident_model({"task": "tts", "provider": "omnivoice", "model": "default"})
-    assert base_tts["state"] == "not_implemented"
-    assert base_tts["loaded"] is False
-    assert base_tts["error"]["code"] == "not_implemented_yet"
+    assert base_tts["state"] in {"resident", "configured"}
+    assert base_tts["loaded"] is True
+    assert base_tts["error"] is None
 
     stt = cap.load_resident_model({"task": "stt", "provider": "faster-whisper", "model": "base"})
     assert stt["state"] == "not_implemented"

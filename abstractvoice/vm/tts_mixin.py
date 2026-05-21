@@ -607,13 +607,385 @@ class TtsMixin:
         )
 
     def list_resident_components(self) -> list[dict]:
+        components: list[dict] = []
+
+        # Clone engines (existing behavior).
         cloner = getattr(self, "_voice_cloner", None)
-        if cloner is None:
-            return []
+        if cloner is not None:
+            try:
+                components.extend([dict(item) for item in list(cloner.list_loaded_engines() or [])])
+            except Exception:
+                pass
+
+        # Base TTS engine residency (best-effort, local-only).
         try:
-            return [dict(item) for item in list(cloner.list_loaded_engines() or [])]
+            adapter = getattr(self, "tts_adapter", None)
+            engine_id = str(
+                getattr(adapter, "engine_id", None)
+                or getattr(adapter, "provider", None)
+                or getattr(self, "_tts_engine_name", None)
+                or getattr(self, "_tts_engine_preference", None)
+                or ""
+            ).strip().lower()
         except Exception:
-            return []
+            adapter = None
+            engine_id = ""
+
+        if adapter is not None and engine_id and engine_id not in {"openai", "openai-compatible"}:
+            loaded = False
+            try:
+                if engine_id == "piper":
+                    loaded = getattr(adapter, "_voice", None) is not None
+                elif engine_id == "supertonic":
+                    rt = getattr(adapter, "_runtime", None)
+                    loaded = bool(rt is not None and bool(getattr(rt, "_loaded", False)))
+                elif engine_id == "omnivoice":
+                    rt = getattr(adapter, "_runtime", None)
+                    loaded = bool(getattr(rt, "_model", None) is not None)
+                elif engine_id == "audiodit":
+                    rt = getattr(adapter, "_runtime", None)
+                    loaded = bool(getattr(rt, "_model", None) is not None)
+                else:
+                    loaded = bool(getattr(adapter, "is_available", lambda: False)())
+            except Exception:
+                loaded = False
+
+            if loaded:
+                model_id = None
+                try:
+                    model_id = getattr(adapter, "model_id", None) or getattr(self, "tts_model", None)
+                except Exception:
+                    model_id = None
+                if not model_id:
+                    try:
+                        prof = adapter.get_active_profile() if hasattr(adapter, "get_active_profile") else None
+                        params = getattr(prof, "params", None) if prof is not None else None
+                        if isinstance(params, dict):
+                            model_id = params.get("model") or params.get("model_id")
+                    except Exception:
+                        model_id = model_id
+
+                runtime_info = {}
+                try:
+                    info = adapter.get_info() if hasattr(adapter, "get_info") else {}
+                    runtime_info = dict(info.get("runtime") or {}) if isinstance(info, dict) else {}
+                except Exception:
+                    runtime_info = {}
+
+                components.append(
+                    {
+                        "component": "tts_engine",
+                        "engine": engine_id,
+                        "model": str(model_id).strip() if isinstance(model_id, str) and str(model_id).strip() else None,
+                        "state": "resident",
+                        "resident": True,
+                        "local": True,
+                        "unloadable": True,
+                        "runtime_info": runtime_info,
+                    }
+                )
+
+        # STT engine residency (best-effort, local-only).
+        try:
+            stt_adapter = getattr(self, "stt_adapter", None)
+        except Exception:
+            stt_adapter = None
+        if stt_adapter is not None:
+            stt_engine = None
+            try:
+                stt_engine = str(getattr(stt_adapter, "engine_id", None) or getattr(stt_adapter, "provider", None) or "").strip().lower().replace("_", "-") or None
+            except Exception:
+                stt_engine = None
+            if stt_engine and stt_engine not in {"openai", "openai-compatible"}:
+                loaded = False
+                try:
+                    if stt_engine == "faster-whisper":
+                        loaded = getattr(stt_adapter, "_model", None) is not None
+                    elif stt_engine == "transformers-asr":
+                        loaded = bool(
+                            getattr(stt_adapter, "_pipeline", None) is not None
+                            or getattr(stt_adapter, "_qwen3_model", None) is not None
+                            or getattr(stt_adapter, "_cohere_model", None) is not None
+                        )
+                    else:
+                        loaded = bool(getattr(stt_adapter, "is_available", lambda: False)())
+                except Exception:
+                    loaded = False
+
+                if loaded:
+                    model_id = None
+                    try:
+                        model_id = getattr(stt_adapter, "model_id", None) or getattr(self, "stt_model", None) or getattr(self, "whisper_model", None)
+                    except Exception:
+                        model_id = None
+                    components.append(
+                        {
+                            "component": "stt_engine",
+                            "engine": stt_engine,
+                            "model": str(model_id).strip() if isinstance(model_id, str) and str(model_id).strip() else None,
+                            "state": "resident",
+                            "resident": True,
+                            "local": True,
+                            "unloadable": True,
+                        }
+                    )
+
+        return components
+
+    def preload_tts_engine(
+        self,
+        *,
+        warmup: bool = True,
+        warmup_text: str | None = None,
+        warmup_format: str = "wav",
+    ) -> dict:
+        """Best-effort preload for the active base TTS adapter (local engines only)."""
+
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None:
+            return {
+                "component": "tts_engine",
+                "engine": None,
+                "state": "failed",
+                "resident": False,
+                "local": False,
+                "unloadable": False,
+                "error": "no_tts_adapter",
+            }
+
+        engine_id = str(
+            getattr(adapter, "engine_id", None)
+            or getattr(adapter, "provider", None)
+            or getattr(self, "_tts_engine_name", None)
+            or getattr(self, "_tts_engine_preference", None)
+            or ""
+        ).strip().lower()
+
+        if not engine_id or engine_id in {"openai", "openai-compatible"}:
+            return {
+                "component": "tts_engine",
+                "engine": engine_id or None,
+                "state": "configured",
+                "resident": False,
+                "local": False,
+                "unloadable": False,
+            }
+
+        def _loaded_now() -> bool:
+            try:
+                if engine_id == "piper":
+                    return getattr(adapter, "_voice", None) is not None
+                if engine_id == "supertonic":
+                    rt = getattr(adapter, "_runtime", None)
+                    return bool(rt is not None and bool(getattr(rt, "_loaded", False)))
+                if engine_id == "omnivoice":
+                    rt = getattr(adapter, "_runtime", None)
+                    return bool(getattr(rt, "_model", None) is not None)
+                if engine_id == "audiodit":
+                    rt = getattr(adapter, "_runtime", None)
+                    return bool(getattr(rt, "_model", None) is not None)
+            except Exception:
+                return False
+            return False
+
+        engine_cached_before = bool(_loaded_now())
+        warmed_via: list[str] = []
+
+        # Force-load runtime objects when possible (avoid relying solely on first synth).
+        try:
+            if engine_id == "piper" and getattr(adapter, "_voice", None) is None:
+                adapter.set_language(str(getattr(self, "language", "en") or "en"))
+                warmed_via.append("adapter_set_language")
+            elif engine_id == "supertonic":
+                get_rt = getattr(adapter, "_get_runtime", None)
+                if callable(get_rt):
+                    _ = get_rt()
+                    warmed_via.append("runtime_ensure_loaded")
+            elif engine_id == "omnivoice":
+                rt = getattr(adapter, "_runtime", None)
+                if rt is not None and hasattr(rt, "get_model"):
+                    _ = rt.get_model()
+                    warmed_via.append("runtime_get_model")
+            elif engine_id == "audiodit":
+                rt = getattr(adapter, "_runtime", None)
+                ensure = getattr(rt, "_ensure_loaded", None) if rt is not None else None
+                if callable(ensure):
+                    ensure()
+                    warmed_via.append("runtime_ensure_loaded")
+        except Exception as e:
+            return {
+                "component": "tts_engine",
+                "engine": engine_id,
+                "state": "failed",
+                "resident": False,
+                "local": True,
+                "unloadable": True,
+                "engine_cached": False,
+                "engine_cached_before": bool(engine_cached_before),
+                "engine_cached_after": False,
+                "warmed_via": "+".join(warmed_via) if warmed_via else None,
+                "error": str(e),
+            }
+
+        warm_ok = False
+        warm_error = None
+        if bool(warmup):
+            try:
+                text = str(warmup_text or "Hello.").strip() or "Hello."
+                fmt = str(warmup_format or "wav").strip().lower() or "wav"
+                # Avoid playback; warm via bytes synthesis.
+                _ = adapter.synthesize_to_bytes(text, format=fmt)
+                warm_ok = True
+                warmed_via.append("synthesis_bytes")
+            except Exception as e:
+                warm_error = str(e)
+
+        engine_cached_after = bool(_loaded_now())
+
+        model_id = None
+        try:
+            model_id = getattr(adapter, "model_id", None) or getattr(self, "tts_model", None)
+        except Exception:
+            model_id = None
+        if not model_id:
+            try:
+                prof = adapter.get_active_profile() if hasattr(adapter, "get_active_profile") else None
+                params = getattr(prof, "params", None) if prof is not None else None
+                if isinstance(params, dict):
+                    model_id = params.get("model") or params.get("model_id")
+            except Exception:
+                model_id = model_id
+
+        runtime_info = {}
+        try:
+            info = adapter.get_info() if hasattr(adapter, "get_info") else {}
+            runtime_info = dict(info.get("runtime") or {}) if isinstance(info, dict) else {}
+        except Exception:
+            runtime_info = {}
+
+        return {
+            "component": "tts_engine",
+            "engine": engine_id,
+            "model": str(model_id).strip() if isinstance(model_id, str) and str(model_id).strip() else None,
+            "state": "resident" if engine_cached_after else "configured",
+            "resident": bool(engine_cached_after),
+            "local": True,
+            "unloadable": True,
+            "engine_cached": bool(engine_cached_after),
+            "engine_cached_before": bool(engine_cached_before),
+            "engine_cached_after": bool(engine_cached_after),
+            "warmed": bool(warm_ok),
+            "warm_error": warm_error,
+            "warmed_via": "+".join([w for w in warmed_via if w]) if warmed_via else None,
+            "runtime_info": runtime_info,
+        }
+
+    def unload_tts_engine(self) -> dict:
+        """Best-effort unload for the active base TTS adapter (local engines only)."""
+
+        adapter = getattr(self, "tts_adapter", None)
+        if adapter is None:
+            return {
+                "component": "tts_engine",
+                "engine": None,
+                "unloaded": False,
+                "state": "not_loaded",
+                "resident": False,
+                "local": False,
+                "unloadable": False,
+            }
+
+        engine_id = str(
+            getattr(adapter, "engine_id", None)
+            or getattr(adapter, "provider", None)
+            or getattr(self, "_tts_engine_name", None)
+            or getattr(self, "_tts_engine_preference", None)
+            or ""
+        ).strip().lower()
+        if not engine_id or engine_id in {"openai", "openai-compatible"}:
+            return {
+                "component": "tts_engine",
+                "engine": engine_id or None,
+                "unloaded": False,
+                "state": "configured",
+                "resident": False,
+                "local": False,
+                "unloadable": False,
+            }
+
+        unloaded = False
+        error = None
+        try:
+            if hasattr(adapter, "unload"):
+                adapter.unload()
+                unloaded = True
+            elif engine_id == "piper":
+                unloaded = bool(self.unload_piper_voice())
+            elif engine_id == "supertonic":
+                rt = getattr(adapter, "_runtime", None)
+                if rt is not None:
+                    # Best-effort: clear ONNX sessions so next use reloads.
+                    for attr in ("_dp", "_text_encoder", "_vector_estimator", "_vocoder", "_processor"):
+                        try:
+                            setattr(rt, attr, None)
+                        except Exception:
+                            pass
+                    try:
+                        setattr(rt, "_styles", {})
+                    except Exception:
+                        pass
+                    try:
+                        setattr(rt, "_loaded", False)
+                    except Exception:
+                        pass
+                    unloaded = True
+            elif engine_id == "omnivoice":
+                rt = getattr(adapter, "_runtime", None)
+                if rt is not None and hasattr(rt, "_model"):
+                    try:
+                        setattr(rt, "_model", None)
+                        unloaded = True
+                    except Exception:
+                        pass
+            elif engine_id == "audiodit":
+                rt = getattr(adapter, "_runtime", None)
+                if rt is not None:
+                    for attr in ("_model", "_tokenizer", "_resolved_device", "_resolved_dtype"):
+                        try:
+                            setattr(rt, attr, None)
+                        except Exception:
+                            pass
+                    unloaded = True
+        except Exception as e:
+            error = str(e)
+            unloaded = False
+
+        try:
+            import gc
+
+            gc.collect()
+        except Exception:
+            pass
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            if hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache"):
+                torch.mps.empty_cache()
+        except Exception:
+            pass
+
+        return {
+            "component": "tts_engine",
+            "engine": engine_id,
+            "unloaded": bool(unloaded),
+            "state": "unloaded" if unloaded else "failed",
+            "resident": False,
+            "local": True,
+            "unloadable": True,
+            "error": error,
+        }
 
     def rename_cloned_voice(self, voice_id: str, new_name: str) -> bool:
         self._get_voice_cloner().rename_cloned_voice(voice_id, new_name)

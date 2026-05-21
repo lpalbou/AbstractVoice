@@ -108,6 +108,9 @@ AbstractCore discovers AbstractVoice through the
   `provider`, `model`, and `voice` selection
 - `core.audio.transcribe(...)` / `llm.audio.transcribe(...)` for STT, with
   explicit `provider` and `model` selection
+- generic capability discovery (`llm.capabilities.*`) for audio now works even
+  when AbstractCore selects the STT-only backend (`abstractvoice:stt`), via
+  `available_providers(task=None)` and `list_models(task=None, provider=...|provider_id=...)`
 - lightweight provider discovery through `available_providers()`, which exposes
   clean `tts`, `stt`, and `cloning` provider lists plus per-provider details
 - provider-scoped model and voice discovery through:
@@ -122,6 +125,9 @@ AbstractCore discovers AbstractVoice through the
 - first-class clone creation through:
   - `clone(audio, provider=..., model=..., name=..., reference_text=..., artifact_store=...)`
   - `clone_voice(...)` as a compatibility alias
+- local engine residency (process warmup/unload) through:
+  - `load_resident_model(...)`, `list_resident_models(...)`, and `unload_resident_model(...)`
+  - scope: cloned-TTS engines + local base TTS on the voice backend (`abstractvoice:default`), and local STT on the audio backend (`abstractvoice:stt`)
 - nested provider catalogs in `voice_catalog()`:
   - `tts_catalog_by_provider[provider]` -> `models`, `model_variants`,
     `voices`, `profiles`, `cloned_voices`, `voices_by_model`

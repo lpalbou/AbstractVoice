@@ -1342,7 +1342,9 @@ class _BaseVoice:
         options_d = dict(options) if isinstance(options, dict) else {}
         task = _norm_residency_task(data.get("task") or "tts") or "tts"
         provider = _norm_residency_provider(data.get("provider"))
-        model = _norm_engine_id(data.get("model"))
+        model_raw = data.get("model")
+        model_text = str(model_raw).strip() if isinstance(model_raw, str) else ""
+        model = model_text if model_text and model_text.lower() != "default" else ""
         voice = None
         for key in ("voice", "voice_id"):
             value = options_d.get(key)
@@ -1416,6 +1418,41 @@ class _BaseVoice:
             entry["unloaded"] = bool(unloaded)
         return entry
 
+    def _engine_residency_entry(
+        self,
+        *,
+        task: str,
+        provider: str | None,
+        model: str | None,
+        component: str,
+        state: str,
+        loaded: bool,
+        local: bool,
+        unloadable: bool,
+        details: Optional[Dict[str, Any]] = None,
+        error: Optional[Dict[str, Any]] = None,
+        unloaded: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        entry: Dict[str, Any] = {
+            "task": str(task or ""),
+            "provider": provider,
+            "model": model,
+            "state": str(state),
+            "loaded": bool(loaded),
+            "resident": bool(loaded),  # backward compat
+            "local": bool(local),
+            "unloadable": bool(unloadable),
+            "details": {
+                "component": str(component or ""),
+                "backend_id": getattr(self, "backend_id", None),
+                **(dict(details) if isinstance(details, dict) else {}),
+            },
+            "error": dict(error) if isinstance(error, dict) else None,
+        }
+        if unloaded is not None:
+            entry["unloaded"] = bool(unloaded)
+        return entry
+
     def load_resident_model(self, request: Any) -> Dict[str, Any]:
         parsed = self._parse_resident_model_request(request)
         task = parsed["task"]
@@ -1423,17 +1460,123 @@ class _BaseVoice:
         model = parsed["model"]
         voice = parsed["voice"]
 
-        if not (task == "tts" and provider == "cloned"):
+        if task != "tts":
             return self._residency_error(
                 task=task,
                 provider=provider or None,
                 model=model,
                 code="not_implemented_yet",
-                message="Residency warmup is currently implemented only for cloned TTS engines.",
+                message="Residency warmup is implemented only for TTS on the voice backend.",
                 state="not_implemented",
-                details={"supported": {"task": "tts", "provider": "cloned"}},
+                details={"supported": {"task": "tts", "backend": getattr(self, "backend_id", None)}},
             )
 
+        if provider != "cloned":
+            provider_id = _norm_engine_id(provider)
+            requested_model = _normalize_optional_model_id(model)
+            if not provider_id:
+                return self._residency_error(
+                    task=task,
+                    provider=None,
+                    model=requested_model,
+                    code="invalid_request",
+                    message="Provide a local TTS provider id (for example piper, supertonic, omnivoice, audiodit).",
+                    state="failed",
+                    details={"supported": {"task": "tts", "provider": "local_tts"}},
+                )
+            if provider_id in {"openai", "openai-compatible"}:
+                return self._residency_error(
+                    task=task,
+                    provider=provider_id,
+                    model=requested_model,
+                    code="not_supported",
+                    message="Residency warmup is supported only for local TTS engines (remote providers are excluded).",
+                    state="not_implemented",
+                    local=False,
+                    unloadable=False,
+                    details={"supported": {"task": "tts", "provider": "local_tts"}},
+                )
+
+            opts = parsed.get("options") or {}
+            language = opts.get("language")
+            lang = str(language).strip().lower() if isinstance(language, str) and language.strip() else None
+            if provider_id == "piper" and not lang and requested_model:
+                try:
+                    lang = _piper_language_for_model(str(requested_model)) or None
+                except Exception:
+                    lang = None
+
+            warmup = _coerce_bool(opts.get("warmup"), True)
+            warmup_text = str(opts.get("warmup_text")).strip() if isinstance(opts.get("warmup_text"), str) else None
+            warmup_format = str(opts.get("warmup_format") or "wav").strip().lower() or "wav"
+
+            try:
+                vm = self._get_vm_for_provider(tts_provider=provider_id, tts_model=requested_model)
+                lk = self._vm_lock(vm)
+                with lk:
+                    if lang and hasattr(vm, "set_language"):
+                        try:
+                            vm.set_language(str(lang))
+                        except Exception:
+                            pass
+                    if provider_id == "piper" and requested_model and hasattr(vm, "set_profile"):
+                        try:
+                            vm.set_profile(str(requested_model), kind="tts")
+                        except Exception:
+                            pass
+                    preload = getattr(vm, "preload_tts_engine", None)
+                    if not callable(preload):
+                        return self._residency_error(
+                            task=task,
+                            provider=provider_id,
+                            model=requested_model,
+                            code="not_implemented_yet",
+                            message="Base TTS preload is not available on this VoiceManager build.",
+                            state="not_implemented",
+                            local=True,
+                            unloadable=False,
+                        )
+                    result = preload(
+                        warmup=bool(warmup),
+                        warmup_text=warmup_text,
+                        warmup_format=warmup_format,
+                    )
+            except Exception as e:
+                return self._engine_residency_entry(
+                    task="tts",
+                    provider=provider_id,
+                    model=requested_model,
+                    component="tts_engine",
+                    state="failed",
+                    loaded=False,
+                    local=True,
+                    unloadable=True,
+                    error={"code": "load_failed", "message": str(e)},
+                )
+
+            details = {
+                "engine_cached": bool(result.get("engine_cached", False)),
+                "engine_cached_before": bool(result.get("engine_cached_before", False)),
+                "engine_cached_after": bool(result.get("engine_cached_after", False)),
+                "warmed": bool(result.get("warmed", False)),
+                "warm_error": result.get("warm_error"),
+                "warmed_via": result.get("warmed_via"),
+                "runtime_info": _json_safe(result.get("runtime_info") or {}),
+            }
+            loaded = bool(result.get("resident", False) or result.get("engine_cached_after", False))
+            return self._engine_residency_entry(
+                task="tts",
+                provider=provider_id,
+                model=requested_model,
+                component="tts_engine",
+                state=str(result.get("state") or ("resident" if loaded else "configured")),
+                loaded=bool(loaded),
+                local=True,
+                unloadable=True,
+                details=details,
+            )
+
+        # Cloned TTS residency (existing behavior).
         try:
             engine, voice_id = self._resolve_clone_residency_engine(model=model, voice=voice)
             vm = self._get_vm_for_cloning_engine(engine)
@@ -1490,8 +1633,7 @@ class _BaseVoice:
         model = parsed["model"]
         if task and task != "tts":
             return []
-        if provider and provider != "cloned":
-            return []
+        provider_id = _norm_engine_id(provider) if provider else ""
 
         out: list[Dict[str, Any]] = []
         for cache_key, vm in self._iter_known_vms():
@@ -1504,29 +1646,69 @@ class _BaseVoice:
             for component in list(components or []):
                 if not isinstance(component, dict):
                     continue
-                if str(component.get("component") or "").strip().lower() != "cloning_engine":
-                    continue
-                engine = _norm_engine_id(component.get("engine") or component.get("model"))
-                if model and engine != model:
-                    continue
-                details = {
-                    "engine_cached": bool(component.get("engine_cached", False)),
-                    "runtime_info": _json_safe(component.get("runtime_info") or {}),
-                }
-                if cache_key is not None:
-                    details["cache_key"] = _json_safe(list(cache_key))
-                out.append(
-                    self._clone_residency_entry(
-                        engine=engine or None,
-                        voice=None,
-                        state=str(component.get("state") or ("resident" if component.get("resident") else "configured")),
-                        resident=bool(component.get("resident", False)),
-                        local=bool(component.get("local", True)),
-                        unloadable=bool(component.get("unloadable", True)),
-                        details=details,
+                component_kind = str(component.get("component") or "").strip().lower()
+
+                if component_kind == "cloning_engine":
+                    if provider_id and provider_id != "cloned":
+                        continue
+                    engine = _norm_engine_id(component.get("engine") or component.get("model"))
+                    if model and engine != _norm_engine_id(model):
+                        continue
+                    details = {
+                        "engine_cached": bool(component.get("engine_cached", False)),
+                        "runtime_info": _json_safe(component.get("runtime_info") or {}),
+                    }
+                    if cache_key is not None:
+                        details["cache_key"] = _json_safe(list(cache_key))
+                    out.append(
+                        self._clone_residency_entry(
+                            engine=engine or None,
+                            voice=None,
+                            state=str(component.get("state") or ("resident" if component.get("resident") else "configured")),
+                            resident=bool(component.get("resident", False)),
+                            local=bool(component.get("local", True)),
+                            unloadable=bool(component.get("unloadable", True)),
+                            details=details,
+                        )
                     )
-                )
-        out.sort(key=lambda item: (str(item.get("model") or ""), str(item.get("state") or "")))
+                    continue
+
+                if component_kind == "tts_engine":
+                    if provider_id == "cloned":
+                        continue
+                    engine = _norm_engine_id(component.get("engine"))
+                    component_model = component.get("model")
+                    component_model_s = str(component_model).strip() if isinstance(component_model, str) and component_model.strip() else None
+                    if provider_id and engine != provider_id:
+                        continue
+                    if model and component_model_s and str(model).strip() and str(model).strip().lower() != "default":
+                        if component_model_s.strip().lower() != str(model).strip().lower():
+                            continue
+
+                    details = {
+                        "engine_cached": True,
+                        "engine_cached_before": True,
+                        "engine_cached_after": True,
+                        "runtime_info": _json_safe(component.get("runtime_info") or {}),
+                    }
+                    if cache_key is not None:
+                        details["cache_key"] = _json_safe(list(cache_key))
+                    out.append(
+                        self._engine_residency_entry(
+                            task="tts",
+                            provider=engine or None,
+                            model=component_model_s,
+                            component="tts_engine",
+                            state=str(component.get("state") or ("resident" if component.get("resident") else "configured")),
+                            loaded=bool(component.get("resident", False)),
+                            local=bool(component.get("local", True)),
+                            unloadable=bool(component.get("unloadable", True)),
+                            details=details,
+                        )
+                    )
+                    continue
+
+        out.sort(key=lambda item: (str(item.get("provider") or ""), str(item.get("model") or ""), str(item.get("state") or "")))
         return out
 
     def unload_resident_model(self, request: Any) -> Dict[str, Any]:
@@ -1536,15 +1718,104 @@ class _BaseVoice:
         model = parsed["model"]
         voice = parsed["voice"]
 
-        if not (task == "tts" and provider == "cloned"):
+        if task != "tts":
             return self._residency_error(
                 task=task,
                 provider=provider or None,
                 model=model,
                 code="not_implemented_yet",
-                message="Residency unload is currently implemented only for cloned TTS engines.",
+                message="Residency unload is implemented only for TTS on the voice backend.",
                 state="not_implemented",
-                details={"supported": {"task": "tts", "provider": "cloned"}},
+                details={"supported": {"task": "tts", "backend": getattr(self, "backend_id", None)}},
+            )
+
+        if provider != "cloned":
+            provider_id = _norm_engine_id(provider)
+            requested_model = _normalize_optional_model_id(model)
+            if not provider_id:
+                return self._residency_error(
+                    task=task,
+                    provider=None,
+                    model=requested_model,
+                    code="invalid_request",
+                    message="Provide a local TTS provider id to unload.",
+                    state="failed",
+                    details={"supported": {"task": "tts", "provider": "local_tts"}},
+                )
+            if provider_id in {"openai", "openai-compatible"}:
+                return self._residency_error(
+                    task=task,
+                    provider=provider_id,
+                    model=requested_model,
+                    code="not_supported",
+                    message="Residency unload is supported only for local TTS engines (remote providers are excluded).",
+                    state="not_implemented",
+                    local=False,
+                    unloadable=False,
+                    details={"supported": {"task": "tts", "provider": "local_tts"}},
+                )
+
+            unloaded_count = 0
+            last_error = None
+            for _cache_key, vm in self._iter_known_vms():
+                try:
+                    lk = self._vm_lock(vm)
+                    with lk:
+                        engines = self._vm_engine_values(vm, kind="tts")
+                        if not (_engine_aliases(provider_id) & engines):
+                            continue
+                        if requested_model and hasattr(vm, "list_resident_components"):
+                            comps = list(vm.list_resident_components() or [])
+                            match = False
+                            for comp in comps:
+                                if not isinstance(comp, dict):
+                                    continue
+                                if str(comp.get("component") or "").strip().lower() != "tts_engine":
+                                    continue
+                                comp_model = comp.get("model")
+                                comp_model_s = str(comp_model).strip() if isinstance(comp_model, str) and comp_model.strip() else None
+                                if comp_model_s and comp_model_s.strip().lower() == str(requested_model).strip().lower():
+                                    match = True
+                                    break
+                            if not match:
+                                continue
+                        unload = getattr(vm, "unload_tts_engine", None)
+                        if callable(unload):
+                            res = unload()
+                            if bool(res.get("unloaded")):
+                                unloaded_count += 1
+                        else:
+                            last_error = "unload_tts_engine_not_available"
+                except Exception as e:
+                    last_error = str(e)
+                    continue
+
+            details = {"unloaded_count": int(unloaded_count)}
+            if last_error and unloaded_count == 0:
+                return self._engine_residency_entry(
+                    task="tts",
+                    provider=provider_id,
+                    model=requested_model,
+                    component="tts_engine",
+                    state="failed",
+                    loaded=False,
+                    local=True,
+                    unloadable=True,
+                    details=details,
+                    error={"code": "unload_failed", "message": str(last_error)},
+                    unloaded=False,
+                )
+            return self._engine_residency_entry(
+                task="tts",
+                provider=provider_id,
+                model=requested_model,
+                component="tts_engine",
+                state="unloaded" if unloaded_count > 0 else "not_loaded",
+                loaded=False,
+                local=True,
+                unloadable=True,
+                details=details,
+                unloaded=bool(unloaded_count > 0),
             )
 
         try:
@@ -3193,32 +3464,347 @@ class _VoiceCapability(_BaseVoice):
 class _AudioCapability(_BaseVoice):
     backend_id = "abstractvoice:stt"
 
+    def available_providers(self, task: Any = None) -> Dict[str, Any]:
+        """Return selectable STT provider ids without constructing heavy runtimes."""
+
+        normalized_task = str(task or "").strip().lower()
+        if normalized_task and normalized_task not in {
+            "audio",
+            "stt",
+            "transcribe",
+            "transcription",
+            "speech_to_text",
+            "speech-to-text",
+            "audio_transcription",
+            "audio-transcription",
+        }:
+            return {
+                "stt": [],
+                "providers": [],
+                "stt_providers": [],
+                "known_stt_providers": _known_stt_provider_ids(),
+                "active_stt_provider": self._configured_provider_id(kind="stt"),
+                "details": {"stt": {}},
+            }
+
+        stt = self._available_stt_provider_ids()
+        return {
+            "stt": stt,
+            "providers": stt,
+            "stt_providers": stt,
+            "known_stt_providers": _known_stt_provider_ids(),
+            "active_stt_provider": self._configured_provider_id(kind="stt"),
+            "details": {"stt": _provider_details("stt", stt)},
+        }
+
+    # Alias for callers that use list_* naming conventions.
+    def list_available_providers(self, task: Any = None) -> Dict[str, Any]:
+        return self.available_providers(task)
+
+    def list_models(
+        self,
+        task: Any = None,
+        provider: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        kind: Optional[str] = None,
+        model: Optional[str] = None,
+        **_kwargs: Any,
+    ) -> list[str]:
+        """List provider-filtered models for STT discovery (import-light, no model loads)."""
+
+        normalized_task = str(task or kind or "").strip().lower()
+        if normalized_task and normalized_task not in {
+            "audio",
+            "stt",
+            "transcribe",
+            "transcription",
+            "speech_to_text",
+            "speech-to-text",
+            "audio_transcription",
+            "audio-transcription",
+        }:
+            return []
+
+        provider_value: Any = provider if provider is not None else provider_id
+        if isinstance(provider_value, dict):
+            provider_value = (
+                provider_value.get("provider_id")
+                or provider_value.get("provider")
+                or provider_value.get("engine_id")
+                or provider_value.get("engine")
+                or provider_value.get("id")
+            )
+
+        resolved_provider, requested_model = _resolve_stt_provider_request(provider_value, model)
+        requested_model = _normalize_optional_model_id(requested_model)
+        if requested_model:
+            return [requested_model]
+
+        providers = [resolved_provider] if resolved_provider else self._available_stt_provider_ids()
+        model_ids: list[str] = []
+        for provider_name in providers:
+            normalized_provider = _norm_engine_id(provider_name)
+            if normalized_provider in {"openai", "openai-compatible"}:
+                model_ids.extend(self._configured_stt_model_ids(normalized_provider))
+            elif normalized_provider in {"faster-whisper", "transformers-asr"}:
+                model_ids.extend(self._configured_stt_model_ids(normalized_provider))
+                model_ids.extend(_stt_model_ids_for_provider(normalized_provider))
+
+        return _dedupe_strings(model_ids)
+
     def load_resident_model(self, request: Any) -> Dict[str, Any]:
         parsed = self._parse_resident_model_request(request)
-        return self._residency_error(
-            task=parsed["task"],
-            provider=parsed["provider"] or None,
-            model=parsed["model"],
-            code="not_implemented_yet",
-            message="Residency control is not implemented on the audio/STT capability backend yet.",
-            state="not_implemented",
-            details={"supported": {"task": "tts", "provider": "cloned", "backend": "abstractvoice:default"}},
+        task = parsed["task"]
+        provider = parsed["provider"]
+        model = parsed["model"]
+        opts = parsed.get("options") or {}
+
+        if task not in {"stt", "audio"}:
+            return self._residency_error(
+                task=task,
+                provider=provider or None,
+                model=model,
+                code="not_implemented_yet",
+                message="Residency warmup is implemented only for STT on the audio backend.",
+                state="not_implemented",
+                details={"supported": {"task": "stt", "backend": getattr(self, "backend_id", None)}},
+            )
+
+        provider_id = _norm_engine_id(provider)
+        requested_model = _normalize_optional_model_id(model)
+        if not provider_id:
+            return self._residency_error(
+                task="stt",
+                provider=None,
+                model=requested_model,
+                code="invalid_request",
+                message="Provide a local STT provider id (for example faster-whisper or transformers-asr).",
+                state="failed",
+                details={"supported": {"task": "stt", "provider": "local_stt"}},
+            )
+        if provider_id in {"openai", "openai-compatible"}:
+            return self._residency_error(
+                task="stt",
+                provider=provider_id,
+                model=requested_model,
+                code="not_supported",
+                message="Residency warmup is supported only for local STT engines (remote providers are excluded).",
+                state="not_implemented",
+                local=False,
+                unloadable=False,
+                details={"supported": {"task": "stt", "provider": "local_stt"}},
+            )
+
+        warmup = _coerce_bool(opts.get("warmup"), False)
+        warmup_audio = opts.get("warmup_audio_path") or opts.get("audio_path") or opts.get("audio")
+        warmup_audio_path = str(warmup_audio).strip() if isinstance(warmup_audio, str) and str(warmup_audio).strip() else None
+        language = opts.get("language")
+        lang = str(language).strip().lower() if isinstance(language, str) and language.strip() else None
+
+        try:
+            vm = self._get_vm_for_provider(stt_provider=provider_id, stt_model=requested_model)
+            lk = self._vm_lock(vm)
+            with lk:
+                preload = getattr(vm, "preload_stt_engine", None)
+                if not callable(preload):
+                    return self._residency_error(
+                        task="stt",
+                        provider=provider_id,
+                        model=requested_model,
+                        code="not_implemented_yet",
+                        message="STT preload is not available on this VoiceManager build.",
+                        state="not_implemented",
+                        local=True,
+                        unloadable=False,
+                    )
+                result = preload(
+                    warmup=bool(warmup),
+                    warmup_audio_path=warmup_audio_path,
+                    language=lang,
+                )
+        except Exception as e:
+            return self._engine_residency_entry(
+                task="stt",
+                provider=provider_id,
+                model=requested_model,
+                component="stt_engine",
+                state="failed",
+                loaded=False,
+                local=True,
+                unloadable=True,
+                error={"code": "load_failed", "message": str(e)},
+            )
+
+        details = {
+            "warmed": bool(result.get("warmed", False)),
+            "warm_error": result.get("warm_error"),
+        }
+        loaded = bool(result.get("resident", False))
+        return self._engine_residency_entry(
+            task="stt",
+            provider=provider_id,
+            model=requested_model,
+            component="stt_engine",
+            state=str(result.get("state") or ("resident" if loaded else "configured")),
+            loaded=bool(loaded),
+            local=True,
+            unloadable=True,
+            details=details,
         )
 
     def list_resident_models(self, filters: Any | None = None) -> list[Dict[str, Any]]:
-        _ = filters
-        return []
+        parsed = self._parse_resident_model_request(filters or {})
+        task = parsed["task"]
+        provider = parsed["provider"]
+        model = parsed["model"]
+        if task and task not in {"stt", "audio"}:
+            return []
+        provider_id = _norm_engine_id(provider) if provider else ""
+
+        out: list[Dict[str, Any]] = []
+        for cache_key, vm in self._iter_known_vms():
+            try:
+                lk = self._vm_lock(vm)
+                with lk:
+                    components = vm.list_resident_components() if hasattr(vm, "list_resident_components") else []
+            except Exception:
+                continue
+            for component in list(components or []):
+                if not isinstance(component, dict):
+                    continue
+                if str(component.get("component") or "").strip().lower() != "stt_engine":
+                    continue
+                engine = _norm_engine_id(component.get("engine"))
+                component_model = component.get("model")
+                component_model_s = str(component_model).strip() if isinstance(component_model, str) and component_model.strip() else None
+                if provider_id and engine != provider_id:
+                    continue
+                if model and component_model_s and str(model).strip() and str(model).strip().lower() != "default":
+                    if component_model_s.strip().lower() != str(model).strip().lower():
+                        continue
+                details = {}
+                if cache_key is not None:
+                    details["cache_key"] = _json_safe(list(cache_key))
+                out.append(
+                    self._engine_residency_entry(
+                        task="stt",
+                        provider=engine or None,
+                        model=component_model_s,
+                        component="stt_engine",
+                        state=str(component.get("state") or ("resident" if component.get("resident") else "configured")),
+                        loaded=bool(component.get("resident", False)),
+                        local=bool(component.get("local", True)),
+                        unloadable=bool(component.get("unloadable", True)),
+                        details=details,
+                    )
+                )
+
+        out.sort(key=lambda item: (str(item.get("provider") or ""), str(item.get("model") or ""), str(item.get("state") or "")))
+        return out
 
     def unload_resident_model(self, request: Any) -> Dict[str, Any]:
         parsed = self._parse_resident_model_request(request)
-        return self._residency_error(
-            task=parsed["task"],
-            provider=parsed["provider"] or None,
-            model=parsed["model"],
-            code="not_implemented_yet",
-            message="Residency control is not implemented on the audio/STT capability backend yet.",
-            state="not_implemented",
-            details={"supported": {"task": "tts", "provider": "cloned", "backend": "abstractvoice:default"}},
+        task = parsed["task"]
+        provider = parsed["provider"]
+        model = parsed["model"]
+
+        if task not in {"stt", "audio"}:
+            return self._residency_error(
+                task=task,
+                provider=provider or None,
+                model=model,
+                code="not_implemented_yet",
+                message="Residency unload is implemented only for STT on the audio backend.",
+                state="not_implemented",
+                details={"supported": {"task": "stt", "backend": getattr(self, "backend_id", None)}},
+            )
+
+        provider_id = _norm_engine_id(provider)
+        requested_model = _normalize_optional_model_id(model)
+        if not provider_id:
+            return self._residency_error(
+                task="stt",
+                provider=None,
+                model=requested_model,
+                code="invalid_request",
+                message="Provide a local STT provider id to unload.",
+                state="failed",
+                details={"supported": {"task": "stt", "provider": "local_stt"}},
+            )
+        if provider_id in {"openai", "openai-compatible"}:
+            return self._residency_error(
+                task="stt",
+                provider=provider_id,
+                model=requested_model,
+                code="not_supported",
+                message="Residency unload is supported only for local STT engines (remote providers are excluded).",
+                state="not_implemented",
+                local=False,
+                unloadable=False,
+                details={"supported": {"task": "stt", "provider": "local_stt"}},
+            )
+
+        unloaded_count = 0
+        last_error = None
+        for _cache_key, vm in self._iter_known_vms():
+            try:
+                lk = self._vm_lock(vm)
+                with lk:
+                    engines = self._vm_engine_values(vm, kind="stt")
+                    if not (_engine_aliases(provider_id) & engines):
+                        continue
+                    if requested_model and hasattr(vm, "list_resident_components"):
+                        comps = list(vm.list_resident_components() or [])
+                        match = False
+                        for comp in comps:
+                            if not isinstance(comp, dict):
+                                continue
+                            if str(comp.get("component") or "").strip().lower() != "stt_engine":
+                                continue
+                            comp_model = comp.get("model")
+                            comp_model_s = str(comp_model).strip() if isinstance(comp_model, str) and comp_model.strip() else None
+                            if comp_model_s and comp_model_s.strip().lower() == str(requested_model).strip().lower():
+                                match = True
+                                break
+                        if not match:
+                            continue
+                    unload = getattr(vm, "unload_stt_engine", None)
+                    if callable(unload):
+                        res = unload()
+                        if bool(res.get("unloaded")):
+                            unloaded_count += 1
+                    else:
+                        last_error = "unload_stt_engine_not_available"
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+        details = {"unloaded_count": int(unloaded_count)}
+        if last_error and unloaded_count == 0:
+            return self._engine_residency_entry(
+                task="stt",
+                provider=provider_id,
+                model=requested_model,
+                component="stt_engine",
+                state="failed",
+                loaded=False,
+                local=True,
+                unloadable=True,
+                details=details,
+                error={"code": "unload_failed", "message": str(last_error)},
+                unloaded=False,
+            )
+        return self._engine_residency_entry(
+            task="stt",
+            provider=provider_id,
+            model=requested_model,
+            component="stt_engine",
+            state="unloaded" if unloaded_count > 0 else "not_loaded",
+            loaded=False,
+            local=True,
+            unloadable=True,
+            details=details,
+            unloaded=bool(unloaded_count > 0),
         )
 
     def transcribe(

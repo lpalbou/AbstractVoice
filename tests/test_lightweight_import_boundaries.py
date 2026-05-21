@@ -35,12 +35,28 @@ sys.meta_path.insert(0, _Blocker())
 
 {textwrap.dedent(code)}
 """
-    return subprocess.run(
-        [sys.executable, "-c", harness],
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+    # macOS + native deps (torch, audio backends, etc.) can make `vfork()`-based
+    # subprocess launching unstable inside long-running pytest sessions. Use
+    # the documented CPython escape hatch to disable `vfork()` for these smoke
+    # subprocesses so the import-boundary tests don't crash the suite.
+    old_vfork = getattr(subprocess, "_USE_VFORK", None)
+    old_spawn = getattr(subprocess, "_USE_POSIX_SPAWN", None)
+    try:
+        if hasattr(subprocess, "_USE_VFORK"):
+            subprocess._USE_VFORK = False  # type: ignore[attr-defined]
+        if hasattr(subprocess, "_USE_POSIX_SPAWN"):
+            subprocess._USE_POSIX_SPAWN = False  # type: ignore[attr-defined]
+        return subprocess.run(
+            [sys.executable, "-c", harness],
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+    finally:
+        if old_vfork is not None and hasattr(subprocess, "_USE_VFORK"):
+            subprocess._USE_VFORK = old_vfork  # type: ignore[attr-defined]
+        if old_spawn is not None and hasattr(subprocess, "_USE_POSIX_SPAWN"):
+            subprocess._USE_POSIX_SPAWN = old_spawn  # type: ignore[attr-defined]
 
 
 def test_import_abstractvoice_and_plugin_without_local_voice_deps() -> None:

@@ -23,6 +23,10 @@ Positioning:
 - Library `VoiceManager()` remains remote-first unless a provider is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `OPENAI_BASE_URL` or `remote_base_url=...`.
 - Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"` (providers). Supertonic is the recommended local base TTS path; OmniVoice is the recommended/default local cloning backend.
 - The AbstractCore plugin exposes clean provider/model/voice discovery for TTS, STT, and cloning. Use `available_providers()` for provider lists, `list_models(...)` / `list_tts_models(...)` / `list_stt_models(...)` / `list_cloning_models(...)` for model lists, `list_tts_voices(...)` / `list_cloned_voices(...)` for voices, `get_capability_support(...)` / `find_compatible_models(...)` for feature filtering, `clone(...)` / `clone_voice(...)` for clone creation, and `voice_catalog()` for the richer nested discovery payload.
+- Local engine preload/unload is explicit:
+  - library: `VoiceManager.preload_tts_engine(...)` / `preload_stt_engine(...)` and `unload_tts_engine()` / `unload_stt_engine()`
+  - AbstractCore plugin: `load_resident_model(...)` / `list_resident_models(...)` / `unload_resident_model(...)` (local engines only; remote providers remain configured)
+- The STT-only plugin backend (`abstractvoice:stt`) also implements AbstractCore's generic capability discovery contract (`available_providers(task=None)`, `list_models(task=None, provider=...|provider_id=...)`) so `llm.capabilities.*` can query audio discovery without special-casing.
 - The plugin accepts both split and combined selectors: `tts(..., provider=\"openai\", model=\"tts-1\", voice=\"alloy\")`, `tts(..., provider=\"openai:tts-1\", voice=\"voice_...\")`, `stt(..., provider=\"faster-whisper\", model=\"large\")`, or `stt(..., provider=\"transformers-asr:Qwen/Qwen3-ASR-1.7B\")`.
 - `voice_catalog()` includes `tts_model_variants` and `stt_engine_variants` so AbstractCore can expose clean OpenAI-compatible `/v1/audio/voices`, `/v1/audio/speech/models`, and `/v1/audio/transcriptions/models` discovery endpoints.
 - The local web UI has assistant/user voice selectors, browser voice cloning from uploaded or recorded reference audio, message/conversation playback, an example-only `/api/chat` bridge, local `/api/*` routes, and compatible extension routes `/v1/audio/voices` + `/v1/voice/clone`; production `/v1/audio/*` endpoints remain owned by AbstractCore Server.
@@ -31,7 +35,11 @@ Positioning:
 Quick commands:
 ```bash
 # Tests
-python -m pytest -q -m "not integration and not model_download"
+python -m pytest -q
+# (defaults to skipping `integration`, `model_download`, and `slow` marked tests)
+
+# Bench preload vs cold start (local engines only; requires cached models)
+python examples/bench_preload_local_models.py --runs 3
 
 # REPL smoke test (mic is OFF by default; plain install uses OpenAI, all-* uses Supertonic)
 abstractvoice --verbose
@@ -184,7 +192,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Remote cloning bridge](abstractvoice/cloning/engine_remote.py): compatible `/voice/clone` + stored remote voice ids
 
 ## Tests
-- [tests/](tests/): CI-safe run is `python -m pytest -q -m "not integration and not model_download"`
+- [tests/](tests/): CI-safe run is `python -m pytest -q` (defaults to skipping `integration`, `model_download`, and `slow` marked tests)
 - [Contributing](CONTRIBUTING.md): dev setup + env vars for heavy tests (`ABSTRACTVOICE_RUN_CLONING_TESTS=1`, `ABSTRACTVOICE_RUN_CHROMA_TESTS=1`)
 - [Bug report template](.github/ISSUE_TEMPLATE/bug_report.yml): structured issue intake
 - [test_voice_cloner_engine_dispatch.py](tests/test_voice_cloner_engine_dispatch.py)

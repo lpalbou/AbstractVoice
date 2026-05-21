@@ -6,17 +6,19 @@ import logging
 def _import_webrtcvad():
     """Import webrtcvad with helpful error message if dependencies missing."""
     try:
-        import webrtcvad
+        # Prefer our compat wrapper first. The upstream `webrtcvad` shim pulls in
+        # `pkg_resources` and has historically been a source of noisy warnings
+        # and occasional import instability in long-running processes.
+        from . import webrtcvad_compat as webrtcvad
+
         return webrtcvad
     except Exception as e:
-        # Common failure mode: `webrtcvad` imports `pkg_resources`, which may be
-        # missing in newer setuptools installs. The actual VAD extension can still
-        # work, so fall back to a small compat wrapper.
+        # Fall back to the upstream shim when the compat wrapper can't be used
+        # (for example when the `_webrtcvad` extension isn't installed).
         try:
-            if "pkg_resources" in str(e):
-                from . import webrtcvad_compat as webrtcvad
+            import webrtcvad
 
-                return webrtcvad
+            return webrtcvad
         except Exception:
             pass
         raise ImportError(

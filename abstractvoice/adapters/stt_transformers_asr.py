@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import warnings
 from typing import Any, Dict, Optional
 
@@ -47,6 +48,27 @@ def _is_qwen3_asr_model_id(model_id: str) -> bool:
     if not text:
         return False
     return "qwen3-asr" in text or "qwen3_asr" in text
+
+
+def _is_cohere_transcribe_model_id(model_id: str) -> bool:
+    text = str(model_id or "").strip().lower()
+    if not text:
+        return False
+    return "cohere-transcribe" in text or "cohere_transcribe" in text or "cohere-asr" in text or "cohere_asr" in text
+
+
+def _version_triplet(value: Any) -> tuple[int, int, int]:
+    """Best-effort semver triplet extraction (major, minor, patch)."""
+    text = str(value or "").strip()
+    if not text:
+        return (0, 0, 0)
+    try:
+        parts = re.findall(r"[0-9]+", text)
+        if len(parts) < 3:
+            return (0, 0, 0)
+        return (int(parts[0]), int(parts[1]), int(parts[2]))
+    except Exception:
+        return (0, 0, 0)
 
 
 _QWEN3_ASR_LANG_BY_CODE: dict[str, str] = {
@@ -123,6 +145,7 @@ class TransformersASRAdapter(STTAdapter):
         "openai/whisper-large-v3": "Whisper large-v3 (Transformers)",
         "openai/whisper-large-v3-turbo": "Whisper large-v3-turbo (Transformers)",
         "Qwen/Qwen3-ASR-1.7B": "Qwen3 ASR 1.7B (Transformers)",
+        "CohereLabs/cohere-transcribe-03-2026": "Cohere Transcribe 03-2026 (Transformers)",
     }
 
     # Aliases for convenience and parity with other adapters.
@@ -130,6 +153,7 @@ class TransformersASRAdapter(STTAdapter):
         "whisper-large-v3": "openai/whisper-large-v3",
         "whisper-large-v3-turbo": "openai/whisper-large-v3-turbo",
         "qwen3-asr-1.7b": "Qwen/Qwen3-ASR-1.7B",
+        "cohere-transcribe-03-2026": "CohereLabs/cohere-transcribe-03-2026",
     }
 
     @classmethod
@@ -151,6 +175,10 @@ class TransformersASRAdapter(STTAdapter):
         "ko",
         "ar",
         "hi",
+        "nl",
+        "pl",
+        "vi",
+        "el",
     ]
 
     def __init__(
@@ -168,6 +196,8 @@ class TransformersASRAdapter(STTAdapter):
         self._pipeline = None
         self._qwen3_model = None
         self._qwen3_processor = None
+        self._cohere_model = None
+        self._cohere_processor = None
         self._target_sample_rate = 16000
 
         raw = str(model_id or "").strip()
@@ -186,9 +216,14 @@ class TransformersASRAdapter(STTAdapter):
             else _env_bool("ABSTRACTVOICE_HF_TRUST_REMOTE_CODE", False)
         )
         self._use_qwen3_asr = _is_qwen3_asr_model_id(self._model_id)
+        self._use_cohere_asr = _is_cohere_transcribe_model_id(self._model_id)
         if self._use_qwen3_asr:
             # Qwen3-ASR runs through our vendored backend and never requires
             # executing Hugging Face repo Python code.
+            self._trust_remote_code = False
+        if self._use_cohere_asr:
+            # Cohere Transcribe is supported natively in Transformers; do not
+            # require or default to executing model-repo Python.
             self._trust_remote_code = False
 
         self._current_language: str | None = None
@@ -248,7 +283,7 @@ class TransformersASRAdapter(STTAdapter):
         return self._load_error
 
     def _ensure_loaded(self) -> None:
-        if self._pipeline is not None or self._qwen3_model is not None:
+        if self._pipeline is not None or self._qwen3_model is not None or self._cohere_model is not None:
             return
 
         # Keep interactive UX quiet by default.
@@ -380,9 +415,18 @@ class TransformersASRAdapter(STTAdapter):
         self._pipeline = None
         self._qwen3_model = None
         self._qwen3_processor = None
+        self._cohere_model = None
+        self._cohere_processor = None
 
         if self._use_qwen3_asr:
             self._ensure_loaded_qwen3_asr(
+                torch_device=torch_device,
+                torch_dtype=torch_dtype,
+                local_only=bool(local_only),
+            )
+            return
+        if self._use_cohere_asr:
+            self._ensure_loaded_cohere_asr(
                 torch_device=torch_device,
                 torch_dtype=torch_dtype,
                 local_only=bool(local_only),
@@ -409,6 +453,64 @@ class TransformersASRAdapter(STTAdapter):
             )
         self._pipeline = pipe
         self._capture_model_runtime(getattr(pipe, "model", None))
+
+    def _ensure_loaded_cohere_asr(self, *, torch_device: Any, torch_dtype: Any, local_only: bool) -> None:
+        try:
+            import torch
+            import transformers
+            from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
+        except Exception as e:
+            raise RuntimeError(
+                "Cohere Transcribe requires Transformers + Torch optional dependencies.\n"
+                "Install with:\n"
+                "  pip install \"abstractvoice[stt-hf]\"\n"
+                "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
+                "  pip install \"abstractvoice[gpu]\"    # GPU profile"
+            ) from e
+
+        if _version_triplet(getattr(transformers, "__version__", "")) < (5, 4, 0):
+            raise RuntimeError(
+                "Cohere Transcribe requires the native Transformers implementation.\n"
+                f"Detected transformers=={getattr(transformers, '__version__', 'unknown')}; install transformers>=5.4.0.\n"
+                "Recommended install (per Cohere model card):\n"
+                "  pip install \"transformers>=5.4.0\" torch huggingface_hub soundfile librosa sentencepiece protobuf"
+            )
+
+        model_kwargs: dict[str, Any] = {
+            "local_files_only": bool(local_only),
+            "trust_remote_code": False,
+        }
+        if torch_dtype is not None:
+            # Transformers v5 prefers `dtype` (torch_dtype is deprecated).
+            model_kwargs["dtype"] = torch_dtype
+
+        model = AutoModelForSpeechSeq2Seq.from_pretrained(self._model_id, **model_kwargs)
+        try:
+            model = model.to(torch_device)
+        except Exception as e:
+            if str(self._device_pref or "auto") == "auto":
+                raise
+            warning = (
+                f"Failed to move Cohere Transcribe model to requested device '{torch_device}': {e}. "
+                "Continuing on the model's current load device."
+            )
+            self._used_fallback = True
+            self._fallback_reason = warning
+            warnings.warn(warning, RuntimeWarning)
+
+        processor = AutoProcessor.from_pretrained(
+            self._model_id,
+            local_files_only=bool(local_only),
+            trust_remote_code=False,
+        )
+
+        self._cohere_model = model
+        self._cohere_processor = processor
+        self._capture_model_runtime(model)
+        self._target_sample_rate = int(getattr(getattr(processor, "feature_extractor", None), "sampling_rate", 16000) or 16000)
+        if self._target_sample_rate <= 0:
+            self._target_sample_rate = 16000
+        self._available = True
 
     def _ensure_loaded_qwen3_asr(self, *, torch_device: Any, torch_dtype: Any, local_only: bool) -> None:
         try:
@@ -479,6 +581,9 @@ class TransformersASRAdapter(STTAdapter):
         if self._use_qwen3_asr:
             if self._qwen3_model is None or self._qwen3_processor is None:
                 raise RuntimeError("Qwen3-ASR model is not available")
+        elif self._use_cohere_asr:
+            if self._cohere_model is None or self._cohere_processor is None:
+                raise RuntimeError("Cohere Transcribe model is not available")
         else:
             if self._pipeline is None:
                 raise RuntimeError("Transformers ASR pipeline is not available")
@@ -533,6 +638,58 @@ class TransformersASRAdapter(STTAdapter):
             )
             raw_text = str(decoded[0] if decoded else "").strip()
             return _parse_qwen3_asr_text(raw_text, user_language=user_lang)
+
+        if self._use_cohere_asr:
+            model = self._cohere_model
+            processor = self._cohere_processor
+            if model is None or processor is None:
+                raise RuntimeError("Cohere Transcribe is not initialized")
+
+            lang = None
+            if isinstance(language, str) and language.strip():
+                lang = str(language).strip().lower()
+            elif isinstance(self._current_language, str) and self._current_language.strip():
+                lang = str(self._current_language).strip().lower()
+            if not lang:
+                lang = "en"
+
+            # Prefer the native Transformers Cohere ASR processor+generate path.
+            inputs = processor(
+                x,
+                sampling_rate=int(sr),
+                return_tensors="pt",
+                language=str(lang),
+                punctuation=True,
+            )
+            audio_chunk_index = None
+            try:
+                audio_chunk_index = inputs.get("audio_chunk_index")
+            except Exception:
+                audio_chunk_index = None
+            try:
+                inputs = inputs.to(model.device).to(model.dtype)
+            except Exception:
+                try:
+                    inputs = inputs.to(model.device)
+                except Exception:
+                    pass
+
+            out = model.generate(**inputs, max_new_tokens=256)
+            sequences = getattr(out, "sequences", out)
+
+            if audio_chunk_index is not None:
+                decoded = processor.decode(
+                    sequences,
+                    skip_special_tokens=True,
+                    audio_chunk_index=audio_chunk_index,
+                    language=str(lang),
+                )
+            else:
+                decoded = processor.decode(sequences, skip_special_tokens=True)
+
+            if isinstance(decoded, (list, tuple)):
+                return str(decoded[0] if decoded else "").strip()
+            return str(decoded or "").strip()
 
         # Whisper language/task selection uses forced decoder ids.
         generate_kwargs: dict[str, Any] = {}
@@ -641,6 +798,8 @@ class TransformersASRAdapter(STTAdapter):
             return False
         if self._use_qwen3_asr:
             return self._qwen3_model is not None and self._qwen3_processor is not None
+        if self._use_cohere_asr:
+            return self._cohere_model is not None and self._cohere_processor is not None
         return self._pipeline is not None
 
     def get_info(self) -> Dict[str, Any]:
@@ -653,7 +812,11 @@ class TransformersASRAdapter(STTAdapter):
                 "target_sample_rate": int(self._target_sample_rate or 0),
                 "allow_downloads": bool(self._allow_downloads),
                 "trust_remote_code": bool(self._trust_remote_code) if not self._use_qwen3_asr else False,
-                "backend": "qwen3-asr" if self._use_qwen3_asr else "transformers-pipeline",
+                "backend": (
+                    "qwen3-asr"
+                    if self._use_qwen3_asr
+                    else ("cohere-asr" if self._use_cohere_asr else "transformers-pipeline")
+                ),
                 "runtime": self.runtime_info(),
             }
         )
