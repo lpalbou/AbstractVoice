@@ -1227,6 +1227,7 @@ class _BaseVoice:
                     getattr(vm, "_abstractvoice_tts_engine", None),
                     getattr(vm, "_tts_engine_name", None),
                     getattr(vm, "_tts_engine_preference", None),
+                    getattr(vm, "tts_engine", None),
                 }
             )
         else:
@@ -1235,6 +1236,7 @@ class _BaseVoice:
                     getattr(vm, "_abstractvoice_stt_engine", None),
                     getattr(vm, "_stt_engine_name", None),
                     getattr(vm, "_stt_engine_preference", None),
+                    getattr(vm, "stt_engine", None),
                 }
             )
         out: set[str] = set()
@@ -1493,6 +1495,23 @@ class _BaseVoice:
                     message="Residency warmup is supported only for local TTS engines (remote providers are excluded).",
                     state="not_implemented",
                     local=False,
+                    unloadable=False,
+                    details={"supported": {"task": "tts", "provider": "local_tts"}},
+                )
+
+            if not _local_tts_engine_available(provider_id):
+                return self._residency_error(
+                    task="tts",
+                    provider=provider_id,
+                    model=requested_model,
+                    code="not_implemented_yet",
+                    message=(
+                        "Local base TTS residency requires the local engine runtime + cached model weights. "
+                        "Install the provider extra (for example abstractvoice[piper] / abstractvoice[supertonic] / "
+                        "abstractvoice[omnivoice] / abstractvoice[audiodit]) and prefetch models before warming."
+                    ),
+                    state="not_implemented",
+                    local=True,
                     unloadable=False,
                     details={"supported": {"task": "tts", "provider": "local_tts"}},
                 )
@@ -2464,6 +2483,24 @@ class _VoiceCapability(_BaseVoice):
         if requested_model:
             return [requested_model]
         if provider_id:
+            # Provider-scoped model discovery should stay lightweight and must not
+            # require optional runtime dependencies to be installed.
+            if provider_id in {"openai", "openai-compatible"}:
+                model_ids: list[str] = []
+                try:
+                    vm = self._get_vm()
+                    if _engine_aliases(provider_id) & self._vm_engine_values(vm, kind="stt"):
+                        model_ids.extend(_extract_stt_model_ids(vm))
+                except Exception:
+                    pass
+                model_ids.extend(self._configured_stt_model_ids(provider_id))
+                return _dedupe_strings(model_ids)
+            if provider_id in {"faster-whisper", "transformers-asr"}:
+                model_ids: list[str] = []
+                model_ids.extend(self._configured_stt_model_ids(provider_id))
+                model_ids.extend(_stt_model_ids_for_provider(provider_id))
+                return _dedupe_strings(model_ids)
+
             catalog = self.voice_catalog()
             entry = catalog.get("stt_catalog_by_provider", {}).get(provider_id, {})
             return list(entry.get("models") or [])
@@ -3591,6 +3628,22 @@ class _AudioCapability(_BaseVoice):
                 message="Residency warmup is supported only for local STT engines (remote providers are excluded).",
                 state="not_implemented",
                 local=False,
+                unloadable=False,
+                details={"supported": {"task": "stt", "provider": "local_stt"}},
+            )
+
+        if not _local_stt_engine_available(provider_id):
+            return self._residency_error(
+                task="stt",
+                provider=provider_id,
+                model=requested_model,
+                code="not_implemented_yet",
+                message=(
+                    "Local STT residency requires the local STT runtime to be installed. "
+                    "Install the provider extra (for example abstractvoice[stt] / abstractvoice[apple] / abstractvoice[gpu])."
+                ),
+                state="not_implemented",
+                local=True,
                 unloadable=False,
                 details={"supported": {"task": "stt", "provider": "local_stt"}},
             )

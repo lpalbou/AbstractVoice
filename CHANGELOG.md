@@ -10,6 +10,15 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.14] - 2026-05-21
+
+### Fixed
+- Made AbstractCore plugin provider-scoped STT discovery more robust:
+  - listing models for `openai` / `openai-compatible` now includes the active injected STT model when present,
+  - listing models for `transformers-asr` works even when the optional runtime deps are not installed.
+- Made AbstractCore plugin residency warmup return `not_implemented` (instead of `failed`)
+  when local TTS/STT runtimes are not installed.
+
 ## [0.10.13] - 2026-05-21
 
 ### Added

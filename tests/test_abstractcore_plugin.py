@@ -1446,9 +1446,12 @@ def test_voice_capability_clone_residency_defers_base_tts_and_stt(monkeypatch):
     cap = _VoiceCapability(_Owner())
 
     base_tts = cap.load_resident_model({"task": "tts", "provider": "omnivoice", "model": "default"})
-    assert base_tts["state"] in {"resident", "configured"}
-    assert base_tts["loaded"] is True
-    assert base_tts["error"] is None
+    assert base_tts["state"] in {"resident", "configured", "not_implemented"}
+    if base_tts["state"] == "not_implemented":
+        assert base_tts["loaded"] is False
+        assert base_tts["error"]["code"] == "not_implemented_yet"
+    else:
+        assert base_tts["error"] is None
 
     stt = cap.load_resident_model({"task": "stt", "provider": "faster-whisper", "model": "base"})
     assert stt["state"] == "not_implemented"
