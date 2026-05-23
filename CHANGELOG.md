@@ -10,6 +10,18 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.15] - 2026-05-23
+
+### Added
+- Added backlog proposal `0060_reduce_vendor_dependencies_and_harmonize_local_engines`
+  to document a cleaner long-term path for reducing high-level vendor engine
+  dependencies while keeping local voice runtimes package-owned and
+  import-light.
+
+### Changed
+- Refreshed `docs/backlog/README.md` so the backlog snapshot and proposed-item
+  index match the current task set.
+
 ## [0.10.14] - 2026-05-21
 
 ### Fixed

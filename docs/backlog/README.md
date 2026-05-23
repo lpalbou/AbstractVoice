@@ -4,9 +4,9 @@ This folder is the **single source of truth** for planned and completed work in 
 
 ## Current snapshot
 
-- Updated: 2026-05-21
+- Updated: 2026-05-23
 - Planned: 15
-- Proposed: 10
+- Proposed: 11
 - Completed: 34
 - Recurrent: 1
 
@@ -79,6 +79,9 @@ Rationale:
 - `docs/backlog/proposed/0055_elevenlabs_music_backend_boundary_learnings.md`: captures lessons
   from AbstractMusic's ElevenLabs Music backend so any future ElevenLabs voice work stays scoped to
   AbstractVoice and does not couple to music runtime code.
+- `docs/backlog/proposed/0060_reduce_vendor_dependencies_and_harmonize_local_engines.md`: proposes
+  a dependency-light refactor to reduce vendor engine package dependencies (ex: `omnivoice`,
+  `f5-tts`) and align local engine treatment with the import-light patterns used in AbstractMusic.
 
 ---
 
