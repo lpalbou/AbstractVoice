@@ -404,6 +404,37 @@ def test_voice_capability_catalog_controls_reflect_vm_tts_capabilities():
     assert catalog["tts_capabilities"]["pace"]["reason"] == "directed-speech planning not wired yet"
 
 
+def test_provider_filtered_voice_catalog_uses_light_metadata_without_vm(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setattr(plugin, "_local_tts_engines", lambda: ["omnivoice"])
+    monkeypatch.setattr(plugin, "_local_tts_engine_available", lambda engine: plugin._norm_engine_id(engine) == "omnivoice")
+    monkeypatch.setattr(plugin, "_local_cloning_engine_available", lambda engine: plugin._norm_engine_id(engine) == "omnivoice")
+
+    class _Store:
+        def list_voices(self):
+            return [{"voice_id": "clone-a", "name": "Clone A", "engine": "omnivoice"}]
+
+    monkeypatch.setattr("abstractvoice.cloning.store.VoiceCloneStore", _Store)
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    cap._get_vm = lambda: (_ for _ in ()).throw(AssertionError("provider-filtered catalog must not initialize VoiceManager"))
+
+    catalog = cap.voice_catalog(provider="omnivoice")
+
+    assert catalog["source"] == "abstractvoice.light_catalog"
+    assert catalog["tts_providers"] == ["omnivoice"]
+    assert "default" in {item.get("profile_id") for item in catalog["profiles"]}
+    assert "clone-a" in {item.get("voice_id") for item in catalog["cloned_voices"]}
+    assert {"en", "fr"} <= set(catalog["tts_models_by_provider"]["omnivoice"])
+    assert catalog["tts_model_roles_by_provider"]["omnivoice"] == "language"
+    assert {"en", "fr"} <= set(cap.list_tts_models(provider="omnivoice"))
+
+
 def test_voice_catalog_filters_unavailable_local_stt_providers(monkeypatch):
     _clear_plugin_env(monkeypatch)
     monkeypatch.setattr(
@@ -1227,6 +1258,49 @@ def test_voice_capability_tts_applies_explicit_profile_when_not_clone():
     assert out.startswith(b"RIFF")
     assert calls["profiles"] == ["female_01", "default"]
     assert calls["speak_voice"] == [None]
+
+
+def test_voice_capability_tts_treats_omnivoice_model_as_language():
+    calls = {"provider_requests": [], "languages": [], "speak": []}
+
+    class _Adapter:
+        engine_id = "omnivoice"
+        model_id = "k2-fsa/OmniVoice"
+
+    class _VM:
+        language = "en"
+        tts_model = None
+        tts_adapter = _Adapter()
+        _abstractvoice_tts_engine = "omnivoice"
+
+        def set_language(self, language: str):
+            calls["languages"].append(language)
+            self.language = language
+            return True
+
+        def speak_to_bytes(self, text: str, format: str = "wav", voice=None):
+            calls["speak"].append({"text": text, "format": format, "voice": voice, "language": self.language})
+            return b"RIFF....WAVE"
+
+    class _Owner:
+        config = {}
+
+    vm = _VM()
+    cap = _VoiceCapability(_Owner())
+
+    def _get_vm_for_provider(**kwargs):
+        calls["provider_requests"].append(dict(kwargs))
+        return vm
+
+    cap._get_vm_for_provider = _get_vm_for_provider
+    out = cap.tts("bonjour", provider="omnivoice", model="fr")
+
+    assert out.startswith(b"RIFF")
+    assert calls["provider_requests"] == [{"tts_provider": "omnivoice", "tts_model": "fr"}]
+    assert calls["languages"][0] == "fr"
+    assert calls["speak"] == [{"text": "bonjour", "format": "wav", "voice": None, "language": "fr"}]
+    assert vm.tts_adapter.model_id == "k2-fsa/OmniVoice"
+    assert vm.tts_model is None
 
 
 def test_voice_capability_injection_bytes_and_artifact():

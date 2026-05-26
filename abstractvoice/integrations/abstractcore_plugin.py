@@ -15,6 +15,7 @@ _VM_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = weakref.WeakKeyDic
 _TRUE_BOOL_VALUES = {"1", "true", "yes", "y", "on"}
 _FALSE_BOOL_VALUES = {"0", "false", "no", "n", "off"}
 _CLONE_RESIDENCY_PROVIDER_ALIASES = {"cloned", "clone", "cloning"}
+_OMNIVOICE_FALLBACK_LANGUAGES = ["en", "fr", "de", "es", "ru", "zh", "ja", "ko"]
 
 
 def _env(key: str, default: Optional[str] = None) -> Optional[str]:
@@ -283,6 +284,42 @@ def _stt_model_ids_for_provider(provider: Any) -> list[str]:
             )
 
     return []
+
+
+def _tts_provider_uses_language_models(provider: Any) -> bool:
+    return _norm_engine_id(provider) == "omnivoice"
+
+
+def _omnivoice_language_ids() -> list[str]:
+    """Return OmniVoice language selectors without loading model weights."""
+
+    def order(values: list[str]) -> list[str]:
+        preferred = {item: index for index, item in enumerate(_OMNIVOICE_FALLBACK_LANGUAGES)}
+        return sorted(_dedupe_strings(values), key=lambda item: (preferred.get(item.lower(), len(preferred)), item.lower()))
+
+    try:
+        from omnivoice.utils.lang_map import LANG_IDS  # type: ignore
+
+        return order([str(item).strip().lower() for item in LANG_IDS if str(item).strip()])
+    except Exception:
+        return list(_OMNIVOICE_FALLBACK_LANGUAGES)
+
+
+def _selectable_tts_model_ids_for_provider(provider: Any) -> list[str]:
+    """Return public TTS model-selector values for providers with synthetic selectors."""
+
+    if _tts_provider_uses_language_models(provider):
+        return _omnivoice_language_ids()
+    return []
+
+
+def _tts_model_language_selector(provider: Any, model: Any) -> Optional[str]:
+    if not _tts_provider_uses_language_models(provider):
+        return None
+    text = str(model or "").strip().lower()
+    if not text or text == "default":
+        return None
+    return text
 
 
 def _resolve_tts_provider_request(provider: Any, model: Any = None) -> tuple[str, Optional[str]]:
@@ -660,6 +697,19 @@ def _extract_stt_model_ids(vm: Any) -> list[str]:
 
 def _active_tts_model(vm: Any, catalog: Any, model_ids: list[str]) -> Optional[str]:
     adapter = getattr(vm, "tts_adapter", None)
+    provider = _norm_engine_id(
+        getattr(adapter, "engine_id", None)
+        or getattr(adapter, "provider", None)
+        or getattr(adapter, "backend_id", None)
+        or getattr(vm, "_abstractvoice_tts_engine", None)
+        or getattr(vm, "_tts_engine_name", None)
+        or getattr(vm, "_tts_engine_preference", None)
+    )
+    if _tts_provider_uses_language_models(provider):
+        language = getattr(adapter, "_language", None) or getattr(adapter, "language", None) or getattr(vm, "language", None)
+        if isinstance(language, str) and language.strip():
+            return language.strip().lower()
+
     model = getattr(adapter, "model_id", None)
     if isinstance(model, str) and model.strip():
         return model.strip()
@@ -808,8 +858,9 @@ def _profiles_from_tts_catalog(catalog: Any, *, engine_id: str) -> list[Dict[str
             params: Dict[str, Any] = {
                 "provider": entry_provider,
                 "voice": str(raw.get("voice") or voice_key).strip(),
-                "language": str(group_key).strip(),
             }
+            if not provider_keyed_root:
+                params["language"] = str(group_key).strip()
             if isinstance(model_id, str) and model_id.strip():
                 params["model"] = model_id.strip()
             profiles.append(
@@ -917,6 +968,8 @@ def _profile_model_id(profile: Any) -> str:
         params.get("model_filename"),
         profile.get("model"),
         profile.get("model_id"),
+        profile.get("language"),
+        params.get("language"),
     ):
         if isinstance(value, str) and value.strip():
             return value.strip()
@@ -1519,6 +1572,8 @@ class _BaseVoice:
             opts = parsed.get("options") or {}
             language = opts.get("language")
             lang = str(language).strip().lower() if isinstance(language, str) and language.strip() else None
+            if not lang:
+                lang = _tts_model_language_selector(provider_id, requested_model)
             if provider_id == "piper" and not lang and requested_model:
                 try:
                     lang = _piper_language_for_model(str(requested_model)) or None
@@ -2219,6 +2274,9 @@ class _BaseVoice:
             tts_engine = ""
         if stt_engine == "cloned":
             stt_engine = ""
+        tts_language = _tts_model_language_selector(tts_engine, tts_model)
+        if tts_language:
+            tts_model = None
 
         if not tts_engine and not stt_engine:
             return self._get_vm()
@@ -2232,6 +2290,14 @@ class _BaseVoice:
         if current is not None:
             tts_ok = not tts_engine or bool(_engine_aliases(tts_engine) & self._vm_engine_values(current, kind="tts"))
             stt_ok = not stt_engine or bool(_engine_aliases(stt_engine) & self._vm_engine_values(current, kind="stt"))
+            if tts_ok and tts_language:
+                adapter = getattr(current, "tts_adapter", None)
+                current_language = (
+                    getattr(adapter, "_language", None)
+                    or getattr(adapter, "language", None)
+                    or getattr(current, "language", None)
+                )
+                tts_ok = str(current_language or "").strip().lower() == str(tts_language).strip().lower()
             if tts_ok and isinstance(tts_model, str) and tts_model.strip():
                 current_tts_models = {item.lower() for item in _current_tts_model_ids(current)}
                 tts_ok = tts_model.strip().lower() in current_tts_models
@@ -2253,6 +2319,8 @@ class _BaseVoice:
             override_cfg["voice_tts_engine"] = tts_engine
         if stt_engine:
             override_cfg["voice_stt_engine"] = stt_engine
+        if tts_language:
+            override_cfg["voice_language"] = tts_language
         if isinstance(tts_model, str) and tts_model.strip():
             override_cfg["voice_tts_model"] = tts_model.strip()
         if isinstance(stt_model, str) and stt_model.strip():
@@ -2392,6 +2460,208 @@ class _VoiceCapability(_BaseVoice):
             },
         }
 
+    def _light_voice_catalog(
+        self,
+        *,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        providers_only: bool = False,
+    ) -> Dict[str, Any]:
+        """Return provider-filtered TTS catalog metadata without building VoiceManager."""
+        requested_provider = _norm_engine_id(provider)
+        requested_model = str(model or "").strip().lower()
+        available_providers = self.available_providers()
+        tts_providers = _dedupe_provider_ids(available_providers.get("tts") or available_providers.get("tts_providers") or [])
+        if requested_provider:
+            tts_providers = [item for item in tts_providers if _norm_engine_id(item) == requested_provider]
+            if not tts_providers and _local_tts_engine_available(requested_provider):
+                tts_providers = [requested_provider]
+        profiles: list[Dict[str, Any]] = []
+        cloned_voices: list[Dict[str, Any]] = []
+
+        if not providers_only:
+            try:
+                from ..voice_profiles import get_builtin_voice_profiles
+
+                for engine in list(tts_providers):
+                    profiles.extend(_voice_profile_to_dict(p) for p in get_builtin_voice_profiles(engine))
+            except Exception:
+                profiles = []
+
+            try:
+                from ..cloning.store import VoiceCloneStore
+
+                for item in VoiceCloneStore().list_voices():
+                    if not isinstance(item, dict):
+                        continue
+                    meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
+                    clone_id = str(item.get("voice_id") or item.get("id") or item.get("name") or "").strip()
+                    if not clone_id:
+                        continue
+                    clone_engine = _norm_engine_id(
+                        item.get("engine")
+                        or item.get("engine_id")
+                        or meta.get("engine")
+                        or meta.get("tts_engine")
+                        or requested_provider
+                        or "omnivoice"
+                    )
+                    if requested_provider and clone_engine != requested_provider:
+                        continue
+                    if clone_engine and clone_engine not in tts_providers and _engine_runtime_available(clone_engine, tts_providers):
+                        tts_providers.append(clone_engine)
+                    if clone_engine and clone_engine not in tts_providers:
+                        continue
+                    label = str(item.get("name") or item.get("label") or clone_id).strip() or clone_id
+                    cloned_voices.append(
+                        {
+                            "id": clone_id,
+                            "voice_id": clone_id,
+                            "profile_id": clone_id,
+                            "label": label,
+                            "display_name": label,
+                            "name": label,
+                            "kind": "clone",
+                            "provider": clone_engine,
+                            "engine_id": clone_engine,
+                            "engine": clone_engine,
+                            "tags": {
+                                "provider": clone_engine,
+                                "engine_id": clone_engine,
+                                "engine": clone_engine,
+                                "source": "abstractvoice_clone_store",
+                            },
+                            "params": _json_safe(item),
+                        }
+                    )
+            except Exception:
+                cloned_voices = []
+
+        profiles = _dedupe_voice_records(_json_safe(profiles))
+        cloned_voices = _dedupe_voice_records(_json_safe(cloned_voices))
+        if requested_model:
+            profiles = [item for item in profiles if not _profile_model_id(item) or _profile_model_id(item).lower() == requested_model]
+            cloned_voices = [
+                item for item in cloned_voices if not _profile_model_id(item) or _profile_model_id(item).lower() == requested_model
+            ]
+
+        tts_providers = _dedupe_provider_ids(tts_providers)
+        tts_models_by_provider: dict[str, list[str]] = {provider_id: [] for provider_id in tts_providers}
+        tts_voices_by_provider: dict[str, list[str]] = {provider_id: [] for provider_id in tts_providers}
+        tts_profiles_by_provider: dict[str, list[str]] = {provider_id: [] for provider_id in tts_providers}
+        for profile in profiles:
+            provider_id = _profile_provider_id(profile)
+            _add_provider_value(tts_models_by_provider, provider_id, _profile_model_id(profile))
+            _add_provider_value(tts_voices_by_provider, provider_id, _profile_voice_id(profile))
+            _add_provider_value(tts_profiles_by_provider, provider_id, _profile_id(profile))
+        for clone in cloned_voices:
+            provider_id = _profile_provider_id(clone)
+            _add_provider_value(tts_voices_by_provider, provider_id, _profile_voice_id(clone))
+            _add_provider_value(tts_profiles_by_provider, provider_id, _profile_id(clone))
+
+        for engine in self._configured_remote_tts_engines():
+            provider_id = _norm_engine_id(engine)
+            if requested_provider and provider_id != requested_provider:
+                continue
+            if provider_id not in tts_providers:
+                tts_providers.append(provider_id)
+                tts_models_by_provider.setdefault(provider_id, [])
+                tts_voices_by_provider.setdefault(provider_id, [])
+                tts_profiles_by_provider.setdefault(provider_id, [])
+            for model_id in self._configured_tts_model_ids(engine):
+                _add_provider_value(tts_models_by_provider, provider_id, model_id)
+
+        for provider_id in list(tts_providers):
+            for model_id in _selectable_tts_model_ids_for_provider(provider_id):
+                _add_provider_value(tts_models_by_provider, provider_id, model_id)
+
+        tts_models = _dedupe_strings([model_id for values in tts_models_by_provider.values() for model_id in values])
+        all_tts_voices = _dedupe_voice_records(list(profiles) + list(cloned_voices))
+        tts_details = available_providers.get("details", {}).get("tts", {})
+        tts_catalog_by_provider: dict[str, Dict[str, Any]] = {}
+        for provider_id in tts_providers:
+            provider_key = _norm_engine_id(provider_id)
+            provider_voices = _dedupe_voice_records(
+                [
+                    _json_safe(voice)
+                    for voice in all_tts_voices
+                    if _voice_matches_tts_selection(voice, provider=provider_key, model=model)
+                ]
+            )
+            tts_catalog_by_provider[provider_key] = {
+                "provider": provider_key,
+                "provider_id": provider_key,
+                "remote": bool(tts_details.get(provider_key, {}).get("remote")),
+                "local": bool(tts_details.get(provider_key, {}).get("local")),
+                "details": _json_safe(tts_details.get(provider_key) or _provider_details("tts", [provider_key]).get(provider_key) or {}),
+                "models": list(tts_models_by_provider.get(provider_key, []) or []),
+                "model_variants": _provider_variants(provider_key, tts_models_by_provider.get(provider_key, [])),
+                "voices": provider_voices,
+                "profiles": [
+                    voice for voice in provider_voices if str(voice.get("kind") or "").strip().lower() != "clone"
+                ],
+                "cloned_voices": [
+                    voice for voice in provider_voices if str(voice.get("kind") or "").strip().lower() == "clone"
+                ],
+                "voices_by_model": {},
+                "formats": _tts_formats_for_provider(provider_key),
+            }
+
+        controls: Dict[str, Any] = {
+            "speed": {"supported": True, "min": 0.5, "max": 2.0, "default": 1.0},
+            "quality_preset": {"supported": True, "values": ["low", "standard", "high"], "default": "standard"},
+            "instructions": {"supported": True},
+            "profile": {"supported": True},
+            "voice_clone": {"supported": True},
+        }
+        active_provider = tts_providers[0] if tts_providers else None
+        active_model = (
+            _tts_model_language_selector(active_provider, requested_model)
+            or (str(_env("ABSTRACTVOICE_LANGUAGE", "en") or "en").strip().lower() if _tts_provider_uses_language_models(active_provider) else None)
+            or (tts_models[0] if tts_models else None)
+        )
+        return {
+            "kind": "tts",
+            "engine_id": active_provider,
+            "provider_id": active_provider,
+            "active_profile": None,
+            "active_model": active_model,
+            "active_tts_provider": active_provider,
+            "active_stt_provider": (available_providers.get("stt") or [None])[0],
+            "profiles": [] if providers_only else profiles,
+            "voices": [] if providers_only else profiles + cloned_voices,
+            "cloned_voices": [] if providers_only else cloned_voices,
+            "tts_providers": tts_providers,
+            "stt_providers": _dedupe_provider_ids(available_providers.get("stt") or []),
+            "available_providers": available_providers,
+            "available_tts_providers": available_providers.get("tts") or [],
+            "available_stt_providers": available_providers.get("stt") or [],
+            "available_cloning_providers": available_providers.get("cloning") or [],
+            "tts_models": tts_models,
+            "stt_models": [],
+            "tts_models_by_provider": tts_models_by_provider,
+            "stt_models_by_provider": {},
+            "tts_model_roles_by_provider": {
+                provider_id: "language" if _tts_provider_uses_language_models(provider_id) else "model"
+                for provider_id in tts_providers
+            },
+            "tts_model_variants": {provider_id: _provider_variants(provider_id, values) for provider_id, values in tts_models_by_provider.items()},
+            "stt_engine_variants": {},
+            "tts_voices_by_provider": tts_voices_by_provider,
+            "tts_profiles_by_provider": tts_profiles_by_provider,
+            "tts_catalog_by_provider": tts_catalog_by_provider,
+            "stt_catalog_by_provider": {},
+            "tts_formats_by_provider": {provider_id: _tts_formats_for_provider(provider_id) for provider_id in tts_providers},
+            "stt_formats_by_provider": {},
+            "controls": controls,
+            "tts_capabilities": {},
+            "speech_request_contract": "speech_request_v1",
+            "compatibility_catalog": {},
+            "catalog": {},
+            "catalogs": {},
+            "source": "abstractvoice.light_catalog",
+        }
+
     # Alias for callers that use list_* naming conventions.
     def list_available_providers(self) -> Dict[str, Any]:
         return self.available_providers()
@@ -2434,7 +2704,10 @@ class _VoiceCapability(_BaseVoice):
         if requested_model:
             return [requested_model]
         if provider_id:
-            catalog = self.voice_catalog()
+            if provider_id in {_norm_engine_id(item) for item in _catalog_safe_local_tts_engines()}:
+                catalog = self._light_voice_catalog(provider=provider_id)
+            else:
+                catalog = self.voice_catalog(provider=provider_id)
             entry = catalog.get("tts_catalog_by_provider", {}).get(provider_id, {})
             return list(entry.get("models") or [])
 
@@ -2802,8 +3075,17 @@ class _VoiceCapability(_BaseVoice):
             **kwargs,
         )
 
-    def voice_catalog(self) -> Dict[str, Any]:
+    def voice_catalog(
+        self,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        providers_only: bool = False,
+    ) -> Dict[str, Any]:
         """Return JSON-safe profile/model discovery data for Core/Gateway."""
+        provider_id = _norm_engine_id(provider)
+        if providers_only or (provider_id and provider_id in {_norm_engine_id(item) for item in _catalog_safe_local_tts_engines()}):
+            return self._light_voice_catalog(provider=provider_id, model=model, providers_only=providers_only)
+
         vm = self._get_vm()
         available_providers = self.available_providers()
 
@@ -2910,6 +3192,9 @@ class _VoiceCapability(_BaseVoice):
             stt_providers.append(engine)
             stt_models.extend(self._configured_stt_model_ids(engine))
 
+        for provider_id in list(tts_providers):
+            tts_models.extend(_selectable_tts_model_ids_for_provider(provider_id))
+
         tts_models = _dedupe_strings(tts_models)
         stt_models = _dedupe_strings(stt_models)
         tts_providers = _dedupe_provider_ids(tts_providers)
@@ -3014,6 +3299,9 @@ class _VoiceCapability(_BaseVoice):
         tts_models_by_provider: dict[str, list[str]] = {provider: [] for provider in tts_providers}
         tts_voices_by_provider: dict[str, list[str]] = {provider: [] for provider in tts_providers}
         tts_profiles_by_provider: dict[str, list[str]] = {provider: [] for provider in tts_providers}
+        for provider in tts_providers:
+            for model_id in _selectable_tts_model_ids_for_provider(provider):
+                _add_provider_value(tts_models_by_provider, provider, model_id)
         for profile in profiles:
             provider = _profile_provider_id(profile)
             _add_provider_value(tts_models_by_provider, provider, _profile_model_id(profile))
@@ -3184,6 +3472,10 @@ class _VoiceCapability(_BaseVoice):
             "stt_models": stt_models,
             "tts_models_by_provider": tts_models_by_provider,
             "stt_models_by_provider": stt_models_by_provider,
+            "tts_model_roles_by_provider": {
+                provider: "language" if _tts_provider_uses_language_models(provider) else "model"
+                for provider in tts_providers
+            },
             "tts_model_variants": tts_model_variants,
             "stt_engine_variants": stt_engine_variants,
             "tts_voices_by_provider": tts_voices_by_provider,
@@ -3236,7 +3528,8 @@ class _VoiceCapability(_BaseVoice):
         vm = self._get_vm_for_provider(tts_provider=provider_id, tts_model=requested_model)
         lk = self._vm_lock(vm)
         with lk:
-            model_name = str(requested_model or "").strip() if isinstance(requested_model, str) else ""
+            requested_language = _tts_model_language_selector(provider_id, requested_model)
+            model_name = "" if requested_language else (str(requested_model or "").strip() if isinstance(requested_model, str) else "")
             profile_name = str(_kwargs.get("profile") or "").strip() if isinstance(_kwargs.get("profile"), str) else ""
             if not voice_name and isinstance(voice, str) and voice.strip():
                 voice_name = str(voice).strip()
@@ -3265,6 +3558,11 @@ class _VoiceCapability(_BaseVoice):
                 if speed_value is not None and hasattr(vm, "set_speed"):
                     try:
                         vm.set_speed(float(speed_value))
+                    except Exception:
+                        pass
+                if requested_language and hasattr(vm, "set_language"):
+                    try:
+                        vm.set_language(str(requested_language))
                     except Exception:
                         pass
                 if (profile_name or voice_name) and hasattr(vm, "get_active_profile"):

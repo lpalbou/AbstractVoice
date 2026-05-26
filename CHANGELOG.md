@@ -10,6 +10,11 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.16] - 2026-05-26
+
+### Fixed
+- Corrected OmniVoice catalog semantics so the provider/model/voice hierarchy exposes OmniVoice as the provider, language as the model selector, and concrete hosted or cloned voices as voices across AbstractCore/Gateway/Flow discovery.
+
 ## [0.10.15] - 2026-05-23
 
 ### Added
