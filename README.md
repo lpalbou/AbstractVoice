@@ -204,6 +204,20 @@ pip install abstractvoice
 This is the lightweight remote/plugin base. It uses OpenAI audio by default:
 
 ```bash
+OPENAI_API_KEY=... abstractvoice \
+  --provider openai \
+  --model tts-1 \
+  --voice alloy \
+  --prompt "Hello from AbstractVoice." \
+  --output hello.wav
+```
+
+The one-shot command writes audio and exits. Use `--provider
+openai-compatible --api http://localhost:8000/v1` for compatible remote audio
+servers, or a local provider such as `--tts-engine supertonic` after installing
+the matching local extra.
+
+```bash
 export OPENAI_API_KEY=...
 ```
 

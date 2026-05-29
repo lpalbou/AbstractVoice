@@ -5,11 +5,27 @@ AbstractVoice voice mode CLI launcher.
 This module provides a direct entry point to start AbstractVoice in voice mode.
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 import time
 from abstractvoice.examples.cli_repl import VoiceREPL
 from abstractvoice.examples.llm_provider import PROVIDER_PRESETS, DEFAULT_PROVIDER, DEFAULT_MODEL
+
+
+def _has_cli_option(argv: list[str], *options: str) -> bool:
+    for item in argv:
+        for option in options:
+            if item == option or item.startswith(f"{option}="):
+                return True
+    return False
+
+
+def _looks_like_url(value: str | None) -> bool:
+    raw = str(value or "").strip().lower()
+    return raw.startswith("http://") or raw.startswith("https://")
+
 
 def print_examples():
     """Print available examples."""
@@ -18,6 +34,7 @@ def print_examples():
     print("  web            - Local FastAPI web example")
     print("  simple         - Simple usage example")
     print("  check-deps     - Check dependency compatibility")
+    print("  tts            - One-shot TTS to file")
     print("\nUsage: abstractvoice <command> [--language <lang>] [args...]")
     print("\nSupported local Piper language mapping: en, fr, es, de, ru, zh")
     print("Supertonic supports 31 local TTS languages once selected via /tts engine supertonic.")
@@ -27,7 +44,12 @@ def print_examples():
     print("  abstractvoice web --port 5000       # Local web example")
     print("  abstractvoice simple --language ru  # Russian simple example")
     print("  abstractvoice check-deps            # Check dependencies")
+    print(
+        "  abstractvoice --provider openai --model tts-1 --voice alloy "
+        "--prompt \"Hello\" --output hello.wav"
+    )
     print("  abstractvoice                       # Direct voice mode (default)")
+
 
 def simple_example():
     """Run a simple example demonstrating basic usage."""
@@ -98,22 +120,34 @@ def simple_example():
         # Clean up
         manager.cleanup()
 
-def parse_args():
+
+def parse_args(argv: list[str] | None = None):
     """Parse command line arguments."""
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(description="AbstractVoice - Voice interactions with AI")
 
     # Examples and special commands
-    parser.add_argument("command", nargs="?", help="Command to run: cli, web, simple, check-deps (default: voice mode)")
+    parser.add_argument(
+        "command",
+        nargs="?",
+        help="Command to run: cli, web, simple, check-deps, tts (default: voice mode)",
+    )
 
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--verbose", action="store_true", help="Show per-turn performance stats")
-    parser.add_argument("--provider", default=DEFAULT_PROVIDER,
-                      help=f"LLM provider preset ({', '.join(sorted(PROVIDER_PRESETS))}) or base URL")
+    parser.add_argument(
+        "--provider",
+        default=DEFAULT_PROVIDER,
+        help=(
+            f"LLM provider preset ({', '.join(sorted(PROVIDER_PRESETS))}) or base URL; "
+            "in one-shot TTS mode, the TTS provider/engine"
+        ),
+    )
     parser.add_argument("--api", default=None,
                       help="LLM API base URL (overrides --provider)")
     parser.add_argument("--model", default=DEFAULT_MODEL,
-                      help="LLM model name")
+                      help="LLM model name; in one-shot TTS mode, the TTS model name")
     parser.add_argument(
         "--whisper",
         default="base",
@@ -155,7 +189,141 @@ def parse_args():
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
     parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")
-    return parser.parse_args()
+    one_shot = parser.add_argument_group("one-shot TTS")
+    one_shot.add_argument("--prompt", help="Text to synthesize and write to --output")
+    one_shot.add_argument("--output", help="Output audio file path")
+    one_shot.add_argument(
+        "--voice",
+        help="TTS voice/profile id, or a cloned voice id when no base profile matches",
+    )
+    one_shot.add_argument(
+        "--format",
+        dest="output_format",
+        default=None,
+        help="Audio output format; inferred from --output when omitted",
+    )
+
+    args = parser.parse_args(argv)
+    args.provider_explicit = _has_cli_option(raw_argv, "--provider")
+    args.model_explicit = _has_cli_option(raw_argv, "--model")
+
+    one_shot_requested = args.prompt is not None or args.output is not None
+    if one_shot_requested:
+        if args.command not in (None, "tts"):
+            parser.error("--prompt/--output one-shot TTS cannot be combined with another command")
+        if args.prompt is None or args.output is None:
+            parser.error("--prompt and --output must be used together")
+        if not str(args.prompt).strip():
+            parser.error("--prompt cannot be empty")
+        if not str(args.output).strip():
+            parser.error("--output cannot be empty")
+        if args.no_tts:
+            parser.error("--no-tts cannot be used with --prompt/--output")
+    elif args.command == "tts":
+        parser.error("tts requires --prompt and --output")
+    return args
+
+
+def _apply_tts_voice_profile(vm, voice: str | None) -> str | None:
+    """Apply a base TTS profile when possible; otherwise return a clone voice id."""
+    selected = str(voice or "").strip()
+    if not selected:
+        return None
+
+    def _resolve_cloned_voice_id() -> str:
+        try:
+            info = vm.get_cloned_voice(selected)
+            if isinstance(info, dict):
+                return str(info.get("voice_id") or selected).strip() or selected
+        except Exception:
+            pass
+
+        try:
+            matches = []
+            for item in list(vm.list_cloned_voices() or []):
+                if not isinstance(item, dict):
+                    continue
+                voice_id = str(item.get("voice_id") or "").strip()
+                name = str(item.get("name") or "").strip()
+                if selected == voice_id or selected.lower() == name.lower():
+                    matches.append(voice_id or selected)
+            if len(matches) == 1:
+                return str(matches[0] or selected)
+        except Exception:
+            pass
+        return selected
+
+    try:
+        return None if bool(vm.set_profile(selected, kind="tts")) else _resolve_cloned_voice_id()
+    except TypeError:
+        try:
+            return None if bool(vm.set_profile(selected)) else _resolve_cloned_voice_id()
+        except Exception:
+            return _resolve_cloned_voice_id()
+    except Exception:
+        return _resolve_cloned_voice_id()
+
+
+def _run_one_shot_tts(args, *, voice_manager_factory=None) -> str:
+    """Run `abstractvoice --prompt ... --output ...` without entering the REPL."""
+    if voice_manager_factory is None:
+        from abstractvoice import VoiceManager
+
+        voice_manager_factory = VoiceManager
+
+    provider = str(args.tts_engine or "auto").strip() or "auto"
+    remote_base_url = args.remote_base_url
+
+    if bool(getattr(args, "provider_explicit", False)):
+        requested_provider = str(args.provider or "").strip()
+        if _looks_like_url(requested_provider):
+            provider = "openai-compatible"
+            if not remote_base_url:
+                remote_base_url = requested_provider
+        elif requested_provider:
+            provider = requested_provider
+
+    if (
+        not remote_base_url
+        and args.api
+        and provider.strip().lower().replace("_", "-") == "openai-compatible"
+    ):
+        remote_base_url = args.api
+
+    tts_model = args.tts_model
+    if bool(getattr(args, "model_explicit", False)):
+        tts_model = str(args.model or "").strip() or None
+
+    vm = voice_manager_factory(
+        language=args.language,
+        tts_model=tts_model,
+        whisper_model=args.whisper,
+        debug_mode=bool(args.debug),
+        tts_engine=provider,
+        stt_engine=args.stt_engine,
+        stt_model=args.stt_model,
+        remote_base_url=remote_base_url,
+        remote_api_key=args.remote_api_key,
+        remote_timeout_s=args.remote_timeout,
+        allow_downloads=True,
+        cloning_engine=args.cloning_engine,
+    )
+    try:
+        voice_for_call = _apply_tts_voice_profile(vm, args.voice)
+        out_path = vm.speak_to_file(
+            str(args.prompt),
+            str(args.output),
+            format=args.output_format,
+            voice=voice_for_call,
+        )
+        print(f"Wrote {out_path}")
+        return str(out_path)
+    finally:
+        try:
+            vm.cleanup()
+        except Exception:
+            pass
+
 
 def main():
     """Entry point for AbstractVoice CLI."""
@@ -172,6 +340,10 @@ def main():
         # Normalize aliases/compat flags.
         if getattr(args, "no_listening", False):
             args.voice_mode = "off"
+
+        if args.prompt is not None or args.output is not None:
+            _run_one_shot_tts(args)
+            return
 
         # Handle special commands and examples
         if args.command == "check-deps":

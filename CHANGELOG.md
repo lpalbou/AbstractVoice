@@ -10,6 +10,13 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.17] - 2026-05-29
+
+### Added
+- Added one-shot TTS output from the `abstractvoice` CLI with `--prompt` and
+  `--output`, including explicit provider/model/voice selection for remote,
+  local, and cloned-voice synthesis without entering the REPL.
+
 ## [0.10.16] - 2026-05-26
 
 ### Fixed

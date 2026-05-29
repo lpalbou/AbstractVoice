@@ -89,6 +89,16 @@ For other non-Piper providers (e.g. OmniVoice or remote OpenAI-compatible provid
 
 ## TTS (text → audio)
 
+CLI one-shot TTS uses the same `VoiceManager` synthesis path and exits without
+starting the REPL:
+
+```bash
+abstractvoice --provider openai --model tts-1 --voice alloy --prompt "Hello" --output hello.wav
+```
+
+Use `--provider openai-compatible --api <base-url>` for compatible remote audio
+servers, or `--tts-engine <local-provider>` for installed local engines.
+
 - `speak(text: str, speed: float = 1.0, callback=None, voice: str | None = None, *, sanitize_syntax: bool = True) -> bool`
   - Plays audio locally (non-blocking playback; synthesis time depends on backend).
   - If `voice` is provided, it is treated as a cloned `voice_id` (requires a cloning backend extra such as `abstractvoice[omnivoice]`; `abstractvoice[cloning]` is the explicit OpenF5 backend).

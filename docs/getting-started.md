@@ -27,6 +27,22 @@ as `abstractvoice[supertonic,stt,audio-io]`. Optional extras are documented in
 
 ## 60-second smoke test (no mic required)
 
+For a direct text-to-file TTS smoke test, run:
+
+```bash
+OPENAI_API_KEY=... abstractvoice \
+  --provider openai \
+  --model tts-1 \
+  --voice alloy \
+  --prompt "Hello from AbstractVoice." \
+  --output hello.wav
+```
+
+This path writes the audio file and exits. It also accepts compatible remote
+audio servers (`--provider openai-compatible --api http://localhost:8000/v1`)
+and local providers selected through `--tts-engine` after the matching optional
+extra is installed.
+
 Start the REPL:
 
 ```bash
