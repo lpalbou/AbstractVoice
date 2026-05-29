@@ -1642,6 +1642,12 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
 Supertonic supports fixed-style local TTS for <code>ar, bg, cs, da, de, el, en, es, et, fi, fr, hi, hr, hu, id, it, ja, ko, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi</code>.
 For other non-Piper providers (e.g. OmniVoice or remote OpenAI-compatible providers), <code>language</code> is treated as a pass-through hint and the provider decides what it supports.</p>
 <h2 id="tts-text-audio">TTS (text → audio)<a class="headerlink" href="#tts-text-audio" title="Permanent link">&para;</a></h2>
+<p>CLI one-shot TTS uses the same <code>VoiceManager</code> synthesis path and exits without
+starting the REPL:</p>
+<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--provider<span class="w"> </span>openai<span class="w"> </span>--model<span class="w"> </span>tts-1<span class="w"> </span>--voice<span class="w"> </span>alloy<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">&quot;Hello&quot;</span><span class="w"> </span>--output<span class="w"> </span>hello.wav
+</code></pre></div>
+<p>Use <code>--provider openai-compatible --api &lt;base-url&gt;</code> for compatible remote audio
+servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local engines.</p>
 <ul>
 <li><code>speak(text: str, speed: float = 1.0, callback=None, voice: str | None = None, *, sanitize_syntax: bool = True) -&gt; bool</code></li>
 <li>Plays audio locally (non-blocking playback; synthesis time depends on backend).</li>

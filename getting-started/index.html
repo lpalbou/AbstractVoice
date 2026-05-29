@@ -1295,6 +1295,18 @@ inference, listening, Supertonic/Piper TTS, and cloning engines, install
 as <code>abstractvoice[supertonic,stt,audio-io]</code>. Optional extras are documented in
 <code>docs/installation.md</code>.</p>
 <h2 id="60-second-smoke-test-no-mic-required">60-second smoke test (no mic required)<a class="headerlink" href="#60-second-smoke-test-no-mic-required" title="Permanent link">&para;</a></h2>
+<p>For a direct text-to-file TTS smoke test, run:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>abstractvoice<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--provider<span class="w"> </span>openai<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--model<span class="w"> </span>tts-1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--voice<span class="w"> </span>alloy<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--prompt<span class="w"> </span><span class="s2">&quot;Hello from AbstractVoice.&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>hello.wav
+</code></pre></div>
+<p>This path writes the audio file and exits. It also accepts compatible remote
+audio servers (<code>--provider openai-compatible --api http://localhost:8000/v1</code>)
+and local providers selected through <code>--tts-engine</code> after the matching optional
+extra is installed.</p>
 <p>Start the REPL:</p>
 <div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--verbose
 </code></pre></div>
