@@ -430,9 +430,38 @@ def test_provider_filtered_voice_catalog_uses_light_metadata_without_vm(monkeypa
     assert catalog["tts_providers"] == ["omnivoice"]
     assert "default" in {item.get("profile_id") for item in catalog["profiles"]}
     assert "clone-a" in {item.get("voice_id") for item in catalog["cloned_voices"]}
-    assert {"en", "fr"} <= set(catalog["tts_models_by_provider"]["omnivoice"])
-    assert catalog["tts_model_roles_by_provider"]["omnivoice"] == "language"
-    assert {"en", "fr"} <= set(cap.list_tts_models(provider="omnivoice"))
+    assert catalog["tts_models_by_provider"]["omnivoice"] == ["k2-fsa/OmniVoice"]
+    assert catalog["tts_model_roles_by_provider"]["omnivoice"] == "model"
+    assert cap.list_tts_models(provider="omnivoice") == ["k2-fsa/OmniVoice"]
+
+
+def test_provider_filtered_voice_catalog_surfaces_local_tts_model_ids(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    monkeypatch.setattr(plugin, "_local_tts_engines", lambda: ["piper", "audiodit"])
+    monkeypatch.setattr(
+        plugin,
+        "_local_tts_engine_available",
+        lambda engine: plugin._norm_engine_id(engine) in {"piper", "audiodit"},
+    )
+    monkeypatch.setattr(
+        plugin,
+        "_selectable_tts_model_ids_for_provider",
+        lambda provider: {
+            "piper": ["en_US-amy-medium"],
+            "audiodit": ["meituan-longcat/LongCat-AudioDiT-1B"],
+        }.get(plugin._norm_engine_id(provider), []),
+    )
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+    cap._get_vm = lambda: (_ for _ in ()).throw(AssertionError("provider-filtered catalog must not initialize VoiceManager"))
+
+    assert cap.list_tts_models(provider="piper") == ["en_US-amy-medium"]
+    assert cap.list_tts_models(provider="audiodit") == ["meituan-longcat/LongCat-AudioDiT-1B"]
 
 
 def test_voice_catalog_filters_unavailable_local_stt_providers(monkeypatch):
@@ -598,7 +627,9 @@ def test_voice_capability_provider_filtered_model_and_voice_discovery(monkeypatc
     cap = _VoiceCapability(_Owner())
 
     assert cap.list_models(kind="tts", provider="openai") == ["gpt-active-tts", "tts-1"]
-    assert cap.list_tts_models(provider="piper") == ["en_US-amy-medium.onnx"]
+    piper_models = cap.list_tts_models(provider="piper")
+    assert "en_US-amy-medium.onnx" in piper_models
+    assert "gpt-active-tts" not in piper_models
     assert cap.list_models(kind="stt", provider="openai")[0] == "gpt-active-stt"
 
     openai_voices = cap.list_tts_voices(provider="openai", model="tts-1")

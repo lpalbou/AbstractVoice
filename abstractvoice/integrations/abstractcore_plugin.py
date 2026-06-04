@@ -287,6 +287,12 @@ def _stt_model_ids_for_provider(provider: Any) -> list[str]:
 
 
 def _tts_provider_uses_language_models(provider: Any) -> bool:
+    return False
+
+
+def _tts_provider_accepts_language_model_selector(provider: Any) -> bool:
+    """Return true for legacy TTS model values that are actually language hints."""
+
     return _norm_engine_id(provider) == "omnivoice"
 
 
@@ -306,20 +312,46 @@ def _omnivoice_language_ids() -> list[str]:
 
 
 def _selectable_tts_model_ids_for_provider(provider: Any) -> list[str]:
-    """Return public TTS model-selector values for providers with synthetic selectors."""
+    """Return public TTS model-selector values for local providers.
 
-    if _tts_provider_uses_language_models(provider):
-        return _omnivoice_language_ids()
+    The model selector must expose actual model/checkpoint ids. Language and
+    profile/voice choices are separate concerns; older saved OmniVoice defaults
+    that used a language code as `model` are still accepted by
+    `_tts_model_language_selector`.
+    """
+
+    provider_id = _norm_engine_id(provider)
+    if provider_id == "piper":
+        try:
+            from ..adapters.tts_piper import PiperTTSAdapter
+
+            adapter = PiperTTSAdapter(language="en", allow_downloads=False, auto_load=False)
+            return _extract_tts_model_ids(adapter.list_available_models())
+        except Exception:
+            return []
+    if provider_id in {"supertonic", "omnivoice", "audiodit"}:
+        fallback = {
+            "supertonic": ["supertonic-3"],
+            "omnivoice": ["k2-fsa/OmniVoice"],
+            "audiodit": ["meituan-longcat/LongCat-AudioDiT-1B"],
+        }[provider_id]
+        try:
+            from ..compatibility import _known_tts_models
+
+            return _dedupe_strings(_known_tts_models().get(provider_id) or []) or list(fallback)
+        except Exception:
+            return list(fallback)
     return []
 
 
 def _tts_model_language_selector(provider: Any, model: Any) -> Optional[str]:
-    if not _tts_provider_uses_language_models(provider):
+    if not _tts_provider_accepts_language_model_selector(provider):
         return None
     text = str(model or "").strip().lower()
     if not text or text == "default":
         return None
-    return text
+    known_languages = {item.lower() for item in _omnivoice_language_ids()}
+    return text if text in known_languages else None
 
 
 def _resolve_tts_provider_request(provider: Any, model: Any = None) -> tuple[str, Optional[str]]:
