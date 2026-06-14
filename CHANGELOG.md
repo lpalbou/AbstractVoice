@@ -10,6 +10,14 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.18] - 2026-06-14
+
+### Fixed
+- Corrected the AbstractCore voice capability catalog so local TTS providers
+  expose real model identifiers instead of overloading the model selector with
+  language values, which restores clean provider/model discovery for Gateway
+  and AbstractFlow.
+
 ## [0.10.17] - 2026-05-29
 
 ### Added
