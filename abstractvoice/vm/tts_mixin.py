@@ -1478,6 +1478,7 @@ class TtsMixin:
         text: str,
         *,
         voice: str | None = None,
+        cancel_event: threading.Event | None = None,
         sanitize_syntax: bool = True,
         saninitze_syntax: bool | None = None,
     ):
@@ -1522,6 +1523,8 @@ class TtsMixin:
                         max_chars=120,
                         language=str(getattr(self, "language", None) or "en"),
                     ):
+                        if cancel_event is not None and cancel_event.is_set():
+                            break
                         mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
                         if mono.size <= 0:
                             continue
@@ -1574,7 +1577,7 @@ class TtsMixin:
             chunks = 0
             total_audio_s = 0.0
             try:
-                from ..tts.text_chunking import TextStreamChunker, TextStreamChunkingConfig
+                from ..tts.text_chunking import split_complete_text_for_streaming
 
                 try:
                     max_chars = int(getattr(adapter, "get_max_chars", lambda: 240)() or 240)
@@ -1583,16 +1586,23 @@ class TtsMixin:
                 if not (int(max_chars) > 0):
                     max_chars = 240
 
-                # Streaming-friendly segmentation (commas + sentence ends + hard cap).
-                chunker = TextStreamChunker(config=TextStreamChunkingConfig(max_chars=int(max_chars), min_chars=1))
-                segments = chunker.push(str(speak_text)) + chunker.flush()
+                stream_max_chars = min(int(max_chars), 240)
+                segments = split_complete_text_for_streaming(
+                    str(speak_text),
+                    max_chars=stream_max_chars,
+                    first_max_chars=min(stream_max_chars, 96),
+                )
                 if not segments:
                     segments = [str(speak_text)]
                 for seg_text in segments:
+                    if cancel_event is not None and cancel_event.is_set():
+                        break
                     seg_text = str(seg_text or "").strip()
                     if not seg_text:
                         continue
                     for chunk, sr in adapter.synthesize_to_audio_chunks(str(seg_text)):
+                        if cancel_event is not None and cancel_event.is_set():
+                            break
                         mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
                         if mono.size <= 0:
                             continue
@@ -1614,8 +1624,11 @@ class TtsMixin:
                     "ttfb_s": ttfb_s,
                     "audio_s": float(total_audio_s),
                     "rtf": (synth_s / float(total_audio_s)) if total_audio_s else None,
-                    "chunks": int(chunks),
-                    "language": str(getattr(self, "language", None) or "en"),
+                        "chunks": int(chunks),
+                        "segments": int(len(segments)),
+                        "segment_max_chars": int(stream_max_chars),
+                        "first_segment_max_chars": int(min(stream_max_chars, 96)),
+                        "language": str(getattr(self, "language", None) or "en"),
                     "speed": float(getattr(self, "speed", 1.0) or 1.0),
                     "ts": time.time(),
                 }

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import io
 import importlib.util
 import os
 import threading
+import wave
 import weakref
 from typing import Any, Dict, Optional, Union
 
@@ -95,6 +97,29 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, (list, tuple, set)):
         return [_json_safe(v) for v in value]
     return str(value)
+
+
+def _audio_chunk_to_wav_segment_bytes(audio_chunk: Any, sample_rate: Any) -> bytes:
+    """Encode one mono float/int chunk as a standalone WAV segment."""
+    import numpy as np
+
+    sr = int(sample_rate or 0)
+    if sr <= 0:
+        raise ValueError("TTS stream chunk has invalid sample_rate")
+    arr = np.asarray(audio_chunk).reshape(-1)
+    if arr.size <= 0:
+        return b""
+    if arr.dtype.kind == "f":
+        pcm = (np.clip(arr.astype(np.float32), -1.0, 1.0) * 32767.0).astype("<i2")
+    else:
+        pcm = arr.astype("<i2", copy=False)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sr)
+        wf.writeframes(pcm.tobytes())
+    return buf.getvalue()
 
 
 def _voice_profile_to_dict(profile: Any) -> Dict[str, Any]:
@@ -3747,6 +3772,268 @@ class _VoiceCapability(_BaseVoice):
             tags=tags,
             metadata=merged_meta if merged_meta else None,
         )
+
+    def tts_stream(
+        self,
+        text: str,
+        *,
+        voice: Optional[str] = None,
+        format: str = "wav",
+        model: Optional[str] = None,
+        provider: Optional[str] = None,
+        profile: Optional[str] = None,
+        speed: Optional[float] = None,
+        instructions: Optional[str] = None,
+        quality_preset: Optional[str] = None,
+        cancel_event: Optional[threading.Event] = None,
+        **_kwargs: Any,
+    ):
+        """Yield transport-safe TTS stream events without storing run artifacts.
+
+        Runtime is responsible for run-scoped final artifact truth. This method
+        only adapts AbstractVoice chunk semantics to Core's optional stream
+        capability.
+        """
+
+        fmt = str(format or "wav").strip().lower()
+        if fmt == "wave":
+            fmt = "wav"
+        if fmt != "wav":
+            raise ValueError("AbstractVoice TTS streaming currently emits wav segment chunks only")
+        instructions_value = str(instructions or _kwargs.get("instructions") or "").strip()
+        if instructions_value:
+            raise ValueError("AbstractVoice TTS streaming does not support instructions yet; use buffered TTS")
+
+        provider_id, requested_model = _resolve_tts_provider_request(provider, model)
+        voice_name = ""
+        if isinstance(voice, dict):
+            for value in (
+                voice.get("voice_id"),
+                voice.get("voice"),
+                voice.get("profile_id"),
+                voice.get("id"),
+                voice.get("name"),
+            ):
+                if isinstance(value, str) and value.strip():
+                    voice_name = value.strip()
+                    break
+            if not provider_id:
+                provider_id = _profile_provider_id(voice)
+            if not requested_model:
+                model_from_voice = _profile_model_id(voice)
+                if model_from_voice:
+                    requested_model = model_from_voice
+
+        vm = self._get_vm_for_provider(tts_provider=provider_id, tts_model=requested_model)
+        lk = self._vm_lock(vm)
+
+        def _events():
+            chunk_count = 0
+            cancelled = False
+            tts_metrics = None
+            with lk:
+                requested_language = _tts_model_language_selector(provider_id, requested_model)
+                model_name = "" if requested_language else (str(requested_model or "").strip() if isinstance(requested_model, str) else "")
+                profile_name = str(profile or _kwargs.get("profile") or "").strip()
+                local_voice_name = voice_name
+                if not local_voice_name and isinstance(voice, str) and voice.strip():
+                    local_voice_name = str(voice).strip()
+                local_voice_name = local_voice_name or None
+                quality_value = str(quality_preset or _kwargs.get("quality") or "").strip()
+                speed_value = speed if speed is not None else _kwargs.get("speed")
+                active_provider = _norm_engine_id(
+                    provider_id
+                    or getattr(vm, "_abstractvoice_tts_engine", None)
+                    or getattr(vm, "_tts_engine_name", None)
+                    or getattr(getattr(vm, "tts_adapter", None), "engine_id", None)
+                )
+                piper_voice_is_profile = False
+                sentinel = object()
+                old_vm_model = getattr(vm, "tts_model", sentinel)
+                old_language = getattr(vm, "language", sentinel)
+                old_profile_id = ""
+                adapter = getattr(vm, "tts_adapter", None)
+                old_adapter_model = getattr(adapter, "model_id", sentinel) if adapter is not None else sentinel
+                old_speed = getattr(vm, "speed", sentinel)
+                old_tts_quality = sentinel
+                old_cloned_quality = sentinel
+                applied_profile = False
+                try:
+                    if speed_value is not None and hasattr(vm, "set_speed"):
+                        try:
+                            vm.set_speed(float(speed_value))
+                        except Exception:
+                            pass
+                    if requested_language and hasattr(vm, "set_language"):
+                        try:
+                            vm.set_language(str(requested_language))
+                        except Exception:
+                            pass
+                    if (profile_name or local_voice_name) and hasattr(vm, "get_active_profile"):
+                        try:
+                            old_profile = vm.get_active_profile(kind="tts")
+                            old_profile_id = str(getattr(old_profile, "profile_id", "") or "").strip()
+                        except Exception:
+                            old_profile_id = ""
+                    if model_name:
+                        try:
+                            setattr(vm, "tts_model", model_name)
+                        except Exception:
+                            pass
+                        if adapter is not None:
+                            try:
+                                setattr(adapter, "model_id", model_name)
+                            except Exception:
+                                pass
+                        if active_provider == "piper":
+                            language = _piper_language_for_model(model_name)
+                            if language and hasattr(vm, "set_language"):
+                                vm.set_language(language)
+                    if active_provider == "piper":
+                        for candidate in (profile_name, model_name, local_voice_name):
+                            language = _piper_language_for_model(str(candidate or ""))
+                            if not language:
+                                continue
+                            if hasattr(vm, "set_language"):
+                                vm.set_language(language)
+                            if local_voice_name and str(candidate) == local_voice_name:
+                                piper_voice_is_profile = True
+                            break
+                    is_cloned_voice = False
+                    if local_voice_name and hasattr(vm, "get_cloned_voice"):
+                        try:
+                            is_cloned_voice = bool(vm.get_cloned_voice(local_voice_name))
+                        except Exception:
+                            is_cloned_voice = False
+                    if quality_value:
+                        if not is_cloned_voice and hasattr(vm, "get_tts_quality_preset"):
+                            try:
+                                old_tts_quality = vm.get_tts_quality_preset()
+                            except Exception:
+                                old_tts_quality = sentinel
+                        if is_cloned_voice and hasattr(vm, "get_cloned_tts_quality_preset"):
+                            try:
+                                old_cloned_quality = vm.get_cloned_tts_quality_preset()
+                            except Exception:
+                                old_cloned_quality = sentinel
+                        if not is_cloned_voice and hasattr(vm, "set_tts_quality_preset"):
+                            try:
+                                vm.set_tts_quality_preset(quality_value)
+                            except Exception:
+                                pass
+                        if is_cloned_voice and hasattr(vm, "set_cloned_tts_quality"):
+                            try:
+                                vm.set_cloned_tts_quality(quality_value)
+                            except Exception:
+                                pass
+                    profile_candidate = "" if is_cloned_voice else (profile_name or local_voice_name or "")
+                    if profile_candidate and hasattr(vm, "set_profile"):
+                        try:
+                            applied_profile = bool(vm.set_profile(profile_candidate, kind="tts"))
+                        except TypeError:
+                            try:
+                                applied_profile = bool(vm.set_profile(profile_candidate))
+                            except Exception:
+                                applied_profile = False
+                        except Exception:
+                            applied_profile = False
+
+                    stream_voice = None if applied_profile or piper_voice_is_profile else local_voice_name
+                    for audio_chunk, sample_rate in vm.speak_to_audio_chunks(
+                        str(text),
+                        voice=stream_voice,
+                        cancel_event=cancel_event,
+                    ):
+                        if cancel_event is not None and cancel_event.is_set():
+                            cancelled = True
+                            break
+                        audio_bytes = _audio_chunk_to_wav_segment_bytes(audio_chunk, sample_rate)
+                        if not audio_bytes:
+                            continue
+                        yield {
+                            "type": "audio",
+                            "schema": "abstractvoice.tts_stream.audio.v1",
+                            "sequence": int(chunk_count),
+                            "content_type": "audio/wav",
+                            "format": "wav",
+                            "sample_rate": int(sample_rate or 0),
+                            "channels": 1,
+                            "audio": audio_bytes,
+                            "size_bytes": len(audio_bytes),
+                            "provider": active_provider or None,
+                            "model": model_name or requested_model or None,
+                            "voice": local_voice_name,
+                            "profile": profile_name or None,
+                            "delivery": "abstractvoice_audio_chunk",
+                        }
+                        chunk_count += 1
+                    if cancel_event is not None and cancel_event.is_set():
+                        cancelled = True
+                finally:
+                    if applied_profile and old_profile_id and hasattr(vm, "set_profile"):
+                        try:
+                            vm.set_profile(old_profile_id, kind="tts")
+                        except TypeError:
+                            try:
+                                vm.set_profile(old_profile_id)
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                    if old_vm_model is not sentinel:
+                        try:
+                            setattr(vm, "tts_model", old_vm_model)
+                        except Exception:
+                            pass
+                    if old_language is not sentinel and getattr(vm, "language", None) != old_language:
+                        try:
+                            vm.set_language(old_language)
+                        except Exception:
+                            pass
+                    if adapter is not None and old_adapter_model is not sentinel:
+                        try:
+                            setattr(adapter, "model_id", old_adapter_model)
+                        except Exception:
+                            pass
+                    if old_speed is not sentinel and hasattr(vm, "set_speed"):
+                        try:
+                            vm.set_speed(float(old_speed))
+                        except Exception:
+                            try:
+                                setattr(vm, "speed", old_speed)
+                            except Exception:
+                                pass
+                    if old_tts_quality is not sentinel and hasattr(vm, "set_tts_quality_preset"):
+                        try:
+                            vm.set_tts_quality_preset(old_tts_quality)
+                        except Exception:
+                            pass
+                    if old_cloned_quality is not sentinel and hasattr(vm, "set_cloned_tts_quality"):
+                        try:
+                            vm.set_cloned_tts_quality(old_cloned_quality)
+                        except Exception:
+                            pass
+                    try:
+                        if hasattr(vm, "pop_last_tts_metrics"):
+                            tts_metrics = vm.pop_last_tts_metrics()
+                    except Exception:
+                        tts_metrics = None
+
+            yield {
+                "type": "done" if not cancelled else "cancelled",
+                "schema": "abstractvoice.tts_stream.done.v1",
+                "ok": not cancelled,
+                "cancelled": bool(cancelled),
+                "chunks": int(chunk_count),
+                "single_chunk": int(chunk_count) == 1,
+                "format": "wav",
+                "content_type": "audio/wav",
+                "metrics": _json_safe(tts_metrics) if isinstance(tts_metrics, dict) else None,
+                "delivery": "abstractvoice_audio_chunks",
+                "native_streaming": None,
+            }
+
+        return _events()
 
     def stt(
         self,

@@ -101,6 +101,53 @@ def split_text_batches(text: str, *, max_chars: int = 240) -> list[str]:
     return batches
 
 
+def split_complete_text_for_streaming(
+    text: str,
+    *,
+    max_chars: int = 240,
+    first_max_chars: int = 96,
+) -> list[str]:
+    """Split a complete text for low-latency streamed TTS delivery.
+
+    The first segment is allowed to cut at an early natural pause to minimize
+    time-to-first-audio. The remaining text is then batched with
+    `split_text_batches` so complete responses do not produce one provider call
+    per comma/colon.
+    """
+
+    try:
+        mc = int(max_chars)
+    except Exception:
+        mc = 240
+    if mc <= 0:
+        mc = 240
+    try:
+        first_mc = int(first_max_chars)
+    except Exception:
+        first_mc = 96
+    if first_mc <= 0:
+        first_mc = 96
+    first_mc = min(mc, first_mc)
+
+    s = _RE_WS.sub(" ", str(text or "")).strip()
+    if not s:
+        return []
+    if len(s) <= first_mc:
+        return [s]
+
+    cut = TextStreamChunker._find_cut_index(s, max_chars=first_mc, min_chars=1)
+    if cut is None:
+        return split_text_batches(s, max_chars=mc)
+
+    first = s[:cut].strip()
+    rest = s[cut:].strip()
+    if not first:
+        return split_text_batches(rest, max_chars=mc)
+    if not rest:
+        return [first]
+    return [first] + split_text_batches(rest, max_chars=mc)
+
+
 @dataclass(frozen=True)
 class TextStreamChunkingConfig:
     max_chars: int = 240
@@ -202,4 +249,3 @@ class TextStreamChunker:
             return upto
 
         return None
-

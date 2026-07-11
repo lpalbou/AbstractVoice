@@ -1,3 +1,7 @@
+import io
+import threading
+import wave
+
 import pytest
 
 from abstractvoice.integrations.abstractcore_plugin import _AudioCapability, _VoiceCapability, register
@@ -1219,6 +1223,40 @@ def test_voice_capability_tts_treats_active_profile_voice_as_profile_not_clone()
     assert out.startswith(b"RIFF")
     assert calls["profiles"] == ["amy", "old"]
     assert calls["speak_voice"] == [None]
+
+
+def test_voice_capability_tts_stream_emits_wav_segment_and_done_event():
+    class _VM:
+        speed = 1.0
+        language = "en"
+
+        def speak_to_audio_chunks(self, text: str, *, voice=None, cancel_event=None):
+            assert text == "hello stream"
+            assert voice is None
+            assert cancel_event is not None
+            yield [0.0, 0.25, -0.25], 24000
+
+        def pop_last_tts_metrics(self):
+            return {"chunks": 1, "streaming": True}
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    events = list(_VoiceCapability(_Owner()).tts_stream("hello stream", cancel_event=threading.Event()))
+
+    assert [event["type"] for event in events] == ["audio", "done"]
+    audio = events[0]
+    assert audio["content_type"] == "audio/wav"
+    assert audio["sequence"] == 0
+    with wave.open(io.BytesIO(audio["audio"]), "rb") as wf:
+        assert wf.getnchannels() == 1
+        assert wf.getsampwidth() == 2
+        assert wf.getframerate() == 24000
+        assert wf.getnframes() == 3
+    done = events[1]
+    assert done["ok"] is True
+    assert done["single_chunk"] is True
+    assert done["metrics"] == {"chunks": 1, "streaming": True}
 
 
 def test_voice_capability_tts_does_not_apply_cloned_voice_as_profile():
