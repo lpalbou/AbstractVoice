@@ -13,6 +13,7 @@ Design goals
 from __future__ import annotations
 
 import json
+import os
 import threading
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
@@ -149,16 +150,31 @@ def get_builtin_voice_profiles(engine_id: str) -> List[VoiceProfile]:
         if cached is not None:
             return list(cached)
 
-    # Lazy import to keep the module import-light.
+    # Resolve beside THIS module first: name-keyed resource lookups
+    # (importlib.resources/pkgutil) break when a directory named `abstractvoice`
+    # on sys.path (e.g. a serving process launched with cwd = the monorepo root)
+    # shadows the installed package as a loaderless namespace package — builtin
+    # profiles then silently vanish (live incident 2026-07-17: supertonic M1/M2).
+    raw = None
     try:
-        import importlib.resources as ir
+        module_relative = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "assets", "voice_profiles", f"{eng}_profiles.json"
+        )
+        with open(module_relative, "r", encoding="utf-8") as fh:
+            raw = fh.read()
+    except OSError:
+        raw = None
+    if raw is None:
+        # Lazy import to keep the module import-light; covers non-filesystem installs.
+        try:
+            import importlib.resources as ir
 
-        p = ir.files("abstractvoice").joinpath("assets", "voice_profiles", f"{eng}_profiles.json")
-        raw = p.read_text(encoding="utf-8")
-    except Exception:
-        with _BUILTIN_CACHE_LOCK:
-            _BUILTIN_CACHE[eng] = []
-        return []
+            p = ir.files("abstractvoice").joinpath("assets", "voice_profiles", f"{eng}_profiles.json")
+            raw = p.read_text(encoding="utf-8")
+        except Exception:
+            with _BUILTIN_CACHE_LOCK:
+                _BUILTIN_CACHE[eng] = []
+            return []
 
     profiles: List[VoiceProfile] = []
     try:

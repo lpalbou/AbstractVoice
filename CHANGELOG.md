@@ -10,6 +10,10 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Fixed
+- **Capability asset loading survives package-name shadowing (laurent's offline voice outage, 2026-07-17)**: a serving process launched with cwd = the monorepo root resolves `abstractvoice` as a loaderless NAMESPACE package (the repo checkout directory shadows the installed package on `sys.path[0]`), so `pkgutil.get_data("abstractvoice", ...)` returned `None` and every voice call died with `Capability asset not found: abstractvoice/assets/voice_model_capabilities.json` — retried as if transient, burning the effect retry budget on a deterministic import-layout error. `compatibility._load_capability_asset` now resolves the asset relative to the module's own `__file__` first (immune to the shadow: this module was imported from the real install even when the package NAME resolves to the shadow), keeps `pkgutil` as the fallback for non-filesystem installs, and when both fail raises a diagnostic error that names the attempted path and the namespace-shadow condition (`abstractvoice resolved as a NAMESPACE package from [...] — a directory named 'abstractvoice' on sys.path ... is shadowing the installed package`) instead of the honest-but-mute one-liner. Regression pins in `tests/test_compatibility_catalog.py`.
+- **Builtin voice profiles survive the same shadow (silent-degradation shape, found hunting the class)**: `voice_profiles.get_builtin_voice_profiles` resolved its JSON assets via `importlib.resources.files("abstractvoice")` — also keyed on the package NAME — and under the cwd shadow returned `[]` silently: the supertonic builtin profiles (incl. the operator's configured `M1`/`M2` voices) vanished with no error (live-verified: 10 profiles from a neutral cwd, 0 under the shadow, 10 after the fix). Now resolves module-`__file__`-relative first with `importlib.resources` as the fallback; genuinely absent engine files still return `[]` (piper has no builtin profiles file — legitimate absence, unchanged). Suite 218 green.
+
 ## [0.10.18] - 2026-06-14
 
 ### Fixed

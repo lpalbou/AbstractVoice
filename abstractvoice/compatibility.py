@@ -300,12 +300,47 @@ def _empty_surfaces(kind: CapabilityKind) -> dict[str, dict[str, CapabilitySuppo
     }
 
 
+def _read_capability_asset_bytes() -> bytes:
+    """Read the capability asset in a way that survives package-name shadowing.
+
+    ``pkgutil.get_data`` keys on the "abstractvoice" package NAME. A directory
+    named ``abstractvoice`` reachable from ``sys.path[0]`` (e.g. a serving
+    process launched with cwd = the monorepo root) resolves the package as a
+    loaderless NAMESPACE package, so ``get_data`` returns None even though this
+    module itself was imported from the real install. Resolving the asset
+    relative to THIS module file is immune to that shadow, so it goes first;
+    ``pkgutil`` stays as the fallback for non-filesystem installs.
+    """
+    asset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "voice_model_capabilities.json")
+    try:
+        with open(asset_path, "rb") as fh:
+            return fh.read()
+    except OSError:
+        pass
+
+    raw = pkgutil.get_data("abstractvoice", "assets/voice_model_capabilities.json")
+    if raw is not None:
+        return raw
+
+    import sys
+
+    detail = f"looked beside this module ({asset_path}) and via pkgutil.get_data('abstractvoice', ...)"
+    package = sys.modules.get("abstractvoice")
+    if package is not None and getattr(package, "__file__", None) is None:
+        paths = [str(item) for item in list(getattr(package, "__path__", []) or [])]
+        detail += (
+            "; 'abstractvoice' resolved as a NAMESPACE package"
+            + (f" from {paths}" if paths else "")
+            + " — a directory named 'abstractvoice' on sys.path (often the current working directory of the"
+            " serving process) is shadowing the installed package. Launch from a different cwd or remove"
+            " the shadowing entry from sys.path."
+        )
+    raise RuntimeError(f"Capability asset not found: abstractvoice/assets/voice_model_capabilities.json ({detail})")
+
+
 @lru_cache(maxsize=1)
 def _load_capability_asset() -> dict[str, Any]:
-    raw = pkgutil.get_data("abstractvoice", "assets/voice_model_capabilities.json")
-    if raw is None:
-        raise RuntimeError("Capability asset not found: abstractvoice/assets/voice_model_capabilities.json")
-    data = json.loads(raw.decode("utf-8"))
+    data = json.loads(_read_capability_asset_bytes().decode("utf-8"))
     _validate_voice_capabilities_json(data)
     return data
 

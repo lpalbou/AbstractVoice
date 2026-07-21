@@ -1,5 +1,67 @@
+import pytest
+
+from abstractvoice import compatibility
 from abstractvoice.compatibility import build_compatibility_catalog
 from abstractvoice.vm.tts_mixin import TtsMixin
+
+
+def test_capability_asset_loads_when_package_name_lookup_is_shadowed(monkeypatch) -> None:
+    # Live incident (2026-07-17): a serving process launched with cwd = the
+    # monorepo root resolved 'abstractvoice' as a loaderless namespace package;
+    # pkgutil.get_data returned None and every voice call failed with
+    # "Capability asset not found". The asset must load relative to the module
+    # file, independent of how the package NAME resolves.
+    monkeypatch.setattr(compatibility.pkgutil, "get_data", lambda *a, **k: None)
+    raw = compatibility._read_capability_asset_bytes()
+    assert raw and raw.lstrip()[:1] == b"{"
+
+
+def test_builtin_voice_profiles_load_when_package_name_lookup_is_shadowed(monkeypatch) -> None:
+    # Same shadow class, silent-degradation shape: importlib.resources keyed on
+    # the package NAME returned nothing under the cwd shadow and the supertonic
+    # builtin profiles (incl. M1/M2) silently vanished. Module-relative
+    # resolution must serve them regardless of how the name resolves.
+    import importlib.resources as ir
+
+    from abstractvoice import voice_profiles
+
+    def _refuse_files(*args, **kwargs):
+        raise ModuleNotFoundError("simulated namespace shadow")
+
+    monkeypatch.setattr(ir, "files", _refuse_files)
+    voice_profiles.clear_builtin_voice_profiles_cache()
+    try:
+        profiles = voice_profiles.get_builtin_voice_profiles("supertonic")
+        assert profiles, "supertonic builtin profiles must load module-relative under a name shadow"
+    finally:
+        voice_profiles.clear_builtin_voice_profiles_cache()
+
+
+def test_capability_asset_error_names_the_namespace_shadow(monkeypatch, tmp_path) -> None:
+    import builtins
+    import sys
+    import types
+
+    real_open = builtins.open
+
+    def _refuse_asset_open(file, *args, **kwargs):
+        if isinstance(file, str) and file.endswith("voice_model_capabilities.json"):
+            raise OSError("simulated missing asset")
+        return real_open(file, *args, **kwargs)
+
+    shadow = types.ModuleType("abstractvoice")
+    shadow.__file__ = None
+    shadow.__path__ = [str(tmp_path / "abstractvoice")]
+
+    monkeypatch.setattr(builtins, "open", _refuse_asset_open)
+    monkeypatch.setattr(compatibility.pkgutil, "get_data", lambda *a, **k: None)
+    monkeypatch.setitem(sys.modules, "abstractvoice", shadow)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        compatibility._read_capability_asset_bytes()
+    message = str(excinfo.value)
+    assert "NAMESPACE package" in message
+    assert "shadowing the installed package" in message
 
 
 def test_compatibility_catalog_contains_current_provider_inventory() -> None:
