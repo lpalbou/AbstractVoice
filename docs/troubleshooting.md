@@ -114,6 +114,32 @@ If the provider is flagged, the empty lists mean "not reached", not "nothing off
 `ABSTRACTVOICE_DISCOVERY_TIMEOUT_S` for a slow server, or fix the endpoint. If it is not flagged, the
 provider genuinely reported nothing — check the model ids configured for it.
 
+## Piper
+
+### Synthesis dies with `Error processing file '.../espeak-ng-data/phontab': No such file or directory`
+
+The path in the message points at a directory that has never existed on your machine (often under
+`/Users/runner/work/piper1-gpl/...`). The cause is an install-path length limit: espeak-ng, which
+piper's wheels bundle for phonemization, stores its data directory in a fixed 160-character buffer
+on macOS and Linux (230 on Windows). When your environment is installed at a deep path — containers,
+monorepos, Nix stores — the bundled `piper/espeak-ng-data` directory can exceed that limit, and
+espeak-ng falls back to the path compiled in on piper's build machine, then exits the process when
+it is missing.
+
+AbstractVoice handles this automatically: when the bundled directory is over the limit, synthesis
+routes espeak-ng through a short symlink under `~/.cache/abstractvoice/`, and if no short alias can
+be created it raises a clear `RuntimeError` instead of letting the process die. If you see this
+error anyway, you are on an AbstractVoice older than 0.10.20 or driving `piper` directly; either
+upgrade, install the environment at a shorter path, or pass a short
+`PiperVoice.load(..., espeak_data_dir=...)` alias yourself.
+
+Check your install's path length:
+
+```python
+from piper.phonemize_espeak import ESPEAK_DATA_DIR
+print(len(str(ESPEAK_DATA_DIR)))  # must be under 160 (macOS/Linux) for espeak-ng itself
+```
+
 ## Audio Devices
 
 ### No sound, or `PortAudioError` on start

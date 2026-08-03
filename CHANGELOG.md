@@ -10,6 +10,21 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.20] - 2026-08-04
+
+### Fixed
+- **Piper synthesis no longer crashes the host process on deep install paths.** espeak-ng, bundled
+  by piper's wheels for phonemization, keeps its data directory in a fixed 160-character buffer on
+  macOS and Linux (230 on Windows). In environments installed at deep paths — containers, monorepos,
+  Nix stores — the bundled data directory could exceed that limit, and espeak-ng would fall back to
+  a nonexistent build-machine path, print
+  `Error processing file '.../espeak-ng-data/phontab': No such file or directory`, and terminate the
+  interpreter. AbstractVoice now detects the over-limit path before espeak-ng runs and routes it
+  through a short symlink under `~/.cache/abstractvoice/`; when no short alias can be created it
+  raises a clear `RuntimeError` instead. Installs at normal paths are unaffected — the guard passes
+  piper's own defaults through untouched. Verified against piper-tts 1.4.2 through 1.6.0; see the
+  Piper section of `docs/troubleshooting.md`.
+
 ## [0.10.19] - 2026-08-03
 
 ### Changed

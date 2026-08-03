@@ -26,6 +26,71 @@ from .base import TTSAdapter
 logger = logging.getLogger(__name__)
 
 
+# espeak-ng, as vendored by piper's wheels (espeak-ng <= 1.52), stores its data
+# path in a fixed buffer: `char path_home[N_PATH_HOME]` with N_PATH_HOME 160 on
+# POSIX and 230 on Windows (libespeak-ng/speech.h). A data dir that does not fit
+# is silently REJECTED and espeak falls back to the path compiled in on piper's
+# build machine; that path does not exist on user machines, so the C library
+# prints `Error processing file '.../espeak-ng-data/phontab'` and EXITS THE HOST
+# PROCESS. Measured boundary on macOS arm64, piper-tts 1.4.2-1.6.0: a 159-char
+# data dir works, 160 kills the interpreter. Deep install prefixes (containers,
+# monorepos, nix stores) reach 160 easily.
+_ESPEAK_PATH_HOME_LIMIT = 230 if os.name == "nt" else 160
+
+
+def _espeak_data_dir_override(bundled_dir: Path, *, limit: int = _ESPEAK_PATH_HOME_LIMIT) -> Optional[Path]:
+    """The espeak data dir to pass to ``PiperVoice.load``, or None for the default.
+
+    None means piper's bundled directory fits espeak's buffer and must be left
+    alone — the zero-risk path almost every install takes. When it does not fit,
+    a short stable symlink to the same directory restores function transparently
+    (espeak reads happily through a symlink). Only when no short alias can be
+    created does this raise, so the caller reports a clear, catchable error
+    instead of letting espeak terminate the process.
+    """
+    real = Path(bundled_dir)
+    if len(str(real)) < limit:
+        return None
+
+    import hashlib
+    import tempfile
+
+    # Keyed by the real location so two installs never fight over one alias.
+    alias_name = f"espeak-{hashlib.sha1(str(real).encode()).hexdigest()[:10]}"
+    candidates = [
+        Path.home() / ".cache" / "abstractvoice" / alias_name,
+        Path(tempfile.gettempdir()) / "abstractvoice" / alias_name,
+    ]
+    failures: list[str] = []
+    for alias in candidates:
+        if len(str(alias)) >= limit:
+            failures.append(f"{alias} (still {len(str(alias))} chars)")
+            continue
+        try:
+            alias.parent.mkdir(parents=True, exist_ok=True)
+            if alias.is_symlink():
+                if alias.resolve() == real.resolve():
+                    return alias
+                alias.unlink()
+            alias.symlink_to(real, target_is_directory=True)
+            return alias
+        except OSError as e:
+            failures.append(f"{alias} ({e})")
+            continue
+
+    raise RuntimeError(
+        "Piper's espeak-ng data directory is too deep for espeak-ng's fixed path "
+        f"buffer ({len(str(real))} chars, limit {limit}):\n  {real}\n"
+        "espeak-ng would fall back to a nonexistent build-machine path and terminate "
+        "this process. Creating a short symlink alias also failed:\n  "
+        + "\n  ".join(failures)
+        + "\nFix options:\n"
+        "  - Install the environment at a shorter path\n"
+        "  - Or create a short symlink to the directory above and point "
+        "PiperVoice.load(espeak_data_dir=...) at it"
+    )
+
+
 def default_piper_model_dir() -> Path:
     """Directory Piper voice files are downloaded into."""
     return Path.home() / '.piper' / 'models'
@@ -332,12 +397,48 @@ class PiperTTSAdapter(TTSAdapter):
                         pass
             return False
     
+    def _espeak_load_kwargs(self) -> Dict[str, Any]:
+        """kwargs protecting ``PiperVoice.load`` from espeak's path-length limit.
+
+        Empty for the overwhelmingly common case (bundled data dir fits the
+        buffer), so nothing about a normal load changes. Raises instead of
+        loading when the path is over the limit and cannot be aliased or the
+        installed piper cannot accept an alias — a clear error beats espeak
+        exiting the interpreter.
+        """
+        try:
+            from piper.phonemize_espeak import ESPEAK_DATA_DIR
+        except Exception:
+            # Older piper generations resolve espeak data themselves.
+            return {}
+
+        override = _espeak_data_dir_override(Path(ESPEAK_DATA_DIR))
+        if override is None:
+            return {}
+
+        import inspect
+
+        try:
+            supported = "espeak_data_dir" in inspect.signature(self._PiperVoice.load).parameters
+        except (TypeError, ValueError):
+            supported = False
+        if not supported:
+            raise RuntimeError(
+                "Piper's espeak-ng data directory exceeds espeak-ng's path buffer "
+                f"({len(str(ESPEAK_DATA_DIR))} chars, limit {_ESPEAK_PATH_HOME_LIMIT}) and this "
+                "piper version cannot be pointed at a shorter alias "
+                "(PiperVoice.load has no espeak_data_dir parameter). "
+                "Install the environment at a shorter path, or upgrade piper-tts."
+            )
+        logger.info("Piper espeak data dir exceeds espeak-ng's path buffer; using short alias %s", override)
+        return {"espeak_data_dir": str(override)}
+
     def _load_voice(self, language: str) -> bool:
         """Load Piper voice for specified language.
-        
+
         Args:
             language: Language code
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -357,18 +458,25 @@ class PiperTTSAdapter(TTSAdapter):
         try:
             logger.debug(f"Loading Piper voice: {model_path}")
             use_cuda = bool(self._resolve_use_cuda())
+            espeak_kwargs = self._espeak_load_kwargs()
             try:
-                self._voice = self._PiperVoice.load(str(model_path), str(config_path), use_cuda=bool(use_cuda))
+                self._voice = self._PiperVoice.load(
+                    str(model_path), str(config_path), use_cuda=bool(use_cuda), **espeak_kwargs
+                )
                 self._use_cuda = bool(use_cuda)
             except TypeError:
                 # Backward-compat for older piper versions without use_cuda kwarg.
-                self._voice = self._PiperVoice.load(str(model_path), str(config_path))
+                # espeak_kwargs is only ever populated when the signature supports
+                # it, so a TypeError here means use_cuda.
+                self._voice = self._PiperVoice.load(str(model_path), str(config_path), **espeak_kwargs)
                 self._use_cuda = False
             except Exception:
                 # If CUDA was requested but runtime doesn't support it (or driver issues),
                 # fall back to CPU for robustness.
                 if use_cuda:
-                    self._voice = self._PiperVoice.load(str(model_path), str(config_path), use_cuda=False)
+                    self._voice = self._PiperVoice.load(
+                        str(model_path), str(config_path), use_cuda=False, **espeak_kwargs
+                    )
                     self._use_cuda = False
                 else:
                     raise

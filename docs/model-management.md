@@ -14,6 +14,10 @@ Piper voices are stored as small ONNX files under:
 
 - `~/.piper/models`
 
+(For installs at very deep paths, AbstractVoice may also keep a short symlink under
+`~/.cache/abstractvoice/espeak-*` pointing at piper's bundled espeak-ng data — see the Piper
+section of `docs/troubleshooting.md`.)
+
 Supertonic 3 artifacts are stored under:
 
 - `~/.cache/abstractvoice/supertonic-3`
