@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -937,6 +937,34 @@
     
   
     FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
   
 
     
@@ -2046,6 +2074,42 @@ cached model artifacts are present. The same payload also includes
 <code>known_tts_providers</code>, <code>known_stt_providers</code>, and <code>known_cloning_providers</code> so
 UI/provider selectors can distinguish installed availability from the broader
 capability catalog.</p>
+<p>Discovery has a cost model, and it is worth knowing which side of it you are on:</p>
+<ul>
+<li><strong>Local providers cost a <code>stat()</code>.</strong> "Is this model here?" is answered from the
+  model cache by <code>abstractvoice.local_models</code> — never by importing an engine or
+  building an adapter. <code>available_providers()</code>, <code>list_models()</code>, and
+  <code>voice_catalog(providers_only=True)</code> or <code>voice_catalog(provider=&lt;local&gt;)</code> never
+  load torch, transformers, or ONNX Runtime. Selecting an engine that has nothing
+  downloaded still works and still downloads on demand; it just is not <em>listed</em>
+  until its weights are on the machine.</li>
+<li><strong>Remote providers share one 5 second budget.</strong> Every provider is probed at
+  once, one task each. A provider that does not answer inside the budget gets
+  <code>tts_catalog_by_provider[provider]["unreachable"] = True</code> and no entry in
+  <code>catalogs</code>, because "we could not reach it in time" and "it has no models" are
+  different facts and its empty <code>models</code>/<code>voices</code> are ours, not its. The key is
+  only ever set when a probe was attempted and failed — its absence is no claim.
+  Override the budget with <code>ABSTRACTVOICE_DISCOVERY_TIMEOUT_S</code>; the per-request
+  socket timeout is the smaller of the budget and <code>ABSTRACTVOICE_REMOTE_TIMEOUT_S</code>.
+  A list-returning helper such as <code>list_tts_models(provider)</code> cannot express
+  "unknown", so read the flag when the difference matters.
+  <code>voice_catalog()</code> also carries <code>unreachable_tts_providers</code>. It is <strong>absent</strong> on
+  paths that contacted nobody (<code>providers_only=True</code>, a local provider filter),
+  because an empty list there would assert that every provider listed — including
+  remote ones never asked — is reachable. Absent means "not checked"; empty means
+  "checked, all reachable".</li>
+<li><strong>Engine-free</strong>: <code>available_providers()</code>, <code>list_models()</code> for every kind and
+  filter, <code>list_tts_voices(provider=...)</code>, <code>compatibility_catalog()</code>,
+  <code>capability_support()</code>, <code>find_compatible_models()</code>, and
+  <code>voice_catalog(providers_only=True)</code> / <code>voice_catalog(provider=&lt;local&gt;)</code>.</li>
+<li><strong>Builds the active engine</strong>: the unfiltered <code>voice_catalog()</code>,
+  <code>voice_catalog(provider=&lt;remote&gt;)</code>, <code>list_tts_voices()</code>, <code>list_cloned_voices()</code>,
+  and <code>list_profiles()</code>. These report the active engine's live state — its
+  profiles, its cloned voices, its STT side — and for a local engine that loads
+  its weights. It is deliberate: the light path reads cloned voices from the clone
+  store while the full one also accepts clones the manager reports, so switching
+  would silently drop the latter. Prefer the engine-free calls above for discovery.</li>
+</ul>
 <p>The provider/model/voice abstraction used by the plugin is:
 - <code>provider</code>: backend/engine id such as <code>openai</code>, <code>openai-compatible</code>,
   <code>piper</code>, <code>supertonic</code>, <code>faster-whisper</code>, or <code>transformers-asr</code>
@@ -2338,7 +2402,7 @@ compatibility remains the capability/plugin contract: clients may pass a
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

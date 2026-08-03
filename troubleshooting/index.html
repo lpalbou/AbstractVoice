@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/development/">
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/troubleshooting/">
       
       
-        <link rel="prev" href="../benchmark/">
+        <link rel="prev" href="../faq/">
       
       
-        <link rel="next" href="../adr/0001-local_assistant_out_of_box/">
+        <link rel="next" href="../known-issues/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Development - AbstractVoice</title>
+        <title>Troubleshooting - AbstractVoice</title>
       
     
     
@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#development-notes-internal" class="md-skip">
+        <a href="#troubleshooting" class="md-skip">
           Skip to content
         </a>
       
@@ -104,7 +104,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Development
+              Troubleshooting
             
           </span>
         </div>
@@ -577,18 +577,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
         
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
@@ -609,7 +611,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
@@ -652,10 +654,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../troubleshooting/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -671,6 +700,226 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation-and-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation And Imports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation And Imports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoice-command-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice: command not found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#an-engine-raises-requires-optional-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        An engine raises requires optional dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#openai-audio-requires-openai_api_key-or-remote_api_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenAI audio requires OPENAI_API_KEY or remote_api_key=...
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provider-and-model-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider And Model Discovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Provider And Model Discovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-local-engine-is-installed-but-not-listed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A local engine is installed but not listed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#my-own-checkpoint-is-not-selectable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        My own checkpoint is not selectable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listing-pauses-for-about-five-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Listing pauses for about five seconds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-provider-is-listed-with-no-models-or-voices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A provider is listed with no models or voices
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audio-devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio Devices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audio Devices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#no-sound-or-portaudioerror-on-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No sound, or PortAudioError on start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speech-is-recognized-while-the-assistant-is-speaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speech is recognized while the assistant is speaking
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#first-synthesis-is-much-slower-than-later-ones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First synthesis is much slower than later ones
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A local engine loads weights when you only wanted to browse
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#still-stuck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Still Stuck
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -743,20 +992,18 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
@@ -777,7 +1024,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -820,37 +1067,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Development
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
         
   
   
@@ -866,103 +1086,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#layout" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Layout
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#offline-first-policy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Offline-first policy
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#audio-playback-prompt-hygiene" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Audio playback + prompt hygiene
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cloned-tts-streaming-cancellation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cloned TTS (streaming + cancellation)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#memory-management-important" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Memory management (important)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tests" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tests
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ci-and-releases" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CI and releases
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1142,76 +1265,199 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#layout" class="md-nav__link">
+  <a href="#installation-and-imports" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Layout
+        Installation And Imports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation And Imports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoice-command-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice: command not found
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#offline-first-policy" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#an-engine-raises-requires-optional-dependencies" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Offline-first policy
+        An engine raises requires optional dependencies
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#audio-playback-prompt-hygiene" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#openai-audio-requires-openai_api_key-or-remote_api_key" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Audio playback + prompt hygiene
+        OpenAI audio requires OPENAI_API_KEY or remote_api_key=...
       
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#cloned-tts-streaming-cancellation" class="md-nav__link">
+  <a href="#provider-and-model-discovery" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Cloned TTS (streaming + cancellation)
+        Provider And Model Discovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Provider And Model Discovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-local-engine-is-installed-but-not-listed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A local engine is installed but not listed
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#memory-management-important" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#my-own-checkpoint-is-not-selectable" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Memory management (important)
+        My own checkpoint is not selectable
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#tests" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#listing-pauses-for-about-five-seconds" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tests
+        Listing pauses for about five seconds
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#ci-and-releases" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#a-provider-is-listed-with-no-models-or-voices" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CI and releases
+        A provider is listed with no models or voices
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audio-devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio Devices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audio Devices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#no-sound-or-portaudioerror-on-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No sound, or PortAudioError on start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speech-is-recognized-while-the-assistant-is-speaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speech is recognized while the assistant is speaking
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#first-synthesis-is-much-slower-than-later-ones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First synthesis is much slower than later ones
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A local engine loads weights when you only wanted to browse
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#still-stuck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Still Stuck
       
     </span>
   </a>
@@ -1238,98 +1484,105 @@
   
 
 
-<h1 id="development-notes-internal">Development notes (internal)<a class="headerlink" href="#development-notes-internal" title="Permanent link">&para;</a></h1>
-<p>This document is for contributors. User-facing docs live in:</p>
+<h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
+<p>Symptom-oriented fixes for the problems users hit most often. Each entry names what you see, why it
+happens, and what to do.</p>
+<p>Related pages:</p>
 <ul>
-<li><code>README.md</code></li>
-<li><code>docs/repl_guide.md</code></li>
-<li><code>docs/installation.md</code></li>
+<li><code>docs/installation.md</code> — install commands, extras, and audio device setup per platform</li>
+<li><code>docs/known-issues.md</code> — tracked defects and engine caveats in this release</li>
+<li><code>docs/faq.md</code> — conceptual questions and offline-first behavior</li>
+<li><code>docs/model-management.md</code> — cache locations and what gets downloaded when</li>
 </ul>
-<h2 id="layout">Layout<a class="headerlink" href="#layout" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>abstractvoice/vm/</code> — <code>VoiceManager</code> façade + mixins (TTS/STT/cloning orchestration)</li>
-<li><code>abstractvoice/adapters/</code> — adapter implementations (Piper / Supertonic / AudioDiT / OmniVoice TTS; Faster-Whisper STT)</li>
-<li><code>abstractvoice/supertonic/</code> — internal Supertonic 3 ONNX runtime; no external Supertonic SDK dependency</li>
-<li><code>abstractvoice/audiodit/</code> — AudioDiT runtime + HF model implementation (vendored code; avoids <code>trust_remote_code</code>)</li>
-<li><code>abstractvoice/qwen3_asr/</code> — Qwen3-ASR Transformers implementation (vendored code; avoids <code>trust_remote_code</code>)</li>
-<li><code>abstractvoice/omnivoice/</code> — OmniVoice runtime wrapper (offline-first + device/dtype policy glue)</li>
-<li><code>abstractvoice/tts/</code> — audio playback utilities (<code>NonBlockingAudioPlayer</code>)</li>
-<li><code>abstractvoice/cloning/</code> — optional cloning engines + voice store (<code>f5_tts</code> / <code>chroma</code> / <code>audiodit</code> / <code>omnivoice</code>)</li>
-<li><code>abstractvoice/examples/</code> — REPL and demo entrypoints</li>
-</ul>
-<h2 id="offline-first-policy">Offline-first policy<a class="headerlink" href="#offline-first-policy" title="Permanent link">&para;</a></h2>
-<ul>
-<li>The REPL (<code>python -m abstractvoice cli</code>) runs with <code>allow_downloads=False</code>.</li>
-<li>Any network download must be explicit:</li>
-<li><code>python -m abstractvoice download ...</code></li>
-<li><code>abstractvoice-prefetch ...</code></li>
-<li>REPL: <code>/cloning_download ...</code></li>
-</ul>
-<p>Implementation points:</p>
-<ul>
-<li>Piper downloads are gated in <code>abstractvoice/adapters/tts_piper.py</code>.</li>
-<li>Supertonic downloads are gated in <code>abstractvoice/supertonic/runtime.py</code> and exposed via <code>--supertonic</code>.</li>
-<li>Faster-Whisper offline mode is enforced in <code>abstractvoice/adapters/stt_faster_whisper.py</code>.</li>
-<li>Transformers ASR offline mode is enforced in <code>abstractvoice/adapters/stt_transformers_asr.py</code>.</li>
-<li>Torch engine snapshots are resolved offline-first in their runtimes (<code>abstractvoice/audiodit/runtime.py</code>, <code>abstractvoice/omnivoice/runtime.py</code>).</li>
-<li>Cloning downloads are explicit per engine (<code>abstractvoice/cloning/engine_f5.py</code>, <code>abstractvoice/cloning/engine_chroma.py</code>, <code>abstractvoice/cloning/engine_audiodit.py</code>, <code>abstractvoice/cloning/engine_omnivoice.py</code>).</li>
-</ul>
-<h2 id="audio-playback-prompt-hygiene">Audio playback + prompt hygiene<a class="headerlink" href="#audio-playback-prompt-hygiene" title="Permanent link">&para;</a></h2>
-<p><code>abstractvoice/tts/tts_engine.py</code> provides:</p>
-<ul>
-<li><code>NonBlockingAudioPlayer</code> (pause/resume/stop)</li>
-<li><code>_SilenceStderrFD</code> to suppress OS-level stderr spam that can corrupt terminal UI</li>
-</ul>
-<p>The REPL avoids printing the prompt manually to prevent duplicate prompts (<code>&gt; &gt;</code>).</p>
-<h2 id="cloned-tts-streaming-cancellation">Cloned TTS (streaming + cancellation)<a class="headerlink" href="#cloned-tts-streaming-cancellation" title="Permanent link">&para;</a></h2>
-<p>Cloned synthesis runs in a background thread in <code>abstractvoice/vm/tts_mixin.py</code>:</p>
-<ul>
-<li>cancellation token per utterance (<code>_cloned_cancel_event</code>)</li>
-<li>optional streaming (<code>cloned_tts_streaming</code>)</li>
-<li>per-utterance metrics are recorded for verbose REPL output</li>
-</ul>
-<h2 id="memory-management-important">Memory management (important)<a class="headerlink" href="#memory-management-important" title="Permanent link">&para;</a></h2>
-<p>Cloning engines can be very large (especially Chroma). The REPL:</p>
-<ul>
-<li>unloads other cloning engines when switching cloned voices</li>
-<li>unloads the Piper voice while using cloned voices</li>
-</ul>
-<p>Core support:</p>
-<ul>
-<li><code>abstractvoice/cloning/manager.py</code>: engine cache + <code>unload_*</code> helpers</li>
-<li>engines implement <code>unload()</code> best-effort (GC + torch cache clears)</li>
-</ul>
-<h2 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q
+<h2 id="installation-and-imports">Installation And Imports<a class="headerlink" href="#installation-and-imports" title="Permanent link">&para;</a></h2>
+<h3 id="abstractvoice-command-not-found"><code>abstractvoice: command not found</code><a class="headerlink" href="#abstractvoice-command-not-found" title="Permanent link">&para;</a></h3>
+<p>The console script is installed into the environment's <code>bin</code>/<code>Scripts</code> directory. If you installed
+with <code>pip install --user</code> or a different interpreter, that directory may not be on <code>PATH</code>. Run the
+module form instead, which always works from the interpreter that has the package:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli
 </code></pre></div>
-<p>For CI/release runs, the default pytest config skips optional integration,
-model-download, and slow tests (see <code>pyproject.toml</code> <code>addopts</code>).</p>
-<p>To run the heavier buckets explicitly:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>-m<span class="w"> </span>integration
-python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>-m<span class="w"> </span>model_download
-python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>-m<span class="w"> </span>slow
+<h3 id="an-engine-raises-requires-optional-dependencies">An engine raises <code>requires optional dependencies</code><a class="headerlink" href="#an-engine-raises-requires-optional-dependencies" title="Permanent link">&para;</a></h3>
+<p>Local engines ship behind extras so the base install stays remote-only. Install the matching extra:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[piper]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[supertonic]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audiodit]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span>
 </code></pre></div>
-<h2 id="ci-and-releases">CI and releases<a class="headerlink" href="#ci-and-releases" title="Permanent link">&para;</a></h2>
-<p>AbstractVoice mirrors the AbstractCore release shape:</p>
-<ul>
-<li><code>.github/workflows/ci.yml</code> runs tests on Python 3.9-3.12 and verifies that
-  source/wheel distributions build and pass <code>twine check</code>; it also smoke-builds
-  the MkDocs site.</li>
-<li><code>.github/workflows/release.yml</code> runs the same test gate, validates that the
-  requested tag matches <code>abstractvoice/_version.py</code>, extracts release notes from
-  <code>CHANGELOG.md</code>, publishes to PyPI via trusted publishing, and creates a GitHub
-  Release with the built distributions attached. Release runs also publish the
-  MkDocs site to the <code>gh-pages</code> branch.</li>
-</ul>
-<p>Release checklist:</p>
-<ol>
-<li>Update <code>abstractvoice/_version.py</code> (<code>__version__</code>, the single version source).</li>
-<li>Move <code>CHANGELOG.md</code> notes from <code>[Unreleased]</code> into a dated version section.</li>
-<li>Push a tag like <code>v0.9.1</code>, or run the <code>Release</code> workflow manually with
-   <code>version=0.9.1</code>.</li>
-</ol>
-<p>The PyPI workflow expects a GitHub environment named <code>pypi</code> configured for
-trusted publishing on the <code>abstractvoice</code> project.</p>
+<p>Profile bundles install several at once: <code>abstractvoice[all-apple]</code>, <code>abstractvoice[all-gpu]</code>.</p>
+<h3 id="openai-audio-requires-openai_api_key-or-remote_api_key"><code>OpenAI audio requires OPENAI_API_KEY or remote_api_key=...</code><a class="headerlink" href="#openai-audio-requires-openai_api_key-or-remote_api_key" title="Permanent link">&para;</a></h3>
+<p>The library default is remote-first. Either export a key, point at an OpenAI-compatible server, or
+select a local engine explicitly:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...
+<span class="c1"># or</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_BASE_URL</span><span class="o">=</span>http://localhost:8000/v1
+<span class="c1"># or</span>
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli<span class="w"> </span>--tts-engine<span class="w"> </span>supertonic
+</code></pre></div>
+<h2 id="provider-and-model-discovery">Provider And Model Discovery<a class="headerlink" href="#provider-and-model-discovery" title="Permanent link">&para;</a></h2>
+<h3 id="a-local-engine-is-installed-but-not-listed">A local engine is installed but not listed<a class="headerlink" href="#a-local-engine-is-installed-but-not-listed" title="Permanent link">&para;</a></h3>
+<p>Discovery lists a local engine when its runtime is installed <strong>and</strong> at least one of its models is on
+this machine. Installing the extra alone is not enough. Prefetch the engine:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--audiodit
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--omnivoice
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--supertonic
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>en
+</code></pre></div>
+<p>Then confirm what the cache actually holds:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.local_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">cached_tts_model_ids</span>
+
+<span class="n">cached_tts_model_ids</span><span class="p">(</span><span class="s2">&quot;audiodit&quot;</span><span class="p">)</span>
+<span class="n">cached_tts_model_ids</span><span class="p">(</span><span class="s2">&quot;piper&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>An empty list after a successful prefetch usually means the download landed in a different cache than
+the one being read. Discovery reads the standard Hugging Face cache, so check <code>HF_HOME</code> and
+<code>HF_HUB_CACHE</code> are the same for the prefetch and for the process doing the listing. A partially
+downloaded snapshot also reads as absent on purpose: a snapshot counts only when it holds weights.</p>
+<p>Selecting an unlisted engine still works and still downloads on demand when <code>allow_downloads=True</code>.
+Only the listing is affected.</p>
+<h3 id="my-own-checkpoint-is-not-selectable">My own checkpoint is not selectable<a class="headerlink" href="#my-own-checkpoint-is-not-selectable" title="Permanent link">&para;</a></h3>
+<p>A checkpoint set through <code>ABSTRACTVOICE_TTS_MODEL</code> counts for the engine you selected with
+<code>ABSTRACTVOICE_TTS_ENGINE</code>, and only when it is cached or is a local directory containing weights.
+Set both:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">ABSTRACTVOICE_TTS_ENGINE</span><span class="o">=</span>audiodit
+<span class="nb">export</span><span class="w"> </span><span class="nv">ABSTRACTVOICE_TTS_MODEL</span><span class="o">=</span>myorg/my-audiodit-finetune
+</code></pre></div>
+<p>Integrators passing a config dict use <code>voice_tts_engine</code> and <code>voice_tts_model</code> for the same effect.</p>
+<h3 id="listing-pauses-for-about-five-seconds">Listing pauses for about five seconds<a class="headerlink" href="#listing-pauses-for-about-five-seconds" title="Permanent link">&para;</a></h3>
+<p>A configured remote provider is unreachable. All remote providers are probed at once under a single
+5-second budget, so this is one pause for the whole listing rather than one per provider. Lower it
+with <code>ABSTRACTVOICE_DISCOVERY_TIMEOUT_S</code>, or unset <code>OPENAI_BASE_URL</code> if it points somewhere that is
+no longer running.</p>
+<h3 id="a-provider-is-listed-with-no-models-or-voices">A provider is listed with no models or voices<a class="headerlink" href="#a-provider-is-listed-with-no-models-or-voices" title="Permanent link">&para;</a></h3>
+<p>Check whether it was reachable. <code>voice_catalog()</code> marks a provider it could not reach in time rather
+than reporting it as empty:</p>
+<div class="highlight"><pre><span></span><code><span class="n">catalog</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">voice_catalog</span><span class="p">()</span>
+<span class="n">catalog</span><span class="p">[</span><span class="s2">&quot;unreachable_tts_providers&quot;</span><span class="p">]</span>
+<span class="n">catalog</span><span class="p">[</span><span class="s2">&quot;tts_catalog_by_provider&quot;</span><span class="p">][</span><span class="s2">&quot;openai&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;unreachable&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>If the provider is flagged, the empty lists mean "not reached", not "nothing offered". Raise
+<code>ABSTRACTVOICE_DISCOVERY_TIMEOUT_S</code> for a slow server, or fix the endpoint. If it is not flagged, the
+provider genuinely reported nothing — check the model ids configured for it.</p>
+<h2 id="audio-devices">Audio Devices<a class="headerlink" href="#audio-devices" title="Permanent link">&para;</a></h2>
+<h3 id="no-sound-or-portaudioerror-on-start">No sound, or <code>PortAudioError</code> on start<a class="headerlink" href="#no-sound-or-portaudioerror-on-start" title="Permanent link">&para;</a></h3>
+<p>Platform setup differs; see the audio device section of <code>docs/installation.md</code> for macOS, Linux, and
+Windows. Common causes are a missing PortAudio system package on Linux, an unset default output
+device, and microphone permission not yet granted on macOS.</p>
+<h3 id="speech-is-recognized-while-the-assistant-is-speaking">Speech is recognized while the assistant is speaking<a class="headerlink" href="#speech-is-recognized-while-the-assistant-is-speaking" title="Permanent link">&para;</a></h3>
+<p>That is echo, and voice modes control it. See the voice modes entry in <code>docs/faq.md</code> and the
+coordination section of <code>docs/architecture.md</code>.</p>
+<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
+<h3 id="first-synthesis-is-much-slower-than-later-ones">First synthesis is much slower than later ones<a class="headerlink" href="#first-synthesis-is-much-slower-than-later-ones" title="Permanent link">&para;</a></h3>
+<p>The first call loads the model and opens the audio device. Prefetch weights ahead of time, and
+<code>AdapterTTSEngine.warmup_audio_output()</code> opens the playback stream before the first utterance.</p>
+<h3 id="a-local-engine-loads-weights-when-you-only-wanted-to-browse">A local engine loads weights when you only wanted to browse<a class="headerlink" href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" title="Permanent link">&para;</a></h3>
+<p>Reach for the discovery calls, which never load an engine: <code>available_providers()</code>,
+<code>list_models(...)</code>, <code>list_tts_voices(provider=...)</code>, and <code>voice_catalog(providers_only=True)</code> or
+<code>voice_catalog(provider=&lt;local&gt;)</code>. The unfiltered <code>voice_catalog()</code>, <code>list_profiles()</code>, and
+<code>list_cloned_voices()</code> report the active engine's live state and so build it. See the cost model in
+<code>docs/api.md</code>.</p>
+<h2 id="still-stuck">Still Stuck<a class="headerlink" href="#still-stuck" title="Permanent link">&para;</a></h2>
+<p>Open an issue with the platform, Python version, install extras, the exact command, and the full
+traceback: <code>.github/ISSUE_TEMPLATE/bug_report.yml</code>. For security reports, follow <code>SECURITY.md</code>.</p>
 
 
 

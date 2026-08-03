@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -517,6 +517,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#discovery-reads-the-cache-not-the-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovery reads the cache, not the engine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#programmatic-introspection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -728,6 +739,34 @@
     
   
     FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
   
 
     
@@ -1103,6 +1142,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#discovery-reads-the-cache-not-the-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovery reads the cache, not the engine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#programmatic-introspection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1186,6 +1236,59 @@
 <li><strong>OmniVoice</strong>: <code>python -m abstractvoice download --omnivoice</code> (requires <code>abstractvoice[omnivoice]</code>; recommended/default local cloning backend)</li>
 </ul>
 <p>In offline-first mode (<code>allow_downloads=False</code>) these engines will <strong>not</strong> fetch missing weights implicitly.</p>
+<h2 id="discovery-reads-the-cache-not-the-engine">Discovery reads the cache, not the engine<a class="headerlink" href="#discovery-reads-the-cache-not-the-engine" title="Permanent link">&para;</a></h2>
+<p>Asking which providers and models are available is a filesystem question, and AbstractVoice answers
+it that way. A local engine is listed once two things are true:</p>
+<ol>
+<li>its runtime is installed (the optional extra), and</li>
+<li>at least one of its models is on this machine.</li>
+</ol>
+<p>Nothing about that question loads a model, imports torch, or builds an engine, so provider and model
+listing stays fast even when heavy engines are installed. Where presence is read from:</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Presence is</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>piper</code></td>
+<td>a downloaded voice pair (<code>.onnx</code> + <code>.onnx.json</code>)</td>
+<td><code>~/.piper/models</code></td>
+</tr>
+<tr>
+<td><code>supertonic</code></td>
+<td>the full ONNX + voice-style set</td>
+<td><code>~/.cache/abstractvoice/supertonic-3</code></td>
+</tr>
+<tr>
+<td><code>audiodit</code></td>
+<td>a cached Hugging Face snapshot holding weights</td>
+<td><code>~/.cache/huggingface</code></td>
+</tr>
+<tr>
+<td><code>omnivoice</code></td>
+<td>a cached Hugging Face snapshot holding weights</td>
+<td><code>~/.cache/huggingface</code></td>
+</tr>
+</tbody>
+</table>
+<p>A consequence worth knowing: an engine whose extra is installed but whose weights are not downloaded
+yet does <strong>not</strong> appear in provider listings. Selecting it still works and still downloads on demand
+when <code>allow_downloads=True</code> — only discovery is affected. Prefetch it (see above) to have it listed.</p>
+<p>If you point an engine at your own checkpoint with <code>ABSTRACTVOICE_TTS_MODEL</code> (or <code>voice_tts_model</code> in
+an integrator config), that id is discoverable too, as long as it is cached or is a local directory
+containing weights. It counts only for the engine you selected with <code>ABSTRACTVOICE_TTS_ENGINE</code>.</p>
+<p><code>abstractvoice.local_models</code> exposes this directly:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.local_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">cached_tts_model_ids</span><span class="p">,</span> <span class="n">hf_repo_is_cached</span>
+
+<span class="n">cached_tts_model_ids</span><span class="p">(</span><span class="s2">&quot;piper&quot;</span><span class="p">)</span>       <span class="c1"># [&#39;en_US-amy-medium&#39;, ...] — only what is downloaded</span>
+<span class="n">cached_tts_model_ids</span><span class="p">(</span><span class="s2">&quot;audiodit&quot;</span><span class="p">)</span>    <span class="c1"># [] until the weights are prefetched</span>
+<span class="n">hf_repo_is_cached</span><span class="p">(</span><span class="s2">&quot;k2-fsa/OmniVoice&quot;</span><span class="p">)</span>
+</code></pre></div>
 <h2 id="programmatic-introspection">Programmatic introspection<a class="headerlink" href="#programmatic-introspection" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>vm.list_available_models()</code> returns a dict of known Piper voices or Supertonic styles, including cache status when the active adapter exposes it.</li>
@@ -1261,7 +1364,7 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

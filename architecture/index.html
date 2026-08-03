@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -818,6 +818,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../known-issues/" class="md-nav__link">
         
   
@@ -1338,6 +1366,7 @@ caveats.</p>
 <li>Supertonic adapter/runtime: <code>abstractvoice/adapters/tts_supertonic.py</code>, <code>abstractvoice/supertonic/runtime.py</code></li>
 <li>Remote OpenAI-compatible TTS adapter: <code>abstractvoice/adapters/tts_openai_compatible.py</code> + <code>abstractvoice/adapters/openai_compatible_http.py</code></li>
 <li>TTS engine selection (registry): <code>abstractvoice/adapters/tts_registry.py</code></li>
+<li>Local model presence (filesystem only, no engine imports): <code>abstractvoice/local_models.py</code></li>
 <li>AudioDiT adapter/runtime: <code>abstractvoice/adapters/tts_audiodit.py</code>, <code>abstractvoice/audiodit/runtime.py</code></li>
 <li>OmniVoice adapter/runtime: <code>abstractvoice/adapters/tts_omnivoice.py</code>, <code>abstractvoice/omnivoice/runtime.py</code></li>
 <li>TTS engine wrapper (back-compat contract): <code>abstractvoice/tts/adapter_tts_engine.py</code></li>
@@ -1420,6 +1449,15 @@ voice selections do not bleed across engine changes.
 the first utterance; <code>NonBlockingAudioPlayer</code> prefers the hardware default
 output sample rate and resamples synthesized audio when needed, avoiding slow
 first-call CoreAudio negotiation on macOS.</p>
+<p>Discovery follows the same policy from the other direction: asking which providers and models are
+available is a filesystem question, answered by <code>abstractvoice/local_models.py</code> without importing an
+engine runtime or loading weights. A local engine is discoverable when its runtime is importable and
+at least one of its models is cached; engines that download Hugging Face repos are matched against
+the shared HF cache, while <code>piper</code> and <code>supertonic</code> expose their own cache probes
+(<code>cached_piper_model_ids</code>, <code>cached_piper_voice_profiles</code>, <code>is_supertonic_cached</code>). Remote providers
+are probed concurrently under a single discovery budget, so a listing costs the slowest provider
+rather than the sum of their timeouts, and a provider that does not answer is reported as unreachable
+rather than as one with nothing to offer.</p>
 <p>Explicit prefetch entry points:
 - <code>python -m abstractvoice download ...</code> (<code>abstractvoice/__main__.py</code>)
 - <code>abstractvoice-prefetch ...</code> (<code>abstractvoice/prefetch.py</code>)</p>
@@ -1507,7 +1545,7 @@ endpoints such as <code>POST /v1/audio/speech</code> and <code>POST /v1/audio/tr
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

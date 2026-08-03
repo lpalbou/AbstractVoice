@@ -16,14 +16,14 @@
         <link rel="prev" href="../voices-and-licenses/">
       
       
-        <link rel="next" href="../known-issues/">
+        <link rel="next" href="../troubleshooting/">
       
       
         
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -844,6 +844,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#i-installed-an-engines-extra-so-why-is-it-missing-from-the-provider-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I installed an engine's extra, so why is it missing from the provider list?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-does-listing-providers-sometimes-pause-for-a-few-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why does listing providers sometimes pause for a few seconds?
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1142,6 +1164,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1642,6 +1692,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#i-installed-an-engines-extra-so-why-is-it-missing-from-the-provider-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I installed an engine's extra, so why is it missing from the provider list?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-does-listing-providers-sometimes-pause-for-a-few-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why does listing providers sometimes pause for a few seconds?
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2084,6 +2156,23 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 </code></pre></div>
 <p>Install the matching extra before prefetching optional engines, for example
 <code>pip install "abstractvoice[omnivoice]"</code>.</p>
+<h3 id="i-installed-an-engines-extra-so-why-is-it-missing-from-the-provider-list">I installed an engine's extra, so why is it missing from the provider list?<a class="headerlink" href="#i-installed-an-engines-extra-so-why-is-it-missing-from-the-provider-list" title="Permanent link">&para;</a></h3>
+<p>Provider discovery lists a local engine when its runtime is installed <strong>and</strong> at least one of its
+models is on this machine. An extra on its own is not enough. Prefetch the engine and it appears:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--audiodit
+</code></pre></div>
+<p>You can still select an unlisted engine, and with <code>allow_downloads=True</code> it downloads on demand;
+only the listing is affected. See <code>docs/model-management.md</code> for where each engine's presence is
+read from, and <code>docs/troubleshooting.md</code> if prefetching did not change the listing.</p>
+<h3 id="why-does-listing-providers-sometimes-pause-for-a-few-seconds">Why does listing providers sometimes pause for a few seconds?<a class="headerlink" href="#why-does-listing-providers-sometimes-pause-for-a-few-seconds" title="Permanent link">&para;</a></h3>
+<p>Remote providers are asked over the network. Every configured remote provider is probed at once, and
+the whole listing shares one budget of 5 seconds, so an unreachable host costs five seconds total
+rather than one timeout per provider. Local engines are not affected — they answer from the cache.</p>
+<p>Tune the budget with <code>ABSTRACTVOICE_DISCOVERY_TIMEOUT_S</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">ABSTRACTVOICE_DISCOVERY_TIMEOUT_S</span><span class="o">=</span><span class="m">2</span><span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>cli
+</code></pre></div>
+<p>A provider that does not answer in time is reported as unreachable rather than as a provider with no
+models, so an unavailable server is distinguishable from an empty one. See <code>docs/api.md</code>.</p>
 <h2 id="repl-usage">REPL Usage<a class="headerlink" href="#repl-usage" title="Permanent link">&para;</a></h2>
 <h3 id="can-i-use-the-repl-without-an-llm-server">Can I use the REPL without an LLM server?<a class="headerlink" href="#can-i-use-the-repl-without-an-llm-server" title="Permanent link">&para;</a></h3>
 <p>Yes. Use <code>/speak &lt;text&gt;</code> to test the configured TTS engine directly:</p>
@@ -2372,7 +2461,7 @@ generated voice assets.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
