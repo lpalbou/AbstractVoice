@@ -828,6 +828,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#piper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Piper
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Piper">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#synthesis-dies-with-error-processing-file-espeak-ng-dataphontab-no-such-file-or-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Synthesis dies with Error processing file '.../espeak-ng-data/phontab': No such file or directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#audio-devices" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1376,6 +1404,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#piper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Piper
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Piper">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#synthesis-dies-with-error-processing-file-espeak-ng-dataphontab-no-such-file-or-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Synthesis dies with Error processing file '.../espeak-ng-data/phontab': No such file or directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#audio-devices" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1562,6 +1618,25 @@ than reporting it as empty:</p>
 <p>If the provider is flagged, the empty lists mean "not reached", not "nothing offered". Raise
 <code>ABSTRACTVOICE_DISCOVERY_TIMEOUT_S</code> for a slow server, or fix the endpoint. If it is not flagged, the
 provider genuinely reported nothing — check the model ids configured for it.</p>
+<h2 id="piper">Piper<a class="headerlink" href="#piper" title="Permanent link">&para;</a></h2>
+<h3 id="synthesis-dies-with-error-processing-file-espeak-ng-dataphontab-no-such-file-or-directory">Synthesis dies with <code>Error processing file '.../espeak-ng-data/phontab': No such file or directory</code><a class="headerlink" href="#synthesis-dies-with-error-processing-file-espeak-ng-dataphontab-no-such-file-or-directory" title="Permanent link">&para;</a></h3>
+<p>The path in the message points at a directory that has never existed on your machine (often under
+<code>/Users/runner/work/piper1-gpl/...</code>). The cause is an install-path length limit: espeak-ng, which
+piper's wheels bundle for phonemization, stores its data directory in a fixed 160-character buffer
+on macOS and Linux (230 on Windows). When your environment is installed at a deep path — containers,
+monorepos, Nix stores — the bundled <code>piper/espeak-ng-data</code> directory can exceed that limit, and
+espeak-ng falls back to the path compiled in on piper's build machine, then exits the process when
+it is missing.</p>
+<p>AbstractVoice handles this automatically: when the bundled directory is over the limit, synthesis
+routes espeak-ng through a short symlink under <code>~/.cache/abstractvoice/</code>, and if no short alias can
+be created it raises a clear <code>RuntimeError</code> instead of letting the process die. If you see this
+error anyway, you are on an AbstractVoice older than 0.10.20 or driving <code>piper</code> directly; either
+upgrade, install the environment at a shorter path, or pass a short
+<code>PiperVoice.load(..., espeak_data_dir=...)</code> alias yourself.</p>
+<p>Check your install's path length:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">piper.phonemize_espeak</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESPEAK_DATA_DIR</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ESPEAK_DATA_DIR</span><span class="p">)))</span>  <span class="c1"># must be under 160 (macOS/Linux) for espeak-ng itself</span>
+</code></pre></div>
 <h2 id="audio-devices">Audio Devices<a class="headerlink" href="#audio-devices" title="Permanent link">&para;</a></h2>
 <h3 id="no-sound-or-portaudioerror-on-start">No sound, or <code>PortAudioError</code> on start<a class="headerlink" href="#no-sound-or-portaudioerror-on-start" title="Permanent link">&para;</a></h3>
 <p>Platform setup differs; see the audio device section of <code>docs/installation.md</code> for macOS, Linux, and
