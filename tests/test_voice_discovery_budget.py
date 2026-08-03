@@ -531,6 +531,7 @@ def test_a_configured_checkpoint_is_discoverable_through_config_and_env(monkeypa
     reach discovery, and neither may hand one engine's checkpoint to its siblings."""
     import abstractvoice.integrations.abstractcore_plugin as plugin
 
+    pytest.importorskip("huggingface_hub")
     hub = tmp_path / "hub"
     snapshot = hub / "models--myorg--my-finetune" / "snapshots" / "abc"
     snapshot.mkdir(parents=True)

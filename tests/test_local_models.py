@@ -26,11 +26,35 @@ def _write_snapshot(hub: Path, repo_id: str, *filenames: str) -> Path:
 
 @pytest.fixture()
 def hub(tmp_path, monkeypatch):
-    """An empty Hugging Face hub cache for the duration of a test."""
+    """An empty Hugging Face hub cache for the duration of a test.
+
+    `huggingface_hub` ships with the extras of the engines that download from the Hub,
+    so it is absent from a base install. Tests about the cache layout need it; the
+    behavior when it is missing is covered separately below.
+    """
+    pytest.importorskip("huggingface_hub")
     cache = tmp_path / "hub"
     cache.mkdir()
     monkeypatch.setattr("huggingface_hub.constants.HF_HUB_CACHE", str(cache))
     return cache
+
+
+def test_hf_repo_is_not_cached_without_huggingface_hub(monkeypatch):
+    """A base install has no `huggingface_hub`, so nothing can have been downloaded
+    from the Hub. That must read as absent, not raise."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _no_hub(name, *args, **kwargs):
+        if name.startswith("huggingface_hub"):
+            raise ImportError("no huggingface_hub in this install")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _no_hub)
+
+    assert local_models.hf_repo_is_cached("k2-fsa/OmniVoice") is False
+    assert local_models.cached_tts_model_ids("audiodit") == []
 
 
 def test_hf_repo_is_cached_finds_a_downloaded_snapshot(hub):

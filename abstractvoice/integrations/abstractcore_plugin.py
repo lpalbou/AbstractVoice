@@ -25,6 +25,15 @@ _REMOTE_DISCOVERY_TIMEOUT_S = 5.0
 # with it, and the active manager is reached directly rather than by engine id.
 _ACTIVE_PROBE = object()
 
+# Local TTS providers the catalog can describe from disk. This is "which providers
+# are local", a fixed fact, and is what decides whether a provider-filtered listing
+# takes the light path. Whether one is currently INSTALLED and cached is a different
+# question -- `_catalog_safe_local_tts_engines` -- and must not decide the route: a
+# filter for an uninstalled local provider that fell through to the full catalog
+# would build the ACTIVE engine to answer, which is both slow and, when that engine's
+# extra is missing, a crash.
+_CATALOG_LOCAL_TTS_PROVIDER_IDS = frozenset({"piper", "supertonic", "audiodit", "omnivoice"})
+
 
 # THE RULE FOR EVERY FIELD IN A DISCOVERY PAYLOAD, not just the ones below:
 # no field may report the absence of DATA as the absence of the THING. If we did not
@@ -715,7 +724,7 @@ def _catalog_safe_local_tts_engines(candidates_for: Any = None) -> list[str]:
     return [
         engine
         for engine in _local_tts_engines()
-        if _norm_engine_id(engine) in {"piper", "supertonic", "audiodit", "omnivoice"}
+        if _norm_engine_id(engine) in _CATALOG_LOCAL_TTS_PROVIDER_IDS
         and _local_tts_engine_available(engine, candidates_for(engine) if candidates_for else ())
     ]
 
@@ -2488,6 +2497,23 @@ class _BaseVoice:
         """`_selectable_tts_model_ids_for_provider`, aware of this owner's checkpoints."""
         return _selectable_tts_model_ids_for_provider(provider, self._configured_local_tts_model_ids(provider))
 
+    def _local_provider_answerable_from_disk(self, provider_id: str) -> bool:
+        """True when a provider-filtered listing should use the light catalog.
+
+        A local provider is described from the cache when the cache has something to
+        say about it, and also when the only alternative would be BUILDING the active
+        engine — that loads one engine's weights to answer about a different provider,
+        and raises outright when the active engine's extra is not installed.
+
+        An active manager that is already built or injected is consulted instead: it
+        may carry catalog entries the cache cannot know.
+        """
+        if _norm_engine_id(provider_id) not in _CATALOG_LOCAL_TTS_PROVIDER_IDS:
+            return False
+        if _norm_engine_id(provider_id) in {_norm_engine_id(item) for item in self._catalog_safe_local_engines()}:
+            return True
+        return self._active_vm_for_discovery() is None
+
     def _active_vm_for_discovery(self):
         """The active VoiceManager, but only when reading it cannot load a model.
 
@@ -3058,7 +3084,7 @@ class _VoiceCapability(_BaseVoice):
                 _probe_in_parallel({provider_id: partial(self._fill_remote_tts_discovery, provider_id, slot)})
                 _catalog, models, _profiles, _active = slot.state
                 return _dedupe_strings([*self._configured_tts_model_ids(provider_id), *models])
-            if provider_id in {_norm_engine_id(item) for item in self._catalog_safe_local_engines()}:
+            if self._local_provider_answerable_from_disk(provider_id):
                 catalog = self._light_voice_catalog(provider=provider_id)
             else:
                 catalog = self.voice_catalog(provider=provider_id)
@@ -3471,7 +3497,7 @@ class _VoiceCapability(_BaseVoice):
         models and voices are our gap, not its catalog.
         """
         provider_id = _norm_engine_id(provider)
-        if providers_only or (provider_id and provider_id in {_norm_engine_id(item) for item in self._catalog_safe_local_engines()}):
+        if providers_only or (provider_id and self._local_provider_answerable_from_disk(provider_id)):
             return self._light_voice_catalog(provider=provider_id, model=model, providers_only=providers_only)
 
         vm = self._get_vm()

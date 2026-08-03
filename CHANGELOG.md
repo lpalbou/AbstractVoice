@@ -53,6 +53,11 @@ Older changelog entries may reference historical CLI commands or model choices.
 - `voice_catalog(provider="piper")` now includes Piper's voice profiles. Piper ships no packaged
   profile asset because its voices are its downloaded files, so both catalog paths read them from the
   same cache probe that reports its model ids.
+- Filtering a listing to a local provider that is not installed no longer builds the active engine to
+  answer. Previously `list_tts_models(provider="piper")` on an install without Piper would fall
+  through to the full catalog, and with a local engine configured as active it raised that engine's
+  missing-dependency error — for example `AudioDiT requires optional dependencies` — instead of
+  returning an empty list.
 - Capability assets and built-in voice profiles load correctly when a directory named
   `abstractvoice` on `sys.path` shadows the installed package — for example a server started with the
   working directory set to a monorepo root. Previously voice calls could fail with
