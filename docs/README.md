@@ -7,9 +7,10 @@ The core documentation set is:
 - `docs/api.md`
 - `docs/architecture.md`
 - `docs/faq.md`
+- `docs/troubleshooting.md`
 
-Use those five files for the package overview, first run, supported API,
-implementation map, cache/history reset, and common troubleshooting.
+Use those files for the package overview, first run, supported API,
+implementation map, cache/history reset, and symptom-oriented fixes.
 
 If you’re using AbstractVoice as part of the AbstractFramework ecosystem
 (AbstractCore / AbstractRuntime), see the integration notes in `README.md` and
@@ -29,8 +30,9 @@ local engines in the same install.
 ## User-facing docs
 
 - **FAQ**: `docs/faq.md`
+- **Troubleshooting (symptom → fix)**: `docs/troubleshooting.md`
 - **Known issues**: `docs/known-issues.md`
-- **Install & troubleshooting**: `docs/installation.md`
+- **Install & platform setup**: `docs/installation.md`
 - **REPL guide (voice assistant)**: `docs/repl_guide.md`
 - **Multilingual**: `docs/multilingual.md`
 - **Voice/model management**: `docs/model-management.md`
@@ -49,6 +51,7 @@ local engines in the same install.
 
 - **Changelog**: `CHANGELOG.md`
 - **Contributing**: `CONTRIBUTING.md`
+- **Code of conduct**: `CODE_OF_CONDUCT.md`
 - **Bug reports**: `.github/ISSUE_TEMPLATE/bug_report.yml`
 - **Security**: `SECURITY.md`
 - **Acknowledgments**: `ACKNOWLEDGMENTS.md`

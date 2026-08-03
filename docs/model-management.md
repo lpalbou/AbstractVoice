@@ -41,6 +41,42 @@ Some optional engines download weights via Hugging Face and cache under `~/.cach
 
 In offline-first mode (`allow_downloads=False`) these engines will **not** fetch missing weights implicitly.
 
+## Discovery reads the cache, not the engine
+
+Asking which providers and models are available is a filesystem question, and AbstractVoice answers
+it that way. A local engine is listed once two things are true:
+
+1. its runtime is installed (the optional extra), and
+2. at least one of its models is on this machine.
+
+Nothing about that question loads a model, imports torch, or builds an engine, so provider and model
+listing stays fast even when heavy engines are installed. Where presence is read from:
+
+| Engine | Presence is | Location |
+| --- | --- | --- |
+| `piper` | a downloaded voice pair (`.onnx` + `.onnx.json`) | `~/.piper/models` |
+| `supertonic` | the full ONNX + voice-style set | `~/.cache/abstractvoice/supertonic-3` |
+| `audiodit` | a cached Hugging Face snapshot holding weights | `~/.cache/huggingface` |
+| `omnivoice` | a cached Hugging Face snapshot holding weights | `~/.cache/huggingface` |
+
+A consequence worth knowing: an engine whose extra is installed but whose weights are not downloaded
+yet does **not** appear in provider listings. Selecting it still works and still downloads on demand
+when `allow_downloads=True` — only discovery is affected. Prefetch it (see above) to have it listed.
+
+If you point an engine at your own checkpoint with `ABSTRACTVOICE_TTS_MODEL` (or `voice_tts_model` in
+an integrator config), that id is discoverable too, as long as it is cached or is a local directory
+containing weights. It counts only for the engine you selected with `ABSTRACTVOICE_TTS_ENGINE`.
+
+`abstractvoice.local_models` exposes this directly:
+
+```python
+from abstractvoice.local_models import cached_tts_model_ids, hf_repo_is_cached
+
+cached_tts_model_ids("piper")       # ['en_US-amy-medium', ...] — only what is downloaded
+cached_tts_model_ids("audiodit")    # [] until the weights are prefetched
+hf_repo_is_cached("k2-fsa/OmniVoice")
+```
+
 ## Programmatic introspection
 
 - `vm.list_available_models()` returns a dict of known Piper voices or Supertonic styles, including cache status when the active adapter exposes it.

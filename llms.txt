@@ -14,6 +14,8 @@ Positioning:
 - Library `VoiceManager()` remains remote-first unless a provider is selected explicitly: `tts_engine="openai"` and `stt_engine="openai"` by default. OpenAI uses `https://api.openai.com/v1` and reads `OPENAI_API_KEY` or `remote_api_key=...`; compatible endpoints use `OPENAI_BASE_URL` or `remote_base_url=...`.
 - Local inference/listening is explicit: install `abstractvoice[apple]` / `abstractvoice[gpu]`, or granular extras such as `abstractvoice[supertonic,stt,audio-io]`, and select `tts_engine="supertonic"` / `stt_engine="faster_whisper"` (providers). Supertonic is the recommended local base TTS path; OmniVoice is the recommended/default local cloning backend.
 - The AbstractCore plugin exposes clean provider/model/voice discovery for TTS, STT, and cloning. Use `available_providers()` for provider lists, `list_models(...)` / `list_tts_models(...)` / `list_stt_models(...)` / `list_cloning_models(...)` for model lists, `list_tts_voices(...)` / `list_cloned_voices(...)` for voices, `get_capability_support(...)` / `find_compatible_models(...)` for feature filtering, `clone(...)` / `clone_voice(...)` for clone creation, and `voice_catalog()` for the richer nested discovery payload.
+- Discovery never loads an engine. Provider/model listing is a cache lookup: a local engine is listed when its runtime is importable and at least one of its models is present on disk (`abstractvoice/local_models.py`). `available_providers()`, `list_models(...)`, `list_tts_voices(provider=...)`, `compatibility_catalog()`, and `voice_catalog(providers_only=True)` / `voice_catalog(provider=<local>)` import no ML framework; the unfiltered `voice_catalog()`, `list_profiles()`, and `list_cloned_voices()` report the active engine's live state and so build it.
+- Remote providers are probed concurrently under one 5s discovery budget (`ABSTRACTVOICE_DISCOVERY_TIMEOUT_S`), so an unreachable host costs one pause for the whole listing. A provider that does not answer in time is marked `tts_catalog_by_provider[provider]["unreachable"]` and listed in `voice_catalog()["unreachable_tts_providers"]` instead of being reported as a provider with no models; that key is absent on paths that contact nobody.
 - Local engine preload/unload is explicit:
   - library: `VoiceManager.preload_tts_engine(...)` / `preload_stt_engine(...)` and `unload_tts_engine()` / `unload_stt_engine()`
   - AbstractCore plugin: `load_resident_model(...)` / `list_resident_models(...)` / `unload_resident_model(...)` (local engines only; remote providers remain configured)
@@ -34,6 +36,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests
 - [API (integrator contract)](docs/api.md): supported surface (incl. AbstractFramework integrations)
 - [FAQ](docs/faq.md): cache/history reset + common install/runtime issues
+- [Troubleshooting](docs/troubleshooting.md): symptom → fix for install, discovery, audio devices, performance
 - [Known issues](docs/known-issues.md): active release caveats and workarounds
 - [Installation](docs/installation.md): platform notes + optional extras
 - [REPL guide](docs/repl_guide.md): end-to-end validation + commands
@@ -66,6 +69,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Text chunking](abstractvoice/tts/text_chunking.py): `split_text_batches(...)` + `TextStreamChunker`
 - [Text→audio streaming bridge](abstractvoice/tts/text_to_speech_stream.py): `TextToSpeechStream` (LLM streaming → TTS)
 - [Voice profiles abstraction](abstractvoice/voice_profiles.py): cross-engine `VoiceProfile` ids + metadata, including remote provider voices
+- [Local model presence](abstractvoice/local_models.py): `cached_tts_model_ids(...)` / `hf_repo_is_cached(...)` — filesystem-only discovery, no engine or ML framework imports
 - [Remote audio HTTP helpers](abstractvoice/adapters/openai_compatible_http.py): lightweight requests-based OpenAI-compatible audio client
 - [Remote TTS adapter](abstractvoice/adapters/tts_openai_compatible.py): `/audio/speech` + remote profile discovery
 - [Remote STT adapter](abstractvoice/adapters/stt_openai_compatible.py): `/audio/transcriptions`
@@ -92,6 +96,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 
 ## Project + safety
 - [Contributing](CONTRIBUTING.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
 - [Bug report template](.github/ISSUE_TEMPLATE/bug_report.yml)
 - [Security policy](SECURITY.md)
 - [Acknowledgments](ACKNOWLEDGMENTS.md)

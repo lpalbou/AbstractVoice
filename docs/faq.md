@@ -180,6 +180,34 @@ python -m abstractvoice download --omnivoice
 Install the matching extra before prefetching optional engines, for example
 `pip install "abstractvoice[omnivoice]"`.
 
+### I installed an engine's extra, so why is it missing from the provider list?
+
+Provider discovery lists a local engine when its runtime is installed **and** at least one of its
+models is on this machine. An extra on its own is not enough. Prefetch the engine and it appears:
+
+```bash
+python -m abstractvoice download --audiodit
+```
+
+You can still select an unlisted engine, and with `allow_downloads=True` it downloads on demand;
+only the listing is affected. See `docs/model-management.md` for where each engine's presence is
+read from, and `docs/troubleshooting.md` if prefetching did not change the listing.
+
+### Why does listing providers sometimes pause for a few seconds?
+
+Remote providers are asked over the network. Every configured remote provider is probed at once, and
+the whole listing shares one budget of 5 seconds, so an unreachable host costs five seconds total
+rather than one timeout per provider. Local engines are not affected — they answer from the cache.
+
+Tune the budget with `ABSTRACTVOICE_DISCOVERY_TIMEOUT_S`:
+
+```bash
+ABSTRACTVOICE_DISCOVERY_TIMEOUT_S=2 python -m abstractvoice cli
+```
+
+A provider that does not answer in time is reported as unreachable rather than as a provider with no
+models, so an unavailable server is distinguishable from an empty one. See `docs/api.md`.
+
 ## REPL Usage
 
 ### Can I use the REPL without an LLM server?

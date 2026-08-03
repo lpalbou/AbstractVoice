@@ -58,6 +58,7 @@ TTS implementation:
 - Supertonic adapter/runtime: `abstractvoice/adapters/tts_supertonic.py`, `abstractvoice/supertonic/runtime.py`
 - Remote OpenAI-compatible TTS adapter: `abstractvoice/adapters/tts_openai_compatible.py` + `abstractvoice/adapters/openai_compatible_http.py`
 - TTS engine selection (registry): `abstractvoice/adapters/tts_registry.py`
+- Local model presence (filesystem only, no engine imports): `abstractvoice/local_models.py`
 - AudioDiT adapter/runtime: `abstractvoice/adapters/tts_audiodit.py`, `abstractvoice/audiodit/runtime.py`
 - OmniVoice adapter/runtime: `abstractvoice/adapters/tts_omnivoice.py`, `abstractvoice/omnivoice/runtime.py`
 - TTS engine wrapper (back-compat contract): `abstractvoice/tts/adapter_tts_engine.py`
@@ -151,6 +152,16 @@ voice selections do not bleed across engine changes.
 the first utterance; `NonBlockingAudioPlayer` prefers the hardware default
 output sample rate and resamples synthesized audio when needed, avoiding slow
 first-call CoreAudio negotiation on macOS.
+
+Discovery follows the same policy from the other direction: asking which providers and models are
+available is a filesystem question, answered by `abstractvoice/local_models.py` without importing an
+engine runtime or loading weights. A local engine is discoverable when its runtime is importable and
+at least one of its models is cached; engines that download Hugging Face repos are matched against
+the shared HF cache, while `piper` and `supertonic` expose their own cache probes
+(`cached_piper_model_ids`, `cached_piper_voice_profiles`, `is_supertonic_cached`). Remote providers
+are probed concurrently under a single discovery budget, so a listing costs the slowest provider
+rather than the sum of their timeouts, and a provider that does not answer is reported as unreachable
+rather than as one with nothing to offer.
 
 Explicit prefetch entry points:
 - `python -m abstractvoice download ...` (`abstractvoice/__main__.py`)

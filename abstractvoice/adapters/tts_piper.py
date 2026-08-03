@@ -26,6 +26,16 @@ from .base import TTSAdapter
 logger = logging.getLogger(__name__)
 
 
+def default_piper_model_dir() -> Path:
+    """Directory Piper voice files are downloaded into."""
+    return Path.home() / '.piper' / 'models'
+
+
+def _piper_model_files(model_dir: Path, model_filename: str) -> tuple[Path, Path]:
+    """(weights, config) paths for a Piper voice inside `model_dir`."""
+    return model_dir / f"{model_filename}.onnx", model_dir / f"{model_filename}.onnx.json"
+
+
 class PiperTTSAdapter(TTSAdapter):
     """Piper TTS adapter using piper-tts package.
     
@@ -81,8 +91,7 @@ class PiperTTSAdapter(TTSAdapter):
         
         # Set model directory
         if model_dir is None:
-            home = Path.home()
-            self._model_dir = home / '.piper' / 'models'
+            self._model_dir = default_piper_model_dir()
         else:
             self._model_dir = Path(model_dir)
         
@@ -160,41 +169,7 @@ class PiperTTSAdapter(TTSAdapter):
         return parts[2] if len(parts) >= 3 else str(hf_path or "")
 
     def _profile_for_language(self, language: str) -> Optional[VoiceProfile]:
-        model_info = self.PIPER_MODELS.get(str(language or ""))
-        if not model_info:
-            return None
-
-        hf_path, model_filename = model_info
-        voice_id = self._voice_id_from_hf_path(hf_path)
-        if not voice_id:
-            return None
-
-        cached = False
-        try:
-            model_path, config_path = self._get_model_path(str(language))
-            cached = model_path.exists() and config_path.exists()
-        except Exception:
-            cached = False
-
-        return VoiceProfile(
-            engine_id="piper",
-            profile_id=voice_id,
-            label=f"Piper {voice_id}",
-            description=f"Default Piper voice for {language}",
-            params={
-                "provider": "piper",
-                "language": str(language),
-                "voice": voice_id,
-                "model": model_filename,
-                "model_filename": model_filename,
-            },
-            tags={
-                "provider": "piper",
-                "engine_id": "piper",
-                "kind": "profile",
-                "cached": "true" if cached else "false",
-            },
-        )
+        return _piper_voice_profile(self._model_dir, language)
 
     def _profile_candidates_for_language(self, language: str) -> set[str]:
         model_info = self.PIPER_MODELS.get(str(language or ""))
@@ -230,10 +205,7 @@ class PiperTTSAdapter(TTSAdapter):
             raise ValueError(f"Unsupported language: {language}")
         
         _, model_filename = model_info
-        model_path = self._model_dir / f"{model_filename}.onnx"
-        config_path = self._model_dir / f"{model_filename}.onnx.json"
-        
-        return model_path, config_path
+        return _piper_model_files(self._model_dir, model_filename)
 
     def ensure_model_downloaded(self, language: str) -> bool:
         """Explicitly download Piper model files for a language (no implicit calls).
@@ -784,3 +756,72 @@ class PiperTTSAdapter(TTSAdapter):
             }
 
         return models
+
+
+def _piper_voice_profile(model_dir: Path, language: str) -> Optional[VoiceProfile]:
+    """The voice profile for a Piper language, tagged with whether it is cached."""
+    model_info = PiperTTSAdapter.PIPER_MODELS.get(str(language or ""))
+    if not model_info:
+        return None
+
+    hf_path, model_filename = model_info
+    voice_id = PiperTTSAdapter._voice_id_from_hf_path(hf_path)
+    if not voice_id:
+        return None
+
+    weights, config = _piper_model_files(Path(model_dir), model_filename)
+    cached = weights.is_file() and config.is_file()
+
+    return VoiceProfile(
+        engine_id="piper",
+        profile_id=voice_id,
+        label=f"Piper {voice_id}",
+        description=f"Default Piper voice for {language}",
+        params={
+            "provider": "piper",
+            "language": str(language),
+            "voice": voice_id,
+            "model": model_filename,
+            "model_filename": model_filename,
+        },
+        tags={
+            "provider": "piper",
+            "engine_id": "piper",
+            "kind": "profile",
+            "cached": "true" if cached else "false",
+        },
+    )
+
+
+def _cached_piper_languages(model_dir: Optional[str]) -> tuple[Path, list[str]]:
+    """(voice directory, languages whose weights AND config are both present).
+
+    The single presence predicate behind both public probes, so the model ids and
+    the voice profiles can never disagree about what is downloaded. Filesystem
+    only: constructing the adapter imports `piper` and through it ONNX Runtime,
+    which is a synthesis cost, not a discovery cost.
+    """
+    root = Path(model_dir).expanduser() if model_dir else default_piper_model_dir()
+    languages = [
+        language
+        for language, (_hf_path, model_filename) in PiperTTSAdapter.PIPER_MODELS.items()
+        if all(path.is_file() for path in _piper_model_files(root, model_filename))
+    ]
+    return root, languages
+
+
+def cached_piper_model_ids(model_dir: Optional[str] = None) -> list[str]:
+    """Piper voice ids whose model files are on this machine."""
+    _root, languages = _cached_piper_languages(model_dir)
+    return [PiperTTSAdapter.PIPER_MODELS[language][1] for language in languages]
+
+
+def cached_piper_voice_profiles(model_dir: Optional[str] = None) -> list[VoiceProfile]:
+    """Voice profiles for the Piper voices on this machine.
+
+    Piper has no packaged profile asset because its voices *are* its downloaded
+    files, so the filesystem is the only honest source.
+    """
+    root, languages = _cached_piper_languages(model_dir)
+    profiles = (_piper_voice_profile(root, language) for language in languages)
+    return [profile for profile in profiles if profile is not None]

@@ -4,12 +4,59 @@ import io
 import importlib.util
 import os
 import threading
+import time
 import wave
 import weakref
-from typing import Any, Dict, Optional, Union
+from functools import partial
+from typing import Any, Callable, Dict, Hashable, Mapping, Optional, Union
 
 from ..artifacts import RuntimeArtifactStoreAdapter, is_artifact_ref, get_artifact_id
 
+
+# Default discovery budget for remote engines. Listing a catalog is a UI-blocking
+# round trip, so it gets its own budget instead of the operator's synthesis timeout
+# (60s by default). It bounds both the socket and the whole parallel batch.
+# Read through `_remote_discovery_timeout_s()`, never as a default argument value:
+# a default is bound at def time and would silently ignore both the environment
+# override and any test that patches this.
+_REMOTE_DISCOVERY_TIMEOUT_S = 5.0
+
+# Probe key for the active VoiceManager's own catalog: an engine id cannot collide
+# with it, and the active manager is reached directly rather than by engine id.
+_ACTIVE_PROBE = object()
+
+
+# THE RULE FOR EVERY FIELD IN A DISCOVERY PAYLOAD, not just the ones below:
+# no field may report the absence of DATA as the absence of the THING. If we did not
+# get an answer, omit the field or flag it -- never publish the empty default as fact.
+# "The host was unreachable" and "the host has no models" are different facts, and so
+# are "we never asked" and "there is no active profile". Every regression in this area
+# has been one field that was not asked this question.
+
+
+class _TTSDiscovery:
+    """What one provider told us about its TTS catalog.
+
+    Republished whole each time a fetch lands. A discovery probe makes several calls
+    on ONE HTTP adapter, so they must run sequentially, and an abandoned probe has to
+    keep whatever it already paid for -- a provider that answered in 100ms must never
+    be reported as unreachable because an optional follow-up fetch overran.
+
+    Read `state` ONCE and unpack it. Rebinding a single attribute is atomic, so a
+    reader sees every field from before a step or every field from after it, never a
+    mix; two separate reads could see a landed catalog with `None` beside it.
+
+    `catalog is None` means the catalog fetch never landed. That is the only fetch
+    which speaks for the provider's catalog, so it is the single test for "did this
+    provider answer" -- "we could not reach it" must never be published as "it has
+    nothing".
+    """
+
+    __slots__ = ("state",)
+
+    def __init__(self) -> None:
+        # (catalog, model ids, profiles, active profile)
+        self.state: tuple = (None, [], [], None)
 
 _VM_CACHE_LOCK = threading.Lock()
 _VM_CACHE: dict[tuple, Any] = {}
@@ -67,6 +114,95 @@ def _env_float(*keys: str) -> Optional[float]:
         return float(raw)
     except Exception:
         return None
+
+
+def _configured_remote_timeout_s(cfg: Any) -> Optional[float]:
+    """The remote timeout an operator configured, if any: config wins over env."""
+    if isinstance(cfg, dict) and cfg.get("voice_remote_timeout_s") not in (None, ""):
+        try:
+            return float(cfg["voice_remote_timeout_s"])
+        except (TypeError, ValueError):
+            return None
+    return _env_float(
+        "ABSTRACTVOICE_REMOTE_TIMEOUT_S",
+        "ABSTRACTVOICE_OPENAI_TIMEOUT_S",
+        "ABSTRACTVOICE_OPENAI_COMPATIBLE_TIMEOUT_S",
+    )
+
+
+def _remote_discovery_timeout_s() -> float:
+    """The wall-clock budget one discovery listing gets for its remote probes."""
+    override = _env_float("ABSTRACTVOICE_DISCOVERY_TIMEOUT_S")
+    if override is not None and override > 0:
+        return float(override)
+    return float(_REMOTE_DISCOVERY_TIMEOUT_S)
+
+
+def _probe_in_parallel(
+    probes: Mapping[Hashable, Callable[[], Any]],
+    *,
+    budget_s: Optional[float] = None,
+) -> Dict[Any, Any]:
+    """Run every probe at once and return the ones that answered within the budget.
+
+    A key is present only if that probe answered. Callers must treat an absent key
+    as "no information", never as "this provider has nothing" -- failing to reach a
+    provider and a provider replying with an empty catalog are different facts, and
+    every structure derived from this result has to keep them apart.
+
+    A probe that finishes just after the deadline may still land in the result:
+    late data is real data, and dropping it would buy nothing.
+
+    One task per remote provider, never two per provider: the calls inside a task
+    share one HTTP adapter whose "already fetched" flags are not synchronised.
+    Serially, an unreachable provider costs the whole budget and the next one
+    starts from zero; concurrently the round trips overlap, so the batch costs the
+    slowest provider plus the VoiceManager constructions, which still serialise on
+    the process-wide `_VM_CACHE_LOCK` (~0.2s each for a remote adapter).
+
+    The threads are daemons so an abandoned probe cannot hold the process open at
+    exit -- a pool of ordinary workers is joined by the interpreter on the way
+    out, which turned a bounded call into an unbounded, uninterruptible wait.
+    """
+    if not probes:
+        return {}
+
+    results: Dict[Any, Any] = {}
+    results_lock = threading.Lock()
+    finished = threading.Semaphore(0)
+
+    def run(key: Hashable, probe: Callable[[], Any]) -> None:
+        try:
+            value = probe()
+            with results_lock:
+                results[key] = value
+        except Exception:
+            pass
+        finally:
+            finished.release()
+
+    started = 0
+    for key, probe in probes.items():
+        thread = threading.Thread(
+            target=run,
+            args=(key, probe),
+            name=f"abstractvoice-discovery-{key}",
+            daemon=True,
+        )
+        try:
+            thread.start()
+        except RuntimeError:
+            # Out of threads: the probes that did start still get their budget.
+            break
+        started += 1
+
+    budget = _remote_discovery_timeout_s() if budget_s is None else float(budget_s)
+    deadline = time.monotonic() + max(0.0, budget)
+    for _ in range(started):
+        if not finished.acquire(timeout=max(0.0, deadline - time.monotonic())):
+            break  # Budget spent; whatever is still in flight is abandoned.
+    with results_lock:
+        return dict(results)
 
 
 def _norm_residency_task(value: Any) -> str:
@@ -336,37 +472,56 @@ def _omnivoice_language_ids() -> list[str]:
         return list(_OMNIVOICE_FALLBACK_LANGUAGES)
 
 
-def _selectable_tts_model_ids_for_provider(provider: Any) -> list[str]:
+def _selectable_tts_model_ids_for_provider(provider: Any, extra_candidates: Any = ()) -> list[str]:
     """Return public TTS model-selector values for local providers.
 
-    The model selector must expose actual model/checkpoint ids. Language and
-    profile/voice choices are separate concerns; older saved OmniVoice defaults
-    that used a language code as `model` are still accepted by
-    `_tts_model_language_selector`.
+    The model selector must expose actual model/checkpoint ids, and only ones
+    this machine can already speak with. Language and profile/voice choices are
+    separate concerns; older saved OmniVoice defaults that used a language code
+    as `model` are still accepted by `_tts_model_language_selector`.
+
+    `extra_candidates` carries checkpoint ids an owner configured for THIS provider.
+    Owners resolve them through `_configured_local_tts_model_ids`, which is the only
+    place that decides which engine a configured checkpoint belongs to -- resolving
+    it twice, once per source, drops an engine named in config whose model is named
+    in the environment.
     """
 
-    provider_id = _norm_engine_id(provider)
-    if provider_id == "piper":
-        try:
-            from ..adapters.tts_piper import PiperTTSAdapter
+    try:
+        from ..local_models import cached_tts_model_ids
 
-            adapter = PiperTTSAdapter(language="en", allow_downloads=False, auto_load=False)
-            return _extract_tts_model_ids(adapter.list_available_models())
-        except Exception:
-            return []
-    if provider_id in {"supertonic", "omnivoice", "audiodit"}:
-        fallback = {
-            "supertonic": ["supertonic-3"],
-            "omnivoice": ["k2-fsa/OmniVoice"],
-            "audiodit": ["meituan-longcat/LongCat-AudioDiT-1B"],
-        }[provider_id]
-        try:
-            from ..compatibility import _known_tts_models
+        return _dedupe_strings(
+            cached_tts_model_ids(
+                _norm_engine_id(provider),
+                extra_candidates=[str(item) for item in extra_candidates or ()],
+            )
+        )
+    except Exception:
+        return []
 
-            return _dedupe_strings(_known_tts_models().get(provider_id) or []) or list(fallback)
+
+def _local_tts_voice_profiles(engine: Any) -> list[Dict[str, Any]]:
+    """Voice records for a local engine, without loading it.
+
+    Most local engines ship a packaged profile asset. Piper does not, because its
+    voices *are* its downloaded files, so its profiles come from the same disk
+    probe that reports its model ids.
+    """
+    records: list[Dict[str, Any]] = []
+    try:
+        from ..voice_profiles import get_builtin_voice_profiles
+
+        records.extend(_voice_profile_to_dict(profile) for profile in get_builtin_voice_profiles(engine))
+    except Exception:
+        pass
+    if _norm_engine_id(engine) == "piper":
+        try:
+            from ..adapters.tts_piper import cached_piper_voice_profiles
+
+            records.extend(_voice_profile_to_dict(profile) for profile in cached_piper_voice_profiles())
         except Exception:
-            return list(fallback)
-    return []
+            pass
+    return records
 
 
 def _tts_model_language_selector(provider: Any, model: Any) -> Optional[str]:
@@ -499,43 +654,23 @@ def _runtime_installed(kind: str, provider: Any) -> bool | None:
     return None
 
 
-def _catalog_contains_cached_model(value: Any) -> bool:
-    if isinstance(value, dict):
-        cached = value.get("cached")
-        if cached is True:
-            return True
-        return any(_catalog_contains_cached_model(v) for v in value.values())
-    if isinstance(value, list):
-        return any(_catalog_contains_cached_model(v) for v in value)
-    return False
+def _local_tts_engine_available(engine: Any, extra_candidates: Any = ()) -> bool:
+    """True when a local TTS engine is installed and has weights on this machine.
 
+    Both halves are cheap by construction: the runtime check is `find_spec`, and
+    presence is a filesystem lookup (see `abstractvoice.local_models`). Neither
+    imports an engine or builds an adapter -- the AudioDiT adapter alone drags in
+    torch and transformers, and only to report a catalog the cache already knows.
 
-def _local_tts_engine_available(engine: Any) -> bool:
+    Availability *is* "has a selectable model", asked through the same call, so an
+    engine can never be listed with nothing to select or hidden while selectable.
+    """
     normalized = _norm_engine_id(engine)
     if not normalized or normalized in {"openai", "openai-compatible"}:
         return False
     if not _engine_runtime_available(normalized):
         return False
-    if normalized == "supertonic":
-        try:
-            from ..supertonic import is_supertonic_cached
-
-            return bool(is_supertonic_cached())
-        except Exception:
-            return False
-    if normalized == "piper":
-        try:
-            from ..adapters.tts_piper import PiperTTSAdapter
-
-            adapter = PiperTTSAdapter(language="en", allow_downloads=False, auto_load=False)
-            return _catalog_contains_cached_model(adapter.list_available_models())
-        except Exception:
-            return False
-    # These engines expose availability through optional dependency presence.
-    # Their model caches are backend-specific and may be resolved by the runtime.
-    if normalized in {"audiodit", "omnivoice"}:
-        return True
-    return bool(_runtime_installed("tts", normalized))
+    return bool(_selectable_tts_model_ids_for_provider(normalized, extra_candidates))
 
 
 def _local_stt_engine_available(engine: Any) -> bool:
@@ -569,14 +704,19 @@ def _provider_details(kind: str, providers: Any) -> dict[str, dict[str, Any]]:
     return details
 
 
-def _catalog_safe_local_tts_engines() -> list[str]:
-    """Local engines installed enough to expose catalog metadata."""
+def _catalog_safe_local_tts_engines(candidates_for: Any = None) -> list[str]:
+    """Local engines installed enough to expose catalog metadata.
+
+    `candidates_for(engine)` supplies owner-configured checkpoint ids for one
+    engine. It is asked per engine, not pooled: a checkpoint belongs to the single
+    engine it was configured for.
+    """
 
     return [
         engine
         for engine in _local_tts_engines()
         if _norm_engine_id(engine) in {"piper", "supertonic", "audiodit", "omnivoice"}
-        and _local_tts_engine_available(engine)
+        and _local_tts_engine_available(engine, candidates_for(engine) if candidates_for else ())
     ]
 
 
@@ -1609,7 +1749,7 @@ class _BaseVoice:
                     details={"supported": {"task": "tts", "provider": "local_tts"}},
                 )
 
-            if not _local_tts_engine_available(provider_id):
+            if not _local_tts_engine_available(provider_id, self._configured_local_tts_model_ids(provider_id)):
                 return self._residency_error(
                     task="tts",
                     provider=provider_id,
@@ -2274,7 +2414,7 @@ class _BaseVoice:
             providers.append("openai-compatible")
         for engine in _local_tts_engines():
             normalized = _norm_engine_id(engine)
-            if _local_tts_engine_available(normalized):
+            if _local_tts_engine_available(normalized, self._configured_local_tts_model_ids(normalized)):
                 providers.append(normalized)
         return _ordered_provider_ids(
             providers,
@@ -2317,6 +2457,105 @@ class _BaseVoice:
             ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
         )
 
+    def _configured_local_tts_model_ids(self, engine: Any) -> list[str]:
+        """Checkpoint ids this owner points `engine` at.
+
+        Integrators pass a config dict, CLI users set the environment, and both are
+        resolved against ONE engine id: `_configured_provider_id` already walks
+        config, then environment, then the default. Resolving each source against its
+        own view of the engine would drop the mixed case -- engine named in config,
+        model named in the environment -- which is ordinary in a container.
+
+        Scoped to that engine because a checkpoint belongs to the single engine it was
+        configured for; offering it to the siblings would advertise a model they
+        cannot run.
+        """
+        if _norm_engine_id(engine) != self._configured_provider_id(kind="tts"):
+            return []
+        sources = (
+            self._config_text("voice_tts_model") or "",
+            _env_first("ABSTRACTVOICE_TTS_MODEL", default="") or "",
+        )
+        return _dedupe_strings(
+            [item.strip() for value in sources for item in value.split(",") if item.strip()]
+        )
+
+    def _catalog_safe_local_engines(self) -> list[str]:
+        """`_catalog_safe_local_tts_engines`, aware of this owner's checkpoints."""
+        return _catalog_safe_local_tts_engines(self._configured_local_tts_model_ids)
+
+    def _selectable_local_tts_models(self, provider: Any) -> list[str]:
+        """`_selectable_tts_model_ids_for_provider`, aware of this owner's checkpoints."""
+        return _selectable_tts_model_ids_for_provider(provider, self._configured_local_tts_model_ids(provider))
+
+    def _active_vm_for_discovery(self):
+        """The active VoiceManager, but only when reading it cannot load a model.
+
+        A manager that is already built, or one the integrator injected, is free to
+        consult. Otherwise it is worth building only for a remote provider:
+        building it for a local one imports the engine AND loads its weights
+        (`VoiceManager` passes `auto_load=True`), which is the entire cost
+        discovery must not pay -- and it buys nothing, because a local engine's
+        catalog comes from the filesystem.
+        """
+        if self._vm is not None:
+            return self._vm
+        cfg = getattr(self._owner, "config", None)
+        injected = isinstance(cfg, dict) and (
+            cfg.get("voice_manager_instance") is not None or callable(cfg.get("voice_manager_factory"))
+        )
+        if not injected and self._configured_provider_id(kind="tts") not in {"openai", "openai-compatible"}:
+            return None
+        try:
+            return self._get_vm()
+        except Exception:
+            return None
+
+    def _remote_discovery_vm(self, engine: str):
+        """A VoiceManager for `engine` bound to the discovery budget, not the
+        operator's synthesis timeout."""
+        return self._get_vm_for_provider(tts_provider=engine, remote_timeout_s=_remote_discovery_timeout_s())
+
+    def _fill_tts_discovery(self, slot: "_TTSDiscovery", vm: Any) -> None:
+        """Fetch one provider's TTS discovery into `slot`. The only probe shape.
+
+        Sequential because the calls share one HTTP adapter whose "already fetched"
+        flags are not synchronised, and each result is published the moment it lands
+        so an abandoned probe keeps whatever it already paid for.
+
+        Profiles go first deliberately. On the remote adapter `list_available_models`
+        fetches the models endpoint AND the profiles endpoint, so asking for profiles
+        first splits those two round trips across two publish points -- a hang in
+        either one preserves the other -- and warms the adapter's profile cache so
+        the catalog call behind it only pays for models. Catalog-first would collapse
+        both into one all-or-nothing step.
+        """
+        profiles: list[Dict[str, Any]] = []
+        if hasattr(vm, "get_profiles"):
+            try:
+                profiles = [_voice_profile_to_dict(p) for p in list(vm.get_profiles(kind="tts") or [])]
+            except Exception:
+                profiles = []
+            slot.state = (None, [], profiles, None)
+
+        # Before the catalog: the remote adapter reads its active profile off its own
+        # `voice` attribute, so sequencing this free call behind the one that can hang
+        # would publish "no voice is selected" whenever the catalog overran.
+        active_profile = None
+        if hasattr(vm, "get_active_profile"):
+            try:
+                active_profile = vm.get_active_profile(kind="tts")
+            except Exception:
+                active_profile = None
+            slot.state = (None, [], profiles, active_profile)
+
+        catalog = vm.list_available_models() if hasattr(vm, "list_available_models") else {}
+        slot.state = (catalog, _extract_tts_model_ids(catalog), profiles, active_profile)
+
+    def _fill_remote_tts_discovery(self, engine: str, slot: "_TTSDiscovery") -> None:
+        """`_fill_tts_discovery` against a remote engine on the discovery budget."""
+        self._fill_tts_discovery(slot, self._remote_discovery_vm(engine))
+
     def _get_vm_for_provider(
         self,
         *,
@@ -2324,6 +2563,7 @@ class _BaseVoice:
         stt_provider: Optional[str] = None,
         tts_model: Optional[str] = None,
         stt_model: Optional[str] = None,
+        remote_timeout_s: Optional[float] = None,
     ):
         tts_engine, tts_model = _resolve_tts_provider_request(tts_provider, tts_model)
         stt_engine, stt_model = _resolve_stt_provider_request(stt_provider, stt_model)
@@ -2339,10 +2579,15 @@ class _BaseVoice:
             return self._get_vm()
 
         current = None
-        try:
-            current = self._get_vm()
-        except Exception:
-            current = None
+        # A shorter budget was asked for, so the active manager -- built with the
+        # operator's full synthesis timeout -- is not an acceptable substitute. Don't
+        # even reach for it: building it only to reject it is the exact cost discovery
+        # exists to avoid, and for a local engine it loads weights.
+        if remote_timeout_s is None:
+            try:
+                current = self._get_vm()
+            except Exception:
+                current = None
 
         if current is not None:
             tts_ok = not tts_engine or bool(_engine_aliases(tts_engine) & self._vm_engine_values(current, kind="tts"))
@@ -2384,6 +2629,12 @@ class _BaseVoice:
             override_cfg["voice_stt_model"] = stt_model.strip()
             if stt_engine in {"faster-whisper", "faster_whisper", "whisper", "local"}:
                 override_cfg["voice_whisper_model"] = stt_model.strip()
+        if remote_timeout_s is not None:
+            # Shorten only: an operator who configured a tighter budget meant it.
+            configured = _configured_remote_timeout_s(override_cfg)
+            override_cfg["voice_remote_timeout_s"] = (
+                min(float(remote_timeout_s), configured) if configured is not None else float(remote_timeout_s)
+            )
 
         owner = type("_AbstractVoiceProviderOverride", (), {"config": override_cfg})()
         cap = self.__class__(owner)
@@ -2531,19 +2782,14 @@ class _VoiceCapability(_BaseVoice):
         tts_providers = _dedupe_provider_ids(available_providers.get("tts") or available_providers.get("tts_providers") or [])
         if requested_provider:
             tts_providers = [item for item in tts_providers if _norm_engine_id(item) == requested_provider]
-            if not tts_providers and _local_tts_engine_available(requested_provider):
+            if not tts_providers and _local_tts_engine_available(requested_provider, self._configured_local_tts_model_ids(requested_provider)):
                 tts_providers = [requested_provider]
         profiles: list[Dict[str, Any]] = []
         cloned_voices: list[Dict[str, Any]] = []
 
         if not providers_only:
-            try:
-                from ..voice_profiles import get_builtin_voice_profiles
-
-                for engine in list(tts_providers):
-                    profiles.extend(_voice_profile_to_dict(p) for p in get_builtin_voice_profiles(engine))
-            except Exception:
-                profiles = []
+            for engine in list(tts_providers):
+                profiles.extend(_local_tts_voice_profiles(engine))
 
             try:
                 from ..cloning.store import VoiceCloneStore
@@ -2629,7 +2875,7 @@ class _VoiceCapability(_BaseVoice):
                 _add_provider_value(tts_models_by_provider, provider_id, model_id)
 
         for provider_id in list(tts_providers):
-            for model_id in _selectable_tts_model_ids_for_provider(provider_id):
+            for model_id in self._selectable_local_tts_models(provider_id):
                 _add_provider_value(tts_models_by_provider, provider_id, model_id)
 
         tts_models = _dedupe_strings([model_id for values in tts_models_by_provider.values() for model_id in values])
@@ -2707,6 +2953,9 @@ class _VoiceCapability(_BaseVoice):
             "tts_voices_by_provider": tts_voices_by_provider,
             "tts_profiles_by_provider": tts_profiles_by_provider,
             "tts_catalog_by_provider": tts_catalog_by_provider,
+            # No `unreachable_tts_providers` here: this path contacts nobody, and an
+            # empty list would claim every provider is reachable -- including the
+            # remote ones it never asked. Absent means "not checked"; see THE RULE.
             "stt_catalog_by_provider": {},
             "tts_formats_by_provider": {provider_id: _tts_formats_for_provider(provider_id) for provider_id in tts_providers},
             "stt_formats_by_provider": {},
@@ -2724,7 +2973,15 @@ class _VoiceCapability(_BaseVoice):
         return self.available_providers()
 
     def compatibility_catalog(self) -> Dict[str, Any]:
-        vm = self._get_vm()
+        """Which features each provider/model supports.
+
+        Packaged data, hinted with the current selection. A VoiceManager supplies
+        only those hints -- it reads them off its adapters with `getattr` -- so it is
+        consulted when one is free and the catalog is built from configuration
+        otherwise. Building an engine to answer this cost 49s with a local engine
+        active, and `list_cloning_models` goes through here.
+        """
+        vm = self._active_vm_for_discovery()
         try:
             if hasattr(vm, "get_compatibility_catalog"):
                 catalog = vm.get_compatibility_catalog()
@@ -2734,7 +2991,21 @@ class _VoiceCapability(_BaseVoice):
                     return dict(catalog)
         except Exception:
             pass
-        return {}
+
+        try:
+            from ..compatibility import build_compatibility_catalog
+
+            return dict(
+                build_compatibility_catalog(
+                    current_tts_provider=self._configured_provider_id(kind="tts") or None,
+                    current_tts_model=self._config_text("voice_tts_model") or _env_first("ABSTRACTVOICE_TTS_MODEL"),
+                    current_stt_provider=self._configured_provider_id(kind="stt") or None,
+                    current_stt_model=self._config_text("voice_stt_model") or _env_first("ABSTRACTVOICE_STT_MODEL"),
+                    current_cloning_provider=self._configured_provider_id(kind="cloning") or None,
+                ).to_dict()
+            )
+        except Exception:
+            return {}
 
     def list_models(self, *, kind: str = "tts", provider: Optional[str] = None) -> list[str]:
         """List provider-filtered models for TTS/STT/cloning discovery."""
@@ -2748,7 +3019,13 @@ class _VoiceCapability(_BaseVoice):
         raise ValueError("kind must be 'tts', 'stt', or 'cloning'")
 
     def list_profiles(self, *, kind: str = "tts") -> list[Dict[str, Any]]:
-        """List active-engine voice profiles through the plugin boundary."""
+        """List active-engine voice profiles through the plugin boundary.
+
+        Asks the active engine, so with a local one configured this builds it. That is
+        the method's whole job -- what the engine itself reports, which an adapter may
+        derive from more than the packaged assets. For engine-free voice discovery use
+        `list_tts_voices(provider=...)` or `voice_catalog(provider=...)`.
+        """
         vm = self._get_vm()
         profiles = []
         if hasattr(vm, "get_profiles"):
@@ -2756,55 +3033,71 @@ class _VoiceCapability(_BaseVoice):
         return [_voice_profile_to_dict(profile) for profile in profiles]
 
     def list_tts_models(self, provider: Optional[str] = None) -> list[str]:
-        """List deduplicated TTS model ids from serveable AbstractVoice engines."""
+        """List deduplicated TTS model ids from serveable AbstractVoice engines.
+
+        A `list[str]` cannot say "unknown", so an unreachable remote provider looks
+        the same here as one with no models. When that difference matters, read
+        `voice_catalog()["unreachable_tts_providers"]`, or the provider's
+        `unreachable` flag in `tts_catalog_by_provider`.
+        """
         provider_id, requested_model = _resolve_tts_provider_request(provider)
         if requested_model:
             return [requested_model]
         if provider_id:
-            if provider_id in {_norm_engine_id(item) for item in _catalog_safe_local_tts_engines()}:
+            if provider_id in {"openai", "openai-compatible"}:
+                # The active manager answers for its own provider when consulting it
+                # is free -- already built, or injected by an integrator. Otherwise
+                # probe the remote provider directly: reaching the unfiltered catalog
+                # would build the ACTIVE engine, and for a local one that loads its
+                # weights -- 17.8s of AudioDiT to answer a question about OpenAI.
+                active_vm = self._active_vm_for_discovery()
+                if active_vm is not None and _engine_aliases(provider_id) & self._vm_engine_values(active_vm, kind="tts"):
+                    entry = self.voice_catalog(provider=provider_id).get("tts_catalog_by_provider", {}).get(provider_id, {})
+                    return list(entry.get("models") or [])
+                slot = _TTSDiscovery()
+                _probe_in_parallel({provider_id: partial(self._fill_remote_tts_discovery, provider_id, slot)})
+                _catalog, models, _profiles, _active = slot.state
+                return _dedupe_strings([*self._configured_tts_model_ids(provider_id), *models])
+            if provider_id in {_norm_engine_id(item) for item in self._catalog_safe_local_engines()}:
                 catalog = self._light_voice_catalog(provider=provider_id)
             else:
                 catalog = self.voice_catalog(provider=provider_id)
             entry = catalog.get("tts_catalog_by_provider", {}).get(provider_id, {})
             return list(entry.get("models") or [])
 
-        model_ids: list[str] = []
-        active_vm = None
-        active_catalog: Any = {}
-        try:
-            active_vm = self._get_vm()
-            if hasattr(active_vm, "list_available_models"):
-                active_catalog = active_vm.list_available_models()
-            model_ids.extend(_extract_tts_model_ids(active_catalog))
-        except Exception:
-            active_vm = None
-
+        active_vm = self._active_vm_for_discovery()
         active_engines = self._vm_engine_values(active_vm, kind="tts") if active_vm is not None else set()
+
+        remote_engines = [
+            engine
+            for engine in self._configured_remote_tts_engines()
+            if not (_engine_aliases(engine) & active_engines)
+        ]
+
+        # Every remote catalog fetch here shares one budget, the active manager's
+        # included: it talks to a server too.
+        slots = {engine: _TTSDiscovery() for engine in remote_engines}
+        probes: Dict[Hashable, Callable[[], None]] = {}
+        if active_vm is not None:
+            slots[_ACTIVE_PROBE] = _TTSDiscovery()
+            probes[_ACTIVE_PROBE] = partial(self._fill_tts_discovery, slots[_ACTIVE_PROBE], active_vm)
+        for engine in remote_engines:
+            probes[engine] = partial(self._fill_remote_tts_discovery, engine, slots[engine])
+        _probe_in_parallel(probes)
+
+        # Deterministic order: active engine, then configured ids, then fetched
+        # ids, then local engines -- concurrency cannot reorder the result.
+        model_ids: list[str] = []
+        if _ACTIVE_PROBE in slots:
+            model_ids.extend(slots[_ACTIVE_PROBE].state[1])
         for engine in self._configured_remote_tts_engines():
             model_ids.extend(self._configured_tts_model_ids(engine))
-            if _engine_aliases(engine) & active_engines:
-                continue
-            try:
-                vm = self._get_vm_for_provider(tts_provider=engine)
-                catalog = vm.list_available_models() if hasattr(vm, "list_available_models") else {}
-                model_ids.extend(_extract_tts_model_ids(catalog))
-            except Exception:
-                continue
-
-        for engine in _catalog_safe_local_tts_engines():
-            if _engine_aliases(engine) & active_engines:
-                continue
-            try:
-                vm = self._get_vm_for_provider(tts_provider=engine)
-                catalog = vm.list_available_models() if hasattr(vm, "list_available_models") else {}
-                catalog_engines = set()
-                for provider_id in _extract_provider_ids(catalog):
-                    catalog_engines.update(_engine_aliases(provider_id))
-                if _norm_engine_id(engine) != "piper" and not (_engine_aliases(engine) & catalog_engines):
-                    continue
-                model_ids.extend(_extract_tts_model_ids(catalog))
-            except Exception:
-                continue
+        for engine in remote_engines:
+            model_ids.extend(slots[engine].state[1])
+        # Local engines answer from disk, the active one included: a stat() is
+        # cheaper than the skip logic that would exclude it.
+        for engine in self._catalog_safe_local_engines():
+            model_ids.extend(self._selectable_local_tts_models(engine))
         return _dedupe_strings(model_ids)
 
     def list_stt_models(self, provider: Optional[str] = None) -> list[str]:
@@ -2818,8 +3111,11 @@ class _VoiceCapability(_BaseVoice):
             if provider_id in {"openai", "openai-compatible"}:
                 model_ids: list[str] = []
                 try:
-                    vm = self._get_vm()
-                    if _engine_aliases(provider_id) & self._vm_engine_values(vm, kind="stt"):
+                    # Never build the manager just to read attributes off it: with a
+                    # local TTS engine configured that loads TTS weights to list STT
+                    # models.
+                    vm = self._active_vm_for_discovery()
+                    if vm is not None and _engine_aliases(provider_id) & self._vm_engine_values(vm, kind="stt"):
                         model_ids.extend(_extract_stt_model_ids(vm))
                 except Exception:
                     pass
@@ -2837,7 +3133,9 @@ class _VoiceCapability(_BaseVoice):
 
         model_ids: list[str] = []
         try:
-            vm = self._get_vm()
+            # Attributes only; never worth building a manager (and with a local TTS
+            # engine configured, loading TTS weights) to read them.
+            vm = self._active_vm_for_discovery()
             model_ids.extend(_extract_stt_model_ids(vm))
         except Exception:
             pass
@@ -2881,9 +3179,17 @@ class _VoiceCapability(_BaseVoice):
         model: Optional[str] = None,
         include_clones: bool = True,
     ) -> list[Dict[str, Any]]:
-        """List provider/model-filtered TTS voices and cloned voices."""
+        """List provider/model-filtered TTS voices and cloned voices.
+
+        As with `list_tts_models`, a list cannot say "unknown": an unreachable remote
+        provider reads as one with no voices. `voice_catalog()` carries the
+        distinction in `unreachable_tts_providers`.
+        """
         provider_id, model_name = _resolve_tts_provider_request(provider, model)
-        catalog = self.voice_catalog()
+        # Forward the filter: `voice_catalog` routes a local provider to the light
+        # path, and asking for the unfiltered catalog instead would build the active
+        # engine -- 8s and a torch import to produce the identical voice list.
+        catalog = self.voice_catalog(provider=provider_id or None)
         if provider_id:
             entry = catalog.get("tts_catalog_by_provider", {}).get(provider_id, {})
             voices = list(entry.get("voices") or [])
@@ -2900,7 +3206,16 @@ class _VoiceCapability(_BaseVoice):
         provider: Optional[str] = None,
         model: Optional[str] = None,
     ) -> list[Dict[str, Any]]:
-        """List provider/model-filtered cloned TTS voices."""
+        """List provider/model-filtered cloned TTS voices.
+
+        Goes through the unfiltered catalog, so with a local engine configured this
+        builds it. That is not free and it is not ideal, but the two catalog paths
+        disagree about where clones come from -- the light one reads the clone store,
+        this one also accepts clones the active manager reports -- and switching paths
+        to save the time would silently drop the latter. Reconciling the two sources
+        is its own change; trading data for latency here would undo the point of this
+        one. Pass a provider filter for the cheap path.
+        """
         return [
             voice
             for voice in self.list_tts_voices(provider=provider, model=model, include_clones=True)
@@ -2927,7 +3242,7 @@ class _VoiceCapability(_BaseVoice):
         surface: str = "default",
     ) -> Optional[Dict[str, Any]]:
         """Return support metadata for one feature/provider/model/surface selection."""
-        vm = self._get_vm()
+        vm = self._active_vm_for_discovery()
         try:
             if hasattr(vm, "get_capability_support"):
                 support = vm.get_capability_support(
@@ -2974,7 +3289,7 @@ class _VoiceCapability(_BaseVoice):
         support_in: Any = ("native", "emulated", "conditional"),
     ) -> list[Dict[str, Any]]:
         """Find provider/model pairs that support a feature on the requested surface."""
-        vm = self._get_vm()
+        vm = self._active_vm_for_discovery()
         support_levels = _normalize_support_levels(support_in)
         try:
             if hasattr(vm, "find_compatible_models"):
@@ -3138,23 +3453,56 @@ class _VoiceCapability(_BaseVoice):
         model: Optional[str] = None,
         providers_only: bool = False,
     ) -> Dict[str, Any]:
-        """Return JSON-safe profile/model discovery data for Core/Gateway."""
+        """Return JSON-safe profile/model discovery data for Core/Gateway.
+
+        `providers_only` and a local provider filter take the light path and touch no
+        engine. Everything else reports the ACTIVE engine's live state -- its profiles,
+        its cloned voices, its STT side -- and so builds the active VoiceManager, which
+        for a local engine loads its weights. That is deliberate rather than
+        unavoidable: the light path reads cloned voices from the clone store while this
+        one also accepts clones the manager reports, and switching would silently drop
+        the latter. Callers that only need discovery should use `list_tts_models`,
+        `list_stt_models`, `list_cloning_models`, `available_providers`, or pass
+        `providers_only`/a local provider here -- all of those are engine-free.
+
+        A provider whose probe did not answer inside the discovery budget is marked
+        `tts_catalog_by_provider[provider]["unreachable"]` and listed in
+        `unreachable_tts_providers`, and publishes no `catalogs` entry: its empty
+        models and voices are our gap, not its catalog.
+        """
         provider_id = _norm_engine_id(provider)
-        if providers_only or (provider_id and provider_id in {_norm_engine_id(item) for item in _catalog_safe_local_tts_engines()}):
+        if providers_only or (provider_id and provider_id in {_norm_engine_id(item) for item in self._catalog_safe_local_engines()}):
             return self._light_voice_catalog(provider=provider_id, model=model, providers_only=providers_only)
 
         vm = self._get_vm()
         available_providers = self.available_providers()
+        active_tts_engines = self._vm_engine_values(vm, kind="tts")
 
-        profiles = self.list_profiles(kind="tts")
-        active_profile = None
-        if hasattr(vm, "get_active_profile"):
-            active_profile = vm.get_active_profile(kind="tts")
+        remote_engines = [
+            engine
+            for engine in self._configured_remote_tts_engines()
+            if not (_engine_aliases(engine) & active_tts_engines)
+        ]
 
-        catalog: Any = {}
-        if hasattr(vm, "list_available_models"):
-            catalog = vm.list_available_models()
-        tts_models = _extract_tts_model_ids(catalog)
+        # Every remote fetch in this listing shares one budget, and every provider --
+        # the active manager included -- reports through the same slot, so there is
+        # one place that decides whether a provider answered.
+        slots = {engine: _TTSDiscovery() for engine in remote_engines}
+        slots[_ACTIVE_PROBE] = _TTSDiscovery()
+        probes: Dict[Hashable, Callable[[], None]] = {
+            _ACTIVE_PROBE: partial(self._fill_tts_discovery, slots[_ACTIVE_PROBE], vm)
+        }
+        for engine in remote_engines:
+            probes[engine] = partial(self._fill_remote_tts_discovery, engine, slots[engine])
+        _probe_in_parallel(probes)
+
+        # One read of the slot: a live probe may still be publishing into it, and two
+        # reads could pair a landed catalog with the fields from before it landed.
+        active_catalog, active_models, active_profiles, active_profile = slots[_ACTIVE_PROBE].state
+        active_answered = active_catalog is not None
+        catalog = active_catalog or {}
+        profiles = list(active_profiles)
+        tts_models = list(active_models)
         stt_models = _extract_stt_model_ids(vm)
         tts_providers = _extract_tts_provider_ids(vm, catalog, profiles)
         stt_providers = _extract_stt_provider_ids(vm)
@@ -3165,68 +3513,46 @@ class _VoiceCapability(_BaseVoice):
         )
         catalogs: Dict[str, Any] = {}
         active_engine = _norm_engine_id(tts_providers[0] if tts_providers else getattr(vm, "_abstractvoice_tts_engine", None))
-        if active_engine:
+        # Only publish a per-engine catalog for a probe that ANSWERED. Writing the
+        # empty default would say "this provider has no models" about a provider we
+        # merely failed to reach in time -- a live host 6s away would be rendered
+        # as an empty, unusable selector.
+        if active_engine and active_answered:
             catalogs[active_engine] = _json_safe(catalog)
             profiles.extend(_profiles_from_tts_catalog(catalog, engine_id=active_engine))
 
-        active_tts_engines = self._vm_engine_values(vm, kind="tts")
-        for engine in _catalog_safe_local_tts_engines():
-            tts_providers.append(engine)
-            try:
-                from ..voice_profiles import get_builtin_voice_profiles
+        # Which providers we could not reach, so the per-provider catalog below can
+        # say that instead of publishing our gap as their empty catalog. Decided by
+        # the one test that means "answered": did this provider's catalog land.
+        unreachable_providers: set = set()
+        if active_engine and not active_answered:
+            unreachable_providers.add(active_engine)
 
-                profiles.extend(_voice_profile_to_dict(p) for p in get_builtin_voice_profiles(engine))
-            except Exception:
-                pass
+        # Local engines answer from disk: `_catalog_safe_local_tts_engines` already
+        # means "installed, with weights on this machine", their selectable model
+        # ids come from the same filesystem probe further down, and their voices
+        # are packaged profiles. Nothing here needs an engine loaded, so nothing
+        # here loads one.
+        for engine in self._catalog_safe_local_engines():
+            tts_providers.append(engine)
+            profiles.extend(_local_tts_voice_profiles(engine))
+
         for engine in self._configured_remote_tts_engines():
             tts_providers.append(engine)
             tts_models.extend(self._configured_tts_model_ids(engine))
-            if _engine_aliases(engine) & active_tts_engines:
-                continue
-            try:
-                engine_vm = self._get_vm_for_provider(tts_provider=engine)
-                engine_catalog = engine_vm.list_available_models() if hasattr(engine_vm, "list_available_models") else {}
-                engine_models = _extract_tts_model_ids(engine_catalog)
-                engine_profiles: list[Dict[str, Any]] = []
-                if hasattr(engine_vm, "get_profiles"):
-                    try:
-                        engine_profiles.extend(_voice_profile_to_dict(p) for p in list(engine_vm.get_profiles(kind="tts") or []))
-                    except Exception:
-                        pass
-                engine_profiles.extend(_profiles_from_tts_catalog(engine_catalog, engine_id=engine))
-                tts_models.extend(engine_models)
-                profiles.extend(engine_profiles)
-                catalogs[_norm_engine_id(engine)] = _json_safe(engine_catalog)
-            except Exception:
-                continue
 
-        for engine in _catalog_safe_local_tts_engines():
-            if _engine_aliases(engine) & active_tts_engines:
+        for engine in remote_engines:
+            engine_catalog, engine_models, engine_profiles, _ = slots[engine].state
+            # Everything that landed is kept. The catalog decides only whether this
+            # provider's CATALOG is authoritative -- profiles we already paid for are
+            # not withheld because a later fetch overran.
+            tts_models.extend(engine_models)
+            profiles.extend(engine_profiles)
+            if engine_catalog is None:
+                unreachable_providers.add(_norm_engine_id(engine))
                 continue
-            try:
-                engine_vm = self._get_vm_for_provider(tts_provider=engine)
-                engine_catalog = engine_vm.list_available_models() if hasattr(engine_vm, "list_available_models") else {}
-                engine_models = _extract_tts_model_ids(engine_catalog)
-                engine_profiles: list[Dict[str, Any]] = []
-                if hasattr(engine_vm, "get_profiles"):
-                    try:
-                        engine_profiles.extend(_voice_profile_to_dict(p) for p in list(engine_vm.get_profiles(kind="tts") or []))
-                    except Exception:
-                        pass
-                engine_profiles.extend(_profiles_from_tts_catalog(engine_catalog, engine_id=engine))
-                catalog_engines = set()
-                for provider_id in _extract_provider_ids(engine_catalog):
-                    catalog_engines.update(_engine_aliases(provider_id))
-                if _norm_engine_id(engine) != "piper" and not (_engine_aliases(engine) & catalog_engines):
-                    continue
-                if not engine_models and not engine_profiles:
-                    continue
-                tts_models.extend(engine_models)
-                tts_providers.append(engine)
-                profiles.extend(engine_profiles)
-                catalogs[_norm_engine_id(engine)] = _json_safe(engine_catalog)
-            except Exception:
-                continue
+            profiles.extend(_profiles_from_tts_catalog(engine_catalog, engine_id=engine))
+            catalogs[_norm_engine_id(engine)] = _json_safe(engine_catalog)
 
         profiles = _dedupe_voice_records(_json_safe(profiles))
 
@@ -3250,7 +3576,7 @@ class _VoiceCapability(_BaseVoice):
             stt_models.extend(self._configured_stt_model_ids(engine))
 
         for provider_id in list(tts_providers):
-            tts_models.extend(_selectable_tts_model_ids_for_provider(provider_id))
+            tts_models.extend(self._selectable_local_tts_models(provider_id))
 
         tts_models = _dedupe_strings(tts_models)
         stt_models = _dedupe_strings(stt_models)
@@ -3357,7 +3683,7 @@ class _VoiceCapability(_BaseVoice):
         tts_voices_by_provider: dict[str, list[str]] = {provider: [] for provider in tts_providers}
         tts_profiles_by_provider: dict[str, list[str]] = {provider: [] for provider in tts_providers}
         for provider in tts_providers:
-            for model_id in _selectable_tts_model_ids_for_provider(provider):
+            for model_id in self._selectable_local_tts_models(provider):
                 _add_provider_value(tts_models_by_provider, provider, model_id)
         for profile in profiles:
             provider = _profile_provider_id(profile)
@@ -3460,6 +3786,12 @@ class _VoiceCapability(_BaseVoice):
                 "voices_by_model": voices_by_model,
                 "formats": _tts_formats_for_provider(provider_id),
             }
+            if provider_id in unreachable_providers:
+                # The empty voices/models below are OUR gap, not this provider's
+                # catalog: we did not reach it inside the discovery budget. Say so,
+                # so a slow-but-live host is not rendered as having nothing. Only
+                # ever set when we actually tried and failed -- absent means no claim.
+                tts_catalog_by_provider[provider_id]["unreachable"] = True
 
         stt_catalog_by_provider: dict[str, Dict[str, Any]] = {}
         stt_details = available_providers.get("details", {}).get("stt", {})
@@ -3538,6 +3870,11 @@ class _VoiceCapability(_BaseVoice):
             "tts_voices_by_provider": tts_voices_by_provider,
             "tts_profiles_by_provider": tts_profiles_by_provider,
             "tts_catalog_by_provider": tts_catalog_by_provider,
+            # Providers we tried and could not reach inside the discovery budget, so a
+            # consumer reading the flat lists above can tell a short list from a
+            # complete one without walking the per-provider catalog. Present because
+            # this path did probe; empty here means "checked, all reachable".
+            "unreachable_tts_providers": sorted(unreachable_providers),
             "stt_catalog_by_provider": stt_catalog_by_provider,
             "tts_formats_by_provider": {provider: _tts_formats_for_provider(provider) for provider in tts_providers},
             "stt_formats_by_provider": {provider: _stt_formats_for_provider(provider) for provider in stt_providers},

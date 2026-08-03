@@ -10,9 +10,56 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.10.19] - 2026-08-03
+
+### Changed
+- **Provider and model discovery no longer loads engines.** Listing providers, models, or voices is
+  now answered from the model cache, so it does not import torch or transformers and does not load
+  weights. With `ABSTRACTVOICE_TTS_ENGINE=audiodit`, `list_tts_models()` goes from 28.6s to 0.07s and
+  `list_cloning_models()` from 49.5s to 0.2s, with the same content. Local engines also report their
+  own model ids — `meituan-longcat/LongCat-AudioDiT-1B`, `k2-fsa/OmniVoice` — where previously they
+  reported Piper's voices.
+
+  Engine-free surfaces: `available_providers()`, `list_models(...)` for every kind and filter,
+  `list_tts_voices(provider=...)`, `compatibility_catalog()`, `capability_support()`,
+  `find_compatible_models()`, `voice_catalog(providers_only=True)`, and
+  `voice_catalog(provider=<local>)`. The unfiltered `voice_catalog()`, `list_profiles()`, and
+  `list_cloned_voices()` report the active engine's live state and still build it; see the cost model
+  in `docs/api.md`.
+- **A local TTS engine is listed when its models are present on the machine.** `audiodit` and
+  `omnivoice` previously appeared whenever their runtime was importable, even with nothing
+  downloaded; `piper` and `supertonic` already required a populated cache. Selecting an engine that
+  has nothing downloaded still works and still downloads on demand with `allow_downloads=True` —
+  only the listing changed. Prefetch an engine (`python -m abstractvoice download --audiodit`) to
+  have it listed. A checkpoint configured through `ABSTRACTVOICE_TTS_MODEL` counts as present, so
+  your own finetune is selectable; it applies to the engine named by `ABSTRACTVOICE_TTS_ENGINE`.
+- **Remote providers are probed concurrently under one 5-second discovery budget**, instead of one
+  synthesis-length timeout each in sequence. An unreachable host now costs one pause for the whole
+  listing. Override the budget with `ABSTRACTVOICE_DISCOVERY_TIMEOUT_S`; the per-request socket
+  timeout is the smaller of the budget and `ABSTRACTVOICE_REMOTE_TIMEOUT_S`.
+
+### Added
+- `abstractvoice.local_models` for reading what is on the machine without loading an engine:
+  `cached_tts_model_ids(engine)` and `hf_repo_is_cached(model_id)`. `abstractvoice.adapters.tts_piper`
+  gains `cached_piper_model_ids()` and `cached_piper_voice_profiles()`.
+- `voice_catalog()` reports reachability: `unreachable_tts_providers`, plus an `unreachable` flag on
+  the affected `tts_catalog_by_provider` entry. A provider that did not answer within the budget is
+  marked rather than reported as a provider with no models, so an unavailable server is
+  distinguishable from an empty one. The key is absent on catalog paths that contact nobody.
+- `docs/troubleshooting.md`, a symptom-oriented page covering install, discovery, audio devices, and
+  performance; and `CODE_OF_CONDUCT.md`.
+
 ### Fixed
-- **Capability asset loading survives package-name shadowing (laurent's offline voice outage, 2026-07-17)**: a serving process launched with cwd = the monorepo root resolves `abstractvoice` as a loaderless NAMESPACE package (the repo checkout directory shadows the installed package on `sys.path[0]`), so `pkgutil.get_data("abstractvoice", ...)` returned `None` and every voice call died with `Capability asset not found: abstractvoice/assets/voice_model_capabilities.json` — retried as if transient, burning the effect retry budget on a deterministic import-layout error. `compatibility._load_capability_asset` now resolves the asset relative to the module's own `__file__` first (immune to the shadow: this module was imported from the real install even when the package NAME resolves to the shadow), keeps `pkgutil` as the fallback for non-filesystem installs, and when both fail raises a diagnostic error that names the attempted path and the namespace-shadow condition (`abstractvoice resolved as a NAMESPACE package from [...] — a directory named 'abstractvoice' on sys.path ... is shadowing the installed package`) instead of the honest-but-mute one-liner. Regression pins in `tests/test_compatibility_catalog.py`.
-- **Builtin voice profiles survive the same shadow (silent-degradation shape, found hunting the class)**: `voice_profiles.get_builtin_voice_profiles` resolved its JSON assets via `importlib.resources.files("abstractvoice")` — also keyed on the package NAME — and under the cwd shadow returned `[]` silently: the supertonic builtin profiles (incl. the operator's configured `M1`/`M2` voices) vanished with no error (live-verified: 10 profiles from a neutral cwd, 0 under the shadow, 10 after the fix). Now resolves module-`__file__`-relative first with `importlib.resources` as the fallback; genuinely absent engine files still return `[]` (piper has no builtin profiles file — legitimate absence, unchanged). Suite 218 green.
+- `voice_catalog(provider="piper")` now includes Piper's voice profiles. Piper ships no packaged
+  profile asset because its voices are its downloaded files, so both catalog paths read them from the
+  same cache probe that reports its model ids.
+- Capability assets and built-in voice profiles load correctly when a directory named
+  `abstractvoice` on `sys.path` shadows the installed package — for example a server started with the
+  working directory set to a monorepo root. Previously voice calls could fail with
+  `Capability asset not found: abstractvoice/assets/voice_model_capabilities.json`, or built-in
+  Supertonic profiles (`M1`–`M5`, `F1`–`F5`) could come back empty with no error. Both now resolve
+  their assets relative to the module file, and an unresolvable asset raises an error that names the
+  shadowing condition.
 
 ## [0.10.18] - 2026-06-14
 

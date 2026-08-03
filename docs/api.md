@@ -456,6 +456,42 @@ cached model artifacts are present. The same payload also includes
 UI/provider selectors can distinguish installed availability from the broader
 capability catalog.
 
+Discovery has a cost model, and it is worth knowing which side of it you are on:
+
+- **Local providers cost a `stat()`.** "Is this model here?" is answered from the
+  model cache by `abstractvoice.local_models` — never by importing an engine or
+  building an adapter. `available_providers()`, `list_models()`, and
+  `voice_catalog(providers_only=True)` or `voice_catalog(provider=<local>)` never
+  load torch, transformers, or ONNX Runtime. Selecting an engine that has nothing
+  downloaded still works and still downloads on demand; it just is not *listed*
+  until its weights are on the machine.
+- **Remote providers share one 5 second budget.** Every provider is probed at
+  once, one task each. A provider that does not answer inside the budget gets
+  `tts_catalog_by_provider[provider]["unreachable"] = True` and no entry in
+  `catalogs`, because "we could not reach it in time" and "it has no models" are
+  different facts and its empty `models`/`voices` are ours, not its. The key is
+  only ever set when a probe was attempted and failed — its absence is no claim.
+  Override the budget with `ABSTRACTVOICE_DISCOVERY_TIMEOUT_S`; the per-request
+  socket timeout is the smaller of the budget and `ABSTRACTVOICE_REMOTE_TIMEOUT_S`.
+  A list-returning helper such as `list_tts_models(provider)` cannot express
+  "unknown", so read the flag when the difference matters.
+  `voice_catalog()` also carries `unreachable_tts_providers`. It is **absent** on
+  paths that contacted nobody (`providers_only=True`, a local provider filter),
+  because an empty list there would assert that every provider listed — including
+  remote ones never asked — is reachable. Absent means "not checked"; empty means
+  "checked, all reachable".
+- **Engine-free**: `available_providers()`, `list_models()` for every kind and
+  filter, `list_tts_voices(provider=...)`, `compatibility_catalog()`,
+  `capability_support()`, `find_compatible_models()`, and
+  `voice_catalog(providers_only=True)` / `voice_catalog(provider=<local>)`.
+- **Builds the active engine**: the unfiltered `voice_catalog()`,
+  `voice_catalog(provider=<remote>)`, `list_tts_voices()`, `list_cloned_voices()`,
+  and `list_profiles()`. These report the active engine's live state — its
+  profiles, its cloned voices, its STT side — and for a local engine that loads
+  its weights. It is deliberate: the light path reads cloned voices from the clone
+  store while the full one also accepts clones the manager reports, so switching
+  would silently drop the latter. Prefer the engine-free calls above for discovery.
+
 The provider/model/voice abstraction used by the plugin is:
 - `provider`: backend/engine id such as `openai`, `openai-compatible`,
   `piper`, `supertonic`, `faster-whisper`, or `transformers-asr`

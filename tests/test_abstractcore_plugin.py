@@ -200,7 +200,7 @@ def test_voice_capability_available_providers_lists_available_engines_without_vm
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENAI_BASE_URL", "http://remote.test/v1")
     monkeypatch.setenv("ABSTRACTVOICE_OPENAI_VOICE_CONSENT_ID", "consent-123")
-    monkeypatch.setattr(plugin, "_local_tts_engine_available", lambda engine: plugin._norm_engine_id(engine) == "piper")
+    monkeypatch.setattr(plugin, "_local_tts_engine_available", lambda engine, *_extra: plugin._norm_engine_id(engine) == "piper")
     monkeypatch.setattr(
         plugin,
         "_local_stt_engine_available",
@@ -236,7 +236,7 @@ def test_voice_capability_catalog_surface_serializes_profiles_and_models(monkeyp
     monkeypatch.delenv("ABSTRACTVOICE_OPENAI_TTS_VOICES", raising=False)
     monkeypatch.setattr(
         "abstractvoice.integrations.abstractcore_plugin._catalog_safe_local_tts_engines",
-        lambda: [],
+        lambda *_extra: [],
     )
     monkeypatch.setattr(
         "abstractvoice.integrations.abstractcore_plugin._local_stt_engine_available",
@@ -413,8 +413,11 @@ def test_provider_filtered_voice_catalog_uses_light_metadata_without_vm(monkeypa
 
     _clear_plugin_env(monkeypatch)
     monkeypatch.setattr(plugin, "_local_tts_engines", lambda: ["omnivoice"])
-    monkeypatch.setattr(plugin, "_local_tts_engine_available", lambda engine: plugin._norm_engine_id(engine) == "omnivoice")
+    monkeypatch.setattr(plugin, "_local_tts_engine_available", lambda engine, *_extra: plugin._norm_engine_id(engine) == "omnivoice")
     monkeypatch.setattr(plugin, "_local_cloning_engine_available", lambda engine: plugin._norm_engine_id(engine) == "omnivoice")
+    # Selectable local model ids are the ones on disk, so fake the disk rather
+    # than the lookup: the asset-declared id must still be what comes back.
+    monkeypatch.setattr("abstractvoice.local_models.hf_repo_is_cached", lambda model_id: True)
 
     class _Store:
         def list_voices(self):
@@ -439,7 +442,7 @@ def test_provider_filtered_voice_catalog_uses_light_metadata_without_vm(monkeypa
     assert cap.list_tts_models(provider="omnivoice") == ["k2-fsa/OmniVoice"]
 
 
-def test_provider_filtered_voice_catalog_surfaces_local_tts_model_ids(monkeypatch):
+def test_provider_filtered_voice_catalog_surfaces_local_tts_model_ids(monkeypatch, tmp_path):
     import abstractvoice.integrations.abstractcore_plugin as plugin
 
     _clear_plugin_env(monkeypatch)
@@ -447,16 +450,23 @@ def test_provider_filtered_voice_catalog_surfaces_local_tts_model_ids(monkeypatc
     monkeypatch.setattr(
         plugin,
         "_local_tts_engine_available",
-        lambda engine: plugin._norm_engine_id(engine) in {"piper", "audiodit"},
+        lambda engine, *_extra: plugin._norm_engine_id(engine) in {"piper", "audiodit"},
     )
     monkeypatch.setattr(
         plugin,
         "_selectable_tts_model_ids_for_provider",
-        lambda provider: {
+        lambda provider, *_extra: {
             "piper": ["en_US-amy-medium"],
             "audiodit": ["meituan-longcat/LongCat-AudioDiT-1B"],
         }.get(plugin._norm_engine_id(provider), []),
     )
+    # Piper's voice profiles come from its voice directory, and each one carries
+    # its model id, so the directory has to agree with the ids above.
+    voices = tmp_path / "piper-voices"
+    voices.mkdir()
+    (voices / "en_US-amy-medium.onnx").write_bytes(b"x")
+    (voices / "en_US-amy-medium.onnx.json").write_text("{}")
+    monkeypatch.setattr("abstractvoice.adapters.tts_piper.default_piper_model_dir", lambda: voices)
 
     class _Owner:
         config = {}
@@ -466,6 +476,9 @@ def test_provider_filtered_voice_catalog_surfaces_local_tts_model_ids(monkeypatc
 
     assert cap.list_tts_models(provider="piper") == ["en_US-amy-medium"]
     assert cap.list_tts_models(provider="audiodit") == ["meituan-longcat/LongCat-AudioDiT-1B"]
+
+    piper_catalog = cap.voice_catalog(provider="piper")["tts_catalog_by_provider"]["piper"]
+    assert [voice["profile_id"] for voice in piper_catalog["profiles"]] == ["amy"]
 
 
 def test_voice_catalog_filters_unavailable_local_stt_providers(monkeypatch):
@@ -579,7 +592,7 @@ def test_voice_capability_provider_filtered_model_and_voice_discovery(monkeypatc
     monkeypatch.delenv("ABSTRACTVOICE_OPENAI_TTS_MODELS", raising=False)
     monkeypatch.setattr(
         "abstractvoice.integrations.abstractcore_plugin._catalog_safe_local_tts_engines",
-        lambda: [],
+        lambda *_extra: [],
     )
 
     class _Adapter:
@@ -913,7 +926,7 @@ def test_voice_catalog_keeps_remote_clones_when_base_tts_is_local(monkeypatch):
     monkeypatch.setenv("ABSTRACTVOICE_OPENAI_VOICE_CREATE_PATH", "/v1/voices")
     monkeypatch.setattr(
         "abstractvoice.integrations.abstractcore_plugin._catalog_safe_local_tts_engines",
-        lambda: [],
+        lambda *_extra: [],
     )
 
     class _Adapter:

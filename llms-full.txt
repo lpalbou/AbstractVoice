@@ -111,6 +111,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests
 - [API (integrator contract)](docs/api.md): supported surface area (incl. integrations)
 - [FAQ](docs/faq.md): cache/history reset + common install/runtime issues
+- [Troubleshooting](docs/troubleshooting.md): symptom → fix for install, discovery, audio devices, performance
 - [Known issues](docs/known-issues.md): active release caveats and workarounds
 - [Installation](docs/installation.md): platform notes + extras
 - [REPL guide](docs/repl_guide.md): end-to-end validation + commands
@@ -146,6 +147,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [TTS methods + cloning orchestration](abstractvoice/vm/tts_mixin.py)
 - [Runtime TTS switching](abstractvoice/vm/tts_mixin.py): `set_tts_engine(...)` resets the base profile to the provider/language default
 - [Voice profiles abstraction](abstractvoice/voice_profiles.py): cross-engine `VoiceProfile` ids + metadata
+- [Local model presence](abstractvoice/local_models.py): `cached_tts_model_ids(...)` / `hf_repo_is_cached(...)` — discovery reads the model cache; no engine or ML framework imports
 - [Remote audio HTTP helpers](abstractvoice/adapters/openai_compatible_http.py): lightweight requests-based OpenAI-compatible audio client
 - [Remote TTS adapter](abstractvoice/adapters/tts_openai_compatible.py): `/audio/speech` + remote profile discovery
 - [Remote STT adapter](abstractvoice/adapters/stt_openai_compatible.py): `/audio/transcriptions`
