@@ -54,6 +54,7 @@ pip install "abstractvoice[cloning]"   # explicit OpenF5-based cloning (heavy; P
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
 pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transformers)
 pip install "abstractvoice[omnivoice]" # recommended/default local cloning + OmniVoice TTS/design (very heavy; Python 3.10+)
+pip install "abstractvoice[qwen3-tts]" # Qwen3-TTS: preset speakers, cloning, voice design (heavy; Python 3.10+)
 pip install "abstractvoice[openai]"    # Hosted OpenAI intent extra (no extra deps today)
 pip install "abstractvoice[openai-compatible]" # Generic compatible provider intent extra
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)

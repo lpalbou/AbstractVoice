@@ -32,7 +32,7 @@ _ACTIVE_PROBE = object()
 # filter for an uninstalled local provider that fell through to the full catalog
 # would build the ACTIVE engine to answer, which is both slow and, when that engine's
 # extra is missing, a crash.
-_CATALOG_LOCAL_TTS_PROVIDER_IDS = frozenset({"piper", "supertonic", "audiodit", "omnivoice"})
+_CATALOG_LOCAL_TTS_PROVIDER_IDS = frozenset({"piper", "supertonic", "audiodit", "omnivoice", "qwen3-tts"})
 
 
 # THE RULE FOR EVERY FIELD IN A DISCOVERY PAYLOAD, not just the ones below:
@@ -530,6 +530,15 @@ def _local_tts_voice_profiles(engine: Any) -> list[Dict[str, Any]]:
             records.extend(_voice_profile_to_dict(profile) for profile in cached_piper_voice_profiles())
         except Exception:
             pass
+    if _norm_engine_id(engine) == "qwen3-tts":
+        # Same shape as piper: the voices live in the downloaded snapshots'
+        # configs, not in a packaged asset, so read them from disk.
+        try:
+            from ..adapters.tts_qwen3_tts import cached_qwen3_tts_voice_profiles
+
+            records.extend(_voice_profile_to_dict(profile) for profile in cached_qwen3_tts_voice_profiles())
+        except Exception:
+            pass
     return records
 
 
@@ -625,8 +634,8 @@ def _normalize_support_levels(value: Any) -> tuple[str, ...]:
 
 def _known_cloning_provider_ids() -> list[str]:
     return _ordered_provider_ids(
-        ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
-        ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+        ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts", "openai", "openai-compatible"],
+        ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts", "openai", "openai-compatible"],
     )
 
 
@@ -655,7 +664,7 @@ def _runtime_installed(kind: str, provider: Any) -> bool | None:
         return importlib.util.find_spec("omnivoice") is not None
     if engine == "f5_tts":
         return importlib.util.find_spec("f5_tts") is not None
-    if engine in {"audiodit", "chroma"}:
+    if engine in {"audiodit", "chroma", "qwen3-tts"}:
         return (
             importlib.util.find_spec("torch") is not None
             and importlib.util.find_spec("transformers") is not None
@@ -693,7 +702,7 @@ def _local_stt_engine_available(engine: Any) -> bool:
 
 def _local_cloning_engine_available(engine: Any) -> bool:
     normalized = _norm_engine_id(engine)
-    if normalized in {"omnivoice", "f5_tts", "chroma", "audiodit"}:
+    if normalized in {"omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts"}:
         return bool(_runtime_installed("cloning", normalized))
     return False
 
@@ -749,6 +758,8 @@ def _engine_runtime_available(engine: Any, configured_providers: Any = ()) -> bo
     if normalized == "f5_tts":
         return importlib.util.find_spec("f5_tts") is not None
     if normalized == "audiodit":
+        return importlib.util.find_spec("torch") is not None and importlib.util.find_spec("transformers") is not None
+    if normalized == "qwen3-tts":
         return importlib.util.find_spec("torch") is not None and importlib.util.find_spec("transformers") is not None
     return normalized in {_norm_engine_id(provider) for provider in _local_tts_engines()}
 
@@ -2452,7 +2463,7 @@ class _BaseVoice:
 
     def _available_cloning_provider_ids(self) -> list[str]:
         providers: list[str] = []
-        for engine in ("omnivoice", "f5_tts", "chroma", "audiodit"):
+        for engine in ("omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts"):
             if _local_cloning_engine_available(engine):
                 providers.append(engine)
         clone_path = str(_env("ABSTRACTVOICE_OPENAI_VOICE_CREATE_PATH") or "").strip()
@@ -2463,7 +2474,7 @@ class _BaseVoice:
             providers.append("openai-compatible")
         return _ordered_provider_ids(
             providers,
-            ["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+            ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts", "openai", "openai-compatible"],
         )
 
     def _configured_local_tts_model_ids(self, engine: Any) -> list[str]:

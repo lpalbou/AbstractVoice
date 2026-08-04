@@ -527,13 +527,14 @@ def _known_tts_models(
         "supertonic": _asset_model_ids("tts", "supertonic"),
         "omnivoice": _asset_model_ids("tts", "omnivoice"),
         "audiodit": _asset_model_ids("tts", "audiodit"),
+        "qwen3-tts": _asset_model_ids("tts", "qwen3-tts"),
     }
     if current_model:
         target_provider = _norm_provider(current_provider, kind="tts") if current_provider else ""
         if target_provider and target_provider in out:
             out.setdefault(target_provider, []).append(str(current_model).strip())
         else:
-            for provider in ("openai-compatible", "omnivoice", "audiodit", "supertonic", "piper", "openai"):
+            for provider in ("openai-compatible", "omnivoice", "audiodit", "qwen3-tts", "supertonic", "piper", "openai"):
                 if current_model not in out[provider]:
                     continue
                 break
@@ -579,6 +580,7 @@ def _known_cloning_models(
         "omnivoice": _asset_model_ids("cloning", "omnivoice"),
         "audiodit": _asset_model_ids("cloning", "audiodit"),
         "chroma": _asset_model_ids("cloning", "chroma"),
+        "qwen3-tts": _asset_model_ids("cloning", "qwen3-tts"),
         "openai": _asset_model_ids("cloning", "openai") or list(_OPENAI_KNOWN_TTS_MODELS),
         "openai-compatible": _dedupe(remote_models),
     }

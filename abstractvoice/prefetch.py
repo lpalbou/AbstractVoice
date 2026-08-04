@@ -54,6 +54,19 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Prefetch OmniVoice weights + tokenizer (requires abstractvoice[omnivoice])",
     )
+    parser.add_argument(
+        "--qwen3-tts",
+        dest="qwen3_tts",
+        nargs="?",
+        const="Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+        default=None,
+        metavar="MODEL_ID",
+        help=(
+            "Prefetch a Qwen3-TTS snapshot (requires abstractvoice[qwen3-tts]). "
+            "Defaults to Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice; pass a repo id for "
+            "Base (cloning) or VoiceDesign checkpoints."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if (
@@ -65,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
         and not args.supertonic
         and not args.audiodit
         and not args.omnivoice
+        and not args.qwen3_tts
     ):
         parser.print_help()
         return 2
@@ -140,6 +154,13 @@ def main(argv: list[str] | None = None) -> int:
         print("Downloading OmniVoice weights + tokenizer…")
         path = prefetch_omnivoice()
         print(f"✅ OmniVoice ready (cached at {path}).")
+
+    if args.qwen3_tts:
+        from abstractvoice.qwen3_tts.runtime import prefetch_qwen3_tts
+
+        print(f"Downloading Qwen3-TTS snapshot: {args.qwen3_tts}")
+        path = prefetch_qwen3_tts(model_id=str(args.qwen3_tts))
+        print(f"✅ Qwen3-TTS ready (cached at {path}).")
 
     return 0
 

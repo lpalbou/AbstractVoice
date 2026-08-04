@@ -36,21 +36,13 @@ from transformers.modeling_outputs import (
 from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from transformers.processing_utils import Unpack
-from transformers.utils import auto_docstring, can_return_tuple
+from transformers.utils import can_return_tuple
+
+from .._hf_compat import auto_docstring
 from transformers.utils.deprecation import deprecate_kwarg
 from transformers.utils.generic import TransformersKwargs
 
-try:
-    from transformers.utils.generic import check_model_inputs  # type: ignore
-except Exception:  # pragma: no cover
-    # Older/newer Transformers builds may not expose `check_model_inputs`.
-    # It is only used as a lightweight decorator, so a no-op fallback keeps
-    # the model importable while preserving runtime behavior.
-    def check_model_inputs(*_args, **_kwargs):  # type: ignore
-        def _decorator(fn):
-            return fn
-
-        return _decorator
+from .._hf_compat import check_model_inputs, pad_token_id_of, rope_init_fn  # noqa: E402
 
 from .configuration_qwen3_asr import (
     Qwen3ASRAudioEncoderConfig,
@@ -803,7 +795,7 @@ class Qwen3ASRThinkerTextRotaryEmbedding(nn.Module):
         self.original_max_seq_len = config.max_position_embeddings
 
         self.config = config
-        self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
+        self.rope_init_fn = rope_init_fn(self.rope_type)
 
         inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device)
         self.register_buffer("inv_freq", inv_freq, persistent=False)
@@ -981,7 +973,7 @@ class Qwen3ASRThinkerTextModel(Qwen3ASRPreTrainedModel):
 
     def __init__(self, config: Qwen3ASRConfig):
         super().__init__(config)
-        self.padding_idx = config.pad_token_id
+        self.padding_idx = pad_token_id_of(config)
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
@@ -1079,7 +1071,7 @@ class Qwen3ASRThinkerTextModel(Qwen3ASRPreTrainedModel):
 class Qwen3ASRThinkerForConditionalGeneration(Qwen3ASRPreTrainedModelForConditionalGeneration, GenerationMixin):
     config: Qwen3ASRThinkerConfig
     base_model_prefix = "thinker"
-    _tied_weights_keys = ["model.embed_tokens.weight", "lm_head.weight"]
+    _tied_weights_keys = {"lm_head.weight": "model.embed_tokens.weight"}
     _no_split_modules = [
         "Qwen3ASRAudioEncoderLayer",
         "Qwen3ASRThinkerTextDecoderLayer",
@@ -1098,7 +1090,8 @@ class Qwen3ASRThinkerForConditionalGeneration(Qwen3ASRPreTrainedModelForConditio
             self.lm_head = nn.Linear(config.text_config.hidden_size, config.classify_num, bias=False)
         else:
             self.lm_head = nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
-        self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
+        _pad = pad_token_id_of(self.config)
+        self.pad_token_id = _pad if _pad is not None else -1
         self.rope_deltas = None
         self.post_init()
 

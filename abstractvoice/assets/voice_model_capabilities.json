@@ -1,669 +1,1390 @@
 {
-  "schema_version": "1.0",
-  "kinds": {
-    "tts": {
-      "providers": {
-        "openai": {
-          "source": "OpenAI audio/speech API",
-          "default_surfaces": {
-            "bytes": {
-              "speed": {"support": "native"},
-              "quality_preset": {
-                "support": "unsupported",
-                "reason": "OpenAI TTS does not expose package quality presets."
-              },
-              "instructions": {
-                "support": "conditional",
-                "reason": "Instruction support depends on the specific OpenAI TTS model."
-              },
-              "profile": {"support": "native"},
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            },
-            "playback": {
-              "speed": {"support": "native"},
-              "quality_preset": {
-                "support": "unsupported",
-                "reason": "OpenAI TTS does not expose package quality presets."
-              },
-              "instructions": {
-                "support": "unsupported",
-                "reason": "Live playback does not yet expose per-request instructions."
-              },
-              "profile": {"support": "native"},
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            }
-          },
-          "models": {
-            "gpt-4o-mini-tts": {
-              "surfaces": {
-                "bytes": {
-                  "instructions": {"support": "native"}
-                }
-              }
-            },
-            "tts-1": {
-              "surfaces": {
-                "bytes": {
-                  "instructions": {
-                    "support": "unsupported",
-                    "reason": "OpenAI documents instructions on /audio/speech as unsupported for tts-1."
-                  }
-                }
-              }
-            },
-            "tts-1-hd": {
-              "surfaces": {
-                "bytes": {
-                  "instructions": {
-                    "support": "unsupported",
-                    "reason": "OpenAI documents instructions on /audio/speech as unsupported for tts-1-hd."
-                  }
-                }
-              }
-            }
-          }
-        },
-        "openai-compatible": {
-          "source": "AbstractVoice remote-compatible forwarding semantics",
-          "default_surfaces": {
-            "bytes": {
-              "speed": {
-                "support": "conditional",
-                "reason": "AbstractVoice forwards speed to compatible endpoints, but provider support varies."
-              },
-              "quality_preset": {
-                "support": "unsupported",
-                "reason": "Remote compatible TTS does not expose package quality presets."
-              },
-              "instructions": {
-                "support": "conditional",
-                "reason": "AbstractVoice forwards instructions to compatible endpoints, but provider support varies."
-              },
-              "profile": {
-                "support": "conditional",
-                "reason": "Voice/profile support depends on what the compatible endpoint exposes."
-              },
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            },
-            "playback": {
-              "speed": {
-                "support": "conditional",
-                "reason": "Live playback uses the compatible endpoint speed field when the provider honors it."
-              },
-              "quality_preset": {
-                "support": "unsupported",
-                "reason": "Remote compatible TTS does not expose package quality presets."
-              },
-              "instructions": {
-                "support": "unsupported",
-                "reason": "Live playback does not yet expose per-request instructions."
-              },
-              "profile": {
-                "support": "conditional",
-                "reason": "Voice/profile support depends on what the compatible endpoint exposes."
-              },
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            }
-          },
-          "models": {}
-        },
-        "piper": {
-          "default_surfaces": {
-            "bytes": {
-              "speed": {
-                "support": "unsupported",
-                "reason": "Per-request speed is not wired on the bytes synthesis path for Piper."
-              },
-              "quality_preset": {"support": "unsupported", "reason": "Piper does not expose package quality presets."},
-              "instructions": {"support": "unsupported", "reason": "Piper does not accept style instructions."},
-              "profile": {"support": "native"},
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            },
-            "playback": {
-              "speed": {
-                "support": "emulated",
-                "reason": "Playback speed is applied by AbstractVoice post-processing rather than Piper itself."
-              },
-              "quality_preset": {"support": "unsupported", "reason": "Piper does not expose package quality presets."},
-              "instructions": {"support": "unsupported", "reason": "Piper does not accept style instructions."},
-              "profile": {"support": "native"},
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            }
-          },
-          "models": {}
-        },
-        "supertonic": {
-          "default_surfaces": {
-            "bytes": {
-              "speed": {
-                "support": "unsupported",
-                "reason": "Per-request speed is not wired on the bytes synthesis path for Supertonic."
-              },
-              "quality_preset": {"support": "native"},
-              "instructions": {"support": "unsupported", "reason": "Supertonic does not accept style instructions."},
-              "profile": {"support": "native"},
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            },
-            "playback": {
-              "speed": {"support": "native"},
-              "quality_preset": {"support": "native"},
-              "instructions": {
-                "support": "unsupported",
-                "reason": "Live playback does not yet expose per-request instructions."
-              },
-              "profile": {"support": "native"},
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            }
-          },
-          "models": {
-            "supertonic-3": {
-              "surfaces": {}
-            }
-          }
-        },
-        "omnivoice": {
-          "default_surfaces": {
-            "bytes": {
-              "speed": {
-                "support": "unsupported",
-                "reason": "Per-request speed is not wired on the bytes synthesis path for OmniVoice."
-              },
-              "quality_preset": {"support": "native"},
-              "instructions": {
-                "support": "unsupported",
-                "reason": "OmniVoice voice design is adapter state, not a per-request instructions field."
-              },
-              "profile": {"support": "native"},
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            },
-            "playback": {
-              "speed": {"support": "native"},
-              "quality_preset": {"support": "native"},
-              "instructions": {
-                "support": "unsupported",
-                "reason": "Live playback does not yet expose per-request instructions."
-              },
-              "profile": {"support": "native"},
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            }
-          },
-          "models": {
-            "k2-fsa/OmniVoice": {
-              "surfaces": {}
-            }
-          }
-        },
-        "audiodit": {
-          "default_surfaces": {
-            "bytes": {
-              "speed": {
-                "support": "unsupported",
-                "reason": "AudioDiT speed control is intentionally disabled because non-default speed degrades output quality."
-              },
-              "quality_preset": {"support": "native"},
-              "instructions": {"support": "unsupported", "reason": "AudioDiT does not accept style instructions."},
-              "profile": {
-                "support": "unsupported",
-                "reason": "AudioDiT does not publish selectable built-in profiles."
-              },
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            },
-            "playback": {
-              "speed": {
-                "support": "unsupported",
-                "reason": "AudioDiT speed control is intentionally disabled because non-default speed degrades output quality."
-              },
-              "quality_preset": {"support": "native"},
-              "instructions": {
-                "support": "unsupported",
-                "reason": "Live playback does not yet expose per-request instructions."
-              },
-              "profile": {
-                "support": "unsupported",
-                "reason": "AudioDiT does not publish selectable built-in profiles."
-              },
-              "pace": {"support": "unsupported", "reason": "Directed-speech pacing is not wired yet."},
-              "target_duration_s": {"support": "unsupported", "reason": "Target duration is not wired yet."},
-              "actions": {"support": "unsupported", "reason": "Action-cue prompting is not wired yet."},
-              "scene_context": {"support": "unsupported", "reason": "Scene-aware prompting is not wired yet."},
-              "ambient_audio": {"support": "unsupported", "reason": "Ambient/background audio is not wired yet."},
-              "background_sfx": {"support": "unsupported", "reason": "Background SFX is not wired yet."},
-              "output_channels": {"support": "unsupported", "reason": "Per-request channel layout is not exposed yet."}
-            }
-          },
-          "models": {
-            "meituan-longcat/LongCat-AudioDiT-1B": {
-              "surfaces": {}
-            }
-          }
-        }
+ "schema_version": "1.0",
+ "kinds": {
+  "tts": {
+   "providers": {
+    "openai": {
+     "source": "OpenAI audio/speech API",
+     "default_surfaces": {
+      "bytes": {
+       "speed": {
+        "support": "native"
+       },
+       "quality_preset": {
+        "support": "unsupported",
+        "reason": "OpenAI TTS does not expose package quality presets."
+       },
+       "instructions": {
+        "support": "conditional",
+        "reason": "Instruction support depends on the specific OpenAI TTS model."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      },
+      "playback": {
+       "speed": {
+        "support": "native"
+       },
+       "quality_preset": {
+        "support": "unsupported",
+        "reason": "OpenAI TTS does not expose package quality presets."
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Live playback does not yet expose per-request instructions."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
       }
+     },
+     "models": {
+      "gpt-4o-mini-tts": {
+       "surfaces": {
+        "bytes": {
+         "instructions": {
+          "support": "native"
+         }
+        }
+       }
+      },
+      "tts-1": {
+       "surfaces": {
+        "bytes": {
+         "instructions": {
+          "support": "unsupported",
+          "reason": "OpenAI documents instructions on /audio/speech as unsupported for tts-1."
+         }
+        }
+       }
+      },
+      "tts-1-hd": {
+       "surfaces": {
+        "bytes": {
+         "instructions": {
+          "support": "unsupported",
+          "reason": "OpenAI documents instructions on /audio/speech as unsupported for tts-1-hd."
+         }
+        }
+       }
+      }
+     }
     },
-    "stt": {
-      "providers": {
-        "openai": {
-          "default_surfaces": {
-            "transcribe": {
-              "language": {"support": "native"},
-              "prompt": {
-                "support": "unsupported",
-                "reason": "The current package-level STT request surface does not expose per-request prompt yet."
-              },
-              "audio_bytes": {"support": "native"},
-              "audio_array": {"support": "native"},
-              "word_timestamps": {
-                "support": "unsupported",
-                "reason": "AbstractVoice currently returns plain text only."
-              }
-            }
-          },
-          "models": {
-            "gpt-4o-transcribe": {"surfaces": {}},
-            "gpt-4o-mini-transcribe": {"surfaces": {}},
-            "whisper-1": {"surfaces": {}}
-          }
-        },
-        "openai-compatible": {
-          "default_surfaces": {
-            "transcribe": {
-              "language": {
-                "support": "conditional",
-                "reason": "Language hints are forwarded to compatible endpoints, but provider support varies."
-              },
-              "prompt": {
-                "support": "unsupported",
-                "reason": "The current package-level STT request surface does not expose per-request prompt yet."
-              },
-              "audio_bytes": {"support": "native"},
-              "audio_array": {"support": "native"},
-              "word_timestamps": {
-                "support": "unsupported",
-                "reason": "AbstractVoice currently returns plain text only."
-              }
-            }
-          },
-          "models": {
-            "gpt-4o-transcribe": {"surfaces": {}},
-            "gpt-4o-mini-transcribe": {"surfaces": {}},
-            "whisper-1": {"surfaces": {}}
-          }
-        },
-        "faster-whisper": {
-          "default_surfaces": {
-            "transcribe": {
-              "language": {"support": "native"},
-              "prompt": {
-                "support": "unsupported",
-                "reason": "Prompt is not exposed on the current faster-whisper package surface."
-              },
-              "audio_bytes": {"support": "native"},
-              "audio_array": {"support": "native"},
-              "word_timestamps": {
-                "support": "unsupported",
-                "reason": "AbstractVoice currently returns plain text only."
-              }
-            }
-          },
-          "models": {}
-        },
-        "transformers-asr": {
-          "default_surfaces": {
-            "transcribe": {
-              "language": {"support": "native"},
-              "prompt": {
-                "support": "unsupported",
-                "reason": "Prompt is not exposed on the current transformers-asr package surface."
-              },
-              "audio_bytes": {"support": "native"},
-              "audio_array": {"support": "native"},
-              "word_timestamps": {
-                "support": "unsupported",
-                "reason": "AbstractVoice currently returns plain text only."
-              }
-            }
-          },
-          "models": {
-            "CohereLabs/cohere-transcribe-03-2026": {
-              "card": {
-                "name": "Cohere Transcribe (03-2026)",
-                "provider": "Cohere Labs",
-                "source": "Hugging Face",
-                "repo_id": "CohereLabs/cohere-transcribe-03-2026",
-                "url": "https://huggingface.co/CohereLabs/cohere-transcribe-03-2026",
-                "task": "automatic-speech-recognition",
-                "modalities": ["audio-in", "text-out"],
-                "architecture": "Conformer encoder + Transformer decoder",
-                "parameter_count": 2000000000,
-                "license": "apache-2.0",
-                "sample_rate_hz": 16000,
-                "supported_languages": ["ar", "de", "el", "en", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt", "vi", "zh"],
-                "hf_gated": {
-                  "gated": true,
-                  "notes": "Hugging Face gating applies; access requires accepting the model's conditions (contact info sharing)."
-                },
-                "strengths": [
-                  "High-accuracy multilingual transcription across 14 languages.",
-                  "Designed for efficient transcription (real-time factor improvements claimed vs similarly-sized ASR models)."
-                ],
-                "limitations": [
-                  "No explicit automatic language detection; works best when a single language is pre-specified.",
-                  "No timestamps or speaker diarization.",
-                  "Can be eager to transcribe non-speech; benefits from VAD/noise gate in noisy/silent segments."
-                ],
-                "recommended_runtime": {
-                  "transformers_min_version": "5.4.0"
-                }
-              },
-              "surfaces": {
-                "transcribe": {
-                  "language": {
-                    "support": "native",
-                    "metadata": {
-                      "recommended": true,
-                      "notes": "This model performs best when `language` is set (no reliable auto language detection)."
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+    "openai-compatible": {
+     "source": "AbstractVoice remote-compatible forwarding semantics",
+     "default_surfaces": {
+      "bytes": {
+       "speed": {
+        "support": "conditional",
+        "reason": "AbstractVoice forwards speed to compatible endpoints, but provider support varies."
+       },
+       "quality_preset": {
+        "support": "unsupported",
+        "reason": "Remote compatible TTS does not expose package quality presets."
+       },
+       "instructions": {
+        "support": "conditional",
+        "reason": "AbstractVoice forwards instructions to compatible endpoints, but provider support varies."
+       },
+       "profile": {
+        "support": "conditional",
+        "reason": "Voice/profile support depends on what the compatible endpoint exposes."
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      },
+      "playback": {
+       "speed": {
+        "support": "conditional",
+        "reason": "Live playback uses the compatible endpoint speed field when the provider honors it."
+       },
+       "quality_preset": {
+        "support": "unsupported",
+        "reason": "Remote compatible TTS does not expose package quality presets."
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Live playback does not yet expose per-request instructions."
+       },
+       "profile": {
+        "support": "conditional",
+        "reason": "Voice/profile support depends on what the compatible endpoint exposes."
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
       }
+     },
+     "models": {}
     },
-    "cloning": {
-      "providers": {
-        "f5_tts": {
-          "default_surfaces": {
-            "create": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "native", "metadata": {"required": false}},
-              "reference_text_autofallback": {
-                "support": "emulated",
-                "reason": "Missing reference text is generated later from reference audio using STT."
-              },
-              "multi_reference_audio": {"support": "native"},
-              "speed": {
-                "support": "unsupported",
-                "reason": "Speed applies to cloned speech generation, not clone creation."
-              },
-              "audio_chunks": {
-                "support": "unsupported",
-                "reason": "Chunked output applies to cloned speech generation, not clone creation."
-              }
-            },
-            "speak_bytes": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "native", "metadata": {"required": false}},
-              "reference_text_autofallback": {"support": "emulated"},
-              "multi_reference_audio": {"support": "native"},
-              "speed": {"support": "native"},
-              "audio_chunks": {"support": "native"}
-            }
-          },
-          "models": {
-            "mrfakename/OpenF5-TTS-Base": {"surfaces": {}}
-          }
-        },
-        "omnivoice": {
-          "default_surfaces": {
-            "create": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "native", "metadata": {"required": false}},
-              "reference_text_autofallback": {"support": "emulated"},
-              "multi_reference_audio": {
-                "support": "unsupported",
-                "reason": "OmniVoice cloning currently accepts exactly one reference audio file."
-              },
-              "speed": {
-                "support": "unsupported",
-                "reason": "Speed applies to cloned speech generation, not clone creation."
-              },
-              "audio_chunks": {
-                "support": "unsupported",
-                "reason": "Chunked output applies to cloned speech generation, not clone creation."
-              }
-            },
-            "speak_bytes": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "native", "metadata": {"required": false}},
-              "reference_text_autofallback": {"support": "emulated"},
-              "multi_reference_audio": {
-                "support": "unsupported",
-                "reason": "OmniVoice cloning currently accepts exactly one reference audio file."
-              },
-              "speed": {"support": "native"},
-              "audio_chunks": {"support": "native"}
-            }
-          },
-          "models": {
-            "k2-fsa/OmniVoice": {"surfaces": {}}
-          }
-        },
-        "audiodit": {
-          "default_surfaces": {
-            "create": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "native", "metadata": {"required": false}},
-              "reference_text_autofallback": {"support": "emulated"},
-              "multi_reference_audio": {"support": "native"},
-              "speed": {
-                "support": "unsupported",
-                "reason": "Speed applies to cloned speech generation, not clone creation."
-              },
-              "audio_chunks": {
-                "support": "unsupported",
-                "reason": "Chunked output applies to cloned speech generation, not clone creation."
-              }
-            },
-            "speak_bytes": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "native", "metadata": {"required": false}},
-              "reference_text_autofallback": {"support": "emulated"},
-              "multi_reference_audio": {"support": "native"},
-              "speed": {
-                "support": "unsupported",
-                "reason": "AudioDiT cloned speech does not apply speed; non-default speed is ignored."
-              },
-              "audio_chunks": {"support": "native"}
-            }
-          },
-          "models": {
-            "meituan-longcat/LongCat-AudioDiT-1B": {"surfaces": {}}
-          }
-        },
-        "chroma": {
-          "default_surfaces": {
-            "create": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "native", "metadata": {"required": false}},
-              "reference_text_autofallback": {"support": "emulated"},
-              "multi_reference_audio": {
-                "support": "unsupported",
-                "reason": "Chroma cloning currently accepts exactly one reference audio file."
-              },
-              "speed": {
-                "support": "unsupported",
-                "reason": "Speed applies to cloned speech generation, not clone creation."
-              },
-              "audio_chunks": {
-                "support": "unsupported",
-                "reason": "Chunked output applies to cloned speech generation, not clone creation."
-              }
-            },
-            "speak_bytes": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "native", "metadata": {"required": false}},
-              "reference_text_autofallback": {"support": "emulated"},
-              "multi_reference_audio": {
-                "support": "unsupported",
-                "reason": "Chroma cloning currently accepts exactly one reference audio file."
-              },
-              "speed": {
-                "support": "emulated",
-                "reason": "Chroma speed is applied by AbstractVoice post-processing after generation."
-              },
-              "audio_chunks": {"support": "native"}
-            }
-          },
-          "models": {
-            "FlashLabs/Chroma-4B": {"surfaces": {}}
-          }
-        },
-        "openai": {
-          "default_surfaces": {
-            "create": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {
-                "support": "unsupported",
-                "reason": "OpenAI custom voice creation uses consent rather than a reference transcript field."
-              },
-              "reference_text_autofallback": {"support": "unsupported"},
-              "multi_reference_audio": {
-                "support": "unsupported",
-                "reason": "Remote OpenAI cloning currently accepts exactly one reference file."
-              },
-              "speed": {
-                "support": "unsupported",
-                "reason": "Speed applies to speech generation, not clone creation."
-              },
-              "audio_chunks": {
-                "support": "unsupported",
-                "reason": "Chunked output applies to speech generation, not clone creation."
-              }
-            },
-            "speak_bytes": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {"support": "unsupported"},
-              "reference_text_autofallback": {"support": "unsupported"},
-              "multi_reference_audio": {
-                "support": "unsupported",
-                "reason": "Remote OpenAI cloning currently accepts exactly one reference file."
-              },
-              "speed": {"support": "native"},
-              "audio_chunks": {
-                "support": "unsupported",
-                "reason": "Remote OpenAI cloned speech is buffered today."
-              }
-            }
-          },
-          "models": {
-            "gpt-4o-mini-tts": {"surfaces": {}},
-            "tts-1": {"surfaces": {}},
-            "tts-1-hd": {"surfaces": {}}
-          }
-        },
-        "openai-compatible": {
-          "default_surfaces": {
-            "create": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {
-                "support": "conditional",
-                "reason": "Reference text is forwarded to compatible clone endpoints when they support it."
-              },
-              "reference_text_autofallback": {"support": "unsupported"},
-              "multi_reference_audio": {
-                "support": "unsupported",
-                "reason": "Remote compatible cloning currently accepts exactly one reference file."
-              },
-              "speed": {
-                "support": "unsupported",
-                "reason": "Speed applies to speech generation, not clone creation."
-              },
-              "audio_chunks": {
-                "support": "unsupported",
-                "reason": "Chunked output applies to speech generation, not clone creation."
-              }
-            },
-            "speak_bytes": {
-              "reference_audio": {"support": "native"},
-              "reference_text": {
-                "support": "conditional",
-                "reason": "Compatible clone endpoints may require or ignore reference text depending on provider behavior."
-              },
-              "reference_text_autofallback": {"support": "unsupported"},
-              "multi_reference_audio": {
-                "support": "unsupported",
-                "reason": "Remote compatible cloning currently accepts exactly one reference file."
-              },
-              "speed": {
-                "support": "conditional",
-                "reason": "AbstractVoice forwards speed to compatible remote TTS, but provider support varies."
-              },
-              "audio_chunks": {
-                "support": "unsupported",
-                "reason": "Remote compatible cloned speech is buffered today."
-              }
-            }
-          },
-          "models": {}
-        }
+    "piper": {
+     "default_surfaces": {
+      "bytes": {
+       "speed": {
+        "support": "unsupported",
+        "reason": "Per-request speed is not wired on the bytes synthesis path for Piper."
+       },
+       "quality_preset": {
+        "support": "unsupported",
+        "reason": "Piper does not expose package quality presets."
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Piper does not accept style instructions."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      },
+      "playback": {
+       "speed": {
+        "support": "emulated",
+        "reason": "Playback speed is applied by AbstractVoice post-processing rather than Piper itself."
+       },
+       "quality_preset": {
+        "support": "unsupported",
+        "reason": "Piper does not expose package quality presets."
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Piper does not accept style instructions."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
       }
+     },
+     "models": {}
+    },
+    "supertonic": {
+     "default_surfaces": {
+      "bytes": {
+       "speed": {
+        "support": "unsupported",
+        "reason": "Per-request speed is not wired on the bytes synthesis path for Supertonic."
+       },
+       "quality_preset": {
+        "support": "native"
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Supertonic does not accept style instructions."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      },
+      "playback": {
+       "speed": {
+        "support": "native"
+       },
+       "quality_preset": {
+        "support": "native"
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Live playback does not yet expose per-request instructions."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      }
+     },
+     "models": {
+      "supertonic-3": {
+       "surfaces": {}
+      }
+     }
+    },
+    "omnivoice": {
+     "default_surfaces": {
+      "bytes": {
+       "speed": {
+        "support": "unsupported",
+        "reason": "Per-request speed is not wired on the bytes synthesis path for OmniVoice."
+       },
+       "quality_preset": {
+        "support": "native"
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "OmniVoice voice design is adapter state, not a per-request instructions field."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      },
+      "playback": {
+       "speed": {
+        "support": "native"
+       },
+       "quality_preset": {
+        "support": "native"
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Live playback does not yet expose per-request instructions."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      }
+     },
+     "models": {
+      "k2-fsa/OmniVoice": {
+       "surfaces": {}
+      }
+     }
+    },
+    "audiodit": {
+     "default_surfaces": {
+      "bytes": {
+       "speed": {
+        "support": "unsupported",
+        "reason": "AudioDiT speed control is intentionally disabled because non-default speed degrades output quality."
+       },
+       "quality_preset": {
+        "support": "native"
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "AudioDiT does not accept style instructions."
+       },
+       "profile": {
+        "support": "unsupported",
+        "reason": "AudioDiT does not publish selectable built-in profiles."
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      },
+      "playback": {
+       "speed": {
+        "support": "unsupported",
+        "reason": "AudioDiT speed control is intentionally disabled because non-default speed degrades output quality."
+       },
+       "quality_preset": {
+        "support": "native"
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Live playback does not yet expose per-request instructions."
+       },
+       "profile": {
+        "support": "unsupported",
+        "reason": "AudioDiT does not publish selectable built-in profiles."
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      }
+     },
+     "models": {
+      "meituan-longcat/LongCat-AudioDiT-1B": {
+       "surfaces": {}
+      }
+     }
+    },
+    "qwen3-tts": {
+     "default_surfaces": {
+      "bytes": {
+       "speed": {
+        "support": "unsupported",
+        "reason": "Qwen3-TTS does not expose a speed control; use pacing-neutral text."
+       },
+       "quality_preset": {
+        "support": "native"
+       },
+       "instructions": {
+        "support": "conditional",
+        "reason": "Instruction support depends on the selected model: native on the 1.7B checkpoints, ignored by 0.6B."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      },
+      "playback": {
+       "speed": {
+        "support": "unsupported",
+        "reason": "Qwen3-TTS does not expose a speed control; use pacing-neutral text."
+       },
+       "quality_preset": {
+        "support": "native"
+       },
+       "instructions": {
+        "support": "unsupported",
+        "reason": "Live playback does not yet expose per-request instructions."
+       },
+       "profile": {
+        "support": "native"
+       },
+       "pace": {
+        "support": "unsupported",
+        "reason": "Directed-speech pacing is not wired yet."
+       },
+       "target_duration_s": {
+        "support": "unsupported",
+        "reason": "Target duration is not wired yet."
+       },
+       "actions": {
+        "support": "unsupported",
+        "reason": "Action-cue prompting is not wired yet."
+       },
+       "scene_context": {
+        "support": "unsupported",
+        "reason": "Scene-aware prompting is not wired yet."
+       },
+       "ambient_audio": {
+        "support": "unsupported",
+        "reason": "Ambient/background audio is not wired yet."
+       },
+       "background_sfx": {
+        "support": "unsupported",
+        "reason": "Background SFX is not wired yet."
+       },
+       "output_channels": {
+        "support": "unsupported",
+        "reason": "Per-request channel layout is not exposed yet."
+       }
+      }
+     },
+     "models": {
+      "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice": {
+       "surfaces": {
+        "bytes": {
+         "instructions": {
+          "support": "unsupported",
+          "reason": "The 0.6B CustomVoice checkpoint ignores style instructions; use a 1.7B checkpoint for instructed speech."
+         }
+        }
+       }
+      },
+      "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice": {
+       "surfaces": {
+        "bytes": {
+         "instructions": {
+          "support": "native"
+         }
+        }
+       }
+      },
+      "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign": {
+       "surfaces": {
+        "bytes": {
+         "instructions": {
+          "support": "native",
+          "reason": "VoiceDesign REQUIRES a voice description: synthesis refuses empty instructions rather than producing an arbitrary voice.",
+          "metadata": {
+           "required": true
+          }
+         },
+         "profile": {
+          "support": "unsupported",
+          "reason": "VoiceDesign has no preset speakers; the voice comes from the instruction."
+         }
+        },
+        "playback": {
+         "profile": {
+          "support": "unsupported",
+          "reason": "VoiceDesign has no preset speakers; the voice comes from the instruction."
+         }
+        }
+       }
+      },
+      "Qwen/Qwen3-TTS-12Hz-0.6B-Base": {
+       "surfaces": {
+        "bytes": {
+         "instructions": {
+          "support": "unsupported",
+          "reason": "Base checkpoints are cloning models; select them through voice cloning."
+         },
+         "profile": {
+          "support": "unsupported",
+          "reason": "Base checkpoints have no preset speakers; clone a voice instead."
+         }
+        },
+        "playback": {
+         "profile": {
+          "support": "unsupported",
+          "reason": "Base checkpoints have no preset speakers; clone a voice instead."
+         }
+        }
+       }
+      },
+      "Qwen/Qwen3-TTS-12Hz-1.7B-Base": {
+       "surfaces": {
+        "bytes": {
+         "instructions": {
+          "support": "unsupported",
+          "reason": "Base checkpoints are cloning models; select them through voice cloning."
+         },
+         "profile": {
+          "support": "unsupported",
+          "reason": "Base checkpoints have no preset speakers; clone a voice instead."
+         }
+        },
+        "playback": {
+         "profile": {
+          "support": "unsupported",
+          "reason": "Base checkpoints have no preset speakers; clone a voice instead."
+         }
+        }
+       }
+      }
+     }
     }
+   }
+  },
+  "stt": {
+   "providers": {
+    "openai": {
+     "default_surfaces": {
+      "transcribe": {
+       "language": {
+        "support": "native"
+       },
+       "prompt": {
+        "support": "unsupported",
+        "reason": "The current package-level STT request surface does not expose per-request prompt yet."
+       },
+       "audio_bytes": {
+        "support": "native"
+       },
+       "audio_array": {
+        "support": "native"
+       },
+       "word_timestamps": {
+        "support": "unsupported",
+        "reason": "AbstractVoice currently returns plain text only."
+       }
+      }
+     },
+     "models": {
+      "gpt-4o-transcribe": {
+       "surfaces": {}
+      },
+      "gpt-4o-mini-transcribe": {
+       "surfaces": {}
+      },
+      "whisper-1": {
+       "surfaces": {}
+      }
+     }
+    },
+    "openai-compatible": {
+     "default_surfaces": {
+      "transcribe": {
+       "language": {
+        "support": "conditional",
+        "reason": "Language hints are forwarded to compatible endpoints, but provider support varies."
+       },
+       "prompt": {
+        "support": "unsupported",
+        "reason": "The current package-level STT request surface does not expose per-request prompt yet."
+       },
+       "audio_bytes": {
+        "support": "native"
+       },
+       "audio_array": {
+        "support": "native"
+       },
+       "word_timestamps": {
+        "support": "unsupported",
+        "reason": "AbstractVoice currently returns plain text only."
+       }
+      }
+     },
+     "models": {
+      "gpt-4o-transcribe": {
+       "surfaces": {}
+      },
+      "gpt-4o-mini-transcribe": {
+       "surfaces": {}
+      },
+      "whisper-1": {
+       "surfaces": {}
+      }
+     }
+    },
+    "faster-whisper": {
+     "default_surfaces": {
+      "transcribe": {
+       "language": {
+        "support": "native"
+       },
+       "prompt": {
+        "support": "unsupported",
+        "reason": "Prompt is not exposed on the current faster-whisper package surface."
+       },
+       "audio_bytes": {
+        "support": "native"
+       },
+       "audio_array": {
+        "support": "native"
+       },
+       "word_timestamps": {
+        "support": "unsupported",
+        "reason": "AbstractVoice currently returns plain text only."
+       }
+      }
+     },
+     "models": {}
+    },
+    "transformers-asr": {
+     "default_surfaces": {
+      "transcribe": {
+       "language": {
+        "support": "native"
+       },
+       "prompt": {
+        "support": "unsupported",
+        "reason": "Prompt is not exposed on the current transformers-asr package surface."
+       },
+       "audio_bytes": {
+        "support": "native"
+       },
+       "audio_array": {
+        "support": "native"
+       },
+       "word_timestamps": {
+        "support": "unsupported",
+        "reason": "AbstractVoice currently returns plain text only."
+       }
+      }
+     },
+     "models": {
+      "CohereLabs/cohere-transcribe-03-2026": {
+       "card": {
+        "name": "Cohere Transcribe (03-2026)",
+        "provider": "Cohere Labs",
+        "source": "Hugging Face",
+        "repo_id": "CohereLabs/cohere-transcribe-03-2026",
+        "url": "https://huggingface.co/CohereLabs/cohere-transcribe-03-2026",
+        "task": "automatic-speech-recognition",
+        "modalities": [
+         "audio-in",
+         "text-out"
+        ],
+        "architecture": "Conformer encoder + Transformer decoder",
+        "parameter_count": 2000000000,
+        "license": "apache-2.0",
+        "sample_rate_hz": 16000,
+        "supported_languages": [
+         "ar",
+         "de",
+         "el",
+         "en",
+         "es",
+         "fr",
+         "it",
+         "ja",
+         "ko",
+         "nl",
+         "pl",
+         "pt",
+         "vi",
+         "zh"
+        ],
+        "hf_gated": {
+         "gated": true,
+         "notes": "Hugging Face gating applies; access requires accepting the model's conditions (contact info sharing)."
+        },
+        "strengths": [
+         "High-accuracy multilingual transcription across 14 languages.",
+         "Designed for efficient transcription (real-time factor improvements claimed vs similarly-sized ASR models)."
+        ],
+        "limitations": [
+         "No explicit automatic language detection; works best when a single language is pre-specified.",
+         "No timestamps or speaker diarization.",
+         "Can be eager to transcribe non-speech; benefits from VAD/noise gate in noisy/silent segments."
+        ],
+        "recommended_runtime": {
+         "transformers_min_version": "5.4.0"
+        }
+       },
+       "surfaces": {
+        "transcribe": {
+         "language": {
+          "support": "native",
+          "metadata": {
+           "recommended": true,
+           "notes": "This model performs best when `language` is set (no reliable auto language detection)."
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "cloning": {
+   "providers": {
+    "f5_tts": {
+     "default_surfaces": {
+      "create": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated",
+        "reason": "Missing reference text is generated later from reference audio using STT."
+       },
+       "multi_reference_audio": {
+        "support": "native"
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "Speed applies to cloned speech generation, not clone creation."
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Chunked output applies to cloned speech generation, not clone creation."
+       }
+      },
+      "speak_bytes": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "native"
+       },
+       "speed": {
+        "support": "native"
+       },
+       "audio_chunks": {
+        "support": "native"
+       }
+      }
+     },
+     "models": {
+      "mrfakename/OpenF5-TTS-Base": {
+       "surfaces": {}
+      }
+     }
+    },
+    "omnivoice": {
+     "default_surfaces": {
+      "create": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "OmniVoice cloning currently accepts exactly one reference audio file."
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "Speed applies to cloned speech generation, not clone creation."
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Chunked output applies to cloned speech generation, not clone creation."
+       }
+      },
+      "speak_bytes": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "OmniVoice cloning currently accepts exactly one reference audio file."
+       },
+       "speed": {
+        "support": "native"
+       },
+       "audio_chunks": {
+        "support": "native"
+       }
+      }
+     },
+     "models": {
+      "k2-fsa/OmniVoice": {
+       "surfaces": {}
+      }
+     }
+    },
+    "audiodit": {
+     "default_surfaces": {
+      "create": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "native"
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "Speed applies to cloned speech generation, not clone creation."
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Chunked output applies to cloned speech generation, not clone creation."
+       }
+      },
+      "speak_bytes": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "native"
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "AudioDiT cloned speech does not apply speed; non-default speed is ignored."
+       },
+       "audio_chunks": {
+        "support": "native"
+       }
+      }
+     },
+     "models": {
+      "meituan-longcat/LongCat-AudioDiT-1B": {
+       "surfaces": {}
+      }
+     }
+    },
+    "chroma": {
+     "default_surfaces": {
+      "create": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "Chroma cloning currently accepts exactly one reference audio file."
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "Speed applies to cloned speech generation, not clone creation."
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Chunked output applies to cloned speech generation, not clone creation."
+       }
+      },
+      "speak_bytes": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "Chroma cloning currently accepts exactly one reference audio file."
+       },
+       "speed": {
+        "support": "emulated",
+        "reason": "Chroma speed is applied by AbstractVoice post-processing after generation."
+       },
+       "audio_chunks": {
+        "support": "native"
+       }
+      }
+     },
+     "models": {
+      "FlashLabs/Chroma-4B": {
+       "surfaces": {}
+      }
+     }
+    },
+    "openai": {
+     "default_surfaces": {
+      "create": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "unsupported",
+        "reason": "OpenAI custom voice creation uses consent rather than a reference transcript field."
+       },
+       "reference_text_autofallback": {
+        "support": "unsupported"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "Remote OpenAI cloning currently accepts exactly one reference file."
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "Speed applies to speech generation, not clone creation."
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Chunked output applies to speech generation, not clone creation."
+       }
+      },
+      "speak_bytes": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "unsupported"
+       },
+       "reference_text_autofallback": {
+        "support": "unsupported"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "Remote OpenAI cloning currently accepts exactly one reference file."
+       },
+       "speed": {
+        "support": "native"
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Remote OpenAI cloned speech is buffered today."
+       }
+      }
+     },
+     "models": {
+      "gpt-4o-mini-tts": {
+       "surfaces": {}
+      },
+      "tts-1": {
+       "surfaces": {}
+      },
+      "tts-1-hd": {
+       "surfaces": {}
+      }
+     }
+    },
+    "openai-compatible": {
+     "default_surfaces": {
+      "create": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "conditional",
+        "reason": "Reference text is forwarded to compatible clone endpoints when they support it."
+       },
+       "reference_text_autofallback": {
+        "support": "unsupported"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "Remote compatible cloning currently accepts exactly one reference file."
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "Speed applies to speech generation, not clone creation."
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Chunked output applies to speech generation, not clone creation."
+       }
+      },
+      "speak_bytes": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "conditional",
+        "reason": "Compatible clone endpoints may require or ignore reference text depending on provider behavior."
+       },
+       "reference_text_autofallback": {
+        "support": "unsupported"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "Remote compatible cloning currently accepts exactly one reference file."
+       },
+       "speed": {
+        "support": "conditional",
+        "reason": "AbstractVoice forwards speed to compatible remote TTS, but provider support varies."
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Remote compatible cloned speech is buffered today."
+       }
+      }
+     },
+     "models": {}
+    },
+    "qwen3-tts": {
+     "default_surfaces": {
+      "create": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "reason": "ICL cloning consumes the stored transcript; the manager auto-fills a missing one via STT (ADR 0003).",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "Qwen3-TTS cloning currently accepts exactly one reference audio file."
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "Qwen3-TTS cloning does not expose a speed control; requested speeds are ignored."
+       },
+       "audio_chunks": {
+        "support": "unsupported",
+        "reason": "Chunked output applies to cloned speech generation, not clone creation."
+       }
+      },
+      "speak_bytes": {
+       "reference_audio": {
+        "support": "native"
+       },
+       "reference_text": {
+        "support": "native",
+        "reason": "ICL cloning consumes the stored transcript; the manager auto-fills a missing one via STT (ADR 0003).",
+        "metadata": {
+         "required": false
+        }
+       },
+       "reference_text_autofallback": {
+        "support": "emulated"
+       },
+       "multi_reference_audio": {
+        "support": "unsupported",
+        "reason": "Qwen3-TTS cloning currently accepts exactly one reference audio file."
+       },
+       "speed": {
+        "support": "unsupported",
+        "reason": "Qwen3-TTS cloning does not expose a speed control; requested speeds are ignored."
+       },
+       "audio_chunks": {
+        "support": "native"
+       }
+      }
+     },
+     "models": {
+      "Qwen/Qwen3-TTS-12Hz-0.6B-Base": {},
+      "Qwen/Qwen3-TTS-12Hz-1.7B-Base": {}
+     }
+    }
+   }
   }
+ }
 }

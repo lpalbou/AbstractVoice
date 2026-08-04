@@ -645,6 +645,9 @@ class TtsMixin:
                 elif engine_id == "audiodit":
                     rt = getattr(adapter, "_runtime", None)
                     loaded = bool(getattr(rt, "_model", None) is not None)
+                elif engine_id == "qwen3-tts":
+                    rt = getattr(adapter, "_runtime", None)
+                    loaded = bool(getattr(rt, "_model", None) is not None)
                 else:
                     loaded = bool(getattr(adapter, "is_available", lambda: False)())
             except Exception:
@@ -784,6 +787,9 @@ class TtsMixin:
                 if engine_id == "audiodit":
                     rt = getattr(adapter, "_runtime", None)
                     return bool(getattr(rt, "_model", None) is not None)
+                if engine_id == "qwen3-tts":
+                    rt = getattr(adapter, "_runtime", None)
+                    return bool(getattr(rt, "_model", None) is not None)
             except Exception:
                 return False
             return False
@@ -807,6 +813,12 @@ class TtsMixin:
                     _ = rt.get_model()
                     warmed_via.append("runtime_get_model")
             elif engine_id == "audiodit":
+                rt = getattr(adapter, "_runtime", None)
+                ensure = getattr(rt, "_ensure_loaded", None) if rt is not None else None
+                if callable(ensure):
+                    ensure()
+                    warmed_via.append("runtime_ensure_loaded")
+            elif engine_id == "qwen3-tts":
                 rt = getattr(adapter, "_runtime", None)
                 ensure = getattr(rt, "_ensure_loaded", None) if rt is not None else None
                 if callable(ensure):

@@ -349,6 +349,16 @@ python -m abstractvoice download --piper fr
   `abstractvoice[apple]`, or `abstractvoice[gpu]`.
 - OmniVoice is the recommended/default local cloning backend. OpenF5, Chroma,
   and AudioDiT remain optional heavier alternatives for explicit selection.
+- Qwen3-TTS (`abstractvoice[qwen3-tts]`, `tts_engine="qwen3-tts"`) is a local
+  neural TTS family covering three modes by checkpoint: preset speakers
+  (CustomVoice, 9 voices, 10 languages), voice cloning from ~3s of reference
+  audio (Base, `cloning_engine="qwen3-tts"`), and voices described in natural
+  language via the `instructions` selector (VoiceDesign, 1.7B). Style
+  instructions are native on the 1.7B checkpoints and ignored by 0.6B — the
+  capability catalog reports this per model. Managed synthesis chunks text at
+  ~200 characters; if you drive the runtime directly with a single un-chunked
+  utterance, a runaway-protection cap (~2048 codec frames ≈ 164s of audio)
+  clamps texts beyond roughly 800 characters — chunk long texts.
 - AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine
   in this integration.
 - OmniVoice is the main optional path for omnilingual speech and voice design,

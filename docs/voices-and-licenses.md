@@ -65,6 +65,7 @@ AbstractVoice supports voice cloning behind optional extras:
 - `abstractvoice[chroma]` (Chroma-4B; very large; GPU-heavy)
 - `abstractvoice[audiodit]` (LongCat-AudioDiT-1B; large weights via HF)
 - `abstractvoice[omnivoice]` (OmniVoice; recommended/default local cloning backend; very large; torch/transformers)
+- `abstractvoice[qwen3-tts]` (Qwen3-TTS Base checkpoints; ~2.5-4.5 GB per snapshot via HF; torch/transformers)
 
 Licensing is engine- and model-dependent; verify:
 
@@ -78,6 +79,8 @@ Note on vendored code:
 - Upstream license text is included in `third_party_licenses/longcat_audiodit_license.txt`.
 - This repo includes a derived implementation of Qwen3-ASR under `abstractvoice/qwen3_asr/*` so `Qwen/Qwen3-ASR-1.7B` can run without `trust_remote_code`.
 - Upstream license text is included in `third_party_licenses/qwen_asr_license.txt`.
+- This repo includes a derived implementation of Qwen3-TTS under `abstractvoice/qwen3_tts/*` (from the Apache-2.0 `qwen-tts` package) so the `Qwen/Qwen3-TTS-12Hz-*` checkpoints can run without `trust_remote_code`.
+- Notice and upstream pointers are included in `third_party_licenses/qwen3_tts_notice.txt`.
 
 For AudioDiT specifically, verify the model card/source for:
 

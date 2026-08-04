@@ -91,6 +91,14 @@ class VoiceCloner:
                 device="auto",
                 allow_downloads=bool(self._allow_downloads),
             )
+        elif name == "qwen3-tts":
+            from .engine_qwen3_tts import Qwen3TTSVoiceCloningEngine
+
+            inst = Qwen3TTSVoiceCloningEngine(
+                debug=self.debug,
+                device="auto",
+                allow_downloads=bool(self._allow_downloads),
+            )
         elif name in _REMOTE_CLONING_ENGINES:
             from .engine_remote import RemoteVoiceCloningEngine
 
@@ -328,8 +336,8 @@ class VoiceCloner:
         supported = {".wav", ".flac", ".ogg"}
 
         engine_name = _normalize_cloning_engine(engine or self._default_engine)
-        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", *_REMOTE_CLONING_ENGINES):
-            raise ValueError("engine must be one of: omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible")
+        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", "qwen3-tts", *_REMOTE_CLONING_ENGINES):
+            raise ValueError("engine must be one of: omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible")
         if engine_name in _REMOTE_CLONING_ENGINES:
             supported = supported | {".mp3", ".mpeg", ".mpga", ".m4a", ".webm", ".aac"}
 
@@ -345,7 +353,7 @@ class VoiceCloner:
                 )
             refs = [p]
 
-        if engine_name in ("chroma", "omnivoice", *_REMOTE_CLONING_ENGINES) and len(refs) != 1:
+        if engine_name in ("chroma", "omnivoice", "qwen3-tts", *_REMOTE_CLONING_ENGINES) and len(refs) != 1:
             raise ValueError(
                 f"{engine_name} cloning currently supports exactly one reference audio file.\n"
                 "Provide a single WAV/FLAC/OGG file (not a directory with multiple files)."
@@ -388,8 +396,8 @@ class VoiceCloner:
             raise ValueError("wav_bytes must be non-empty")
 
         engine_name = _normalize_cloning_engine(engine or self._default_engine)
-        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", *_REMOTE_CLONING_ENGINES):
-            raise ValueError("engine must be one of: omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible")
+        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", "qwen3-tts", *_REMOTE_CLONING_ENGINES):
+            raise ValueError("engine must be one of: omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible")
 
         meta_out = dict(meta or {})
         meta_out.setdefault("source", "bytes")

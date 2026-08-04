@@ -24,12 +24,13 @@ from typing import Iterable
 
 __all__ = [
     "cached_tts_model_ids",
+    "hf_cached_snapshot_dir",
     "hf_repo_is_cached",
 ]
 
 
 # Local TTS engines whose weights are Hugging Face repos.
-_HF_REPO_TTS_ENGINES = frozenset({"audiodit", "omnivoice"})
+_HF_REPO_TTS_ENGINES = frozenset({"audiodit", "omnivoice", "qwen3-tts"})
 
 # A cached snapshot only counts when it holds weights. Hugging Face keeps
 # ``README.md`` and ``.gitattributes`` in every snapshot, so "the directory
@@ -111,6 +112,41 @@ def hf_repo_is_cached(model_id: object) -> bool:
     except OSError:
         return False
     return any(_holds_weights(revision) for revision in revisions)
+
+
+def hf_cached_snapshot_dir(model_id: object) -> Optional[Path]:
+    """The local snapshot directory holding ``model_id``'s weights, or None.
+
+    Same layout read as :func:`hf_repo_is_cached` — never touches the network,
+    so it is safe from any discovery path. When several revisions are cached,
+    the one with weights wins (most recently modified first).
+    """
+    repo_id = str(model_id or "").strip()
+    if not repo_id:
+        return None
+
+    if repo_id.startswith(("~", ".", os.sep)) or Path(repo_id).is_absolute():
+        checkpoint = Path(repo_id).expanduser()
+        return checkpoint if checkpoint.is_dir() and _holds_weights(checkpoint) else None
+
+    try:
+        from huggingface_hub.constants import HF_HUB_CACHE
+    except Exception:
+        return None
+
+    snapshots = Path(HF_HUB_CACHE) / f"models--{repo_id.replace('/', '--')}" / "snapshots"
+    try:
+        revisions = sorted(
+            (path for path in snapshots.iterdir() if path.is_dir()),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+    except OSError:
+        return None
+    for revision in revisions:
+        if _holds_weights(revision):
+            return revision
+    return None
 
 
 def _holds_weights(snapshot_dir: Path) -> bool:

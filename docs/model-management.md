@@ -42,6 +42,11 @@ Some optional engines download weights via Hugging Face and cache under `~/.cach
 - **Chroma cloning**: `python -m abstractvoice download --chroma` (requires `abstractvoice[chroma]`)
 - **AudioDiT (LongCat-AudioDiT-1B)**: `python -m abstractvoice download --audiodit` (requires `abstractvoice[audiodit]`)
 - **OmniVoice**: `python -m abstractvoice download --omnivoice` (requires `abstractvoice[omnivoice]`; recommended/default local cloning backend)
+- **Qwen3-TTS**: `python -m abstractvoice download --qwen3-tts` (requires `abstractvoice[qwen3-tts]`).
+  Defaults to `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice` (9 preset speakers, ~2.5 GB). Pass a repo id
+  for the other variants: `--qwen3-tts Qwen/Qwen3-TTS-12Hz-0.6B-Base` (voice cloning) or
+  `--qwen3-tts Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` (voices described in natural language,
+  ~4.5 GB). Each snapshot bundles its own copy of the ~680 MB speech codec.
 
 In offline-first mode (`allow_downloads=False`) these engines will **not** fetch missing weights implicitly.
 
@@ -62,6 +67,7 @@ listing stays fast even when heavy engines are installed. Where presence is read
 | `supertonic` | the full ONNX + voice-style set | `~/.cache/abstractvoice/supertonic-3` |
 | `audiodit` | a cached Hugging Face snapshot holding weights | `~/.cache/huggingface` |
 | `omnivoice` | a cached Hugging Face snapshot holding weights | `~/.cache/huggingface` |
+| `qwen3-tts` | a cached Hugging Face snapshot holding weights | `~/.cache/huggingface` |
 
 A consequence worth knowing: an engine whose extra is installed but whose weights are not downloaded
 yet does **not** appear in provider listings. Selecting it still works and still downloads on demand

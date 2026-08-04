@@ -64,6 +64,7 @@ Notes:
   - `openai-compatible` (remote compatible `/v1/audio/speech`; configure `remote_base_url` or `OPENAI_BASE_URL`)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
+  - `qwen3-tts` (Qwen3-TTS 12Hz; requires `abstractvoice[qwen3-tts]`, Python 3.10+; `tts_model` selects the checkpoint — the default `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice` exposes 9 preset speakers as profiles, the 1.7B VoiceDesign checkpoint builds voices from the `instructions` selector and refuses an empty description)
 - `stt_engine` selects the STT provider and supports `openai|auto|faster_whisper|openai-compatible|transformers-asr`. `auto` resolves to `openai`.
   - `faster_whisper` requires `abstractvoice[stt]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `whisper_model`/`--whisper` for `tiny|base|small|medium|large-v2|large-v3|large`.
   - `transformers-asr` requires `abstractvoice[stt-hf]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `stt_model` as the Hugging Face model id (for example `openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`, or `Qwen/Qwen3-ASR-1.7B`).
@@ -80,8 +81,9 @@ Notes:
   - `streamed`: deliver audio in chunks when available (lower time-to-first-audio)
 - `cloning_engine` defaults to `omnivoice` for new local clones. Install
   `abstractvoice[omnivoice]` or a platform/full profile for that default, or
-  pass `f5_tts`, `chroma`, `audiodit`, `openai`, or `openai-compatible`
-  explicitly.
+  pass `f5_tts`, `chroma`, `audiodit`, `qwen3-tts`, `openai`, or
+  `openai-compatible` explicitly. Qwen3-TTS cloning uses the Base checkpoints
+  and the stored reference transcript (auto-filled once via STT when missing).
 
 Supported language codes for the Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
 Supertonic supports fixed-style local TTS for `ar, bg, cs, da, de, el, en, es, et, fi, fr, hi, hr, hu, id, it, ja, ko, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi`.
@@ -494,7 +496,8 @@ Discovery has a cost model, and it is worth knowing which side of it you are on:
 
 The provider/model/voice abstraction used by the plugin is:
 - `provider`: backend/engine id such as `openai`, `openai-compatible`,
-  `piper`, `supertonic`, `faster-whisper`, or `transformers-asr`
+  `piper`, `supertonic`, `audiodit`, `omnivoice`, `qwen3-tts`,
+  `faster-whisper`, or `transformers-asr`
 - `model`: provider-specific selectable model id
 - `voice`: base voice/profile id or cloned voice id available for the selected
   `provider` + `model`

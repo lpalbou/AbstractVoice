@@ -167,6 +167,18 @@ def main():
             action="store_true",
             help="Prefetch OmniVoice weights + tokenizer (requires abstractvoice[omnivoice])",
         )
+        dl.add_argument(
+            "--qwen3-tts",
+            dest="qwen3_tts",
+            nargs="?",
+            const="Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+            default=None,
+            metavar="MODEL_ID",
+            help=(
+                "Prefetch a Qwen3-TTS snapshot (requires abstractvoice[qwen3-tts]); "
+                "defaults to the 0.6B CustomVoice checkpoint"
+            ),
+        )
         dl_args = dl.parse_args(remaining)
 
         if (
@@ -178,6 +190,7 @@ def main():
             and not dl_args.supertonic
             and not dl_args.audiodit
             and not dl_args.omnivoice
+            and not dl_args.qwen3_tts
         ):
             print("Nothing to download. Examples:")
             print("  python -m abstractvoice download --stt small")
@@ -188,6 +201,7 @@ def main():
             print("  python -m abstractvoice download --supertonic")
             print("  python -m abstractvoice download --audiodit")
             print("  python -m abstractvoice download --omnivoice")
+            print("  python -m abstractvoice download --qwen3-tts")
             return
 
         if dl_args.stt_model:
@@ -278,6 +292,16 @@ def main():
                 print(f"✅ OmniVoice ready (cached at {path}).")
             except Exception as e:
                 print(f"❌ OmniVoice download failed: {e}")
+
+        if dl_args.qwen3_tts:
+            try:
+                from abstractvoice.qwen3_tts.runtime import prefetch_qwen3_tts
+
+                print(f"Downloading Qwen3-TTS snapshot: {dl_args.qwen3_tts}")
+                path = prefetch_qwen3_tts(model_id=str(dl_args.qwen3_tts))
+                print(f"✅ Qwen3-TTS ready (cached at {path}).")
+            except Exception as e:
+                print(f"❌ Qwen3-TTS download failed: {e}")
         return
 
     # Set remaining args as sys.argv for the examples, including language

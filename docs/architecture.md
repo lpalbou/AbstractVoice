@@ -14,7 +14,7 @@ For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 - `abstractvoice.VoiceManager` is the orchestration façade (`abstractvoice/vm/*`).
 - **TTS (default)**: TTS adapter registry resolves `openai` / `auto` to `OpenAICompatibleTTSAdapter`; local opt-in engines include Piper and Supertonic 3; playback uses `AdapterTTSEngine` -> `NonBlockingAudioPlayer` when local audio output is requested.
 - **STT (default)**: `openai` / `auto` routes `transcribe_*()` and `listen()` recognition to `OpenAICompatibleSTTAdapter`. Local microphone capture still uses `VoiceRecognizer` → `VoiceDetector` and can pass captured audio to the selected STT adapter.
-- **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible`); new local clones default to OmniVoice.
+- **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible`); new local clones default to OmniVoice.
 - Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (`abstractvoice/vm/core.py`).
 
 ## Component diagram
@@ -30,6 +30,7 @@ flowchart LR
   TTSAdapter --> RemoteTTS[OpenAICompatibleTTSAdapter]
   TTSAdapter --> AudioDiT[AudioDiTTTSAdapter]
   TTSAdapter --> OmniVoice[OmniVoiceTTSAdapter]
+  TTSAdapter --> Qwen3[Qwen3TTSAdapter]
   TTSEngine --> Player[NonBlockingAudioPlayer]
   Player --> Out[(sounddevice OutputStream)]
 
@@ -61,6 +62,7 @@ TTS implementation:
 - Local model presence (filesystem only, no engine imports): `abstractvoice/local_models.py`
 - AudioDiT adapter/runtime: `abstractvoice/adapters/tts_audiodit.py`, `abstractvoice/audiodit/runtime.py`
 - OmniVoice adapter/runtime: `abstractvoice/adapters/tts_omnivoice.py`, `abstractvoice/omnivoice/runtime.py`
+- Qwen3-TTS adapter/runtime: `abstractvoice/adapters/tts_qwen3_tts.py`, `abstractvoice/qwen3_tts/` (vendored 12Hz model core + codec + runtime; see `abstractvoice/_hf_compat.py` for the transformers-version seams shared with `qwen3_asr`)
 - TTS engine wrapper (back-compat contract): `abstractvoice/tts/adapter_tts_engine.py`
 - Low-latency audio player: `abstractvoice/tts/tts_engine.py`
 

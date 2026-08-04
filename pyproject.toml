@@ -158,6 +158,14 @@ audiodit = [
     "sentencepiece>=0.1.99",
     "soundfile>=0.12.1",
 ]
+qwen3-tts = [
+    "huggingface_hub>=0.20.0",
+    "torch>=2.0.0",
+    "transformers>=5.6.0,<6; python_version >= '3.10'",
+    "safetensors>=0.4.0",
+    "soundfile>=0.12.1",
+    "numpy>=1.24.0",
+]
 
 # OmniVoice (optional; omnilingual TTS + voice cloning / design)
 omnivoice = [

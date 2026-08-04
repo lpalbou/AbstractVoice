@@ -10,6 +10,37 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Added
+- **Qwen3-TTS local engine** (`pip install "abstractvoice[qwen3-tts]"`, Python 3.10+): the Apache-2.0
+  Qwen3-TTS 12Hz family as a first-class provider, covering three modes by checkpoint.
+  - **Preset speakers**: `tts_engine="qwen3-tts"` with `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice`
+    (default; ~2.5 GB) exposes 9 speakers through the standard profile/voice selectors, 10 languages.
+  - **Voice cloning**: `cloning_engine="qwen3-tts"` on the Base checkpoints clones from a few seconds
+    of reference audio. The stored transcript drives ICL cloning and is auto-filled once via STT when
+    missing; the lower-quality embedding-only mode exists on the runtime API as an explicit choice,
+    never a silent fallback.
+  - **Voice design**: the 1.7B VoiceDesign checkpoint builds a voice from a natural-language
+    description through the `instructions` selector. Instructions are required there — synthesis
+    refuses an empty description rather than producing an arbitrary voice — and are native on the
+    1.7B CustomVoice checkpoint while the 0.6B checkpoint ignores them; the capability catalog
+    reports this per model and surface.
+  Model code is vendored (`abstractvoice/qwen3_tts/`, Apache-2.0 with per-file modification logs) so
+  inference runs offline-first without `trust_remote_code` and without the upstream SDK's pinned
+  dependency set; dependencies stay at torch/transformers/soundfile/numpy/huggingface_hub. Weights
+  load through explicit safetensors + `load_state_dict(strict=True)`, so a checkpoint/key mismatch
+  is a hard error rather than silently degraded audio, and generation was verified token-identical
+  to the upstream `qwen-tts` reference implementation. Prefetch
+  with `python -m abstractvoice download --qwen3-tts` (pass a repo id for Base or VoiceDesign).
+  Discovery, the AbstractCore plugin catalog, residency (preload/unload), and quality presets all
+  treat it like every other local engine.
+
+### Fixed
+- The vendored Qwen3-ASR model code failed to import against transformers 5.x (`check_model_inputs`
+  signature change, removed `ROPE_INIT_FUNCTIONS["default"]`, removed `config.pad_token_id`), which
+  silently disabled `Qwen/Qwen3-ASR-*` support in `transformers-asr`. The version seams now live in
+  `abstractvoice/_hf_compat.py`, shared by all vendored model families and covered by tests, and
+  vendored imports no longer print spurious `[ERROR]` docstring-lint lines.
+
 ## [0.10.20] - 2026-08-04
 
 ### Fixed

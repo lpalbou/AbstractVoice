@@ -166,6 +166,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Supertonic runtime](abstractvoice/supertonic/runtime.py): internal ONNX loader + explicit `--supertonic` prefetch; no external Supertonic SDK dependency
 - [AudioDiT TTS adapter (optional)](abstractvoice/adapters/tts_audiodit.py)
 - [AudioDiT runtime + vendored model](abstractvoice/audiodit/): LongCat-AudioDiT implementation (MIT)
+- [Qwen3-TTS adapter + vendored core (optional)](abstractvoice/adapters/tts_qwen3_tts.py): preset speakers/voice design; model core in `abstractvoice/qwen3_tts/`
 - [OmniVoice TTS adapter (optional)](abstractvoice/adapters/tts_omnivoice.py)
 - [OmniVoice runtime wrapper (optional)](abstractvoice/omnivoice/runtime.py)
 - [OmniVoice cloning engine (optional)](abstractvoice/cloning/engine_omnivoice.py)
