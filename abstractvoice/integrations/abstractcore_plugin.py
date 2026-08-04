@@ -3279,6 +3279,9 @@ class _VoiceCapability(_BaseVoice):
         surface: str = "default",
     ) -> Optional[Dict[str, Any]]:
         """Return support metadata for one feature/provider/model/surface selection."""
+        from ..compatibility import resolve_surface_name
+
+        surface = resolve_surface_name(kind, surface)
         vm = self._active_vm_for_discovery()
         try:
             if hasattr(vm, "get_capability_support"):
@@ -3326,6 +3329,9 @@ class _VoiceCapability(_BaseVoice):
         support_in: Any = ("native", "emulated", "conditional"),
     ) -> list[Dict[str, Any]]:
         """Find provider/model pairs that support a feature on the requested surface."""
+        from ..compatibility import resolve_surface_name
+
+        surface = resolve_surface_name(kind, surface)
         vm = self._active_vm_for_discovery()
         support_levels = _normalize_support_levels(support_in)
         try:

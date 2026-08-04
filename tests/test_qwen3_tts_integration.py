@@ -650,3 +650,57 @@ def test_strict_loader_reads_sharded_index(tmp_path):
     load_strict_safetensors(model, str(tmp_path))
     for key, value in model.state_dict().items():
         assert torch.equal(value, reference[key])
+
+
+# ----------------------------------------------- checkpoint roles in the listings
+
+
+def test_tts_listing_excludes_cloning_only_base_checkpoints(tmp_path, monkeypatch):
+    """Qwen3 checkpoints have ROLES: Base is cloning-only (selecting it for TTS
+    raises, and it has zero preset voices). The TTS model selector must not
+    offer it; the cloning catalog is where it belongs. Unreadable configs keep
+    the id -- discovery must not hide checkpoints over a parse hiccup."""
+    import abstractvoice.local_models as lm
+
+    snapshots = {}
+    for name, model_type in [
+        ("Qwen/Fake-CustomVoice", "custom_voice"),
+        ("Qwen/Fake-Base", "base"),
+        ("Qwen/Fake-Broken", None),  # config.json unreadable
+    ]:
+        d = tmp_path / name.replace("/", "--")
+        d.mkdir()
+        if model_type is not None:
+            (d / "config.json").write_text(json.dumps({"tts_model_type": model_type}))
+        snapshots[name] = d
+
+    monkeypatch.setattr(lm, "_declared_model_ids", lambda engine_id: list(snapshots))
+    monkeypatch.setattr(lm, "hf_repo_is_cached", lambda model_id: str(model_id) in snapshots)
+    monkeypatch.setattr(lm, "hf_cached_snapshot_dir", lambda model_id: snapshots.get(str(model_id)))
+
+    ids = lm.cached_tts_model_ids("qwen3-tts")
+    assert "Qwen/Fake-CustomVoice" in ids
+    assert "Qwen/Fake-Base" not in ids
+    assert "Qwen/Fake-Broken" in ids  # tolerance: unreadable config keeps the id
+
+
+def test_language_names_peek_matches_loaded_model_rule(tmp_path):
+    """Peek must reproduce the loaded model's language set (["auto"] + non-dialect
+    keys), not dump raw config keys: raw keys include dialect ids the model
+    rejects at synthesis and omit "auto"."""
+    from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime
+
+    snap = tmp_path / "snap"
+    snap.mkdir()
+    # Real snapshot key casing: lowercase (e.g. "beijing_dialect"). The peek
+    # filter is deliberately case-sensitive like upstream's, so coherence holds
+    # for any config the loaded model itself would produce.
+    (snap / "config.json").write_text(json.dumps({
+        "tts_model_type": "custom_voice",
+        "talker_config": {
+            "spk_id": {"Serena": 1},
+            "codec_language_id": {"english": 0, "chinese": 1, "beijing_dialect": 2},
+        },
+    }))
+    rt = Qwen3TTSRuntime(model_id=str(snap), allow_downloads=False)
+    assert rt.language_names() == ["auto", "chinese", "english"]

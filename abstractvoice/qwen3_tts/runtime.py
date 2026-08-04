@@ -279,23 +279,37 @@ class Qwen3TTSRuntime:
             return json.load(fh)
 
     def speaker_names(self) -> list[str]:
-        """Preset speaker names, weight-free (from config's talker spk_id)."""
+        """Preset speaker names, weight-free (from config's talker spk_id).
+
+        Loaded and peek paths normalize identically (sorted, lowercase): the
+        listing must not change shape because weights happen to be resident.
+        """
         if self._model is not None:
-            names = self._model.get_supported_speakers()
-            return list(names or [])
-        cfg = self.peek_config()
-        talker = cfg.get("talker_config") or {}
-        spk = talker.get("spk_id") or {}
-        return sorted(str(name).lower() for name in spk)
+            names = self._model.get_supported_speakers() or []
+        else:
+            cfg = self.peek_config()
+            talker = cfg.get("talker_config") or {}
+            names = list(talker.get("spk_id") or {})
+        return sorted(str(name).lower() for name in names)
 
     def language_names(self) -> list[str]:
+        """Supported language names; same loaded/peek coherence as speakers.
+
+        The peek path replicates the loaded model's own rule (``["auto"]`` plus
+        the non-dialect ``codec_language_id`` keys) rather than dumping raw
+        config keys: the raw keys include dialect ids the model itself REJECTS
+        at synthesis time, and omit ``auto`` -- a listing must not change set
+        membership depending on whether weights happen to be resident.
+        """
         if self._model is not None:
-            names = self._model.get_supported_languages()
-            return list(names or [])
-        cfg = self.peek_config()
-        talker = cfg.get("talker_config") or {}
-        lang = talker.get("codec_language_id") or {}
-        return sorted(str(name).lower() for name in lang)
+            names = list(self._model.get_supported_languages() or [])
+        else:
+            cfg = self.peek_config()
+            talker = cfg.get("talker_config") or {}
+            names = ["auto"] + [
+                name for name in (talker.get("codec_language_id") or {}) if "dialect" not in str(name)
+            ]
+        return sorted(str(name).lower() for name in names)
 
     def runtime_info(self) -> dict:
         return {

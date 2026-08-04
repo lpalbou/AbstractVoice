@@ -64,7 +64,7 @@ Notes:
   - `openai-compatible` (remote compatible `/v1/audio/speech`; configure `remote_base_url` or `OPENAI_BASE_URL`)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
-  - `qwen3-tts` (Qwen3-TTS 12Hz; requires `abstractvoice[qwen3-tts]`, Python 3.10+; `tts_model` selects the checkpoint — the default `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice` exposes 9 preset speakers as profiles, the 1.7B VoiceDesign checkpoint builds voices from the `instructions` selector and refuses an empty description)
+  - `qwen3-tts` (Qwen3-TTS 12Hz; requires `abstractvoice[qwen3-tts]`, Python 3.10+; `tts_model` selects the checkpoint — the default `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice` exposes 9 preset speakers as profiles, the 1.7B VoiceDesign checkpoint builds voices from the `instructions` selector and refuses an empty description; Base checkpoints are cloning-only and are not offered as TTS models)
 - `stt_engine` selects the STT provider and supports `openai|auto|faster_whisper|openai-compatible|transformers-asr`. `auto` resolves to `openai`.
   - `faster_whisper` requires `abstractvoice[stt]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `whisper_model`/`--whisper` for `tiny|base|small|medium|large-v2|large-v3|large`.
   - `transformers-asr` requires `abstractvoice[stt-hf]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `stt_model` as the Hugging Face model id (for example `openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`, or `Qwen/Qwen3-ASR-1.7B`).
@@ -426,6 +426,11 @@ integration code:
 - `compatibility_catalog() -> {version, providers}`
 - `get_capability_support(kind, feature, provider, model=None, surface="default") -> dict | None`
 - `find_compatible_models(kind, feature, surface="default", support_in=("native","emulated","conditional")) -> list[dict]`
+  - `surface="default"` resolves to the kind's primary surface (tts→`bytes`,
+    stt→`transcribe`, cloning→`create`); surface names are case-insensitive.
+    Surfaces can genuinely differ — for example qwen3-tts reports
+    `instructions` support on `bytes` but not `playback` — so live-playback
+    consumers should query `surface="playback"` explicitly.
 - `clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -> voice_id | dict`
 - `clone_voice(...) -> ...` (compatibility alias of `clone(...)`)
 - `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}`

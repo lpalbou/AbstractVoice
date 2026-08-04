@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
-## [Unreleased]
+## [0.11.0] - 2026-08-04
 
 ### Added
 - **Qwen3-TTS local engine** (`pip install "abstractvoice[qwen3-tts]"`, Python 3.10+): the Apache-2.0
@@ -40,6 +40,19 @@ Older changelog entries may reference historical CLI commands or model choices.
   silently disabled `Qwen/Qwen3-ASR-*` support in `transformers-asr`. The version seams now live in
   `abstractvoice/_hf_compat.py`, shared by all vendored model families and covered by tests, and
   vendored imports no longer print spurious `[ERROR]` docstring-lint lines.
+- Capability queries with the default `surface="default"` argument
+  (`get_capability_support`, `find_compatible_models`, and the underlying
+  `CompatibilityCatalog.support_for`/`find_models`) returned `None`/empty for every provider,
+  because no provider publishes a surface literally named "default". It now resolves to the
+  kind's primary surface (tts→`bytes`, stt→`transcribe`, cloning→`create`), surface names are
+  case-insensitive, and result rows carry the resolved surface name. Note that surfaces can
+  genuinely differ (for example qwen3-tts reports `instructions` on `bytes` but not `playback`),
+  so playback consumers should query `surface="playback"` explicitly.
+- The TTS model selector no longer offers Qwen3-TTS Base checkpoints: they are cloning-only
+  (no preset speakers; selecting one for TTS raised an error). They remain listed for cloning.
+- `Qwen3TTSRuntime.speaker_names()`/`language_names()` now return the same set whether or not
+  weights are resident: the weight-free peek replicates the loaded model's own language rule
+  (`auto` plus non-dialect languages) instead of dumping raw config keys.
 
 ## [0.10.20] - 2026-08-04
 

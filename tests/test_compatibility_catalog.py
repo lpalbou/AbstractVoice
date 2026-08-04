@@ -309,3 +309,36 @@ def test_voice_manager_tts_capabilities_use_engine_preference_when_adapter_is_no
 
     assert caps["speed"]["support"] == "conditional"
     assert caps["instructions"]["support"] == "conditional"
+
+
+def test_default_surface_resolves_to_primary_surface_for_every_kind() -> None:
+    """`surface="default"` is the API's own default argument, yet no provider
+    publishes a surface literally named "default" -- the old literal lookup
+    returned None for EVERY provider/feature, making default-argument
+    capability queries silently useless. It must mean the kind's primary
+    surface (tts->bytes, stt->transcribe, cloning->create)."""
+    from abstractvoice.compatibility import resolve_surface_name
+
+    assert resolve_surface_name("tts", "default") == "bytes"
+    assert resolve_surface_name("stt", "default") == "transcribe"
+    assert resolve_surface_name("cloning", "default") == "create"
+    assert resolve_surface_name("tts", None) == "bytes"
+    assert resolve_surface_name("tts", "playback") == "playback"  # explicit passes through
+
+    catalog = build_compatibility_catalog()
+    for kind, provider, feature in [
+        ("tts", "piper", "speed"),
+        ("tts", "qwen3-tts", "instructions"),
+        ("stt", "faster-whisper", "language"),
+        ("cloning", "qwen3-tts", "reference_text"),
+    ]:
+        default_hit = catalog.support_for(kind=kind, provider=provider, feature=feature)
+        assert default_hit is not None, f"default surface resolved to nothing for {kind}/{provider}"
+        primary = {"tts": "bytes", "stt": "transcribe", "cloning": "create"}[kind]
+        explicit_hit = catalog.support_for(kind=kind, provider=provider, feature=feature, surface=primary)
+        assert default_hit == explicit_hit
+
+    rows = catalog.find_models(kind="tts", feature="instructions")
+    assert rows, "find_models with default surface returned nothing"
+    assert all(row["surface"] == "bytes" for row in rows)
+    assert any(row["provider"] == "qwen3-tts" and "VoiceDesign" in str(row["model"]) for row in rows)

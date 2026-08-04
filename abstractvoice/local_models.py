@@ -73,9 +73,36 @@ def cached_tts_model_ids(engine: object, *, extra_candidates: Iterable[str] = ()
     if engine_id in _HF_REPO_TTS_ENGINES:
         declared = _declared_model_ids(engine_id)
         candidates = declared + [item for item in extra if item not in declared]
-        return [model_id for model_id in candidates if hf_repo_is_cached(model_id)]
+        cached = [model_id for model_id in candidates if hf_repo_is_cached(model_id)]
+        if engine_id == "qwen3-tts":
+            # Qwen3-TTS is the first provider whose checkpoints have different
+            # ROLES: Base checkpoints are cloning-only (no preset speakers;
+            # selecting one for TTS raises). The TTS selector must not offer
+            # them; `cached_cloning_model_ids` is where they belong.
+            cached = [model_id for model_id in cached if _qwen3_checkpoint_speaks(model_id)]
+        return cached
 
     return []
+
+
+def _qwen3_checkpoint_speaks(model_id: object) -> bool:
+    """True unless the cached config says this is a cloning-only Base checkpoint.
+
+    Weight-free: reads ``config.json``'s ``tts_model_type`` from the cached
+    snapshot (same read the voice-profile peek performs). Unreadable configs
+    keep the id -- discovery must not hide a checkpoint over a parse hiccup;
+    selection will produce the real error if one exists.
+    """
+    try:
+        import json
+
+        snapshot = hf_cached_snapshot_dir(model_id)
+        if snapshot is None:
+            return True
+        with open(snapshot / "config.json", "r", encoding="utf-8") as fh:
+            return str(json.load(fh).get("tts_model_type") or "").strip().lower() != "base"
+    except Exception:
+        return True
 
 
 def hf_repo_is_cached(model_id: object) -> bool:

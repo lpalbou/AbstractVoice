@@ -176,7 +176,7 @@ class CompatibilityCatalog:
         surface: str = "default",
     ) -> CapabilitySupport | None:
         feature_name = str(feature or "").strip()
-        surface_name = str(surface or "default").strip() or "default"
+        surface_name = resolve_surface_name(kind, surface)
         model_record = self.get_model(kind=kind, provider=provider, model=model)
         if model_record is not None:
             surface_map = dict(model_record.surfaces or {}).get(surface_name)
@@ -199,6 +199,7 @@ class CompatibilityCatalog:
         support_in: Iterable[CapabilitySupportLevel] = ("native", "emulated", "conditional"),
     ) -> list[dict[str, Any]]:
         wanted = {str(item) for item in list(support_in or ())}
+        surface = resolve_surface_name(kind, surface)
         out: list[dict[str, Any]] = []
         for provider_name, provider_record in dict(self.providers.get(str(kind), {}) or {}).items():
             matched_model = False
@@ -282,6 +283,28 @@ def _feature_names_for_kind(kind: CapabilityKind) -> tuple[str, ...]:
     if kind == "stt":
         return STT_COMPATIBILITY_FEATURES
     return CLONING_COMPATIBILITY_FEATURES
+
+
+def _norm_kind(value: Any) -> CapabilityKind:
+    text = str(value or "").strip().lower()
+    return text if text in ("tts", "stt", "cloning") else "tts"  # type: ignore[return-value]
+
+
+def resolve_surface_name(kind: Any, surface: Any) -> str:
+    """Map the API's ``surface="default"`` to the kind's primary catalog surface.
+
+    No provider publishes a surface literally named "default" (the real names
+    are ``bytes``/``playback``, ``transcribe``, ``create``/``speak_bytes``), so
+    a literal lookup made every default-argument capability query return None.
+    Explicit surface names pass through (lowercased, like every normalizer in
+    this module). Note the surfaces can genuinely differ -- e.g. qwen3-tts
+    reports ``instructions`` on ``bytes`` but not on ``playback`` -- so
+    live-playback consumers should ask about ``surface="playback"`` explicitly.
+    """
+    name = str(surface or "default").strip().lower() or "default"
+    if name != "default":
+        return name
+    return _default_surface_names(_norm_kind(kind))[0]
 
 
 def _default_surface_names(kind: CapabilityKind) -> tuple[str, ...]:
