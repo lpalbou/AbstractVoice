@@ -1237,6 +1237,11 @@ section of <code>docs/troubleshooting.md</code>.)</p>
 <li><strong>Chroma cloning</strong>: <code>python -m abstractvoice download --chroma</code> (requires <code>abstractvoice[chroma]</code>)</li>
 <li><strong>AudioDiT (LongCat-AudioDiT-1B)</strong>: <code>python -m abstractvoice download --audiodit</code> (requires <code>abstractvoice[audiodit]</code>)</li>
 <li><strong>OmniVoice</strong>: <code>python -m abstractvoice download --omnivoice</code> (requires <code>abstractvoice[omnivoice]</code>; recommended/default local cloning backend)</li>
+<li><strong>Qwen3-TTS</strong>: <code>python -m abstractvoice download --qwen3-tts</code> (requires <code>abstractvoice[qwen3-tts]</code>).
+  Defaults to <code>Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice</code> (9 preset speakers, ~2.5 GB). Pass a repo id
+  for the other variants: <code>--qwen3-tts Qwen/Qwen3-TTS-12Hz-0.6B-Base</code> (voice cloning) or
+  <code>--qwen3-tts Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign</code> (voices described in natural language,
+  ~4.5 GB). Each snapshot bundles its own copy of the ~680 MB speech codec.</li>
 </ul>
 <p>In offline-first mode (<code>allow_downloads=False</code>) these engines will <strong>not</strong> fetch missing weights implicitly.</p>
 <h2 id="discovery-reads-the-cache-not-the-engine">Discovery reads the cache, not the engine<a class="headerlink" href="#discovery-reads-the-cache-not-the-engine" title="Permanent link">&para;</a></h2>
@@ -1274,6 +1279,11 @@ listing stays fast even when heavy engines are installed. Where presence is read
 </tr>
 <tr>
 <td><code>omnivoice</code></td>
+<td>a cached Hugging Face snapshot holding weights</td>
+<td><code>~/.cache/huggingface</code></td>
+</tr>
+<tr>
+<td><code>qwen3-tts</code></td>
 <td>a cached Hugging Face snapshot holding weights</td>
 <td><code>~/.cache/huggingface</code></td>
 </tr>

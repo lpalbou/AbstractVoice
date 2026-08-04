@@ -1241,6 +1241,7 @@ remain third-party assets with their own license terms.</p>
 <li><code>abstractvoice[chroma]</code> (Chroma-4B; very large; GPU-heavy)</li>
 <li><code>abstractvoice[audiodit]</code> (LongCat-AudioDiT-1B; large weights via HF)</li>
 <li><code>abstractvoice[omnivoice]</code> (OmniVoice; recommended/default local cloning backend; very large; torch/transformers)</li>
+<li><code>abstractvoice[qwen3-tts]</code> (Qwen3-TTS Base checkpoints; ~2.5-4.5 GB per snapshot via HF; torch/transformers)</li>
 </ul>
 <p>Licensing is engine- and model-dependent; verify:</p>
 <ul>
@@ -1254,6 +1255,8 @@ remain third-party assets with their own license terms.</p>
 <li>Upstream license text is included in <code>third_party_licenses/longcat_audiodit_license.txt</code>.</li>
 <li>This repo includes a derived implementation of Qwen3-ASR under <code>abstractvoice/qwen3_asr/*</code> so <code>Qwen/Qwen3-ASR-1.7B</code> can run without <code>trust_remote_code</code>.</li>
 <li>Upstream license text is included in <code>third_party_licenses/qwen_asr_license.txt</code>.</li>
+<li>This repo includes a derived implementation of Qwen3-TTS under <code>abstractvoice/qwen3_tts/*</code> (from the Apache-2.0 <code>qwen-tts</code> package) so the <code>Qwen/Qwen3-TTS-12Hz-*</code> checkpoints can run without <code>trust_remote_code</code>.</li>
+<li>Notice and upstream pointers are included in <code>third_party_licenses/qwen3_tts_notice.txt</code>.</li>
 </ul>
 <p>For AudioDiT specifically, verify the model card/source for:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--audiodit

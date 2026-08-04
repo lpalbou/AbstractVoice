@@ -1648,6 +1648,7 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
   - <code>openai-compatible</code> (remote compatible <code>/v1/audio/speech</code>; configure <code>remote_base_url</code> or <code>OPENAI_BASE_URL</code>)
   - <code>audiodit</code> (LongCat-AudioDiT; requires <code>abstractvoice[audiodit]</code>; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in <code>0.8.1</code>)
   - <code>omnivoice</code> (OmniVoice; requires <code>abstractvoice[omnivoice]</code>; upstream supports 600+ languages)
+  - <code>qwen3-tts</code> (Qwen3-TTS 12Hz; requires <code>abstractvoice[qwen3-tts]</code>, Python 3.10+; <code>tts_model</code> selects the checkpoint — the default <code>Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice</code> exposes 9 preset speakers as profiles, the 1.7B VoiceDesign checkpoint builds voices from the <code>instructions</code> selector and refuses an empty description; Base checkpoints are cloning-only and are not offered as TTS models)
 - <code>stt_engine</code> selects the STT provider and supports <code>openai|auto|faster_whisper|openai-compatible|transformers-asr</code>. <code>auto</code> resolves to <code>openai</code>.
   - <code>faster_whisper</code> requires <code>abstractvoice[stt]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>, and uses <code>whisper_model</code>/<code>--whisper</code> for <code>tiny|base|small|medium|large-v2|large-v3|large</code>.
   - <code>transformers-asr</code> requires <code>abstractvoice[stt-hf]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>, and uses <code>stt_model</code> as the Hugging Face model id (for example <code>openai/whisper-large-v3</code>, <code>openai/whisper-large-v3-turbo</code>, or <code>Qwen/Qwen3-ASR-1.7B</code>).
@@ -1664,8 +1665,9 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
   - <code>streamed</code>: deliver audio in chunks when available (lower time-to-first-audio)
 - <code>cloning_engine</code> defaults to <code>omnivoice</code> for new local clones. Install
   <code>abstractvoice[omnivoice]</code> or a platform/full profile for that default, or
-  pass <code>f5_tts</code>, <code>chroma</code>, <code>audiodit</code>, <code>openai</code>, or <code>openai-compatible</code>
-  explicitly.</p>
+  pass <code>f5_tts</code>, <code>chroma</code>, <code>audiodit</code>, <code>qwen3-tts</code>, <code>openai</code>, or
+  <code>openai-compatible</code> explicitly. Qwen3-TTS cloning uses the Base checkpoints
+  and the stored reference transcript (auto-filled once via STT when missing).</p>
 <p>Supported language codes for the Piper mapping: <code>en, fr, de, es, ru, zh</code> (see <code>abstractvoice/config/voice_catalog.py</code> and <code>abstractvoice/adapters/tts_piper.py</code>).
 Supertonic supports fixed-style local TTS for <code>ar, bg, cs, da, de, el, en, es, et, fi, fr, hi, hr, hu, id, it, ja, ko, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi</code>.
 For other non-Piper providers (e.g. OmniVoice or remote OpenAI-compatible providers), <code>language</code> is treated as a pass-through hint and the provider decides what it supports.</p>
@@ -2045,6 +2047,11 @@ integration code:
 - <code>compatibility_catalog() -&gt; {version, providers}</code>
 - <code>get_capability_support(kind, feature, provider, model=None, surface="default") -&gt; dict | None</code>
 - <code>find_compatible_models(kind, feature, surface="default", support_in=("native","emulated","conditional")) -&gt; list[dict]</code>
+  - <code>surface="default"</code> resolves to the kind's primary surface (tts→<code>bytes</code>,
+    stt→<code>transcribe</code>, cloning→<code>create</code>); surface names are case-insensitive.
+    Surfaces can genuinely differ — for example qwen3-tts reports
+    <code>instructions</code> support on <code>bytes</code> but not <code>playback</code> — so live-playback
+    consumers should query <code>surface="playback"</code> explicitly.
 - <code>clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -&gt; voice_id | dict</code>
 - <code>clone_voice(...) -&gt; ...</code> (compatibility alias of <code>clone(...)</code>)
 - <code>voice_catalog() -&gt; {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}</code>
@@ -2112,7 +2119,8 @@ capability catalog.</p>
 </ul>
 <p>The provider/model/voice abstraction used by the plugin is:
 - <code>provider</code>: backend/engine id such as <code>openai</code>, <code>openai-compatible</code>,
-  <code>piper</code>, <code>supertonic</code>, <code>faster-whisper</code>, or <code>transformers-asr</code>
+  <code>piper</code>, <code>supertonic</code>, <code>audiodit</code>, <code>omnivoice</code>, <code>qwen3-tts</code>,
+  <code>faster-whisper</code>, or <code>transformers-asr</code>
 - <code>model</code>: provider-specific selectable model id
 - <code>voice</code>: base voice/profile id or cloned voice id available for the selected
   <code>provider</code> + <code>model</code></p>
