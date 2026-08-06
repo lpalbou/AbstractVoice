@@ -2105,6 +2105,15 @@ capability catalog.</p>
   because an empty list there would assert that every provider listed — including
   remote ones never asked — is reachable. Absent means "not checked"; empty means
   "checked, all reachable".</li>
+<li><strong>Remote discovery answers age out after five minutes.</strong> A remote model or
+  voice list is remembered so repeated listings do not re-probe the provider,
+  and re-probed once the answer is older than the TTL — so a model loaded into a
+  local server, or a machine that regains internet access, appears without a
+  restart. <code>refresh_profiles()</code> is the immediate override.
+  <code>ABSTRACTVOICE_REMOTE_DISCOVERY_TTL_S</code> sets the window; values below the
+  300-second floor, non-numeric values, and non-finite values are clamped back to
+  300, since a never-expiring memo would freeze the first probe's answer
+  (including an empty one from a failed probe) for the life of the process.</li>
 <li><strong>Engine-free</strong>: <code>available_providers()</code>, <code>list_models()</code> for every kind and
   filter, <code>list_tts_voices(provider=...)</code>, <code>compatibility_catalog()</code>,
   <code>capability_support()</code>, <code>find_compatible_models()</code>, and

@@ -822,6 +822,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#a-model-i-just-loaded-on-my-server-does-not-appear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A model I just loaded on my server does not appear
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1398,6 +1409,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#a-model-i-just-loaded-on-my-server-does-not-appear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A model I just loaded on my server does not appear
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1618,6 +1640,14 @@ than reporting it as empty:</p>
 <p>If the provider is flagged, the empty lists mean "not reached", not "nothing offered". Raise
 <code>ABSTRACTVOICE_DISCOVERY_TIMEOUT_S</code> for a slow server, or fix the endpoint. If it is not flagged, the
 provider genuinely reported nothing — check the model ids configured for it.</p>
+<h3 id="a-model-i-just-loaded-on-my-server-does-not-appear">A model I just loaded on my server does not appear<a class="headerlink" href="#a-model-i-just-loaded-on-my-server-does-not-appear" title="Permanent link">&para;</a></h3>
+<p>Remote model and voice lists are remembered for five minutes so a listing does not re-probe the
+provider on every call. A model loaded into LM Studio (or a machine that just regained internet
+access) therefore shows up within five minutes, without restarting anything. To see it immediately,
+call <code>refresh_profiles()</code> on the adapter — or, for a different window, set
+<code>ABSTRACTVOICE_REMOTE_DISCOVERY_TTL_S</code> to the number of seconds you want. Values below the
+five-minute floor, non-numeric values, and non-finite values (<code>inf</code>) are clamped back to 300: a
+never-expiring memo would freeze whatever the first probe saw for the life of the process.</p>
 <h2 id="piper">Piper<a class="headerlink" href="#piper" title="Permanent link">&para;</a></h2>
 <h3 id="synthesis-dies-with-error-processing-file-espeak-ng-dataphontab-no-such-file-or-directory">Synthesis dies with <code>Error processing file '.../espeak-ng-data/phontab': No such file or directory</code><a class="headerlink" href="#synthesis-dies-with-error-processing-file-espeak-ng-dataphontab-no-such-file-or-directory" title="Permanent link">&para;</a></h3>
 <p>The path in the message points at a directory that has never existed on your machine (often under
