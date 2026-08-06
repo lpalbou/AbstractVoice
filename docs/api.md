@@ -487,6 +487,15 @@ Discovery has a cost model, and it is worth knowing which side of it you are on:
   because an empty list there would assert that every provider listed — including
   remote ones never asked — is reachable. Absent means "not checked"; empty means
   "checked, all reachable".
+- **Remote discovery answers age out after five minutes.** A remote model or
+  voice list is remembered so repeated listings do not re-probe the provider,
+  and re-probed once the answer is older than the TTL — so a model loaded into a
+  local server, or a machine that regains internet access, appears without a
+  restart. `refresh_profiles()` is the immediate override.
+  `ABSTRACTVOICE_REMOTE_DISCOVERY_TTL_S` sets the window; values below the
+  300-second floor, non-numeric values, and non-finite values are clamped back to
+  300, since a never-expiring memo would freeze the first probe's answer
+  (including an empty one from a failed probe) for the life of the process.
 - **Engine-free**: `available_providers()`, `list_models()` for every kind and
   filter, `list_tts_voices(provider=...)`, `compatibility_catalog()`,
   `capability_support()`, `find_compatible_models()`, and

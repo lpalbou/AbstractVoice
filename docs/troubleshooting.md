@@ -114,6 +114,16 @@ If the provider is flagged, the empty lists mean "not reached", not "nothing off
 `ABSTRACTVOICE_DISCOVERY_TIMEOUT_S` for a slow server, or fix the endpoint. If it is not flagged, the
 provider genuinely reported nothing — check the model ids configured for it.
 
+### A model I just loaded on my server does not appear
+
+Remote model and voice lists are remembered for five minutes so a listing does not re-probe the
+provider on every call. A model loaded into LM Studio (or a machine that just regained internet
+access) therefore shows up within five minutes, without restarting anything. To see it immediately,
+call `refresh_profiles()` on the adapter — or, for a different window, set
+`ABSTRACTVOICE_REMOTE_DISCOVERY_TTL_S` to the number of seconds you want. Values below the
+five-minute floor, non-numeric values, and non-finite values (`inf`) are clamped back to 300: a
+never-expiring memo would freeze whatever the first probe saw for the life of the process.
+
 ## Piper
 
 ### Synthesis dies with `Error processing file '.../espeak-ng-data/phontab': No such file or directory`

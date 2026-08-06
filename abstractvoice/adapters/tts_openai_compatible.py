@@ -8,6 +8,9 @@ directly, without depending on AbstractCore provider classes. Use
 
 from __future__ import annotations
 
+import math
+import os
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -336,6 +339,40 @@ def _profiles_from_remote_payload(payload: dict[str, Any], *, engine_id: str, pr
     return profiles
 
 
+# How long one discovery answer (remote model list, voice/profile list) stays
+# good before the provider is asked again. FIVE MINUTES, FLOORED (operator
+# ruling 2026-08-03): a refresh costs seconds at this adapter (and a cold
+# gateway's first media call 5-16s in aggregate), so anything shorter turns the
+# saved probe back into a recurring tax -- while five minutes is tight enough
+# that loading a new model into LM Studio, or the machine regaining internet
+# access, shows up without a gateway restart. `refresh_profiles()` remains the
+# immediate override.
+_REMOTE_DISCOVERY_TTL_S_DEFAULT = 300.0
+
+
+def _remote_discovery_ttl_s() -> float:
+    raw = os.getenv("ABSTRACTVOICE_REMOTE_DISCOVERY_TTL_S")
+    if raw:
+        try:
+            value = float(raw)
+            # Finite or nothing: `inf` sails over the floor and quietly
+            # re-creates the frozen-for-process-life behaviour this TTL exists
+            # to remove -- including the empty catalog from a failed first
+            # probe. The floor itself is part of the ruling, not a default:
+            # values below 300 would reintroduce per-call probing.
+            if math.isfinite(value):
+                return max(300.0, value)
+        except (TypeError, ValueError):
+            pass
+    return _REMOTE_DISCOVERY_TTL_S_DEFAULT
+
+
+def _discovery_is_fresh(loaded_at: "float | None") -> bool:
+    if loaded_at is None:
+        return False
+    return (time.monotonic() - loaded_at) < _remote_discovery_ttl_s()
+
+
 class OpenAICompatibleTTSAdapter(TTSAdapter):
     """TTS adapter backed by an OpenAI-compatible HTTP speech endpoint."""
 
@@ -369,9 +406,16 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
             )
         self.debug_mode = bool(debug_mode)
         self._sample_rate = 24000
-        self._remote_profiles_loaded = False
+        # Discovery results age out instead of freezing (operator ruling
+        # 2026-08-03): these used to be once-per-process booleans, so the model
+        # and voice lists a gateway served were whatever the FIRST probe saw --
+        # including an EMPTY list when that first probe failed, because the flag
+        # was set before the fetch. A machine that loads a new model into LM
+        # Studio, or regains internet access, kept the stale answer until
+        # restart. None = never fetched; a monotonic stamp = fetched then.
+        self._remote_profiles_loaded_at: float | None = None
         self._remote_profiles: list[VoiceProfile] = []
-        self._remote_tts_models_loaded = False
+        self._remote_tts_models_loaded_at: float | None = None
         self._remote_tts_models: list[str] = []
 
         self.base_url = resolve_base_url(self.provider, base_url)
@@ -597,18 +641,20 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
         return str(default).strip() if default else None
 
     def refresh_profiles(self) -> bool:
-        self._remote_profiles_loaded = False
+        self._remote_profiles_loaded_at = None
         self._remote_profiles = []
-        self._remote_tts_models_loaded = False
+        self._remote_tts_models_loaded_at = None
         self._remote_tts_models = []
         return True
 
     def _get_tts_models(self) -> list[str]:
         configured = _configured_tts_models(self.provider)
-        if self._remote_tts_models_loaded:
+        if _discovery_is_fresh(self._remote_tts_models_loaded_at):
             return _dedupe(list(self._remote_tts_models) + configured)
 
-        self._remote_tts_models_loaded = True
+        # Stamped BEFORE the fetch, deliberately: a dead host is then re-asked
+        # once per TTL window, not once per picker keystroke.
+        self._remote_tts_models_loaded_at = time.monotonic()
         found: list[str] = []
         for path in _remote_model_paths(self.provider):
             try:
@@ -628,10 +674,10 @@ class OpenAICompatibleTTSAdapter(TTSAdapter):
         return _dedupe(list(found) + configured)
 
     def _get_remote_profiles(self) -> list[VoiceProfile]:
-        if self._remote_profiles_loaded:
+        if _discovery_is_fresh(self._remote_profiles_loaded_at):
             return list(self._remote_profiles)
 
-        self._remote_profiles_loaded = True
+        self._remote_profiles_loaded_at = time.monotonic()
         found: list[VoiceProfile] = []
         for path in _remote_profile_paths(self.provider):
             try:

@@ -149,7 +149,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Voice profiles abstraction](abstractvoice/voice_profiles.py): cross-engine `VoiceProfile` ids + metadata
 - [Local model presence](abstractvoice/local_models.py): `cached_tts_model_ids(...)` / `hf_repo_is_cached(...)` — discovery reads the model cache; no engine or ML framework imports
 - [Remote audio HTTP helpers](abstractvoice/adapters/openai_compatible_http.py): lightweight requests-based OpenAI-compatible audio client
-- [Remote TTS adapter](abstractvoice/adapters/tts_openai_compatible.py): `/audio/speech` + remote profile discovery
+- [Remote TTS adapter](abstractvoice/adapters/tts_openai_compatible.py): `/audio/speech` + remote profile discovery (model/voice answers are remembered for five minutes then re-probed — `ABSTRACTVOICE_REMOTE_DISCOVERY_TTL_S`, floored at 300s and required to be finite; `refresh_profiles()` forces an immediate re-probe)
 - [Remote STT adapter](abstractvoice/adapters/stt_openai_compatible.py): `/audio/transcriptions`
 - [TTS delivery mode](abstractvoice/tts/delivery_mode.py): normalize `"buffered"` vs `"streamed"`
 - [Text chunking](abstractvoice/tts/text_chunking.py): `split_text_batches(...)` + `TextStreamChunker`

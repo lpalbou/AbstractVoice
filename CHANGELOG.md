@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.11.1] - 2026-08-04
+
+### Fixed
+- Remote model and voice lists no longer freeze for the life of the process. They were memoised by
+  once-per-process flags set *before* the fetch, so whatever the first probe saw — including an
+  **empty** list when that probe failed — was served until the process restarted: a model loaded
+  into a local server, or a machine regaining internet access, never showed up. Discovery answers
+  now age out after five minutes and are re-probed, so those cases repair themselves with no
+  restart. `refresh_profiles()` remains the immediate override.
+
+### Added
+- `ABSTRACTVOICE_REMOTE_DISCOVERY_TTL_S` sets the remote-discovery window. Values below the
+  300-second floor, non-numeric values, and non-finite values (`inf`) clamp back to 300 — a
+  never-expiring memo would reintroduce the frozen-for-process-life behaviour above.
+
 ## [0.11.0] - 2026-08-04
 
 ### Added

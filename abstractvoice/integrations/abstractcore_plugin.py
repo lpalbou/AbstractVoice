@@ -2557,7 +2557,8 @@ class _BaseVoice:
         """Fetch one provider's TTS discovery into `slot`. The only probe shape.
 
         Sequential because the calls share one HTTP adapter whose "already fetched"
-        flags are not synchronised, and each result is published the moment it lands
+        stamps (TTL-aged since 2026-08-03, previously booleans) are not
+        synchronised, and each result is published the moment it lands
         so an abandoned probe keeps whatever it already paid for.
 
         Profiles go first deliberately. On the remote adapter `list_available_models`
