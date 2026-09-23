@@ -1286,41 +1286,41 @@ examples are install-aware: with the plain install they start on OpenAI, while
 <code>abstractvoice[all-apple]</code> and <code>abstractvoice[all-gpu]</code> start on Supertonic by
 default. For local desktop/REPL voice and local cloning engines, prefer the
 profile for your machine:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[apple]&quot;</span><span class="w">     </span><span class="c1"># Apple Silicon / native macOS</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[gpu]&quot;</span><span class="w">       </span><span class="c1"># NVIDIA/AMD GPU-oriented local stack</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[all-apple]&quot;</span><span class="w"> </span><span class="c1"># Apple stack + local web example</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[all-gpu]&quot;</span><span class="w">   </span><span class="c1"># GPU stack + local web example</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[apple]"</span><span class="w">     </span><span class="c1"># Apple Silicon / native macOS</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[gpu]"</span><span class="w">       </span><span class="c1"># NVIDIA/AMD GPU-oriented local stack</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-apple]"</span><span class="w"> </span><span class="c1"># Apple stack + local web example</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-gpu]"</span><span class="w">   </span><span class="c1"># GPU stack + local web example</span>
 </code></pre></div>
 <p>For OpenAI-compatible HTTP audio endpoints, install AbstractVoice beside
 AbstractCore Server and configure a remote provider or install local voice
 runtimes explicitly:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractcore[server]&quot;</span><span class="w"> </span>abstractvoice
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractcore[server]"</span><span class="w"> </span>abstractvoice
 <span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
 </code></pre></div>
 <p>AbstractCore provides <code>/v1/audio/speech</code> and <code>/v1/audio/transcriptions</code>;
 AbstractVoice is discovered as the voice/audio capability backend.</p>
 <h2 id="optional-extras">Optional extras<a class="headerlink" href="#optional-extras" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[apple]&quot;</span><span class="w">     </span><span class="c1"># Apple Silicon local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[gpu]&quot;</span><span class="w">       </span><span class="c1"># GPU local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[all-apple]&quot;</span><span class="w"> </span><span class="c1"># Apple stack + local FastAPI browser example</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[all-gpu]&quot;</span><span class="w">   </span><span class="c1"># GPU stack + local FastAPI browser example</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[piper]&quot;</span><span class="w">     </span><span class="c1"># Local Piper TTS only</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[supertonic]&quot;</span><span class="w"> </span><span class="c1"># Local Supertonic 3 ONNX TTS only</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[stt]&quot;</span><span class="w">       </span><span class="c1"># Local faster-whisper STT</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[stt-hf]&quot;</span><span class="w">    </span><span class="c1"># Local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, Qwen/Qwen3-ASR-1.7B)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audio-io]&quot;</span><span class="w">  </span><span class="c1"># Microphone/playback/VAD dependencies</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="w">   </span><span class="c1"># explicit OpenF5-based cloning (heavy; Python 3.10+)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[chroma]&quot;</span><span class="w">    </span><span class="c1"># Chroma-4B (very heavy; torch/transformers)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audiodit]&quot;</span><span class="w">  </span><span class="c1"># LongCat-AudioDiT (heavy; torch/transformers)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span><span class="w"> </span><span class="c1"># recommended/default local cloning + OmniVoice TTS/design (very heavy; Python 3.10+)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[qwen3-tts]&quot;</span><span class="w"> </span><span class="c1"># Qwen3-TTS: preset speakers, cloning, voice design (heavy; Python 3.10+)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[openai]&quot;</span><span class="w">    </span><span class="c1"># Hosted OpenAI intent extra (no extra deps today)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[openai-compatible]&quot;</span><span class="w"> </span><span class="c1"># Generic compatible provider intent extra</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[aec]&quot;</span><span class="w">       </span><span class="c1"># Optional echo cancellation (true barge-in)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audio-fx]&quot;</span><span class="w">  </span><span class="c1"># Speed change without pitch change (librosa)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span><span class="w">       </span><span class="c1"># Local FastAPI browser example</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,supertonic]&quot;</span><span class="w"> </span><span class="c1"># Web example + Supertonic dependency</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,omnivoice]&quot;</span><span class="w"> </span><span class="c1"># Web example + OmniVoice dependency</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[apple]"</span><span class="w">     </span><span class="c1"># Apple Silicon local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[gpu]"</span><span class="w">       </span><span class="c1"># GPU local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-apple]"</span><span class="w"> </span><span class="c1"># Apple stack + local FastAPI browser example</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-gpu]"</span><span class="w">   </span><span class="c1"># GPU stack + local FastAPI browser example</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[piper]"</span><span class="w">     </span><span class="c1"># Local Piper TTS only</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[supertonic]"</span><span class="w"> </span><span class="c1"># Local Supertonic 3 ONNX TTS only</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[stt]"</span><span class="w">       </span><span class="c1"># Local faster-whisper STT</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[stt-hf]"</span><span class="w">    </span><span class="c1"># Local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, Qwen/Qwen3-ASR-1.7B)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audio-io]"</span><span class="w">  </span><span class="c1"># Microphone/playback/VAD dependencies</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[cloning]"</span><span class="w">   </span><span class="c1"># explicit OpenF5-based cloning (heavy; Python 3.10+)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[chroma]"</span><span class="w">    </span><span class="c1"># Chroma-4B (very heavy; torch/transformers)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audiodit]"</span><span class="w">  </span><span class="c1"># LongCat-AudioDiT (heavy; torch/transformers)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[omnivoice]"</span><span class="w"> </span><span class="c1"># recommended/default local cloning + OmniVoice TTS/design (very heavy; Python 3.10+)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[qwen3-tts]"</span><span class="w"> </span><span class="c1"># Qwen3-TTS: preset speakers, cloning, voice design (heavy; Python 3.10+)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[openai]"</span><span class="w">    </span><span class="c1"># Hosted OpenAI intent extra (no extra deps today)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[openai-compatible]"</span><span class="w"> </span><span class="c1"># Generic compatible provider intent extra</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[aec]"</span><span class="w">       </span><span class="c1"># Optional echo cancellation (true barge-in)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audio-fx]"</span><span class="w">  </span><span class="c1"># Speed change without pitch change (librosa)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web]"</span><span class="w">       </span><span class="c1"># Local FastAPI browser example</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web,supertonic]"</span><span class="w"> </span><span class="c1"># Web example + Supertonic dependency</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web,omnivoice]"</span><span class="w"> </span><span class="c1"># Web example + OmniVoice dependency</span>
 </code></pre></div>
 <p><code>abstractvoice[web]</code> intentionally stays lightweight: it installs the browser
 server, but no local engines. Compose it with <code>abstractvoice[all-apple]</code>,
@@ -1329,20 +1329,20 @@ server, but no local engines. Compose it with <code>abstractvoice[all-apple]</co
 <p>Remote OpenAI-compatible audio:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># OpenAI hosted audio</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...
-python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
+python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;'PY'</span>
 <span class="s">from abstractvoice import VoiceManager</span>
-<span class="s">vm = VoiceManager(tts_engine=&quot;openai&quot;, stt_engine=&quot;openai&quot;)</span>
-<span class="s">vm.set_profile(&quot;nova&quot;)  # OpenAI voice id</span>
-<span class="s">wav = vm.speak_to_bytes(&quot;Hello from remote TTS.&quot;, format=&quot;wav&quot;)</span>
+<span class="s">vm = VoiceManager(tts_engine="openai", stt_engine="openai")</span>
+<span class="s">vm.set_profile("nova")  # OpenAI voice id</span>
+<span class="s">wav = vm.speak_to_bytes("Hello from remote TTS.", format="wav")</span>
 <span class="s">PY</span>
 
 <span class="c1"># Any OpenAI-compatible /v1 server, including AbstractCore Server</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_BASE_URL</span><span class="o">=</span>http://localhost:8000/v1
-python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
+python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;'PY'</span>
 <span class="s">from abstractvoice import VoiceManager</span>
-<span class="s">vm = VoiceManager(tts_engine=&quot;openai-compatible&quot;, stt_engine=&quot;openai-compatible&quot;)</span>
+<span class="s">vm = VoiceManager(tts_engine="openai-compatible", stt_engine="openai-compatible")</span>
 <span class="s">print([p.profile_id for p in vm.get_profiles()])</span>
-<span class="s">wav = vm.speak_to_bytes(&quot;Hello through a compatible endpoint.&quot;, format=&quot;wav&quot;)</span>
+<span class="s">wav = vm.speak_to_bytes("Hello through a compatible endpoint.", format="wav")</span>
 <span class="s">PY</span>
 </code></pre></div>
 <p>Remote cloning is provider-specific. For compatible services, configure
@@ -1376,7 +1376,7 @@ torch-backed extras), you may see import errors like:</p>
 </ul>
 <p>Fix by installing a torchvision build that matches your torch version. For the
 torch 2.8 family this is typically:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>--force-reinstall<span class="w"> </span><span class="s2">&quot;torchvision==0.23.*&quot;</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>--force-reinstall<span class="w"> </span><span class="s2">"torchvision==0.23.*"</span>
 </code></pre></div>
 <h2 id="offline-first-model-downloads">Offline-first model downloads<a class="headerlink" href="#offline-first-model-downloads" title="Permanent link">&para;</a></h2>
 <p>The REPL (<code>python -m abstractvoice cli</code>) runs with <code>allow_downloads=False</code> and will <strong>not</strong>
@@ -1392,16 +1392,16 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--stt<span class="w"> </span>small
 
 <span class="c1"># Voice cloning artifacts (optional; require extras)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="w">   </span><span class="c1"># for --openf5 (Python 3.10+)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[cloning]"</span><span class="w">   </span><span class="c1"># for --openf5 (Python 3.10+)</span>
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--openf5
 
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[chroma]&quot;</span><span class="w">    </span><span class="c1"># for --chroma (GPU-heavy)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[chroma]"</span><span class="w">    </span><span class="c1"># for --chroma (GPU-heavy)</span>
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--chroma
 
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audiodit]&quot;</span><span class="w">  </span><span class="c1"># for --audiodit (LongCat-AudioDiT-1B)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audiodit]"</span><span class="w">  </span><span class="c1"># for --audiodit (LongCat-AudioDiT-1B)</span>
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--audiodit
 
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span><span class="w"> </span><span class="c1"># for --omnivoice (OmniVoice)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[omnivoice]"</span><span class="w"> </span><span class="c1"># for --omnivoice (OmniVoice)</span>
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--omnivoice
 </code></pre></div>
 <p>The same operations are available via the convenience entrypoint:</p>

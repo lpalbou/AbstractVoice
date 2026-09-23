@@ -1690,7 +1690,7 @@ Status: 10 PASSED ✅
 ✅ test_piper_synthesize
    - Generates actual audio from text
    - Verifies numpy array output (float32, [-1.0, 1.0])
-   - Real synthesis: &quot;Hello, this is a test&quot; → 80,640 samples @ 22050 Hz
+   - Real synthesis: "Hello, this is a test" → 80,640 samples @ 22050 Hz
    - Duration: 3.66 seconds
    - NO MOCKING: actual audio generation
 
@@ -1796,7 +1796,7 @@ Status: 10 PASSED, 1 SKIPPED ✅
    - Real import test (no mock)
 
 ✅ test_faster_whisper_adapter_initialization
-   - Creates adapter with &#39;tiny&#39; model
+   - Creates adapter with 'tiny' model
    - Verifies availability
    - Real initialization (model loaded)
 
@@ -1835,7 +1835,7 @@ Status: 10 PASSED, 1 SKIPPED ✅
 
 ✅ test_faster_whisper_get_info
    - Queries adapter metadata
-   - Verifies engine=&#39;Faster-Whisper&#39;, model=&#39;tiny&#39;, compute_type=&#39;int8&#39;
+   - Verifies engine='Faster-Whisper', model='tiny', compute_type='int8'
    - Real metadata retrieval
 
 ✅ test_voice_manager_integration
@@ -2101,12 +2101,12 @@ tests/test_faster_whisper_adapter.py::test_voice_manager_transcribe_methods<span
 <p>Both adapters fully support client-server architectures:</p>
 <h3 id="tts-network-methods">TTS Network Methods<a class="headerlink" href="#tts-network-methods" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Server-side: Generate audio for client</span>
-<span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello from server&quot;</span><span class="p">)</span>
+<span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Hello from server"</span><span class="p">)</span>
 <span class="n">send_to_client</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">)</span>  <span class="c1"># ~105KB for short text</span>
 
 <span class="c1"># Or generate file</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak_to_file</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">,</span> <span class="s2">&quot;output.wav&quot;</span><span class="p">)</span>
-<span class="n">send_file_to_client</span><span class="p">(</span><span class="s2">&quot;output.wav&quot;</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak_to_file</span><span class="p">(</span><span class="s2">"Hello"</span><span class="p">,</span> <span class="s2">"output.wav"</span><span class="p">)</span>
+<span class="n">send_file_to_client</span><span class="p">(</span><span class="s2">"output.wav"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="stt-network-methods">STT Network Methods<a class="headerlink" href="#stt-network-methods" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Server-side: Receive audio from client</span>
@@ -2115,7 +2115,7 @@ tests/test_faster_whisper_adapter.py::test_voice_manager_transcribe_methods<span
 <span class="n">return_to_client</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
 
 <span class="c1"># Or from file</span>
-<span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">&quot;uploaded_audio.wav&quot;</span><span class="p">)</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">"uploaded_audio.wav"</span><span class="p">)</span>
 </code></pre></div>
 <p><strong>Use Cases</strong>:
 - Mobile apps (record on device, transcribe on server)
@@ -2126,14 +2126,14 @@ tests/test_faster_whisper_adapter.py::test_voice_manager_transcribe_methods<span
 <h2 id="dependency-management">Dependency Management<a class="headerlink" href="#dependency-management" title="Permanent link">&para;</a></h2>
 <h3 id="core-dependencies-updated">Core Dependencies (Updated)<a class="headerlink" href="#core-dependencies-updated" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="n">dependencies</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;numpy&gt;=1.24.0&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;requests&gt;=2.31.0&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;appdirs&gt;=1.4.0&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;piper-tts&gt;=1.2.0&quot;</span><span class="p">,</span>           <span class="c1"># NEW: Zero-dependency TTS</span>
-    <span class="s2">&quot;huggingface_hub&gt;=0.20.0&quot;</span><span class="p">,</span>    <span class="c1"># NEW: Model downloading</span>
-    <span class="s2">&quot;faster-whisper&gt;=0.10.0&quot;</span><span class="p">,</span>     <span class="c1"># NEW: High-performance STT</span>
-    <span class="s2">&quot;sounddevice&gt;=0.4.6&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;soundfile&gt;=0.12.1&quot;</span><span class="p">,</span>
+    <span class="s2">"numpy&gt;=1.24.0"</span><span class="p">,</span>
+    <span class="s2">"requests&gt;=2.31.0"</span><span class="p">,</span>
+    <span class="s2">"appdirs&gt;=1.4.0"</span><span class="p">,</span>
+    <span class="s2">"piper-tts&gt;=1.2.0"</span><span class="p">,</span>           <span class="c1"># NEW: Zero-dependency TTS</span>
+    <span class="s2">"huggingface_hub&gt;=0.20.0"</span><span class="p">,</span>    <span class="c1"># NEW: Model downloading</span>
+    <span class="s2">"faster-whisper&gt;=0.10.0"</span><span class="p">,</span>     <span class="c1"># NEW: High-performance STT</span>
+    <span class="s2">"sounddevice&gt;=0.4.6"</span><span class="p">,</span>
+    <span class="s2">"soundfile&gt;=0.12.1"</span><span class="p">,</span>
 <span class="p">]</span>
 </code></pre></div>
 <h3 id="optional-dependencies">Optional Dependencies<a class="headerlink" href="#optional-dependencies" title="Permanent link">&para;</a></h3>
@@ -2148,13 +2148,13 @@ tests/test_faster_whisper_adapter.py::test_voice_manager_transcribe_methods<span
 <h3 id="breaking-changes-none">Breaking Changes: NONE ✅<a class="headerlink" href="#breaking-changes-none" title="Permanent link">&para;</a></h3>
 <p>All existing code continues to work:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Old code (still works)</span>
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s1">&#39;en&#39;</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s1">'en'</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello"</span><span class="p">)</span>
 <span class="n">vm</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">on_transcription</span><span class="p">)</span>
 
 <span class="c1"># New features (optional)</span>
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s1">&#39;en&#39;</span><span class="p">,</span> <span class="n">tts_engine</span><span class="o">=</span><span class="s1">&#39;piper&#39;</span><span class="p">)</span>
-<span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>  <span class="c1"># NEW</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s1">'en'</span><span class="p">,</span> <span class="n">tts_engine</span><span class="o">=</span><span class="s1">'piper'</span><span class="p">)</span>
+<span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Hello"</span><span class="p">)</span>  <span class="c1"># NEW</span>
 <span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_from_bytes</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">)</span>  <span class="c1"># NEW</span>
 </code></pre></div>
 <h3 id="migration-path">Migration Path<a class="headerlink" href="#migration-path" title="Permanent link">&para;</a></h3>

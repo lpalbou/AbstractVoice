@@ -1298,9 +1298,9 @@ containing weights. It counts only for the engine you selected with <code>ABSTRA
 <p><code>abstractvoice.local_models</code> exposes this directly:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.local_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">cached_tts_model_ids</span><span class="p">,</span> <span class="n">hf_repo_is_cached</span>
 
-<span class="n">cached_tts_model_ids</span><span class="p">(</span><span class="s2">&quot;piper&quot;</span><span class="p">)</span>       <span class="c1"># [&#39;en_US-amy-medium&#39;, ...] — only what is downloaded</span>
-<span class="n">cached_tts_model_ids</span><span class="p">(</span><span class="s2">&quot;audiodit&quot;</span><span class="p">)</span>    <span class="c1"># [] until the weights are prefetched</span>
-<span class="n">hf_repo_is_cached</span><span class="p">(</span><span class="s2">&quot;k2-fsa/OmniVoice&quot;</span><span class="p">)</span>
+<span class="n">cached_tts_model_ids</span><span class="p">(</span><span class="s2">"piper"</span><span class="p">)</span>       <span class="c1"># ['en_US-amy-medium', ...] — only what is downloaded</span>
+<span class="n">cached_tts_model_ids</span><span class="p">(</span><span class="s2">"audiodit"</span><span class="p">)</span>    <span class="c1"># [] until the weights are prefetched</span>
+<span class="n">hf_repo_is_cached</span><span class="p">(</span><span class="s2">"k2-fsa/OmniVoice"</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="programmatic-introspection">Programmatic introspection<a class="headerlink" href="#programmatic-introspection" title="Permanent link">&para;</a></h2>
 <ul>

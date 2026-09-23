@@ -1609,20 +1609,20 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
 </ul>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">remote_api_key</span><span class="o">=</span><span class="s2">&quot;sk-...&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">"en"</span><span class="p">,</span> <span class="n">remote_api_key</span><span class="o">=</span><span class="s2">"sk-..."</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="constructor-most-used-knobs">Constructor (most-used knobs)<a class="headerlink" href="#constructor-most-used-knobs" title="Permanent link">&para;</a></h2>
 <p>The source of truth is <code>abstractvoice/vm/manager.py</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="n">VoiceManager</span><span class="p">(</span>
-    <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;en&quot;</span><span class="p">,</span>
+    <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"en"</span><span class="p">,</span>
     <span class="n">tts_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">whisper_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;base&quot;</span><span class="p">,</span>
+    <span class="n">whisper_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"base"</span><span class="p">,</span>
     <span class="n">debug_mode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">tts_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;openai&quot;</span><span class="p">,</span>
-    <span class="n">stt_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+    <span class="n">tts_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"openai"</span><span class="p">,</span>
+    <span class="n">stt_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"openai"</span><span class="p">,</span>
     <span class="n">allow_downloads</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">cloned_tts_streaming</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">cloning_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;omnivoice&quot;</span><span class="p">,</span>
+    <span class="n">cloning_engine</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"omnivoice"</span><span class="p">,</span>
     <span class="n">tts_delivery_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># buffered|streamed (override)</span>
     <span class="n">stt_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">remote_base_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1674,7 +1674,7 @@ For other non-Piper providers (e.g. OmniVoice or remote OpenAI-compatible provid
 <h2 id="tts-text-audio">TTS (text → audio)<a class="headerlink" href="#tts-text-audio" title="Permanent link">&para;</a></h2>
 <p>CLI one-shot TTS uses the same <code>VoiceManager</code> synthesis path and exits without
 starting the REPL:</p>
-<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--provider<span class="w"> </span>openai<span class="w"> </span>--model<span class="w"> </span>tts-1<span class="w"> </span>--voice<span class="w"> </span>alloy<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">&quot;Hello&quot;</span><span class="w"> </span>--output<span class="w"> </span>hello.wav
+<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--provider<span class="w"> </span>openai<span class="w"> </span>--model<span class="w"> </span>tts-1<span class="w"> </span>--voice<span class="w"> </span>alloy<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"Hello"</span><span class="w"> </span>--output<span class="w"> </span>hello.wav
 </code></pre></div>
 <p>Use <code>--provider openai-compatible --api &lt;base-url&gt;</code> for compatible remote audio
 servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local engines.</p>
@@ -2001,16 +2001,16 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 
 <span class="c1"># Load once, reuse for all requests.</span>
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span>
-    <span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span>
-    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;omnivoice&quot;</span><span class="p">,</span>
-    <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
-    <span class="n">remote_api_key</span><span class="o">=</span><span class="s2">&quot;sk-...&quot;</span><span class="p">,</span>
+    <span class="n">language</span><span class="o">=</span><span class="s2">"en"</span><span class="p">,</span>
+    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">"omnivoice"</span><span class="p">,</span>
+    <span class="n">stt_engine</span><span class="o">=</span><span class="s2">"openai"</span><span class="p">,</span>
+    <span class="n">remote_api_key</span><span class="o">=</span><span class="s2">"sk-..."</span><span class="p">,</span>
     <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="c1"># Optional explicit warmup for local providers.</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">preload_tts_engine</span><span class="p">(</span><span class="n">warmup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">warmup_text</span><span class="o">=</span><span class="s2">&quot;Hello.&quot;</span><span class="p">)</span>
-<span class="c1"># vm.preload_stt_engine(warmup=True, warmup_audio_path=&quot;hello.wav&quot;, language=&quot;en&quot;)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">preload_tts_engine</span><span class="p">(</span><span class="n">warmup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">warmup_text</span><span class="o">=</span><span class="s2">"Hello."</span><span class="p">)</span>
+<span class="c1"># vm.preload_stt_engine(warmup=True, warmup_audio_path="hello.wav", language="en")</span>
 </code></pre></div>
 <h2 id="integrations-abstractframework-ecosystem">Integrations (AbstractFramework ecosystem)<a class="headerlink" href="#integrations-abstractframework-ecosystem" title="Permanent link">&para;</a></h2>
 <p>AbstractVoice is designed to work standalone, and also integrate cleanly into the AbstractFramework ecosystem (AbstractCore + AbstractRuntime). Overview and links: <code>README.md</code>.</p>
@@ -2223,18 +2223,18 @@ capability plugin:</p>
 <span class="n">catalog</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">voice_catalog</span><span class="p">()</span>
 
 <span class="n">tts_audio</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">tts</span><span class="p">(</span>
-    <span class="s2">&quot;Hello.&quot;</span><span class="p">,</span>
-    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
-    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;tts-1&quot;</span><span class="p">,</span>
-    <span class="n">voice</span><span class="o">=</span><span class="s2">&quot;alloy&quot;</span><span class="p">,</span>
-    <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;wav&quot;</span><span class="p">,</span>
+    <span class="s2">"Hello."</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="s2">"openai"</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"tts-1"</span><span class="p">,</span>
+    <span class="n">voice</span><span class="o">=</span><span class="s2">"alloy"</span><span class="p">,</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s2">"wav"</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">text</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">transcribe</span><span class="p">(</span>
     <span class="n">wav_bytes</span><span class="p">,</span>
-    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;faster-whisper&quot;</span><span class="p">,</span>
-    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">,</span>
-    <span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="s2">"faster-whisper"</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"large"</span><span class="p">,</span>
+    <span class="n">language</span><span class="o">=</span><span class="s2">"en"</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <p>That same shape also supports local or remote cloned voices: the selected
@@ -2244,13 +2244,13 @@ passed back as the TTS <code>voice</code>, or its <code>voice_id</code> can be p
 <div class="highlight"><pre><span></span><code><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
 
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/v1/audio/speech<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;input&quot;:&quot;Hello.&quot;,&quot;format&quot;:&quot;wav&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"input":"Hello.","format":"wav"}'</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--output<span class="w"> </span>hello.wav
 
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/v1/audio/transcriptions<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;file=@hello.wav&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;language=en&quot;</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"file=@hello.wav"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"language=en"</span>
 </code></pre></div>
 <p>If AbstractCore Server is configured with <code>ABSTRACTCORE_API_KEY</code>, include the
 standard <code>Authorization: Bearer &lt;key&gt;</code> header. <code>ABSTRACTCORE_API_KEY</code> is
@@ -2289,26 +2289,26 @@ abstractvoice<span class="w"> </span>web<span class="w"> </span>--tts-engine<spa
 <p>Local web example payload sketches:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Browser-example role default; still resolves to a cloned voice_id.</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/voices/select<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;role&quot;:&quot;assistant&quot;,&quot;kind&quot;:&quot;clone&quot;,&quot;voice&quot;:&quot;my_voice&quot;,&quot;preload&quot;:true}&#39;</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"role":"assistant","kind":"clone","voice":"my_voice","preload":true}'</span>
 
 <span class="c1"># Browser-example cloned voice creation.</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/voices/clone<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;name=my_voice&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;provider=omnivoice&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;reference_text=Exact transcript of the reference audio.&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;file=@reference.wav&quot;</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"name=my_voice"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"provider=omnivoice"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"reference_text=Exact transcript of the reference audio."</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"file=@reference.wav"</span>
 
 <span class="c1"># TTS still maps to VoiceManager.speak_to_bytes(...).</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/tts<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;input&quot;:&quot;Hello.&quot;,&quot;role&quot;:&quot;assistant&quot;,&quot;response_format&quot;:&quot;wav&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"input":"Hello.","role":"assistant","response_format":"wav"}'</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--output<span class="w"> </span>hello.wav
 
 <span class="c1"># Switch the browser example to Supertonic and its default profile.</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/tts/provider<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;provider&quot;:&quot;supertonic&quot;}&#39;</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"provider":"supertonic"}'</span>
 
 <span class="c1"># Compatible extension: discover profiles/cloned voices from another</span>
 <span class="c1"># AbstractVoice client configured with remote_base_url=http://127.0.0.1:5000/v1.</span>
@@ -2316,14 +2316,14 @@ curl<span class="w"> </span>http://127.0.0.1:5000/v1/audio/voices
 
 <span class="c1"># Compatible extension: create a remote cloned voice handle.</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/v1/voice/clone<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;name=my_remote_voice&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;reference_text=Exact transcript of the reference audio.&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;file=@reference.wav&quot;</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"name=my_remote_voice"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"reference_text=Exact transcript of the reference audio."</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"file=@reference.wav"</span>
 
 <span class="c1"># Example dialogue call via a local OpenAI-compatible provider.</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:5000/api/chat<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;provider&quot;:&quot;ollama&quot;,&quot;model&quot;:&quot;gemma3:1b&quot;,&quot;messages&quot;:[{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:&quot;Say hi in one sentence.&quot;}]}&#39;</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"provider":"ollama","model":"gemma3:1b","messages":[{"role":"user","content":"Say hi in one sentence."}]}'</span>
 </code></pre></div>
 <p>The local <code>role</code> field is only a convenience for the example UI. AbstractCore
 compatibility remains the capability/plugin contract: clients may pass a
@@ -2345,13 +2345,13 @@ compatibility remains the capability/plugin contract: clients may pass a
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.integrations.abstractcore</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_voice_tools</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">remote_api_key</span><span class="o">=</span><span class="s2">&quot;sk-...&quot;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">remote_api_key</span><span class="o">=</span><span class="s2">"sk-..."</span><span class="p">)</span>
 <span class="n">tools</span> <span class="o">=</span> <span class="n">make_voice_tools</span><span class="p">(</span><span class="n">voice_manager</span><span class="o">=</span><span class="n">vm</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="n">artifact_store</span><span class="p">)</span>
 </code></pre></div>
 <p>Example (provider-agnostic profile selection):</p>
-<div class="highlight"><pre><span></span><code><span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;omnivoice&quot;</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_profile</span><span class="p">(</span><span class="s2">&quot;female_01&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;tts&quot;</span><span class="p">)</span>
-<span class="n">wav_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello.&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;wav&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">"omnivoice"</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_profile</span><span class="p">(</span><span class="s2">"female_01"</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"tts"</span><span class="p">)</span>
+<span class="n">wav_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Hello."</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"wav"</span><span class="p">)</span>
 </code></pre></div>
 <p>TTS metrics (library-level):
 - <code>VoiceManager.speak_to_bytes(...)</code> / <code>VoiceManager.speak_to_file(...)</code> record best-effort stats for the <em>last</em> synthesis.

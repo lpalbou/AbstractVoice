@@ -1477,7 +1477,7 @@ requires <code>OPENAI_API_KEY</code>. Use an explicit local engine such as
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
 </code></pre></div>
 <p>Local/offline startup example:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[supertonic]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[supertonic]"</span>
 abstractvoice-prefetch<span class="w"> </span>--supertonic
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>supertonic<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
 
@@ -1485,7 +1485,7 @@ abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>superto
 abstractvoice<span class="w"> </span>--stt-engine<span class="w"> </span>transformers-asr<span class="w"> </span>--stt-model<span class="w"> </span>Qwen/Qwen3-ASR-1.7B<span class="w"> </span>--verbose
 </code></pre></div>
 <p>Piper remains available as the smaller local fallback:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[piper]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[piper]"</span>
 abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
 </code></pre></div>
@@ -1685,7 +1685,7 @@ profiles from <code>GET /v1/audio/voices</code> (or from <code>ABSTRACTVOICE_REM
 <p>Manual OmniVoice voice design:</p>
 <div class="highlight"><pre><span></span><code>/tts engine omnivoice
 /omnivoice
-/omnivoice instruct &quot;female, young adult, moderate pitch&quot;
+/omnivoice instruct "female, young adult, moderate pitch"
 /omnivoice seed 123
 /omnivoice position_temperature 0
 /omnivoice class_temperature 0
@@ -1695,16 +1695,16 @@ profiles from <code>GET /v1/audio/voices</code> (or from <code>ABSTRACTVOICE_REM
 portability, use a prompt-cached profile or a cloned voice.</p>
 <h2 id="voice-cloning">Voice Cloning<a class="headerlink" href="#voice-cloning" title="Permanent link">&para;</a></h2>
 <p>Install the extra and prefetch artifacts for the engine you want:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[cloning]"</span>
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--openf5
 
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audiodit]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audiodit]"</span>
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--audiodit
 
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[omnivoice]"</span>
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--omnivoice
 
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[chroma]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[chroma]"</span>
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--chroma
 </code></pre></div>
 <p>Readiness and downloads from inside the REPL:</p>
@@ -1715,13 +1715,13 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 /cloning_download audiodit
 </code></pre></div>
 <p>Clone from a file:</p>
-<div class="highlight"><pre><span></span><code>/clone /path/to/reference.wav my_voice --engine omnivoice --text &quot;Exact transcript of the reference audio.&quot;
+<div class="highlight"><pre><span></span><code>/clone /path/to/reference.wav my_voice --engine omnivoice --text "Exact transcript of the reference audio."
 /voices clone my_voice
 /speak This is my cloned voice.
 </code></pre></div>
 <p>Interactive microphone cloning:</p>
-<div class="highlight"><pre><span></span><code>/clone myvoice my_voice --text &quot;I am recording a short clear reference sample for my AbstractVoice clone.&quot;
-/clone_use myvoice my_voice --text &quot;I am recording a short clear reference sample for my AbstractVoice clone.&quot;
+<div class="highlight"><pre><span></span><code>/clone myvoice my_voice --text "I am recording a short clear reference sample for my AbstractVoice clone."
+/clone_use myvoice my_voice --text "I am recording a short clear reference sample for my AbstractVoice clone."
 </code></pre></div>
 <p>Clone management:</p>
 <div class="highlight"><pre><span></span><code>/clones
@@ -1759,9 +1759,9 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 <p><code>/clear</code> resets the LLM message history. <code>/reset</code> also resets the selected voice
 state. Neither command deletes saved <code>.mem</code> files or terminal command history.</p>
 <p>To delete terminal command history, remove <code>repl_history</code> from:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;'PY'</span>
 <span class="s">import appdirs</span>
-<span class="s">print(appdirs.user_data_dir(&quot;abstractvoice&quot;))</span>
+<span class="s">print(appdirs.user_data_dir("abstractvoice"))</span>
 <span class="s">PY</span>
 </code></pre></div>
 <p>More cache and reset details are in <code>docs/faq.md</code>.</p>

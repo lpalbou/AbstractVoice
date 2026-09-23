@@ -1450,7 +1450,15 @@ voice selections do not bleed across engine changes.
 <code>AdapterTTSEngine.warmup_audio_output()</code> can open the playback stream before
 the first utterance; <code>NonBlockingAudioPlayer</code> prefers the hardware default
 output sample rate and resamples synthesized audio when needed, avoiding slow
-first-call CoreAudio negotiation on macOS.</p>
+first-call CoreAudio negotiation on macOS.
+The output device itself is resolved live, not taken from PortAudio's
+launch-time snapshot: <code>abstractvoice/tts/audio_devices.py</code> asks the system
+(the CoreAudio HAL on macOS) for the current default or for a device named by
+its stable UID, and the player opens it by explicit index, re-resolving before
+each utterance. If that device cannot be opened, playback falls back to the
+system default only and reports it through <code>on_output_device_problem</code>; a
+stream the OS stopped (sleep, USB interruption) is reopened on the next
+utterance without losing queued audio.</p>
 <p>Discovery follows the same policy from the other direction: asking which providers and models are
 available is a filesystem question, answered by <code>abstractvoice/local_models.py</code> without importing an
 engine runtime or loading weights. A local engine is discoverable when its runtime is importable and

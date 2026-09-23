@@ -1466,17 +1466,17 @@ current behavior.</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TTSAdapter</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">synthesize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert text to audio array&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Convert text to audio array"""</span>
         <span class="k">pass</span>
 
     <span class="nd">@abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">synthesize_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;wav&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert text to audio bytes (for network use)&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">synthesize_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'wav'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Convert text to audio bytes (for network use)"""</span>
         <span class="k">pass</span>
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">set_language</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">language</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Switch language (en, fr, de, es, ru, zh)&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Switch language (en, fr, de, es, ru, zh)"""</span>
         <span class="k">pass</span>
 </code></pre></div>
 <p><strong>Rationale</strong>:
@@ -1491,12 +1491,12 @@ current behavior.</p>
 - <strong>✅ Lazy loading per language</strong> → Fast, efficient</p>
 <p><strong>Implementation</strong>:
 <div class="highlight"><pre><span></span><code><span class="n">PIPER_MODELS</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;en&#39;</span><span class="p">:</span> <span class="s1">&#39;en_US-lessac-medium.onnx&#39;</span><span class="p">,</span>     <span class="c1"># 50MB</span>
-    <span class="s1">&#39;fr&#39;</span><span class="p">:</span> <span class="s1">&#39;fr_FR-siwis-medium.onnx&#39;</span><span class="p">,</span>       <span class="c1"># 45MB</span>
-    <span class="s1">&#39;de&#39;</span><span class="p">:</span> <span class="s1">&#39;de_DE-thorsten-medium.onnx&#39;</span><span class="p">,</span>    <span class="c1"># 48MB</span>
-    <span class="s1">&#39;es&#39;</span><span class="p">:</span> <span class="s1">&#39;es_ES-carlfm-medium.onnx&#39;</span><span class="p">,</span>      <span class="c1"># 47MB</span>
-    <span class="s1">&#39;ru&#39;</span><span class="p">:</span> <span class="s1">&#39;ru_RU-ruslan-medium.onnx&#39;</span><span class="p">,</span>      <span class="c1"># 52MB</span>
-    <span class="s1">&#39;zh&#39;</span><span class="p">:</span> <span class="s1">&#39;zh_CN-huayan-medium.onnx&#39;</span>       <span class="c1"># 55MB</span>
+    <span class="s1">'en'</span><span class="p">:</span> <span class="s1">'en_US-lessac-medium.onnx'</span><span class="p">,</span>     <span class="c1"># 50MB</span>
+    <span class="s1">'fr'</span><span class="p">:</span> <span class="s1">'fr_FR-siwis-medium.onnx'</span><span class="p">,</span>       <span class="c1"># 45MB</span>
+    <span class="s1">'de'</span><span class="p">:</span> <span class="s1">'de_DE-thorsten-medium.onnx'</span><span class="p">,</span>    <span class="c1"># 48MB</span>
+    <span class="s1">'es'</span><span class="p">:</span> <span class="s1">'es_ES-carlfm-medium.onnx'</span><span class="p">,</span>      <span class="c1"># 47MB</span>
+    <span class="s1">'ru'</span><span class="p">:</span> <span class="s1">'ru_RU-ruslan-medium.onnx'</span><span class="p">,</span>      <span class="c1"># 52MB</span>
+    <span class="s1">'zh'</span><span class="p">:</span> <span class="s1">'zh_CN-huayan-medium.onnx'</span>       <span class="c1"># 55MB</span>
 <span class="p">}</span>
 </code></pre></div></p>
 <h3 id="choice-4-file-structure">Choice 4: File Structure<a class="headerlink" href="#choice-4-file-structure" title="Permanent link">&para;</a></h3>
@@ -1522,7 +1522,7 @@ current behavior.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">piper_available</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">piper_available</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Piper TTS not available, falling back to VITS&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Piper TTS not available, falling back to VITS"</span><span class="p">)</span>
         <span class="c1"># Fallback to VITS handled by voice_manager</span>
 </code></pre></div>
 <p><strong>Rationale</strong>:
@@ -1796,7 +1796,7 @@ TTSEngine-compatible facade (<code>abstractvoice/tts/adapter_tts_engine.py</code
 <h4 id="breaking-changes">Breaking Changes<a class="headerlink" href="#breaking-changes" title="Permanent link">&para;</a></h4>
 <p><strong>None</strong>. All existing code continues to work. AbstractVoice core is Piper-first.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Use Piper (default)</span>
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s1">&#39;en&#39;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s1">'en'</span><span class="p">)</span>
 </code></pre></div>
 <hr />
 <p><strong>Signed Off</strong>: Implementation complete, all tests passing, ready for production use.</p>

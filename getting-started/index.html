@@ -1328,7 +1328,7 @@ as <code>abstractvoice[supertonic,stt,audio-io]</code>. Optional extras are docu
 <span class="w">  </span>--provider<span class="w"> </span>openai<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--model<span class="w"> </span>tts-1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--voice<span class="w"> </span>alloy<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--prompt<span class="w"> </span><span class="s2">&quot;Hello from AbstractVoice.&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--prompt<span class="w"> </span><span class="s2">"Hello from AbstractVoice."</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--output<span class="w"> </span>hello.wav
 </code></pre></div>
 <p>This path writes the audio file and exits. It also accepts compatible remote
@@ -1354,12 +1354,12 @@ switch to a local engine.</p>
 default local cloning backend is OmniVoice; install <code>abstractvoice[omnivoice]</code>
 or a platform/full profile before using clone commands without <code>--engine</code>.</p>
 <p>For local/offline TTS instead:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[supertonic]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[supertonic]"</span>
 abstractvoice-prefetch<span class="w"> </span>--supertonic
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>supertonic<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
 </code></pre></div>
 <p>For the smaller Piper fallback:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[piper]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[piper]"</span>
 abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
 </code></pre></div>
@@ -1369,11 +1369,11 @@ read-through with separate assistant/user voices, text to WAV, audio-file
 transcription, and a tiny optional LLM dialogue panel for OpenAI-compatible
 local providers such as Ollama. It is not the production server surface; use
 AbstractCore Server for production OpenAI-compatible HTTP endpoints.</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web]"</span>
 abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span>
 </code></pre></div>
 <p>For a local web lab with Supertonic/faster-whisper:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,supertonic,stt]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web,supertonic,stt]"</span>
 abstractvoice-prefetch<span class="w"> </span>--supertonic
 abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--tts-engine<span class="w"> </span>supertonic<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper
 </code></pre></div>
@@ -1404,13 +1404,13 @@ server only forwards one <code>/v1/chat/completions</code> request.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello from AbstractVoice.&quot;</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello from AbstractVoice."</span><span class="p">)</span>
 </code></pre></div>
 <p>This uses OpenAI remote audio and reads <code>OPENAI_API_KEY</code>. For local inference:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;supertonic&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;faster_whisper&quot;</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello from the local stack.&quot;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">"supertonic"</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">"faster_whisper"</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello from the local stack."</span><span class="p">)</span>
 </code></pre></div>
 <p>For Supertonic fixed-profile local TTS, install <code>abstractvoice[supertonic]</code>,
 prefetch with <code>abstractvoice-prefetch --supertonic</code>, and use
@@ -1431,19 +1431,19 @@ prefetch with <code>abstractvoice-prefetch --supertonic</code>, and use
 - <code>README.md</code> (ecosystem overview)
 - <code>docs/api.md</code> (Integrations section; code pointers)</p>
 <p>Minimal AbstractCore Server smoke test:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractcore[server]&quot;</span><span class="w"> </span>abstractvoice
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractcore[server]"</span><span class="w"> </span>abstractvoice
 <span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
 
 <span class="c1"># TTS through AbstractCore + AbstractVoice</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/v1/audio/speech<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;input&quot;:&quot;Hello from AbstractVoice through AbstractCore.&quot;,&quot;format&quot;:&quot;wav&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"input":"Hello from AbstractVoice through AbstractCore.","format":"wav"}'</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--output<span class="w"> </span>hello.wav
 
 <span class="c1"># STT through AbstractCore + AbstractVoice</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/v1/audio/transcriptions<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;file=@hello.wav&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;language=en&quot;</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"file=@hello.wav"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"language=en"</span>
 </code></pre></div>
 <p>If the server is configured with <code>ABSTRACTCORE_API_KEY</code>, include
 <code>Authorization: Bearer &lt;key&gt;</code> in those requests.</p>
@@ -1483,7 +1483,7 @@ directories. The exact reset commands are in <code>docs/faq.md</code>.</p>
 <h2 id="contributing-local-development">Contributing / local development<a class="headerlink" href="#contributing-local-development" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
 <span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev]"</span>
 python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q
 </code></pre></div>
 <p>See also: <code>CONTRIBUTING.md</code>, <code>SECURITY.md</code>, and internal notes in <code>docs/development.md</code>.</p>

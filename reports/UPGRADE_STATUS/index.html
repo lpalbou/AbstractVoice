@@ -1435,14 +1435,14 @@
 5. <strong>Business Value</strong>: Enables personalized voice experiences</p>
 <p><strong>What It Enables</strong>:
 <div class="highlight"><pre><span></span><code><span class="c1"># Clone a voice from audio sample</span>
-<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;sample.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;John&quot;</span><span class="p">)</span>
+<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">"sample.wav"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"John"</span><span class="p">)</span>
 
 <span class="c1"># Use cloned voice</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello world&quot;</span><span class="p">,</span> <span class="n">voice_id</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello world"</span><span class="p">,</span> <span class="n">voice_id</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
 
 <span class="c1"># Export/import cloned voices</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">export_voice</span><span class="p">(</span><span class="n">voice_id</span><span class="p">,</span> <span class="s2">&quot;john_voice.json&quot;</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">import_voice</span><span class="p">(</span><span class="s2">&quot;john_voice.json&quot;</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">export_voice</span><span class="p">(</span><span class="n">voice_id</span><span class="p">,</span> <span class="s2">"john_voice.json"</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">import_voice</span><span class="p">(</span><span class="s2">"john_voice.json"</span><span class="p">)</span>
 </code></pre></div></p>
 <p><strong>Implementation Plan</strong>:
 - Create <code>abstractvoice/adapters/tts_xtts.py</code>

@@ -2236,18 +2236,18 @@ engines (<code>f5_tts</code> / <code>chroma</code>).</p>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">PiperTTSAdapter</span><span class="p">(</span><span class="n">TTSAdapter</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Piper TTS adapter - maintains TTSAdapter interface for compatibility&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Piper TTS adapter - maintains TTSAdapter interface for compatibility"""</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">voice_model_path</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s1">&#39;en&#39;</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">voice_model_path</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s1">'en'</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">voice</span> <span class="o">=</span> <span class="n">PiperVoice</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">voice_model_path</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">language</span> <span class="o">=</span> <span class="n">language</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">synthesize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Same interface as existing VITS adapter - zero breaking changes&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Same interface as existing VITS adapter - zero breaking changes"""</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">synthesize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">set_language</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">language</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Support for EN, FR, DE, ES, RU, ZH-CN&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Support for EN, FR, DE, ES, RU, ZH-CN"""</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">language</span> <span class="o">=</span> <span class="n">language</span>
         <span class="c1"># Load appropriate Piper model for language</span>
 </code></pre></div>
@@ -2268,23 +2268,23 @@ engines (<code>f5_tts</code> / <code>chroma</code>).</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">faster_whisper</span><span class="w"> </span><span class="kn">import</span> <span class="n">WhisperModel</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">FasterWhisperAdapter</span><span class="p">(</span><span class="n">TranscriberAdapter</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;faster-whisper adapter - maintains TranscriberAdapter interface&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""faster-whisper adapter - maintains TranscriberAdapter interface"""</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_size</span><span class="o">=</span><span class="s2">&quot;base&quot;</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">WhisperModel</span><span class="p">(</span><span class="n">model_size</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">&quot;int8&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_size</span><span class="o">=</span><span class="s2">"base"</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">WhisperModel</span><span class="p">(</span><span class="n">model_size</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">"int8"</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">language</span> <span class="o">=</span> <span class="n">language</span>  <span class="c1"># None = auto-detect (99+ languages)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">transcribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Same interface as existing Whisper adapter - zero breaking changes&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Same interface as existing Whisper adapter - zero breaking changes"""</span>
         <span class="n">segments</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">transcribe</span><span class="p">(</span>
             <span class="n">audio_path</span><span class="p">,</span> 
             <span class="n">language</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">language</span>  <span class="c1"># Supports EN, FR, DE, ES, RU, ZH, etc.</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">seg</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">seg</span> <span class="ow">in</span> <span class="n">segments</span><span class="p">])</span>
+        <span class="k">return</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">seg</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">seg</span> <span class="ow">in</span> <span class="n">segments</span><span class="p">])</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">change_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_size</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Maintains existing API&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">WhisperModel</span><span class="p">(</span><span class="n">model_size</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">&quot;int8&quot;</span><span class="p">)</span>
+<span class="w">        </span><span class="sd">"""Maintains existing API"""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">WhisperModel</span><span class="p">(</span><span class="n">model_size</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">"int8"</span><span class="p">)</span>
 </code></pre></div>
 <p><strong>Language Support</strong>:
 - Whisper supports 99+ languages including:
@@ -2302,7 +2302,7 @@ engines (<code>f5_tts</code> / <code>chroma</code>).</p>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">SileroVAD</span><span class="p">(</span><span class="n">VoiceDetector</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">utils</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">hub</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;snakers4/silero-vad&#39;</span><span class="p">,</span> <span class="s1">&#39;silero_vad&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">utils</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">hub</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'snakers4/silero-vad'</span><span class="p">,</span> <span class="s1">'silero_vad'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_speech_timestamps</span> <span class="o">=</span> <span class="n">utils</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">is_speech</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_data</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
@@ -2322,9 +2322,9 @@ pip<span class="w"> </span>install<span class="w"> </span>abstractvoice
 python
 &gt;&gt;&gt;<span class="w"> </span>from<span class="w"> </span>abstractvoice<span class="w"> </span>import<span class="w"> </span>VoiceManager
 &gt;&gt;&gt;<span class="w"> </span><span class="nv">vm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>VoiceManager<span class="o">()</span><span class="w">  </span><span class="c1"># Downloads Piper + faster-whisper models (~100MB)</span>
-&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">&quot;Hello&quot;</span><span class="o">)</span><span class="w">  </span><span class="c1"># Works immediately on Windows/macOS/Linux</span>
-&gt;&gt;&gt;<span class="w"> </span>vm.set_language<span class="o">(</span><span class="s1">&#39;fr&#39;</span><span class="o">)</span><span class="w">  </span><span class="c1"># Switch to French</span>
-&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">&quot;Bonjour&quot;</span><span class="o">)</span><span class="w">  </span><span class="c1"># Just works</span>
+&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">"Hello"</span><span class="o">)</span><span class="w">  </span><span class="c1"># Works immediately on Windows/macOS/Linux</span>
+&gt;&gt;&gt;<span class="w"> </span>vm.set_language<span class="o">(</span><span class="s1">'fr'</span><span class="o">)</span><span class="w">  </span><span class="c1"># Switch to French</span>
+&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">"Bonjour"</span><span class="o">)</span><span class="w">  </span><span class="c1"># Just works</span>
 </code></pre></div></p>
 <p><strong>Features</strong>:
 - ✅ Default engines: Piper TTS + faster-whisper STT
@@ -2341,56 +2341,56 @@ python
 <div class="highlight"><pre><span></span><code><span class="c1"># Dead simple - 3 lines to clone and use a voice</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="p">)</span>
-<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;sample.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My Voice&quot;</span><span class="p">)</span>  <span class="c1"># 6-10s audio sample</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello in my cloned voice!&quot;</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>     <span class="c1"># That&#39;s it!</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="p">)</span>
+<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">"sample.wav"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"My Voice"</span><span class="p">)</span>  <span class="c1"># 6-10s audio sample</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello in my cloned voice!"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>     <span class="c1"># That's it!</span>
 </code></pre></div>
 <h4 id="real-world-examples">Real-World Examples<a class="headerlink" href="#real-world-examples" title="Permanent link">&para;</a></h4>
 <p><strong>Example 1: Clone Your Own Voice</strong>
 <div class="highlight"><pre><span></span><code><span class="c1"># Record yourself for 10 seconds, then:</span>
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="p">)</span>
-<span class="n">my_voice</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;my_recording.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Me&quot;</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;This is my cloned voice speaking&quot;</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">my_voice</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="p">)</span>
+<span class="n">my_voice</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">"my_recording.wav"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"Me"</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"This is my cloned voice speaking"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">my_voice</span><span class="p">)</span>
 <span class="c1"># Works in EN, FR, DE, ES, RU, ZH!</span>
 </code></pre></div></p>
 <p><strong>Example 2: Clone and Save for Later</strong>
 <div class="highlight"><pre><span></span><code><span class="c1"># Clone once</span>
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="p">)</span>
-<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;customer_voice.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Customer&quot;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="p">)</span>
+<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">"customer_voice.wav"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"Customer"</span><span class="p">)</span>
 
 <span class="c1"># Export for reuse (saves embedding, not raw audio)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">export_voice</span><span class="p">(</span><span class="n">voice_id</span><span class="p">,</span> <span class="s2">&quot;customer_profile.json&quot;</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">export_voice</span><span class="p">(</span><span class="n">voice_id</span><span class="p">,</span> <span class="s2">"customer_profile.json"</span><span class="p">)</span>
 
 <span class="c1"># Later, on different machine:</span>
-<span class="n">vm2</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="p">)</span>
-<span class="n">vm2</span><span class="o">.</span><span class="n">import_voice</span><span class="p">(</span><span class="s2">&quot;customer_profile.json&quot;</span><span class="p">)</span>
-<span class="n">vm2</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Using saved voice&quot;</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="s2">&quot;Customer&quot;</span><span class="p">)</span>  <span class="c1"># Works immediately</span>
+<span class="n">vm2</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="p">)</span>
+<span class="n">vm2</span><span class="o">.</span><span class="n">import_voice</span><span class="p">(</span><span class="s2">"customer_profile.json"</span><span class="p">)</span>
+<span class="n">vm2</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Using saved voice"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="s2">"Customer"</span><span class="p">)</span>  <span class="c1"># Works immediately</span>
 </code></pre></div></p>
 <p><strong>Example 3: Cross-Lingual Cloning (Clone in one language, speak in another)</strong>
 <div class="highlight"><pre><span></span><code><span class="c1"># Clone from English sample</span>
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="p">)</span>
-<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;english_sample.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;John&quot;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="p">)</span>
+<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">"english_sample.wav"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"John"</span><span class="p">)</span>
 
 <span class="c1"># Speak in French with same voice characteristics</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">&#39;fr&#39;</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Bonjour, je parle français maintenant&quot;</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">'fr'</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Bonjour, je parle français maintenant"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
 
 <span class="c1"># Also works for DE, ES, RU, ZH!</span>
 </code></pre></div></p>
 <p><strong>Example 4: Manage Multiple Voices</strong>
-<div class="highlight"><pre><span></span><code><span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="p">)</span>
 
 <span class="c1"># Clone multiple voices</span>
-<span class="n">alice</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;alice.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Alice&quot;</span><span class="p">)</span>
-<span class="n">bob</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;bob.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Bob&quot;</span><span class="p">)</span>
+<span class="n">alice</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">"alice.wav"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"Alice"</span><span class="p">)</span>
+<span class="n">bob</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">"bob.wav"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"Bob"</span><span class="p">)</span>
 
 <span class="c1"># List all cloned voices</span>
 <span class="n">voices</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">list_cloned_voices</span><span class="p">()</span>
-<span class="c1"># [{&#39;id&#39;: &#39;abc123&#39;, &#39;name&#39;: &#39;Alice&#39;}, {&#39;id&#39;: &#39;def456&#39;, &#39;name&#39;: &#39;Bob&#39;}]</span>
+<span class="c1"># [{'id': 'abc123', 'name': 'Alice'}, {'id': 'def456', 'name': 'Bob'}]</span>
 
 <span class="c1"># Use different voices</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello, I&#39;m Alice&quot;</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">alice</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;And I&#39;m Bob&quot;</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">bob</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello, I'm Alice"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">alice</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"And I'm Bob"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">bob</span><span class="p">)</span>
 
 <span class="c1"># Clean up</span>
 <span class="n">vm</span><span class="o">.</span><span class="n">delete_cloned_voice</span><span class="p">(</span><span class="n">alice</span><span class="p">)</span>
@@ -2401,18 +2401,18 @@ python
 
 <span class="k">class</span><span class="w"> </span><span class="nc">XTTSAdapter</span><span class="p">(</span><span class="n">TTSAdapter</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">TTS</span><span class="p">(</span><span class="s2">&quot;tts_models/multilingual/multi-dataset/xtts_v2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">TTS</span><span class="p">(</span><span class="s2">"tts_models/multilingual/multi-dataset/xtts_v2"</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cloned_voices</span> <span class="o">=</span> <span class="p">{}</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">clone_voice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="n">voice_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_id</span><span class="p">()</span>
         <span class="n">embedding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">get_speaker_embedding</span><span class="p">(</span><span class="n">audio_file</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cloned_voices</span><span class="p">[</span><span class="n">voice_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s1">&#39;embedding&#39;</span><span class="p">:</span> <span class="n">embedding</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cloned_voices</span><span class="p">[</span><span class="n">voice_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'name'</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s1">'embedding'</span><span class="p">:</span> <span class="n">embedding</span><span class="p">}</span>
         <span class="k">return</span> <span class="n">voice_id</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">synthesize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">voice_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">voice_id</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">tts</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">speaker_embedding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cloned_voices</span><span class="p">[</span><span class="n">voice_id</span><span class="p">][</span><span class="s1">&#39;embedding&#39;</span><span class="p">])</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">tts</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">speaker_embedding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cloned_voices</span><span class="p">[</span><span class="n">voice_id</span><span class="p">][</span><span class="s1">'embedding'</span><span class="p">])</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">tts</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
 </code></pre></div></p>
 <h4 id="deliverable-v070-easy-voice-cloning">Deliverable: v0.7.0 - Easy Voice Cloning<a class="headerlink" href="#deliverable-v070-easy-voice-cloning" title="Permanent link">&para;</a></h4>
@@ -2433,9 +2433,9 @@ pip<span class="w"> </span>install<span class="w"> </span>abstractvoice<span cla
 <span class="c1"># Then just:</span>
 python
 &gt;&gt;&gt;<span class="w"> </span>from<span class="w"> </span>abstractvoice<span class="w"> </span>import<span class="w"> </span>VoiceManager
-&gt;&gt;&gt;<span class="w"> </span><span class="nv">vm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>VoiceManager<span class="o">(</span><span class="nv">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="o">)</span>
-&gt;&gt;&gt;<span class="w"> </span><span class="nv">my_voice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>vm.clone_voice<span class="o">(</span><span class="s2">&quot;sample.wav&quot;</span>,<span class="w"> </span><span class="nv">name</span><span class="o">=</span><span class="s2">&quot;Me&quot;</span><span class="o">)</span>
-&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">&quot;Done! This is my voice now.&quot;</span>,<span class="w"> </span><span class="nv">voice</span><span class="o">=</span>my_voice<span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">vm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>VoiceManager<span class="o">(</span><span class="nv">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">my_voice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>vm.clone_voice<span class="o">(</span><span class="s2">"sample.wav"</span>,<span class="w"> </span><span class="nv">name</span><span class="o">=</span><span class="s2">"Me"</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">"Done! This is my voice now."</span>,<span class="w"> </span><span class="nv">voice</span><span class="o">=</span>my_voice<span class="o">)</span>
 </code></pre></div></p>
 <p><strong>Use Cases</strong>:
 - Personal assistants (clone user's voice for responses)
@@ -2447,9 +2447,9 @@ python
 <h2 id="4-dependency-strategy-installation">4. Dependency Strategy &amp; Installation<a class="headerlink" href="#4-dependency-strategy-installation" title="Permanent link">&para;</a></h2>
 <h3 id="current-v052-monolithic">Current (v0.5.2) - Monolithic<a class="headerlink" href="#current-v052-monolithic" title="Permanent link">&para;</a></h3>
 <p><div class="highlight"><pre><span></span><code><span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s2">&quot;coqui-tts&gt;=0.27.0&quot;</span><span class="p">,</span><span class="w">  </span><span class="c1"># Requires espeak-ng (Windows problem)</span>
-<span class="w">    </span><span class="s2">&quot;openai-whisper&gt;=20230314&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">&quot;torch&gt;=2.1.0&quot;</span>
+<span class="w">    </span><span class="s2">"coqui-tts&gt;=0.27.0"</span><span class="p">,</span><span class="w">  </span><span class="c1"># Requires espeak-ng (Windows problem)</span>
+<span class="w">    </span><span class="s2">"openai-whisper&gt;=20230314"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"torch&gt;=2.1.0"</span>
 <span class="p">]</span>
 </code></pre></div>
 <strong>Problem</strong>: espeak-ng must be manually installed, fails on Windows</p>
@@ -2457,27 +2457,27 @@ python
 <div class="highlight"><pre><span></span><code><span class="k">[project]</span>
 <span class="c1"># Core dependencies (always installed)</span>
 <span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s2">&quot;numpy&gt;=1.24.0&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">&quot;sounddevice&gt;=0.4.6&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">&quot;torch&gt;=2.1.0,&lt;2.9.0&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">&quot;librosa&gt;=0.10.0&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">&quot;piper-tts&gt;=1.2.0&quot;</span><span class="p">,</span><span class="w">      </span><span class="c1"># Default TTS (no espeak-ng!)</span>
-<span class="w">    </span><span class="s2">&quot;faster-whisper&gt;=1.0.0&quot;</span><span class="p">,</span><span class="w">  </span><span class="c1"># Default STT (fast)</span>
-<span class="w">    </span><span class="s2">&quot;requests&gt;=2.31.0&quot;</span><span class="w">        </span><span class="c1"># Model downloads</span>
+<span class="w">    </span><span class="s2">"numpy&gt;=1.24.0"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"sounddevice&gt;=0.4.6"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"torch&gt;=2.1.0,&lt;2.9.0"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"librosa&gt;=0.10.0"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"piper-tts&gt;=1.2.0"</span><span class="p">,</span><span class="w">      </span><span class="c1"># Default TTS (no espeak-ng!)</span>
+<span class="w">    </span><span class="s2">"faster-whisper&gt;=1.0.0"</span><span class="p">,</span><span class="w">  </span><span class="c1"># Default STT (fast)</span>
+<span class="w">    </span><span class="s2">"requests&gt;=2.31.0"</span><span class="w">        </span><span class="c1"># Model downloads</span>
 <span class="p">]</span>
 
 <span class="k">[project.optional-dependencies]</span>
 <span class="c1"># Voice cloning (optional)</span>
-<span class="n">cloning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;TTS&gt;=0.22.0&quot;</span><span class="p">]</span><span class="w">  </span><span class="c1"># XTTS-v2</span>
+<span class="n">cloning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"TTS&gt;=0.22.0"</span><span class="p">]</span><span class="w">  </span><span class="c1"># XTTS-v2</span>
 
 <span class="c1"># Legacy engines (optional)</span>
 <span class="n">legacy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s2">&quot;coqui-tts&gt;=0.27.0&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">&quot;openai-whisper&gt;=20230314&quot;</span>
+<span class="w">    </span><span class="s2">"coqui-tts&gt;=0.27.0"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"openai-whisper&gt;=20230314"</span>
 <span class="p">]</span>
 
 <span class="c1"># Everything</span>
-<span class="n">all</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="p">]</span>
+<span class="n">all</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"abstractvoice[cloning]"</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="installation-experience">Installation Experience<a class="headerlink" href="#installation-experience" title="Permanent link">&para;</a></h3>
 <h4 id="simple-default-recommended">Simple Default (Recommended)<a class="headerlink" href="#simple-default-recommended" title="Permanent link">&para;</a></h4>
@@ -2491,16 +2491,16 @@ python
 <span class="c1"># Downloads: piper_en.onnx (~50MB), whisper_base (~150MB)</span>
 <span class="c1"># Total: ~200MB vs 1-2GB for old VITS</span>
 
-&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">&quot;Hello&quot;</span><span class="o">)</span><span class="w">  </span><span class="c1"># Works immediately</span>
+&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">"Hello"</span><span class="o">)</span><span class="w">  </span><span class="c1"># Works immediately</span>
 &gt;&gt;&gt;<span class="w"> </span>vm.listen<span class="o">(</span>callback<span class="o">)</span><span class="w">  </span><span class="c1"># Works immediately</span>
 </code></pre></div>
 <h4 id="with-voice-cloning">With Voice Cloning<a class="headerlink" href="#with-voice-cloning" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice<span class="o">[</span>cloning<span class="o">]</span>
 
 python
-&gt;&gt;&gt;<span class="w"> </span><span class="nv">vm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>VoiceManager<span class="o">(</span><span class="nv">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="o">)</span>
-&gt;&gt;&gt;<span class="w"> </span><span class="nv">voice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>vm.clone_voice<span class="o">(</span><span class="s2">&quot;sample.wav&quot;</span><span class="o">)</span>
-&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">&quot;Cloned voice&quot;</span>,<span class="w"> </span><span class="nv">voice</span><span class="o">=</span>voice<span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">vm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>VoiceManager<span class="o">(</span><span class="nv">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">voice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>vm.clone_voice<span class="o">(</span><span class="s2">"sample.wav"</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span>vm.speak<span class="o">(</span><span class="s2">"Cloned voice"</span>,<span class="w"> </span><span class="nv">voice</span><span class="o">=</span>voice<span class="o">)</span>
 </code></pre></div>
 <h4 id="legacy-keep-espeak-ng-setup">Legacy (Keep espeak-ng setup)<a class="headerlink" href="#legacy-keep-espeak-ng-setup" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice<span class="o">[</span>legacy<span class="o">]</span>
@@ -2529,9 +2529,9 @@ python
 <div class="highlight"><pre><span></span><code><span class="c1"># This code works with v0.5.2 (VITS + OpenAI Whisper)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">&#39;fr&#39;</span><span class="p">)</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Bonjour&quot;</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello"</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">'fr'</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Bonjour"</span><span class="p">)</span>
 <span class="n">vm</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
 
 <span class="c1"># Same code works with v0.6.0 (Piper + faster-whisper)</span>
@@ -2540,12 +2540,12 @@ python
 </code></pre></div>
 <h3 id="language-consistency">Language Consistency<a class="headerlink" href="#language-consistency" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># All engines support same language codes</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">&#39;en&#39;</span><span class="p">)</span>  <span class="c1"># English</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">&#39;fr&#39;</span><span class="p">)</span>  <span class="c1"># French</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">&#39;de&#39;</span><span class="p">)</span>  <span class="c1"># German</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">&#39;es&#39;</span><span class="p">)</span>  <span class="c1"># Spanish</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">&#39;ru&#39;</span><span class="p">)</span>  <span class="c1"># Russian</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">&#39;zh&#39;</span><span class="p">)</span>  <span class="c1"># Chinese</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">'en'</span><span class="p">)</span>  <span class="c1"># English</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">'fr'</span><span class="p">)</span>  <span class="c1"># French</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">'de'</span><span class="p">)</span>  <span class="c1"># German</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">'es'</span><span class="p">)</span>  <span class="c1"># Spanish</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">'ru'</span><span class="p">)</span>  <span class="c1"># Russian</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s1">'zh'</span><span class="p">)</span>  <span class="c1"># Chinese</span>
 
 <span class="c1"># Works regardless of TTS engine (Piper, VITS, XTTS)</span>
 <span class="c1"># Works regardless of STT engine (faster-whisper, OpenAI Whisper)</span>
@@ -2574,7 +2574,7 @@ python
 <h4 id="current-api-local-only">Current API (Local Only)<a class="headerlink" href="#current-api-local-only" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><span class="c1"># Works only for local playback/recording</span>
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>  <span class="c1"># Plays audio locally</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello"</span><span class="p">)</span>  <span class="c1"># Plays audio locally</span>
 <span class="n">vm</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>  <span class="c1"># Records from local mic</span>
 </code></pre></div>
 <h4 id="enhanced-api-network-ready">Enhanced API (Network-Ready)<a class="headerlink" href="#enhanced-api-network-ready" title="Permanent link">&para;</a></h4>
@@ -2582,17 +2582,17 @@ python
 
 <span class="c1"># SERVER SIDE: Generate audio without playing</span>
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
-<span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello world&quot;</span><span class="p">)</span>  <span class="c1"># Returns bytes, no playback</span>
+<span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Hello world"</span><span class="p">)</span>  <span class="c1"># Returns bytes, no playback</span>
 <span class="c1"># Send audio_bytes to client over HTTP/WebSocket</span>
 
-<span class="n">audio_file</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_file</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">,</span> <span class="n">output_path</span><span class="o">=</span><span class="s2">&quot;response.wav&quot;</span><span class="p">)</span>  <span class="c1"># Save to file</span>
+<span class="n">audio_file</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_file</span><span class="p">(</span><span class="s2">"Hello"</span><span class="p">,</span> <span class="n">output_path</span><span class="o">=</span><span class="s2">"response.wav"</span><span class="p">)</span>  <span class="c1"># Save to file</span>
 <span class="c1"># Send file to client</span>
 
 <span class="c1"># SERVER SIDE: Transcribe audio from client</span>
 <span class="c1"># Receive audio_bytes from client</span>
 <span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_from_bytes</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">)</span>  <span class="c1"># No local recording needed</span>
 <span class="c1"># Or from file</span>
-<span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_from_file</span><span class="p">(</span><span class="s2">&quot;uploaded_audio.wav&quot;</span><span class="p">)</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_from_file</span><span class="p">(</span><span class="s2">"uploaded_audio.wav"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="implementation-plan">Implementation Plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h3>
 <h4 id="phase-1-add-network-methods-week-2-3">Phase 1: Add Network Methods (Week 2-3)<a class="headerlink" href="#phase-1-add-network-methods-week-2-3" title="Permanent link">&para;</a></h4>
@@ -2601,34 +2601,34 @@ python
 <span class="k">class</span><span class="w"> </span><span class="nc">VoiceManager</span><span class="p">:</span>
     <span class="c1"># EXISTING methods (keep unchanged)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">speak</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Local playback - KEEP AS IS&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Local playback - KEEP AS IS"""</span>
         <span class="n">audio</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tts</span><span class="o">.</span><span class="n">synthesize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_play_audio</span><span class="p">(</span><span class="n">audio</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">listen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Local recording - KEEP AS IS&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Local recording - KEEP AS IS"""</span>
         <span class="n">audio</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_record_audio</span><span class="p">()</span>
         <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stt</span><span class="o">.</span><span class="n">transcribe</span><span class="p">(</span><span class="n">audio</span><span class="p">)</span>
         <span class="n">callback</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
 
     <span class="c1"># NEW methods for network use</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">speak_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;wav&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">speak_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'wav'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Generate speech audio as bytes (no local playback).</span>
 <span class="sd">        For sending over network to client.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            text: Text to synthesize</span>
-<span class="sd">            format: Audio format (&#39;wav&#39;, &#39;mp3&#39;, &#39;ogg&#39;)</span>
+<span class="sd">            format: Audio format ('wav', 'mp3', 'ogg')</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            bytes: Audio data ready to send over network</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">audio_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tts</span><span class="o">.</span><span class="n">synthesize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_audio_to_bytes</span><span class="p">(</span><span class="n">audio_array</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">speak_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;wav&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">speak_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'wav'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Generate speech audio to file (no local playback).</span>
 <span class="sd">        For static file serving or download.</span>
 
@@ -2639,13 +2639,13 @@ python
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str: Path to saved file</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">audio_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tts</span><span class="o">.</span><span class="n">synthesize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_save_audio</span><span class="p">(</span><span class="n">audio_array</span><span class="p">,</span> <span class="n">output_path</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">output_path</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">transcribe_from_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_bytes</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Transcribe audio from bytes (no local recording).</span>
 <span class="sd">        For processing client-uploaded audio.</span>
 
@@ -2655,7 +2655,7 @@ python
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str: Transcribed text</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="c1"># Save to temp file (STT engines expect file path)</span>
         <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bytes_to_temp_file</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">)</span>
         <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stt</span><span class="o">.</span><span class="n">transcribe</span><span class="p">(</span><span class="n">temp_path</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="n">language</span><span class="p">)</span>
@@ -2663,7 +2663,7 @@ python
         <span class="k">return</span> <span class="n">text</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">transcribe_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Transcribe audio from file (no local recording).</span>
 <span class="sd">        For processing uploaded files.</span>
 
@@ -2673,12 +2673,12 @@ python
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str: Transcribed text</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">stt</span><span class="o">.</span><span class="n">transcribe</span><span class="p">(</span><span class="n">audio_path</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="n">language</span><span class="p">)</span>
 
     <span class="c1"># Helper methods</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_audio_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_array</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;wav&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert numpy audio to bytes&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_audio_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_array</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'wav'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Convert numpy audio to bytes"""</span>
         <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">wavfile</span>
         <span class="n">buffer</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">()</span>
@@ -2686,10 +2686,10 @@ python
         <span class="k">return</span> <span class="n">buffer</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_bytes_to_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_bytes</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save bytes to temporary file&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Save bytes to temporary file"""</span>
         <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
-        <span class="n">fd</span><span class="p">,</span> <span class="n">path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.wav&#39;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">os</span><span class="o">.</span><span class="n">fdopen</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">fd</span><span class="p">,</span> <span class="n">path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">'.wav'</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">os</span><span class="o">.</span><span class="n">fdopen</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="s1">'wb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">path</span>
 </code></pre></div>
@@ -2704,25 +2704,25 @@ python
 <span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>  <span class="c1"># Server-side voice processing</span>
 
-<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/tts&quot;</span><span class="p">)</span>
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">text_to_speech</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;en&#39;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate speech from text&quot;&quot;&quot;</span>
+<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">"/api/tts"</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">text_to_speech</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'en'</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Generate speech from text"""</span>
     <span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="n">language</span><span class="p">)</span>
-    <span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;wav&#39;</span><span class="p">)</span>
+    <span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'wav'</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">StreamingResponse</span><span class="p">(</span>
         <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">),</span>
-        <span class="n">media_type</span><span class="o">=</span><span class="s2">&quot;audio/wav&quot;</span><span class="p">,</span>
-        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Content-Disposition&quot;</span><span class="p">:</span> <span class="s2">&quot;attachment; filename=speech.wav&quot;</span><span class="p">}</span>
+        <span class="n">media_type</span><span class="o">=</span><span class="s2">"audio/wav"</span><span class="p">,</span>
+        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">"Content-Disposition"</span><span class="p">:</span> <span class="s2">"attachment; filename=speech.wav"</span><span class="p">}</span>
     <span class="p">)</span>
 
-<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/stt&quot;</span><span class="p">)</span>
+<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">"/api/stt"</span><span class="p">)</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">speech_to_text</span><span class="p">(</span><span class="n">audio</span><span class="p">:</span> <span class="n">UploadFile</span><span class="p">,</span> <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Transcribe speech to text&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Transcribe speech to text"""</span>
     <span class="n">audio_bytes</span> <span class="o">=</span> <span class="k">await</span> <span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
     <span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_from_bytes</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="n">language</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">text</span><span class="p">,</span> <span class="s2">&quot;language&quot;</span><span class="p">:</span> <span class="n">language</span><span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"text"</span><span class="p">:</span> <span class="n">text</span><span class="p">,</span> <span class="s2">"language"</span><span class="p">:</span> <span class="n">language</span><span class="p">}</span>
 
 <span class="c1"># Mobile app calls these endpoints:</span>
 <span class="c1"># POST /api/tts → receives audio file to play</span>
@@ -2735,14 +2735,14 @@ python
 
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">handle_voice_chat</span><span class="p">(</span><span class="n">audio_bytes_from_client</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s1">&#39;en&#39;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">handle_voice_chat</span><span class="p">(</span><span class="n">audio_bytes_from_client</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s1">'en'</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Complete voice chat flow on server:</span>
 <span class="sd">    1. Transcribe client audio</span>
 <span class="sd">    2. Get LLM response</span>
 <span class="sd">    3. Synthesize LLM response</span>
 <span class="sd">    4. Return audio to client</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># 1. Transcribe user speech</span>
     <span class="n">user_text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_from_bytes</span><span class="p">(</span><span class="n">audio_bytes_from_client</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="n">language</span><span class="p">)</span>
 
@@ -2755,9 +2755,9 @@ python
 
     <span class="c1"># 4. Return to client</span>
     <span class="k">return</span> <span class="p">{</span>
-        <span class="s2">&quot;user_text&quot;</span><span class="p">:</span> <span class="n">user_text</span><span class="p">,</span>
-        <span class="s2">&quot;llm_response&quot;</span><span class="p">:</span> <span class="n">llm_response</span><span class="p">,</span>
-        <span class="s2">&quot;audio&quot;</span><span class="p">:</span> <span class="n">response_audio</span>  <span class="c1"># Client plays this</span>
+        <span class="s2">"user_text"</span><span class="p">:</span> <span class="n">user_text</span><span class="p">,</span>
+        <span class="s2">"llm_response"</span><span class="p">:</span> <span class="n">llm_response</span><span class="p">,</span>
+        <span class="s2">"audio"</span><span class="p">:</span> <span class="n">response_audio</span>  <span class="c1"># Client plays this</span>
     <span class="p">}</span>
 </code></pre></div>
 <h4 id="example-3-websocket-real-time-voice-chat">Example 3: WebSocket Real-Time Voice Chat<a class="headerlink" href="#example-3-websocket-real-time-voice-chat" title="Permanent link">&para;</a></h4>
@@ -2767,7 +2767,7 @@ python
 
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
 
-<span class="nd">@app</span><span class="o">.</span><span class="n">websocket</span><span class="p">(</span><span class="s2">&quot;/ws/voice&quot;</span><span class="p">)</span>
+<span class="nd">@app</span><span class="o">.</span><span class="n">websocket</span><span class="p">(</span><span class="s2">"/ws/voice"</span><span class="p">)</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">voice_chat</span><span class="p">(</span><span class="n">websocket</span><span class="p">:</span> <span class="n">WebSocket</span><span class="p">):</span>
     <span class="k">await</span> <span class="n">websocket</span><span class="o">.</span><span class="n">accept</span><span class="p">()</span>
 
@@ -2793,38 +2793,38 @@ python
 <span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
 <span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">&#39;xtts&#39;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s1">'xtts'</span><span class="p">)</span>
 
-<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/clone-voice&quot;</span><span class="p">)</span>
+<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">"/api/clone-voice"</span><span class="p">)</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">clone_voice</span><span class="p">(</span><span class="n">audio_sample</span><span class="p">:</span> <span class="n">UploadFile</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Client uploads voice sample, server clones it&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Client uploads voice sample, server clones it"""</span>
     <span class="c1"># Save uploaded sample</span>
-    <span class="n">sample_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;/tmp/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_sample.wav&quot;</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">sample_path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">sample_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"/tmp/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_sample.wav"</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">sample_path</span><span class="p">,</span> <span class="s1">'wb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="k">await</span> <span class="n">audio_sample</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
 
     <span class="c1"># Clone voice</span>
     <span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="n">sample_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
 
     <span class="c1"># Export profile</span>
-    <span class="n">profile_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;/tmp/</span><span class="si">{</span><span class="n">voice_id</span><span class="si">}</span><span class="s2">.json&quot;</span>
+    <span class="n">profile_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"/tmp/</span><span class="si">{</span><span class="n">voice_id</span><span class="si">}</span><span class="s2">.json"</span>
     <span class="n">vm</span><span class="o">.</span><span class="n">export_voice</span><span class="p">(</span><span class="n">voice_id</span><span class="p">,</span> <span class="n">profile_path</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">{</span>
-        <span class="s2">&quot;voice_id&quot;</span><span class="p">:</span> <span class="n">voice_id</span><span class="p">,</span>
-        <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Voice cloned successfully&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;profile_url&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;/download/</span><span class="si">{</span><span class="n">voice_id</span><span class="si">}</span><span class="s2">.json&quot;</span>
+        <span class="s2">"voice_id"</span><span class="p">:</span> <span class="n">voice_id</span><span class="p">,</span>
+        <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Voice cloned successfully"</span><span class="p">,</span>
+        <span class="s2">"profile_url"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"/download/</span><span class="si">{</span><span class="n">voice_id</span><span class="si">}</span><span class="s2">.json"</span>
     <span class="p">}</span>
 
-<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/speak-cloned&quot;</span><span class="p">)</span>
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">speak_with_cloned_voice</span><span class="p">(</span><span class="n">voice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;en&#39;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate speech with cloned voice&quot;&quot;&quot;</span>
+<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">"/api/speak-cloned"</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">speak_with_cloned_voice</span><span class="p">(</span><span class="n">voice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'en'</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Generate speech with cloned voice"""</span>
     <span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="n">language</span><span class="p">)</span>
     <span class="n">audio_bytes</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">StreamingResponse</span><span class="p">(</span>
         <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">),</span>
-        <span class="n">media_type</span><span class="o">=</span><span class="s2">&quot;audio/wav&quot;</span>
+        <span class="n">media_type</span><span class="o">=</span><span class="s2">"audio/wav"</span>
     <span class="p">)</span>
 </code></pre></div>
 <h3 id="architecture-patterns">Architecture Patterns<a class="headerlink" href="#architecture-patterns" title="Permanent link">&para;</a></h3>
@@ -2835,11 +2835,11 @@ python
 <span class="p">)</span>
 
 <span class="c1"># These methods work (no audio devices needed)</span>
-<span class="n">audio</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
+<span class="n">audio</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Hello"</span><span class="p">)</span>
 <span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_from_bytes</span><span class="p">(</span><span class="n">audio_bytes</span><span class="p">)</span>
 
 <span class="c1"># These would raise error in headless mode</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>  <span class="c1"># Error: No audio output device</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello"</span><span class="p">)</span>  <span class="c1"># Error: No audio output device</span>
 <span class="n">vm</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>  <span class="c1"># Error: No audio input device</span>
 </code></pre></div>
 <h4 id="pattern-2-mixed-local-network">Pattern 2: Mixed Local + Network<a class="headerlink" href="#pattern-2-mixed-local-network" title="Permanent link">&para;</a></h4>
@@ -2847,10 +2847,10 @@ python
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
 
 <span class="c1"># Local use</span>
-<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">&quot;Hello locally&quot;</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hello locally"</span><span class="p">)</span>
 
 <span class="c1"># Network use (same instance)</span>
-<span class="n">audio_for_client</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello remotely&quot;</span><span class="p">)</span>
+<span class="n">audio_for_client</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Hello remotely"</span><span class="p">)</span>
 <span class="n">send_to_network</span><span class="p">(</span><span class="n">audio_for_client</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="api-summary">API Summary<a class="headerlink" href="#api-summary" title="Permanent link">&para;</a></h3>

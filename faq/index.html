@@ -2081,9 +2081,9 @@ Delete that <code>.mem</code> file if you no longer want the saved conversation.
 <p>That is terminal command history, not LLM chat history. The REPL stores it as a
 small readline history file so the up/down arrows work across sessions.</p>
 <p>Find the app-data directory with:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;'PY'</span>
 <span class="s">import appdirs</span>
-<span class="s">print(appdirs.user_data_dir(&quot;abstractvoice&quot;))</span>
+<span class="s">print(appdirs.user_data_dir("abstractvoice"))</span>
 <span class="s">PY</span>
 </code></pre></div>
 <p>Then delete <code>repl_history</code> inside that directory.</p>
@@ -2114,13 +2114,13 @@ purge.</p>
 rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/abstractvoice/supertonic-3
 rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/abstractvoice/openf5
 rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/abstractvoice/chroma
-python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;PY&#39;</span>
+python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;'PY'</span>
 <span class="s">import shutil</span>
 <span class="s">from pathlib import Path</span>
 <span class="s">import appdirs</span>
 
-<span class="s">root = Path(appdirs.user_data_dir(&quot;abstractvoice&quot;))</span>
-<span class="s">for name in (&quot;cloned_voices&quot;, &quot;omnivoice_prompt_cache&quot;, &quot;repl_history&quot;):</span>
+<span class="s">root = Path(appdirs.user_data_dir("abstractvoice"))</span>
+<span class="s">for name in ("cloned_voices", "omnivoice_prompt_cache", "repl_history"):</span>
 <span class="s">    path = root / name</span>
 <span class="s">    if path.is_dir():</span>
 <span class="s">        shutil.rmtree(path)</span>
@@ -2208,8 +2208,8 @@ speaking an assistant response. This keeps spoken output clean.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">()</span>
-<span class="n">wav</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello.&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;wav&quot;</span><span class="p">)</span>
-<span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">&quot;hello.wav&quot;</span><span class="p">)</span>
+<span class="n">wav</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Hello."</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"wav"</span><span class="p">)</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">"hello.wav"</span><span class="p">)</span>
 </code></pre></div>
 <p><code>VoiceManager()</code> reads <code>OPENAI_API_KEY</code> by default. For local/offline use,
 install <code>abstractvoice[supertonic,stt]</code> or a platform profile, then create
@@ -2218,7 +2218,7 @@ install <code>abstractvoice[supertonic,stt]</code> or a platform profile, then c
 reuse it. Heavy engines are expensive to load repeatedly.</p>
 <h3 id="does-abstractvoice-ship-an-http-server">Does AbstractVoice ship an HTTP server?<a class="headerlink" href="#does-abstractvoice-ship-an-http-server" title="Permanent link">&para;</a></h3>
 <p>AbstractVoice ships a small local FastAPI web example:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web]"</span>
 <span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>abstractvoice<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">5000</span>
 </code></pre></div>
 <p>Open <code>http://127.0.0.1:5000</code> and use it to test discussion playback,
@@ -2233,7 +2233,7 @@ stuck.</p>
 voice I/O library; AbstractCore owns the OpenAI-compatible server surface in the
 AbstractFramework ecosystem.</p>
 <p>Install both packages in the same environment:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractcore[server]&quot;</span><span class="w"> </span>abstractvoice
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractcore[server]"</span><span class="w"> </span>abstractvoice
 <span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>abstractcore.server.app
 </code></pre></div>
 <p>AbstractCore discovers the AbstractVoice capability plugin and can expose
@@ -2246,7 +2246,7 @@ OpenAI-compatible audio endpoints such as:</p>
 <h2 id="languages-and-engines">Languages And Engines<a class="headerlink" href="#languages-and-engines" title="Permanent link">&para;</a></h2>
 <h3 id="how-do-i-switch-language">How do I switch language?<a class="headerlink" href="#how-do-i-switch-language" title="Permanent link">&para;</a></h3>
 <p>Use <code>VoiceManager(language="fr")</code> or:</p>
-<div class="highlight"><pre><span></span><code><span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s2">&quot;fr&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">vm</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="s2">"fr"</span><span class="p">)</span>
 </code></pre></div>
 <p>In the REPL:</p>
 <div class="highlight"><pre><span></span><code>/language fr
@@ -2288,7 +2288,7 @@ OpenAI-compatible audio endpoints such as:</p>
 <p>OmniVoice uses the torch/torchaudio/torchvision stack. If another package
 installed an incompatible <code>torchvision</code>, reinstall the matching build. For the
 torch 2.8 family this is typically:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>--force-reinstall<span class="w"> </span><span class="s2">&quot;torchvision==0.23.*&quot;</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>--force-reinstall<span class="w"> </span><span class="s2">"torchvision==0.23.*"</span>
 </code></pre></div>
 <p>If you do not need <code>torchvision</code>, uninstalling it can also avoid the import path:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>uninstall<span class="w"> </span>torchvision
@@ -2296,10 +2296,10 @@ torch 2.8 family this is typically:</p>
 <h2 id="voice-cloning">Voice Cloning<a class="headerlink" href="#voice-cloning" title="Permanent link">&para;</a></h2>
 <h3 id="is-voice-cloning-included-in-the-base-install">Is voice cloning included in the base install?<a class="headerlink" href="#is-voice-cloning-included-in-the-base-install" title="Permanent link">&para;</a></h3>
 <p>No. Voice cloning is optional:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[cloning]&quot;</span><span class="w">   </span><span class="c1"># OpenF5</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[chroma]&quot;</span><span class="w">    </span><span class="c1"># Chroma, GPU-heavy</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[audiodit]&quot;</span><span class="w">  </span><span class="c1"># AudioDiT</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[omnivoice]&quot;</span><span class="w"> </span><span class="c1"># OmniVoice, recommended/default</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[cloning]"</span><span class="w">   </span><span class="c1"># OpenF5</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[chroma]"</span><span class="w">    </span><span class="c1"># Chroma, GPU-heavy</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audiodit]"</span><span class="w">  </span><span class="c1"># AudioDiT</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[omnivoice]"</span><span class="w"> </span><span class="c1"># OmniVoice, recommended/default</span>
 </code></pre></div>
 <p>Artifacts are still downloaded explicitly with <code>python -m abstractvoice download ...</code>
 or <code>abstractvoice-prefetch ...</code>.</p>
@@ -2354,16 +2354,16 @@ everything-else stem. On first run, Demucs may download model weights.</p>
 <div class="highlight"><pre><span></span><code>ffmpeg<span class="w"> </span>-y<span class="w"> </span>-i<span class="w"> </span>separated/htdemucs/extracted/vocals.wav<span class="w"> </span>-ss<span class="w"> </span><span class="m">00</span>:00:12<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>reference_clean.wav
 </code></pre></div>
 <p>Then clone from the cleaned file. REPL example:</p>
-<div class="highlight"><pre><span></span><code>/clone /path/to/reference_clean.wav my_voice --engine omnivoice --text &quot;Exact transcript of the reference audio.&quot;
+<div class="highlight"><pre><span></span><code>/clone /path/to/reference_clean.wav my_voice --engine omnivoice --text "Exact transcript of the reference audio."
 </code></pre></div>
 <p>Library example:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">cloning_engine</span><span class="o">=</span><span class="s2">&quot;omnivoice&quot;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">cloning_engine</span><span class="o">=</span><span class="s2">"omnivoice"</span><span class="p">)</span>
 <span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span>
-    <span class="s2">&quot;reference_clean.wav&quot;</span><span class="p">,</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;my_voice&quot;</span><span class="p">,</span>
-    <span class="n">reference_text</span><span class="o">=</span><span class="s2">&quot;Exact transcript of the reference audio.&quot;</span><span class="p">,</span>
+    <span class="s2">"reference_clean.wav"</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"my_voice"</span><span class="p">,</span>
+    <span class="n">reference_text</span><span class="o">=</span><span class="s2">"Exact transcript of the reference audio."</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <p>Practical notes:</p>

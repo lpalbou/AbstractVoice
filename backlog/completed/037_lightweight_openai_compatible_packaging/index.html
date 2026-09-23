@@ -1852,58 +1852,58 @@ hosted OpenAI and generic compatible providers into one ambiguous extra.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span>
-    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">,</span>
-    <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">,</span>
-    <span class="n">remote_base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000/v1&quot;</span><span class="p">,</span>
+    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">"openai-compatible"</span><span class="p">,</span>
+    <span class="n">stt_engine</span><span class="o">=</span><span class="s2">"openai-compatible"</span><span class="p">,</span>
+    <span class="n">remote_base_url</span><span class="o">=</span><span class="s2">"http://localhost:8000/v1"</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <h3 id="hosted-openai-audio">Hosted OpenAI audio<a class="headerlink" href="#hosted-openai-audio" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[openai]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[openai]"</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>...
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
-<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">)</span>
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">tts_engine</span><span class="o">=</span><span class="s2">"openai"</span><span class="p">,</span> <span class="n">stt_engine</span><span class="o">=</span><span class="s2">"openai"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="local-desktop-repl-voice">Local desktop / REPL voice<a class="headerlink" href="#local-desktop-repl-voice" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[voice]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[voice]"</span>
 abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
 abstractvoice-prefetch<span class="w"> </span>--stt<span class="w"> </span>small
 abstractvoice
 </code></pre></div>
 <h3 id="remote-web-example">Remote web example<a class="headerlink" href="#remote-web-example" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web]"</span>
 abstractvoice<span class="w"> </span>web<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--tts-engine<span class="w"> </span>openai-compatible<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--stt-engine<span class="w"> </span>openai-compatible<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--remote-base-url<span class="w"> </span>http://localhost:8000/v1
 </code></pre></div>
 <h3 id="local-web-lab">Local web lab<a class="headerlink" href="#local-web-lab" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractvoice[web,voice]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web,voice]"</span>
 abstractvoice<span class="w"> </span>web
 </code></pre></div>
 <h3 id="remote-compatible-cloning">Remote compatible cloning<a class="headerlink" href="#remote-compatible-cloning" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
 
 <span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span>
-    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">,</span>
-    <span class="n">cloning_engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">,</span>
-    <span class="n">remote_base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000/v1&quot;</span><span class="p">,</span>
+    <span class="n">tts_engine</span><span class="o">=</span><span class="s2">"openai-compatible"</span><span class="p">,</span>
+    <span class="n">cloning_engine</span><span class="o">=</span><span class="s2">"openai-compatible"</span><span class="p">,</span>
+    <span class="n">remote_base_url</span><span class="o">=</span><span class="s2">"http://localhost:8000/v1"</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">&quot;reference.wav&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;demo&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;openai-compatible&quot;</span><span class="p">)</span>
-<span class="n">wav</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">&quot;Hello.&quot;</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
+<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">clone_voice</span><span class="p">(</span><span class="s2">"reference.wav"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"demo"</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">"openai-compatible"</span><span class="p">)</span>
+<span class="n">wav</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Hello."</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
 </code></pre></div>
 <p>The compatible server must expose the configured clone route, defaulting to <code>POST /voice/clone</code>, and return <code>{"voice_id": "..."}</code> or <code>{"id": "..."}</code>.</p>
 <h3 id="lightweight-ci">Lightweight CI<a class="headerlink" href="#lightweight-ci" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[test]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[test]"</span>
 pytest<span class="w"> </span>-q<span class="w"> </span>tests/test_remote_openai_compatible_adapters.py<span class="w"> </span>tests/test_abstractcore_plugin.py
 </code></pre></div>
 <h3 id="local-voice-ci">Local voice CI<a class="headerlink" href="#local-voice-ci" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[test,voice]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[test,voice]"</span>
 pytest<span class="w"> </span>-q<span class="w"> </span>tests/test_piper_adapter.py<span class="w"> </span>tests/test_faster_whisper_adapter.py
 </code></pre></div>
 <h3 id="abstractcore-remote-media-image">AbstractCore remote media image<a class="headerlink" href="#abstractcore-remote-media-image" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;abstractcore[server]&quot;</span><span class="w"> </span>abstractvoice
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractcore[server]"</span><span class="w"> </span>abstractvoice
 </code></pre></div>
 <p>Configure the plugin host with:</p>
 <ul>
