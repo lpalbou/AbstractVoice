@@ -1366,6 +1366,10 @@ ids through <code>VoiceManager.get_profiles()</code>. Static ids can be configur
   recommended/default local cloning backend.</li>
 <li>OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
   upstream runtimes do.</li>
+<li>The platform profiles (<code>apple</code>, <code>gpu</code>, <code>all-apple</code>, <code>all-gpu</code>) include
+  OpenF5/F5-TTS only on Python 3.11+, because on 3.10 <code>f5-tts</code> pins
+  <code>numpy&lt;=1.26.4</code> and would block NumPy 2 stacks (AbstractVision, MLX). On 3.10,
+  install <code>abstractvoice[cloning]</code> separately if you need F5-TTS.</li>
 <li>AEC requires Python 3.11+ because <code>aec-audio-processing</code> declares that floor.</li>
 </ul>
 <p>Note (OmniVoice): OmniVoice uses the torch/torchaudio/torchvision stack. If you

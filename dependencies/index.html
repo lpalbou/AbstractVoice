@@ -1493,6 +1493,11 @@ dependencies, AEC where supported, and the optional local cloning/TTS engine
 dependencies that are resolver-safe on the current Python version. Use granular
 extras below for smaller installs, or <code>abstractvoice[all-apple]</code> /
 <code>abstractvoice[all-gpu]</code> when you also want the web example.</p>
+<p>The platform profiles (<code>apple</code>, <code>gpu</code>, <code>all-apple</code>, <code>all-gpu</code>) include the
+OpenF5/F5-TTS engine only on Python 3.11+: on Python 3.10 every <code>f5-tts</code> release
+pins <code>numpy&lt;=1.26.4</code>, which conflicts with NumPy 2 stacks such as AbstractVision's
+MLX backends. On 3.10 the profiles install without F5-TTS; add
+<code>abstractvoice[cloning]</code> separately if you need it and can stay on NumPy 1.x.</p>
 <ul>
 <li><strong>piper-tts</strong></li>
 <li><strong>Why</strong>: local neural TTS backend.</li>
@@ -1785,7 +1790,8 @@ Transformers 5.x.</p>
 <p>Requires Python 3.10+ because current upstream <code>f5-tts</code> packages import
 Python 3.10-only annotations during inference. On Python 3.9, use
 <code>abstractvoice[audiodit]</code> with the <code>audiodit</code> cloning engine for tested
-prompt-audio cloning.</p>
+prompt-audio cloning. On Python 3.10, <code>f5-tts</code> pins <code>numpy&lt;=1.26.4</code>, so the
+platform profiles leave it out there (see above); this extra still installs it.</p>
 <p>This extra remains the explicit OpenF5 backend. It is not the default local
 cloning path; new clones default to OmniVoice unless you pass
 <code>engine="f5_tts"</code> or <code>--engine f5_tts</code>.</p>
