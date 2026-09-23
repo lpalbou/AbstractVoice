@@ -18,19 +18,34 @@ version discovery (best-effort).
 
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version as _pkg_version
+from importlib import metadata as _metadata
 
 
 try:
     import _webrtcvad  # type: ignore
 except Exception as e:  # pragma: no cover
-    raise ImportError("Missing _webrtcvad extension; install webrtcvad") from e
+    raise ImportError(
+        "Missing _webrtcvad extension; install webrtcvad-wheels "
+        "(pip install \"abstractvoice[audio-io]\")"
+    ) from e
 
 
-try:
-    __version__ = _pkg_version("webrtcvad")
-except PackageNotFoundError:  # pragma: no cover
-    __version__ = "0.0.0"
+# Distributions that ship the `_webrtcvad` extension. `webrtcvad-wheels` is the
+# maintained fork with prebuilt wheels (no C compiler needed) and is what our
+# extras install; the original `webrtcvad` sdist is still accepted.
+VAD_DISTRIBUTIONS = ("webrtcvad-wheels", "webrtcvad")
+
+
+def _resolve_version() -> str:
+    for dist in VAD_DISTRIBUTIONS:
+        try:
+            return _metadata.version(dist)
+        except Exception:
+            continue
+    return "unknown"
+
+
+__version__ = _resolve_version()
 
 
 class Vad:

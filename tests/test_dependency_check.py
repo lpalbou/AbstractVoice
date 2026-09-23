@@ -114,7 +114,7 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
 
     for name in ("audio-io",):
         assert "sounddevice>=0.4.6" in extras[name]
-        assert "webrtcvad>=2.0.10" in extras[name]
+        assert "webrtcvad-wheels>=2.0.14" in extras[name]
         assert "soundfile>=0.12.1" in extras[name]
 
     platform = extras["apple"]
@@ -123,7 +123,7 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
         "onnxruntime>=1.19.0",
         "faster-whisper>=0.10.0",
         "sounddevice>=0.4.6",
-        "webrtcvad>=2.0.10",
+        "webrtcvad-wheels>=2.0.14",
         "soundfile>=0.12.1",
         "librosa>=0.10.0",
         "huggingface_hub>=0.20.0",
@@ -211,7 +211,7 @@ def test_python39_optional_engine_markers_are_resolver_safe() -> None:
 
     assert "httpx>=0.23.0" in extras["test"]
     assert "soundfile>=0.12.1" in extras["test"]
-    assert "webrtcvad>=2.0.10" in extras["test"]
+    assert "webrtcvad-wheels>=2.0.14" in extras["test"]
     assert "transformers>=4.55.4,<5; python_version < '3.10'" in extras["audiodit"]
     assert "transformers>=5.4.0; python_version >= '3.10'" in extras["audiodit"]
     assert _has_marked_dep(extras["cloning"], "f5-tts>=1.1.0", "python_version >= '3.10'")
@@ -231,3 +231,87 @@ def test_f5_runtime_guard_explains_python39(monkeypatch: pytest.MonkeyPatch) -> 
 
     with pytest.raises(RuntimeError, match=r"OpenF5/F5-TTS cloning requires Python >=3\.10"):
         F5TTSVoiceCloningEngine()
+
+
+def test_no_extra_requires_the_compiler_only_webrtcvad_sdist() -> None:
+    # `webrtcvad` is sdist-only and needs a C compiler on every OS; the
+    # `webrtcvad-wheels` fork ships prebuilt wheels with the same import name.
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    extras = pyproject["project"]["optional-dependencies"]
+    all_deps = list(pyproject["project"]["dependencies"])
+    for deps in extras.values():
+        all_deps.extend(deps)
+    names = {re.split(r"[<>=!~;\[ ]", dep, maxsplit=1)[0].strip().lower() for dep in all_deps}
+    assert "webrtcvad" not in names
+    for name in ("apple", "gpu", "audio-io", "all-apple", "all-gpu", "test"):
+        assert "webrtcvad-wheels>=2.0.14" in extras[name], name
+
+
+def _fake_metadata_version(installed: dict[str, str]):
+    from importlib import metadata as importlib_metadata
+
+    def _version(dist: str) -> str:
+        if dist in installed:
+            return installed[dist]
+        raise importlib_metadata.PackageNotFoundError(dist)
+
+    return _version
+
+
+@pytest.mark.parametrize(
+    "installed, expected",
+    [
+        ({"webrtcvad-wheels": "2.0.14"}, "2.0.14"),
+        ({"webrtcvad": "2.0.10"}, "2.0.10"),
+        ({}, None),
+    ],
+)
+def test_dependency_check_accepts_either_vad_distribution(
+    monkeypatch: pytest.MonkeyPatch, installed: dict[str, str], expected: str | None
+) -> None:
+    from abstractvoice import dependency_check
+
+    monkeypatch.setattr(
+        dependency_check.importlib_metadata, "version", _fake_metadata_version(installed)
+    )
+    checker = DependencyChecker(verbose=False)
+    assert checker._metadata_version("webrtcvad") == expected
+    if expected is not None:
+        info = checker._check_package("webrtcvad", *checker.AUDIO_IO_DEPS["webrtcvad"])
+        assert info["status"] == "installed"
+        assert info["compatible"] is True
+        assert info["version"] == expected
+
+
+@pytest.mark.parametrize(
+    "installed, expected",
+    [
+        ({"webrtcvad-wheels": "2.0.14"}, "2.0.14"),
+        ({"webrtcvad": "2.0.10"}, "2.0.10"),
+        ({}, "unknown"),
+    ],
+)
+def test_webrtcvad_compat_version_resolves_from_either_distribution(
+    monkeypatch: pytest.MonkeyPatch, installed: dict[str, str], expected: str
+) -> None:
+    import importlib
+    import types
+    from importlib import metadata as importlib_metadata
+
+    import abstractvoice.vad as vad_pkg
+
+    name = "abstractvoice.vad.webrtcvad_compat"
+    # Re-import the compat module in isolation, then put back whatever was
+    # there before (both the sys.modules entry and the package attribute, which
+    # `from . import webrtcvad_compat` reads first) so no fake leaks out.
+    monkeypatch.setitem(sys.modules, "_webrtcvad", types.ModuleType("_webrtcvad"))
+    monkeypatch.setattr(importlib_metadata, "version", _fake_metadata_version(installed))
+    if name in sys.modules:
+        monkeypatch.setitem(sys.modules, name, sys.modules[name])
+    else:
+        monkeypatch.setitem(sys.modules, name, None)
+    monkeypatch.setattr(vad_pkg, "webrtcvad_compat", getattr(vad_pkg, "webrtcvad_compat", None), raising=False)
+    del sys.modules[name]
+
+    compat = importlib.import_module(name)
+    assert compat.__version__ == expected

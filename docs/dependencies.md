@@ -82,11 +82,14 @@ MLX backends. On 3.10 the profiles install without F5-TTS; add
   - **Repo**: `https://github.com/bastibe/python-soundfile`
   - **License**: `https://github.com/bastibe/python-soundfile/blob/master/LICENSE`
 
-- **webrtcvad**
+- **webrtcvad-wheels** (import name `webrtcvad`)
   - **Why**: VAD (voice activity detection) for `listen()` and voice modes.
-  - **Where**: `abstractvoice/vad/voice_detector.py`, `abstractvoice/recognition.py`
-  - **Repo**: `https://github.com/wiseman/py-webrtcvad`
-  - **License**: `https://github.com/wiseman/py-webrtcvad/blob/master/LICENSE.txt`
+  - **Where**: `abstractvoice/vad/voice_detector.py`, `abstractvoice/vad/webrtcvad_compat.py`, `abstractvoice/recognition.py`
+  - **Note**: the maintained fork of `webrtcvad` with prebuilt wheels for macOS arm64, Linux and
+    Windows, so no C compiler is needed. The original `webrtcvad` sdist (compiled from source) is
+    still accepted if already installed; do not install both.
+  - **Repo**: `https://github.com/daanzu/py-webrtcvad-wheels` (fork of `https://github.com/wiseman/py-webrtcvad`)
+  - **License**: `https://github.com/wiseman/py-webrtcvad/blob/master/LICENSE.txt` (MIT)
 
 ### `abstractvoice[supertonic]` — Supertonic 3 fixed-profile ONNX TTS
 

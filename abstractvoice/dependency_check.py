@@ -39,6 +39,13 @@ class DependencyChecker:
         "webrtcvad": ("2.0.10", None),
     }
 
+    # A requirement key may be satisfied by any of several distributions that
+    # provide the same import. VAD ships as `webrtcvad-wheels` (prebuilt wheels,
+    # what our extras install) or as the original `webrtcvad` sdist.
+    DISTRIBUTION_ALTERNATIVES = {
+        "webrtcvad": ("webrtcvad-wheels", "webrtcvad"),
+    }
+
     # PyTorch is optional in AbstractVoice. Keep these checks broad and focus on
     # known bad combinations rather than stale global upper bounds.
     PYTORCH_COMPAT = {
@@ -101,12 +108,14 @@ class DependencyChecker:
         return True
 
     def _metadata_version(self, package_name: str) -> str | None:
-        try:
-            return importlib_metadata.version(package_name)
-        except importlib_metadata.PackageNotFoundError:
-            return None
-        except Exception:
-            return None
+        for dist in self.DISTRIBUTION_ALTERNATIVES.get(package_name, (package_name,)):
+            try:
+                return importlib_metadata.version(dist)
+            except importlib_metadata.PackageNotFoundError:
+                continue
+            except Exception:
+                continue
+        return None
 
     def _module_version(self, package_name: str) -> str | None:
         module_name = self.MODULE_ALIASES.get(package_name, package_name.replace("-", "_"))

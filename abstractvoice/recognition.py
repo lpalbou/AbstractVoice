@@ -36,8 +36,10 @@ def _import_vad():
     except ImportError as e:
         if "webrtcvad" in str(e):
             raise ImportError(
-                "Voice activity detection requires optional dependencies. Install with:\n"
+                "Voice activity detection requires optional dependencies "
+                "(VAD comes from `webrtcvad-wheels`, prebuilt, no compiler needed). Install with:\n"
                 "  pip install \"abstractvoice[audio-io]\"\n"
+                "  pip install webrtcvad-wheels        # VAD only\n"
                 "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
                 "  pip install \"abstractvoice[gpu]\"    # GPU profile\n"
                 f"Original error: {e}"

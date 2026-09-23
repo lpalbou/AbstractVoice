@@ -52,7 +52,7 @@ apple = [
     "onnxruntime>=1.19.0",
     "faster-whisper>=0.10.0",
     "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
+    "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
     "librosa>=0.10.0",
     "librosa>=0.11.0; python_version >= '3.10'",
@@ -80,7 +80,7 @@ gpu = [
     "onnxruntime>=1.19.0",
     "faster-whisper>=0.10.0",
     "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
+    "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
     "librosa>=0.10.0",
     "librosa>=0.11.0; python_version >= '3.10'",
@@ -115,7 +115,7 @@ supertonic = [
 # Local audio input/output and VAD.
 audio-io = [
     "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
+    "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
 ]
 
@@ -219,7 +219,7 @@ all-apple = [
     "onnxruntime>=1.19.0",
     "faster-whisper>=0.10.0",
     "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
+    "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
     "librosa>=0.10.0",
     "librosa>=0.11.0; python_version >= '3.10'",
@@ -250,7 +250,7 @@ all-gpu = [
     "onnxruntime>=1.19.0",
     "faster-whisper>=0.10.0",
     "sounddevice>=0.4.6",
-    "webrtcvad>=2.0.10",
+    "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
     "librosa>=0.10.0",
     "librosa>=0.11.0; python_version >= '3.10'",
@@ -281,7 +281,7 @@ test = [
     "pytest>=7.0.0",
     "httpx>=0.23.0",
     "soundfile>=0.12.1",
-    "webrtcvad>=2.0.10",
+    "webrtcvad-wheels>=2.0.14",
     "tomli>=1.1.0; python_version < '3.11'",
 ]
 

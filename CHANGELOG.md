@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.11.4] - 2026-09-24
+
+### Fixed
+- **No C compiler needed: VAD now comes from `webrtcvad-wheels`.** The `apple`, `gpu`,
+  `audio-io`, `all-apple`, `all-gpu` and `test` extras required `webrtcvad`, which is published as
+  a source distribution only and has to be compiled on every OS. On a fresh machine without
+  developer tools (for example a Mac without the Xcode Command Line Tools) installing any of those
+  profiles, or anything that depends on them such as `abstractgateway[apple]`, failed with
+  `error: Command 'cc' ... pywebrtcvad.c`. The extras now require `webrtcvad-wheels>=2.0.14`, the
+  maintained fork that ships prebuilt wheels for macOS arm64, Linux and Windows under the same
+  `webrtcvad` import name. Nothing changes in the VAD behaviour.
+- The VAD compatibility wrapper and `abstractvoice.dependency_check` accept either distribution
+  (`webrtcvad-wheels` or an existing `webrtcvad` install); the wrapper no longer depends on the
+  `webrtcvad` distribution metadata to report its version. Install hints now name `webrtcvad-wheels`.
+
 ## [0.11.3] - 2026-09-23
 
 ### Fixed

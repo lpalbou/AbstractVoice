@@ -24,7 +24,7 @@ These are **opt-in** via extras in `pyproject.toml` (see `docs/installation.md`)
 - Hugging Face Hub (`huggingface_hub`) (artifact downloads): https://github.com/huggingface/huggingface_hub
 - SoundDevice + PortAudio (`abstractvoice[audio-io]` / platform local extras) for audio I/O: https://github.com/spatialaudio/python-sounddevice and http://www.portaudio.com/
 - SoundFile (WAV/FLAC/OGG I/O): https://github.com/bastibe/python-soundfile
-- WebRTC VAD (`webrtcvad`) for voice activity detection: https://github.com/wiseman/py-webrtcvad
+- WebRTC VAD (`webrtcvad`, installed as the prebuilt `webrtcvad-wheels` fork) for voice activity detection: https://github.com/wiseman/py-webrtcvad, https://github.com/daanzu/py-webrtcvad-wheels
 - F5-TTS (`abstractvoice[cloning]`) for the explicit OpenF5 cloning backend: https://github.com/SWivid/F5-TTS
   - Hydra (used by F5-TTS runtime): https://github.com/facebookresearch/hydra
   - OmegaConf (used by F5-TTS runtime): https://github.com/omry/omegaconf
