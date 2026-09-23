@@ -94,6 +94,7 @@ Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[stt]`: local faster-whisper STT path
 - `abstractvoice[audio-io]`: microphone/playback/VAD dependencies
 - `abstractvoice[cloning]`: explicit F5‑TTS cloning backend (still requires explicit OpenF5 artifact downloads)
+- The `apple`/`gpu`/`all-apple`/`all-gpu` profiles include F5‑TTS only on Python 3.11+ (on 3.10 `f5-tts` pins `numpy<=1.26.4`); on 3.10 install `abstractvoice[cloning]` explicitly
 - `abstractvoice[chroma]`: Chroma-4B runtime deps (GPU-heavy; artifacts still prefetched explicitly)
 - `abstractvoice[audiodit]`: LongCat-AudioDiT TTS + prompt-audio cloning backend (heavy; artifacts still prefetched explicitly)
 - `abstractvoice[omnivoice]`: OmniVoice omnilingual TTS + recommended/default cloning backend (very heavy; artifacts still prefetched explicitly)

@@ -114,6 +114,10 @@ Python-version notes:
   recommended/default local cloning backend.
 - OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their
   upstream runtimes do.
+- The platform profiles (`apple`, `gpu`, `all-apple`, `all-gpu`) include
+  OpenF5/F5-TTS only on Python 3.11+, because on 3.10 `f5-tts` pins
+  `numpy<=1.26.4` and would block NumPy 2 stacks (AbstractVision, MLX). On 3.10,
+  install `abstractvoice[cloning]` separately if you need F5-TTS.
 - AEC requires Python 3.11+ because `aec-audio-processing` declares that floor.
 
 Note (OmniVoice): OmniVoice uses the torch/torchaudio/torchvision stack. If you

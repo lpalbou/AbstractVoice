@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.11.3] - 2026-09-23
+
+### Fixed
+- **The platform profiles install on Python 3.10 alongside NumPy 2 packages.** On Python 3.10,
+  every `f5-tts` release pins `numpy<=1.26.4`, so `abstractvoice[all-gpu]` / `[all-apple]` could
+  not be installed together with AbstractVision's MLX backends or AbstractCore's `all-apple` /
+  `all-gpu` profiles, which need NumPy 2. The `apple`, `gpu`, `all-apple` and `all-gpu` extras
+  now include the OpenF5/F5-TTS engine only on Python 3.11+. On Python 3.10 they install without
+  it; add `abstractvoice[cloning]` explicitly if you need F5-TTS there. Nothing changes on
+  Python 3.11+.
+
 ## [0.11.2] - 2026-09-23
 
 ### Fixed

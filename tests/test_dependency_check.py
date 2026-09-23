@@ -133,7 +133,12 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
         "sentencepiece>=0.1.99",
     ):
         assert dep in platform
-    assert _has_marked_dep(platform, "f5-tts>=1.1.0", "python_version >= '3.10'")
+    # On Python 3.10 every f5-tts release pins numpy<=1.26.4, which conflicts with
+    # NumPy 2 stacks (abstractvision MLX, abstractcore[all-*]); profiles skip it there.
+    assert _has_marked_dep(platform, "f5-tts>=1.1.0", "python_version >= '3.11'")
+    for name in ("apple", "gpu", "all-apple", "all-gpu"):
+        f5 = [dep for dep in extras[name] if dep.startswith("f5-tts")]
+        assert f5 == ["f5-tts>=1.1.0; python_version >= '3.11'"], (name, f5)
     assert _has_marked_dep(platform, "omnivoice>=0.1.5", "python_version >= '3.10'")
     assert _has_marked_dep(platform, "aec-audio-processing>=1.0.1", "python_version >= '3.11'")
     assert extras["gpu"] == platform
@@ -210,7 +215,7 @@ def test_python39_optional_engine_markers_are_resolver_safe() -> None:
     assert "transformers>=4.55.4,<5; python_version < '3.10'" in extras["audiodit"]
     assert "transformers>=5.4.0; python_version >= '3.10'" in extras["audiodit"]
     assert _has_marked_dep(extras["cloning"], "f5-tts>=1.1.0", "python_version >= '3.10'")
-    assert _has_marked_dep(extras["apple"], "f5-tts>=1.1.0", "python_version >= '3.10'")
+    assert _has_marked_dep(extras["apple"], "f5-tts>=1.1.0", "python_version >= '3.11'")
     assert _has_marked_dep(extras["apple"], "omnivoice>=0.1.5", "python_version >= '3.10'")
     assert all("python_version >= '3.10'" in dep for dep in extras["chroma"])
     assert all("python_version >= '3.10'" in dep for dep in extras["omnivoice"])

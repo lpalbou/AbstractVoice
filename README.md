@@ -249,7 +249,7 @@ Notes:
 - `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` install the full platform stack plus the web example dependencies.
 - Local base TTS should prefer Supertonic (`--tts-engine supertonic`), while
   local cloning defaults to OmniVoice (`--cloning-engine omnivoice`).
-- Python 3.9 supports the lightweight base, web UI, local Piper/Supertonic/faster-whisper, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does.
+- Python 3.9 supports the lightweight base, web UI, local Piper/Supertonic/faster-whisper, and AudioDiT TTS/prompt-audio cloning. OpenF5/F5-TTS, Chroma, and OmniVoice require Python 3.10+ because their upstream runtimes do; AEC requires Python 3.11+ because `aec-audio-processing` does. The platform profiles include OpenF5/F5-TTS only on Python 3.11+ (on 3.10 `f5-tts` pins `numpy<=1.26.4`); on 3.10 install `abstractvoice[cloning]` separately if you need it.
 - For the full list of extras (and platform troubleshooting), see `docs/installation.md`.
 
 ### Explicit model downloads (recommended; never implicit in the REPL)
