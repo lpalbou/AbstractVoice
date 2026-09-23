@@ -18,6 +18,8 @@ import numpy as np
 
 from ..audio.resample import linear_resample_mono
 
+logger = logging.getLogger(__name__)
+
 
 _STDERR_FD_LOCK = threading.Lock()
 
@@ -133,9 +135,27 @@ def apply_speed_without_pitch_change(audio: np.ndarray, speed: float, sr: int = 
 class NonBlockingAudioPlayer:
     """Non-blocking audio player using OutputStream callbacks for pause/resume."""
 
-    def __init__(self, sample_rate: int = 22050, debug_mode: bool = False):
+    def __init__(self, sample_rate: int = 22050, debug_mode: bool = False, output_device=None):
         self.sample_rate = int(sample_rate)
         self.debug_mode = debug_mode
+
+        # WHICH SPEAKER. None/"" follows the system default; a UID (stable across
+        # reboots), a device name, or a PortAudio index pins one device.
+        self._output_device_spec = output_device
+        # The device the open stream actually landed on, by stable key — what a
+        # default change is compared against. An INDEX cannot do this job: indices
+        # are positions in PortAudio's frozen list, so the same index can mean a
+        # different device after a hotplug.
+        self._opened_device_key: str | None = None
+        # Called with a human sentence whenever playback cannot use the device it
+        # was asked for. Silence here is what made this class of bug invisible:
+        # audio came out of the wrong speaker and nothing anywhere said so.
+        self.on_output_device_problem: Optional[Callable[[str], None]] = None
+        self._reported_device_problems: set[str] = set()
+        # Guard for the one operation that can disturb the rest of the process:
+        # refreshing PortAudio's frozen device list invalidates every open stream,
+        # including a microphone. Hosts that may be listening override this.
+        self.allow_device_refresh: Optional[Callable[[], bool]] = None
 
         self.audio_queue: "queue.Queue[np.ndarray]" = queue.Queue()
         self.stream = None
@@ -215,42 +235,48 @@ class NonBlockingAudioPlayer:
             return False
 
     def _maybe_restart_stream_for_default_device_change(self) -> None:
-        """If the OS default output device changed, restart the stream (idle-only).
+        """Move playback when the device it should use changed (idle-only).
 
-        This is best-effort and intentionally conservative: we only restart when
-        the stream is idle to avoid audible glitches or races.
+        Compared by DEVICE IDENTITY, not by PortAudio's index. Two reasons the index
+        could not do this job: it is a position in a list PortAudio froze at
+        initialization, so it can name a different device after a hotplug; and the
+        "default output" that list reports is itself the default from process start,
+        so a user switching to headphones an hour in changed nothing this check could
+        see. `resolve_output_device` asks the system what is true now.
+
+        Still idle-only: restarting mid-sentence would cut the sentence.
         """
         if self.stream is None:
             return
         if not self._is_idle():
             return
 
-        current_default = self._default_output_device_index()
-        if current_default is None:
+        try:
+            from .audio_devices import resolve_output_device
+
+            wanted = resolve_output_device(self._output_device_spec)
+        except Exception:
+            return
+        if wanted is None:
             return
 
-        last_seen = getattr(self, "_last_seen_default_output_device_index", None)
-        if last_seen is None:
-            self._last_seen_default_output_device_index = int(current_default)
+        opened_key = getattr(self, "_opened_device_key", None)
+        if opened_key is None:
+            self._opened_device_key = wanted.key
+            return
+        if wanted.key == opened_key:
             return
 
-        if int(current_default) == int(last_seen):
-            return
-
-        # Default output changed since last time we observed it.
         if self.debug_mode:
             try:
                 old = str(getattr(self, "_opened_output_device_name", None) or "").strip() or "(unknown)"
-                info = self._default_output_device_info() or {}
-                new = str(info.get("name", "") or "").strip() or f"index={int(current_default)}"
-                print(f"ℹ️  Default output changed; restarting audio stream: {old} -> {new}")
+                print(f"ℹ️  Audio output changed; restarting stream: {old} -> {wanted.name}")
             except Exception:
                 pass
 
-        # Try to restart on the new default. Even if this fails and we fall back
-        # to a different device, we update `last_seen` so we don't repeatedly
-        # attempt restarts until the default changes again.
-        self._last_seen_default_output_device_index = int(current_default)
+        # Record the new identity before attempting the move: a failed restart must
+        # not re-attempt on every single utterance.
+        self._opened_device_key = wanted.key
         try:
             self.stop_stream()
         except Exception:
@@ -330,41 +356,190 @@ class NonBlockingAudioPlayer:
                 print(f"Error in audio callback: {e}")
             outdata.fill(0)
 
+    def set_output_device(self, spec) -> None:
+        """Choose the speaker. None/"" = follow the system default.
+
+        Takes effect on the next utterance; an open idle stream is restarted at once
+        so the choice is audible immediately rather than after the current reply.
+        """
+        self._output_device_spec = spec
+        self._reported_device_problems.clear()
+        with self._stream_lock:
+            if self.stream is not None and self._is_idle():
+                try:
+                    self.stop_stream()
+                except Exception:
+                    return
+                try:
+                    self.start_stream()
+                except Exception:
+                    pass
+
+    def get_output_device(self):
+        return self._output_device_spec
+
+    def current_output_device_name(self) -> str:
+        """The device the open stream is on, or the one the next utterance will use."""
+        name = str(getattr(self, "_opened_output_device_name", None) or "").strip()
+        if name:
+            return name
+        try:
+            from .audio_devices import resolve_output_device
+
+            device = resolve_output_device(self._output_device_spec)
+            return device.name if device is not None else ""
+        except Exception:
+            return ""
+
+    def _report_device_problem(self, message: str) -> None:
+        """Say it once per distinct problem, to the host and to the log."""
+        text = str(message or "").strip()
+        if not text or text in self._reported_device_problems:
+            return
+        self._reported_device_problems.add(text)
+        logger.warning("#FALLBACK audio output: %s", text)
+        if self.debug_mode:
+            try:
+                print(f"⚠️  {text}")
+            except Exception:
+                pass
+        callback = self.on_output_device_problem
+        if callable(callback):
+            try:
+                callback(text)
+            except Exception:
+                pass
+
+    def _may_refresh_devices(self) -> bool:
+        gate = self.allow_device_refresh
+        if callable(gate):
+            try:
+                return bool(gate())
+            except Exception:
+                return False
+        return self.stream is None
+
+    def refresh_device_list(self) -> bool:
+        """Re-enumerate audio devices (PortAudio caches them at initialization).
+
+        A device connected after this process started is invisible until this runs —
+        and running it invalidates EVERY open stream in the process, including a
+        microphone, which is why it is gated and never automatic during playback.
+        Measured cost: ~4 ms.
+        """
+        if not self._may_refresh_devices():
+            return False
+        sd = _import_sounddevice()
+        try:
+            with self._stream_lock:
+                if self.stream is not None:
+                    return False
+                sd._terminate()
+                sd._initialize()
+            return True
+        except Exception as e:
+            if self.debug_mode:
+                try:
+                    print(f"⚠️  Could not refresh the audio device list: {e}")
+                except Exception:
+                    pass
+            return False
+
+    def _resolve_stream_targets(self) -> "list[tuple[int | None, str, str]]":
+        """Ordered (portaudio_index, label, problem_to_report_first) to try.
+
+        ONE target in the normal case: the device that was asked for. The old code
+        built a candidate list of EVERY output device and walked it silently, so a
+        default that failed to open sent speech to whatever came next in PortAudio's
+        list — on a Mac, the built-in speakers. That is the bug this method exists to
+        make impossible: a fallback still happens when the wanted device is genuinely
+        gone, but it is deliberate, it is the SYSTEM DEFAULT rather than an arbitrary
+        device, and it is reported.
+        """
+        try:
+            from .audio_devices import resolve_output_device, system_default_output
+        except Exception:
+            return [(None, "system default", "")]
+
+        spec = self._output_device_spec
+        pinned = bool(spec is not None and str(spec).strip())
+        targets: list[tuple[int | None, str, str]] = []
+
+        device = resolve_output_device(spec)
+        if device is not None and device.index is None and self._may_refresh_devices():
+            # Known to the system but not to PortAudio: the list is stale (the device
+            # was connected after this process started). This is the only automatic
+            # refresh, and only ever with our own stream closed.
+            if self.refresh_device_list():
+                device = resolve_output_device(spec)
+
+        if device is not None and device.index is not None:
+            targets.append((int(device.index), device.name, ""))
+        elif pinned:
+            fallback = system_default_output()
+            label = fallback.name if fallback is not None else "the system default"
+            problem = (
+                f"The selected audio output ({spec}) is not available, so speech is playing "
+                f"on {label} instead."
+            )
+            if fallback is not None and fallback.index is not None:
+                targets.append((int(fallback.index), fallback.name, problem))
+            else:
+                targets.append((None, label, problem))
+        elif device is not None:
+            # The system's output exists but PortAudio cannot see it, and a refresh was
+            # refused (the microphone is open). `device=None` is all that is left — and
+            # that means PortAudio's STARTUP default, i.e. exactly the device the user is
+            # not listening to. Playing there silently, under a label naming the device we
+            # are NOT using, is the original bug with better manners: say it instead.
+            targets.append(
+                (
+                    None,
+                    "the audio engine's startup device",
+                    f"Speech cannot be sent to {device.name} yet: it appeared after this app "
+                    f"started, and the audio engine cannot be refreshed while the microphone "
+                    f"is open. Playing on the startup device instead.",
+                )
+            )
+        else:
+            # Nothing resolvable at all (no CoreAudio, and PortAudio could not be queried).
+            # There is no evidence anything is wrong, so let PortAudio choose, quietly.
+            targets.append((None, "the system default", ""))
+        return targets
+
     def start_stream(self):
         with self._stream_lock:
             if self.stream is not None:
-                return
+                try:
+                    if self.stream.active:
+                        return
+                except Exception:
+                    pass  # A disconnected/closed device can reject the query.
+                # CoreAudio can stop a stream without destroying its Python
+                # object (sleep, USB interruption). Reusing it queues audio
+                # forever: no output callback will consume those samples.
+                logger.warning("#FALLBACK audio output: reopening an inactive stream")
+                try:
+                    self.stream.close()
+                except Exception as exc:
+                    logger.warning("#FALLBACK audio output: stale stream close failed: %s", exc)
+                finally:
+                    self.stream = None
+                self._audio_started = False
+                # Preserve pending audio and pause state across recovery.
             sd = _import_sounddevice()
 
             desired_sr = int(self.sample_rate)
 
-            # Device candidates: system default first, then explicit non-default
-            # output devices as fallback. Avoid retrying the default by index; on
-            # macOS that can repeat a slow CoreAudio open path.
-            device_candidates: list[int | None] = [None]
-            default_idx: int | None = None
-            try:
-                dev = sd.query_devices(None, "output")  # default output device
-                idx = dev.get("index", None)
-                default_idx = int(idx) if isinstance(idx, int) else None
-            except Exception:
-                default_idx = None
-            try:
-                for i, dev in enumerate(sd.query_devices()):  # all devices
-                    if int(dev.get("max_output_channels", 0) or 0) <= 0:
-                        continue
-                    if default_idx is not None and int(i) == int(default_idx):
-                        continue
-                    if i not in device_candidates:
-                        device_candidates.append(i)
-            except Exception:
-                pass
+            targets = self._resolve_stream_targets()
 
             # Common output rates (keep short; we already prefer device default + desired).
             common_rates = (48000, 44100, 24000, 22050, 16000)
 
             last_err: Exception | None = None
-            for device in device_candidates:
+            for device, target_label, target_problem in targets:
+                if target_problem:
+                    self._report_device_problem(target_problem)
                 # Build per-device candidate sample rates. Prefer the hardware
                 # default first. Some CoreAudio devices take several seconds to
                 # reject uncommon rates (24 kHz/22.05 kHz); resampling is cheaper
@@ -444,6 +619,18 @@ class NonBlockingAudioPlayer:
                                     )
                                 except Exception:
                                     pass
+                                try:
+                                    # The stable identity of what we are actually playing on,
+                                    # so a later default change is compared by DEVICE and not
+                                    # by a PortAudio index that can mean something else now.
+                                    from .audio_devices import resolve_output_device
+
+                                    opened = resolve_output_device(
+                                        int(device) if device is not None else None
+                                    )
+                                    self._opened_device_key = opened.key if opened is not None else None
+                                except Exception:
+                                    self._opened_device_key = None
                                 if self.debug_mode:
                                     try:
                                         name = str(getattr(self, "_opened_output_device_name", None) or "").strip() or "(unknown)"
@@ -472,10 +659,17 @@ class NonBlockingAudioPlayer:
                                     pass
                                 continue
 
-            # If we couldn't start, surface the last error.
+            # Every target failed. Name the device that could not be opened: the
+            # caller's only other signal is silence.
+            wanted = targets[0][1] if targets else "the system default"
+            self._report_device_problem(
+                f"Could not open the audio output ({wanted}): {last_err}"
+                if last_err is not None
+                else f"Could not open the audio output ({wanted})."
+            )
             if last_err is not None:
                 raise last_err
-            raise RuntimeError("Failed to start audio output stream")
+            raise RuntimeError(f"Failed to start audio output stream on {wanted}")
 
     def stop_stream(self):
         with self._stream_lock:
@@ -494,6 +688,7 @@ class NonBlockingAudioPlayer:
         self._opened_output_device_index = None
         self._opened_output_device_name = None
         self._opened_output_channels = None
+        self._opened_device_key = None
 
         self.is_playing = False
         with self._pause_lock:
@@ -532,8 +727,7 @@ class NonBlockingAudioPlayer:
             # restart the stream when idle so system volume keys match what users
             # expect (best-effort).
             self._maybe_restart_stream_for_default_device_change()
-            if self.stream is None:
-                self.start_stream()
+            self.start_stream()  # Also recovers a surviving but inactive stream.
 
         sr_in = int(sample_rate) if sample_rate is not None else int(self.sample_rate)
         sr_out = int(self.sample_rate)
