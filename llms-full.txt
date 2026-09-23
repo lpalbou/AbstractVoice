@@ -174,7 +174,8 @@ Optional dependency groups (see `pyproject.toml`):
 - [Remote OpenAI-compatible TTS adapter](abstractvoice/adapters/tts_openai_compatible.py)
 - [Remote OpenAI-compatible STT adapter](abstractvoice/adapters/stt_openai_compatible.py)
 - [TTS engine wrapper](abstractvoice/tts/adapter_tts_engine.py): wraps adapters + uses `NonBlockingAudioPlayer`
-- [Audio playback](abstractvoice/tts/tts_engine.py): pause/resume/stop + optional audio-fx
+- [Audio playback](abstractvoice/tts/tts_engine.py): pause/resume/stop + optional audio-fx; `NonBlockingAudioPlayer(output_device=...)` resolves the output device live per utterance, falls back to the system default only (reported via `on_output_device_problem`), and reopens a stream the OS stopped
+- [Output devices](abstractvoice/tts/audio_devices.py): `list_output_devices()` / `system_default_output()` / `resolve_output_device(spec)` — live CoreAudio-backed resolution on macOS, devices identified by stable UID
 - [Mic capture + VAD + stop phrase](abstractvoice/recognition.py)
 - [Stop phrase helper](abstractvoice/stop_phrase.py)
 - [VAD](abstractvoice/vad/voice_detector.py)

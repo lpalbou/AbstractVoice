@@ -154,6 +154,14 @@ voice selections do not bleed across engine changes.
 the first utterance; `NonBlockingAudioPlayer` prefers the hardware default
 output sample rate and resamples synthesized audio when needed, avoiding slow
 first-call CoreAudio negotiation on macOS.
+The output device itself is resolved live, not taken from PortAudio's
+launch-time snapshot: `abstractvoice/tts/audio_devices.py` asks the system
+(the CoreAudio HAL on macOS) for the current default or for a device named by
+its stable UID, and the player opens it by explicit index, re-resolving before
+each utterance. If that device cannot be opened, playback falls back to the
+system default only and reports it through `on_output_device_problem`; a
+stream the OS stopped (sleep, USB interruption) is reopened on the next
+utterance without losing queued audio.
 
 Discovery follows the same policy from the other direction: asking which providers and models are
 available is a filesystem question, answered by `abstractvoice/local_models.py` without importing an

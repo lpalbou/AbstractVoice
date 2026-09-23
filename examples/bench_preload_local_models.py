@@ -165,7 +165,7 @@ def main() -> int:
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--text", type=str, default="This is a preload benchmark.")
     ap.add_argument("--format", type=str, default="wav")
-    ap.add_argument("--stt-audio", type=str, default="/Users/albou/Documents/patrick_voice_short2.wav")
+    ap.add_argument("--stt-audio", type=str, default=None, help="Speech audio file (WAV) for the STT benchmark; STT is skipped when omitted.")
     ap.add_argument("--stt-provider", type=str, default="faster_whisper", help="Local STT provider id (e.g. faster_whisper, transformers-asr).")
     ap.add_argument("--stt-model", type=str, default="base", help="STT model id (faster-whisper size or HF repo id for transformers-asr).")
     ap.add_argument("--no-stt", action="store_true")
@@ -218,7 +218,9 @@ def main() -> int:
                 print(f"  speedup:     {float(cold_mean)/float(hot_mean):.2f}x")
             print("")
 
-    if not bool(args.no_stt):
+    if not bool(args.no_stt) and not args.stt_audio:
+        print("STT preload benchmark skipped: pass --stt-audio <file.wav> to run it.")
+    elif not bool(args.no_stt):
         print("STT preload benchmark")
         audio_path = str(args.stt_audio)
         provider = str(args.stt_provider or "faster_whisper").strip() or "faster_whisper"

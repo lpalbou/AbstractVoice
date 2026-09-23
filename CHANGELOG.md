@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.11.2] - 2026-09-23
+
+### Fixed
+- **Speech now plays on the output device the system is actually using.** PortAudio resolves
+  "the default output" once, when it initializes, so in a long-running app playback kept going to
+  the device that was default at launch (typically the built-in speakers) after the user switched
+  to a headset or other output. `NonBlockingAudioPlayer` now resolves the output device live
+  (on macOS through the CoreAudio HAL, which does not disturb open streams), opens it by explicit
+  index, re-resolves before each utterance, and moves an idle stream when the device changes.
+- **The player no longer falls through to an arbitrary device.** When the chosen device cannot be
+  opened, playback falls back to the system default only (instead of silently walking every
+  output device), and reports it through the new `on_output_device_problem` callback and a
+  `#FALLBACK` log line.
+- **Playback recovers a stream the device stopped.** A stream stopped by the OS (sleep, USB
+  interruption) while its Python object survived used to accept audio that was never played.
+  The player now detects an inactive stream, reopens it, and keeps pending audio and pause state.
+
+### Added
+- **`abstractvoice.tts.audio_devices`**: live output-device enumeration and resolution —
+  `list_output_devices()`, `system_default_output()`, `resolve_output_device(spec)` and
+  `describe_device_spec(spec)`. Devices are identified by their CoreAudio UID, which survives
+  reboots and reconnections; devices the system knows but PortAudio cannot see yet (connected
+  after launch) are listed with `index=None` rather than hidden.
+- **`NonBlockingAudioPlayer(output_device=...)`, `set_output_device()`, `get_output_device()`,
+  `current_output_device_name()` and `refresh_device_list()`.** Refreshing re-initializes
+  PortAudio and invalidates every open stream in the process (including a live microphone), so it
+  is gated by the `allow_device_refresh` callback; the only automatic refresh happens when the
+  requested device is unknown to PortAudio.
+
 ## [0.11.1] - 2026-08-04
 
 ### Fixed
