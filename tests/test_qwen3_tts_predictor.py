@@ -164,17 +164,49 @@ def test_failures_are_not_retried_after_rng_consumption(predictor):
     predictor.generate.assert_not_called()
 
 
-@pytest.mark.parametrize("env,options", [
-    ("ABSTRACTVOICE_QWEN3_TTS_PREDICTOR", "auto or reference"),
-    ("ABSTRACTVOICE_QWEN3_TTS_SAMPLER", "multinomial or exponential"),
+@pytest.mark.parametrize("field,options", [
+    ("predictor", "auto or reference"),
+    ("sampler", "multinomial or exponential"),
 ])
-def test_invalid_runtime_mode_is_rejected_before_loading(monkeypatch, env, options):
-    from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime
-    monkeypatch.setenv(env, "typo")
-    runtime = Qwen3TTSRuntime(allow_downloads=False)
+def test_invalid_runtime_mode_is_rejected_before_loading(field, options):
+    from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime, Qwen3TTSSettings
+    runtime = Qwen3TTSRuntime(allow_downloads=False, settings=Qwen3TTSSettings(**{field: "typo"}))
     runtime.snapshot_dir = Mock(side_effect=AssertionError("must validate before loading"))
     with pytest.raises(ValueError, match=options):
         runtime._ensure_loaded()
+
+
+@pytest.mark.parametrize("settings,expected", [
+    ({}, ("auto", "multinomial")),
+    ({"sampler": "exponential"}, ("auto", "exponential")),
+    ({"predictor": "reference"}, ("reference", "multinomial")),
+])
+def test_runtime_settings_select_predictor_and_sampler_at_load(monkeypatch, settings, expected):
+    """The switches are runtime settings, never process environment."""
+    from types import SimpleNamespace
+
+    from abstractvoice.qwen3_tts import orchestration
+    from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime, Qwen3TTSSettings
+
+    # A stray variable from the pre-release env-var design must have no effect.
+    monkeypatch.setenv("ABSTRACTVOICE_QWEN3_TTS_PREDICTOR", "typo")
+    monkeypatch.setenv("ABSTRACTVOICE_QWEN3_TTS_SAMPLER", "typo")
+    code_predictor = SimpleNamespace()
+    inner = SimpleNamespace(
+        talker=SimpleNamespace(code_predictor=code_predictor),
+        speech_tokenizer=SimpleNamespace(model=SimpleNamespace(to=lambda **_kw: "codec")),
+        device="cpu", tts_model_type="custom_voice", to=lambda _device: None, eval=lambda: None,
+    )
+    monkeypatch.setattr(
+        orchestration.Qwen3TTSModel, "from_pretrained", classmethod(lambda cls, *_a, **_kw: SimpleNamespace(model=inner))
+    )
+    runtime = Qwen3TTSRuntime(allow_downloads=False, device="cpu", settings=Qwen3TTSSettings(**settings))
+    runtime.snapshot_dir = Mock(return_value="/nonexistent-snapshot")
+    runtime._ensure_loaded()
+    assert (code_predictor._abstractvoice_predictor, code_predictor._abstractvoice_sampler) == expected
+    info = runtime.runtime_info()
+    assert info["predictor_mode"] == expected[0]
+    assert info["sampler"] == ("multinomial" if expected[0] == "reference" else expected[1])
 
 
 @pytest.mark.parametrize("seed", [0, 1, 31415])

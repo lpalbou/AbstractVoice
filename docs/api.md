@@ -203,8 +203,7 @@ Through AbstractCore, use `core.voice.tts(...)`, `core.voice.tts_stream(...)`
 or `core.voice.clone(...)` with `provider="qwen3-tts"` and `model=<checkpoint>`.
 `core.voice.voice_catalog(provider="qwen3-tts", model=<checkpoint>)` filters
 profiles and stored clones by checkpoint. Plugin defaults can be configured
-with `voice_cloning_model` or `ABSTRACTVOICE_CLONING_MODEL`, separately from
-`voice_tts_model` / `ABSTRACTVOICE_TTS_MODEL`.
+with the `voice_cloning_model` setting, separately from `voice_tts_model`.
 
 #### Qwen performance controls
 
@@ -213,25 +212,27 @@ predictor by default, retaining PyTorch's multinomial sampler. No additional
 vendor SDK is required. Unsupported generation settings use the original
 Transformers path with a `#FALLBACK` warning.
 
-Set these environment variables **before loading the model** (restart the CLI
-or unload/reload a resident model). They apply to preset, designed, and cloned
-voices, including the AbstractCore plugin process:
+The CLI, web example and AbstractCore plugin always use these defaults. Library
+integrators can choose per runtime through `Qwen3TTSSettings`; the runtime reads
+them when it loads the model (unload and reload a resident model to change them):
 
-| Variable | Default | Options |
+| Setting | Default | Options |
 | --- | --- | --- |
-| `ABSTRACTVOICE_QWEN3_TTS_PREDICTOR` | `auto` | `auto`: guarded specialized loop; `reference`: original Transformers generation |
-| `ABSTRACTVOICE_QWEN3_TTS_SAMPLER` | `multinomial` | `multinomial`: standard sampler; `exponential`: opt-in exponential-race sampler with frame-level validation |
+| `predictor` | `auto` | `auto`: guarded specialized loop; `reference`: original Transformers generation |
+| `sampler` | `multinomial` | `multinomial`: standard sampler; `exponential`: opt-in exponential-race sampler with frame-level validation |
 
-```bash
-# Optimized predictor with the standard sampler
-abstractvoice --tts-engine qwen3-tts
+```python
+from abstractvoice.adapters.tts_qwen3_tts import Qwen3TTSAdapter
+from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime, Qwen3TTSSettings
 
-# Opt in to exponential sampling in the REPL
-ABSTRACTVOICE_QWEN3_TTS_SAMPLER=exponential abstractvoice --tts-engine qwen3-tts
-
-# Use original generation for comparison
-ABSTRACTVOICE_QWEN3_TTS_PREDICTOR=reference abstractvoice --tts-engine qwen3-tts
+runtime = Qwen3TTSRuntime(
+    "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+    settings=Qwen3TTSSettings(sampler="exponential"),  # or predictor="reference"
+)
+adapter = Qwen3TTSAdapter(runtime=runtime)
 ```
+
+An invalid value raises `ValueError` before any weights load.
 
 `reference` takes precedence over the sampler choice. Automatic fallback also
 uses the original sampler. Exponential sampling validates all distributions

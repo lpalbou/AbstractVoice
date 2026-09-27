@@ -8,28 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
-## [Unreleased]
+## [0.12.0] - 2026-09-27
+
+### Added
+
+- Qwen3-TTS checkpoint selection: `--tts-model` / `--cloning-model` in the CLI
+  and REPL, model fields in the web example, `model=` on clone creation
+  (`VoiceManager.clone_voice(..., model=)`, `VoiceManager(cloning_model=)`) and
+  the `voice_cloning_model` AbstractCore plugin setting.
+- One-shot `--instructions` for directed speech (required by Qwen3 VoiceDesign).
+- `Qwen3TTSSettings.predictor` (`auto` | `reference`) and
+  `Qwen3TTSSettings.sampler` (`multinomial` | `exponential`), read at model load.
+  Settings only: there are no environment variables for these switches.
 
 ### Changed
 
 - Qwen3-TTS uses a guarded, fixed-depth codebook predictor with the standard
   PyTorch sampler by default. An opt-in exponential sampler validates complete
-  codebook frames; environment controls apply to CLI, library, and AbstractCore
-  plugin synthesis. Reference generation remains available for comparison.
+  codebook frames. Reference generation remains available for comparison.
 
 ### Fixed
 
 - Qwen utterance edges receive short fades to reduce clicks. Playback fills
   device buffers across queued audio chunks without adding boundary silence.
-- Qwen3-TTS checkpoint selection is available in the CLI, REPL, web example,
-  and AbstractCore plugin. Cloned voices retain their selected Base checkpoint
-  across restarts, and model-filtered catalogs preserve shared preset names.
+- Cloned Qwen voices retain their selected Base checkpoint across restarts, and
+  model-filtered catalogs preserve shared preset names.
 - Qwen3-TTS buffers long requests in bounded segments, including Chinese and
   Japanese text. VoiceDesign and 1.7B CustomVoice accept per-call instructions
   in chunked plugin output and one-shot file synthesis.
 - Switching TTS providers resets provider-specific model ids. Creating a Qwen
   clone does not eagerly load unrelated base TTS weights.
-- The Qwen extra requires Torch 2.4+ to match its Transformers 5 runtime.
+- The Qwen extra requires Torch 2.4+ to match its Transformers 5 runtime
+  (Transformers 5 disables PyTorch below 2.4). Intel Macs, where PyTorch wheels
+  end at 2.2.2, now get a resolver error for `abstractvoice[qwen3-tts]` instead
+  of an install that cannot run Qwen. No aggregate extra includes `qwen3-tts`.
 
 ## [0.11.4] - 2026-09-24
 

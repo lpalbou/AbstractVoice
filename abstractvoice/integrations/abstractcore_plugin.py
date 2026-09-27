@@ -1350,7 +1350,8 @@ class _BaseVoice:
             "ABSTRACTVOICE_REMOTE_TTS_MODEL",
         )
         cloning_engine = _env("ABSTRACTVOICE_CLONING_ENGINE", "omnivoice") or "omnivoice"
-        cloning_model = _env("ABSTRACTVOICE_CLONING_MODEL")
+        # Settings-only (no env var): the owner's `voice_cloning_model`.
+        cloning_model = None
         cloned_tts_streaming = _env_bool("ABSTRACTVOICE_CLONED_TTS_STREAMING", True)
         tts_delivery_mode = _env("ABSTRACTVOICE_TTS_DELIVERY_MODE")
         remote_base_url = _env("OPENAI_BASE_URL")

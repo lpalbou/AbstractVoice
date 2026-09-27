@@ -83,6 +83,13 @@ class Qwen3TTSSettings:
     subtalker_top_k: int = 50
     subtalker_top_p: float = 1.0
     quality_preset: str = "standard"
+    # Codebook generation, read when the model loads (quality presets never
+    # touch these). predictor: "auto" (guarded fixed-depth loop, see
+    # predictor.py) or "reference" (Transformers generate, for comparison).
+    # sampler: "multinomial" (torch stock) or "exponential" (opt-in
+    # exponential race with frame-level validation); "reference" ignores it.
+    predictor: str = "auto"
+    sampler: str = "multinomial"
 
     def apply_quality_preset(self, preset: str) -> None:
         from ..quality_preset import normalize_quality_preset
@@ -224,12 +231,12 @@ class Qwen3TTSRuntime:
 
             from .orchestration import Qwen3TTSModel
 
-            predictor_mode = os.environ.get("ABSTRACTVOICE_QWEN3_TTS_PREDICTOR", "auto").strip().lower()
+            predictor_mode = str(self.settings.predictor or "").strip().lower()
             if predictor_mode not in {"auto", "reference"}:
-                raise ValueError("ABSTRACTVOICE_QWEN3_TTS_PREDICTOR must be auto or reference")
-            sampler = os.environ.get("ABSTRACTVOICE_QWEN3_TTS_SAMPLER", "multinomial").strip().lower()
+                raise ValueError("Qwen3TTSSettings.predictor must be auto or reference")
+            sampler = str(self.settings.sampler or "").strip().lower()
             if sampler not in {"multinomial", "exponential"}:
-                raise ValueError("ABSTRACTVOICE_QWEN3_TTS_SAMPLER must be multinomial or exponential")
+                raise ValueError("Qwen3TTSSettings.sampler must be multinomial or exponential")
             local_dir = self.snapshot_dir()
             runtime = self._resolve_runtime()
 

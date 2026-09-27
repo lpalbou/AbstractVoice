@@ -9,12 +9,12 @@ Sources of truth:
 - Internal map + diagrams: `docs/architecture.md`
 
 Qwen performance: a guarded specialized codebook predictor with stock
-multinomial sampling is enabled by default. Set
-`ABSTRACTVOICE_QWEN3_TTS_SAMPLER=exponential` before model load to opt in to the
-exponential-race sampler, or `ABSTRACTVOICE_QWEN3_TTS_PREDICTOR=reference` to use
-the original Transformers path (which overrides sampler selection). Unsupported
-generation settings also fall back with a `#FALLBACK` warning. These controls
-apply to CLI, library, and AbstractCore plugin processes. Exponential sampling
+multinomial sampling is enabled by default. Library integrators pass
+`Qwen3TTSSettings(sampler="exponential")` to `Qwen3TTSRuntime` to opt in to the
+exponential-race sampler, or `Qwen3TTSSettings(predictor="reference")` to use
+the original Transformers path (which overrides sampler selection); both are read
+at model load. Unsupported generation settings also fall back with a `#FALLBACK`
+warning. The CLI, web example and AbstractCore plugin use the defaults. Exponential sampling
 validates a complete frame before returning codes; invalid probabilities raise,
 and failed requests can consume additional RNG. No cross-hardware/version
 reproducibility guarantee. Keep models resident for warm inference; buffered
@@ -198,8 +198,8 @@ accepts `--instructions`; the web form exposes model selectors and instructions.
 Through AbstractCore use `core.voice.tts(...)`, `core.voice.tts_stream(...)`,
 and `core.voice.clone(...)` with `provider="qwen3-tts"`, `model=<checkpoint>`.
 Use `core.voice.voice_catalog(provider="qwen3-tts", model=<checkpoint>)` for
-model-filtered voices. Configure plugin clone defaults with
-`voice_cloning_model` or `ABSTRACTVOICE_CLONING_MODEL`.
+model-filtered voices. Configure plugin clone defaults with the
+`voice_cloning_model` setting.
 
 1.7B CustomVoice/VoiceDesign support per-call instructions in chunked output;
 unsupported models and cloned speech reject streaming instructions explicitly.

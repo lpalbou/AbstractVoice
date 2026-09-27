@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+from importlib.util import find_spec
 from types import SimpleNamespace
 
 import numpy as np
@@ -20,6 +21,13 @@ LARGE_CUSTOM = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
 BASE = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
 LARGE_BASE = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
 DESIGN = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+
+# VoiceManager(tts_engine="qwen3-tts") builds the real adapter, which needs the
+# qwen3-tts extra's runtimes importable (never loaded here). CI installs `.[test]`.
+requires_qwen_runtime = pytest.mark.skipif(
+    find_spec("torch") is None or find_spec("transformers") is None,
+    reason="needs the qwen3-tts extra (torch + transformers)",
+)
 
 
 class Runtime:
@@ -78,6 +86,7 @@ def test_lazy_synthesis_loads_before_choosing_default_speaker():
 
 @pytest.fixture
 def two_checkpoints(tmp_path, monkeypatch):
+    pytest.importorskip("huggingface_hub")
     hub = tmp_path / "hub"
     for model in (CUSTOM, LARGE_CUSTOM):
         snap = hub / ("models--" + model.replace("/", "--")) / "snapshots" / "revision"
@@ -92,6 +101,7 @@ def two_checkpoints(tmp_path, monkeypatch):
     return hub
 
 
+@requires_qwen_runtime
 def test_plugin_discovery_keeps_shared_speakers_for_each_model(two_checkpoints):
     cap = _VoiceCapability(SimpleNamespace(config={}))
     for model in (CUSTOM, LARGE_CUSTOM):
@@ -132,12 +142,17 @@ def test_clone_rejects_wrong_checkpoint_role_before_persistence(tmp_path):
     assert store.list_voices() == []
 
 
+@requires_qwen_runtime
 def test_plugin_clone_routes_requested_checkpoint_and_persists_it(tmp_path, monkeypatch):
     import abstractvoice.integrations.abstractcore_plugin as plugin
     plugin._VM_CACHE.clear()
     store = VoiceCloneStore(tmp_path)
     monkeypatch.setattr("abstractvoice.cloning.manager.VoiceCloneStore", lambda: store)
     monkeypatch.setattr("abstractvoice.cloning.store.VoiceCloneStore", lambda: store)
+    # Hermetic cache state: the default CustomVoice checkpoint is on disk (as on
+    # any machine that speaks with Qwen), so a provider-filtered listing is
+    # answered from disk. Never depend on the developer's real HF cache.
+    monkeypatch.setattr("abstractvoice.local_models.hf_repo_is_cached", lambda model_id: model_id == CUSTOM)
     owner = SimpleNamespace(config={"voice_tts_engine": "qwen3-tts", "voice_allow_downloads": False})
     cap = _VoiceCapability(owner)
     voice_id = cap.clone(wav_bytes(), provider="qwen3-tts", model=LARGE_BASE, reference_text="Reference")
@@ -154,6 +169,19 @@ def test_plugin_clone_routes_requested_checkpoint_and_persists_it(tmp_path, monk
     assert {v["voice_id"] for v in cap.voice_catalog(provider="qwen3-tts", model=LARGE_BASE)["cloned_voices"]} == {voice_id}
 
 
+@pytest.mark.parametrize("config_model", [None, LARGE_BASE])
+def test_plugin_cloning_model_is_a_setting_not_an_env_var(monkeypatch, config_model):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+    plugin._VM_CACHE.clear()
+    monkeypatch.setenv("ABSTRACTVOICE_CLONING_MODEL", "Qwen/from-the-environment")
+    config = {"voice_tts_engine": "qwen3-tts", "voice_allow_downloads": False}
+    if config_model:
+        config["voice_cloning_model"] = config_model
+    vm = _VoiceCapability(SimpleNamespace(config=config))._get_vm()
+    assert vm.cloning_model == config_model
+
+
+@requires_qwen_runtime
 def test_plugin_streams_design_instructions_without_leaking_state():
     from abstractvoice import VoiceManager
 
@@ -169,6 +197,7 @@ def test_plugin_streams_design_instructions_without_leaking_state():
     assert events[-1]["type"] == "done"
 
 
+@requires_qwen_runtime
 def test_stream_rejects_instructions_on_unsupported_small_model():
     from abstractvoice import VoiceManager
 
@@ -196,6 +225,7 @@ def test_cli_and_repl_accept_qwen_and_download_exact_repo_case(monkeypatch, caps
 
 
 def test_web_qwen_model_switch_and_instructions_are_forwarded():
+    pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
     from abstractvoice.examples.web_ui import create_app
 
@@ -294,8 +324,10 @@ def test_module_launcher_passes_qwen_languages_to_repl(monkeypatch):
     assert calls == [["--language", "ja", "--tts-engine", "qwen3-tts"]]
 
 
+@requires_qwen_runtime
 @pytest.mark.parametrize("route", ["/api/voices/clone", "/v1/voice/clone"])
 def test_web_clone_model_is_persisted_through_real_manager(tmp_path, route):
+    pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
     from abstractvoice import VoiceManager
     from abstractvoice.examples.web_ui import create_app

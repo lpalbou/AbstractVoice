@@ -87,7 +87,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [OmniVoice cloning engine (optional)](abstractvoice/cloning/engine_omnivoice.py): reference-audio cloning (extra)
 - [Qwen3-TTS adapter (optional)](abstractvoice/adapters/tts_qwen3_tts.py): preset speakers + voice design (extra)
 - [Qwen3-TTS runtime + vendored core (optional)](abstractvoice/qwen3_tts/): offline-first 12Hz model/codec, no trust_remote_code
-- [Qwen performance controls](docs/api.md#qwen-performance-controls): guarded optimized predictor and stock sampler by default; opt-in `ABSTRACTVOICE_QWEN3_TTS_SAMPLER=exponential`, reference override `ABSTRACTVOICE_QWEN3_TTS_PREDICTOR=reference`; set before model load, including in the AbstractCore process
+- [Qwen performance controls](docs/api.md#qwen-performance-controls): guarded optimized predictor and stock sampler by default; opt-in `Qwen3TTSSettings(sampler="exponential")`, reference override `Qwen3TTSSettings(predictor="reference")`; read at model load (library API)
 - [Qwen3-TTS cloning engine (optional)](abstractvoice/cloning/engine_qwen3_tts.py): ICL cloning on Base checkpoints (extra)
 - [HF compat seams](abstractvoice/_hf_compat.py): transformers 4.57↔5.x shims shared by the vendored model families
 - [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py): STT backend
