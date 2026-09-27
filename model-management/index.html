@@ -1289,6 +1289,11 @@ listing stays fast even when heavy engines are installed. Where presence is read
 </tr>
 </tbody>
 </table>
+<p>For Qwen3-TTS, choose downloaded CustomVoice or VoiceDesign checkpoints with
+<code>--tts-model</code> / <code>VoiceManager(tts_model=...)</code>. Choose Base checkpoints with
+<code>--cloning-model</code> / <code>VoiceManager(cloning_model=...)</code>; this is independent of
+the base TTS model. Stored Qwen clones retain their chosen checkpoint. See
+<a href="../api/#qwen3-tts-checkpoints">Qwen3-TTS checkpoints</a> for CLI, web, and plugin examples.</p>
 <p>A consequence worth knowing: an engine whose extra is installed but whose weights are not downloaded
 yet does <strong>not</strong> appear in provider listings. Selecting it still works and still downloads on demand
 when <code>allow_downloads=True</code> — only discovery is affected. Prefetch it (see above) to have it listed.</p>

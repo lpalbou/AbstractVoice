@@ -399,6 +399,34 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#qwen3-tts-checkpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS checkpoints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Qwen3-TTS checkpoints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qwen-performance-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen performance controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#language-voice-selection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1352,6 +1380,34 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#qwen3-tts-checkpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS checkpoints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Qwen3-TTS checkpoints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qwen-performance-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen performance controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#language-voice-selection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1628,6 +1684,7 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
     <span class="n">remote_base_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">remote_api_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">remote_timeout_s</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cloning_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># Qwen3-TTS Base checkpoint for new clones</span>
 <span class="p">)</span>
 </code></pre></div>
 <p>Notes:
@@ -1667,7 +1724,11 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
   <code>abstractvoice[omnivoice]</code> or a platform/full profile for that default, or
   pass <code>f5_tts</code>, <code>chroma</code>, <code>audiodit</code>, <code>qwen3-tts</code>, <code>openai</code>, or
   <code>openai-compatible</code> explicitly. Qwen3-TTS cloning uses the Base checkpoints
-  and the stored reference transcript (auto-filled once via STT when missing).</p>
+  and the stored reference transcript (auto-filled once via STT when missing).
+  <code>cloning_model</code> selects the default Qwen Base checkpoint; <code>model=...</code> on
+  <code>clone_voice(...)</code> / <code>clone_voice_from_wav_bytes(...)</code> overrides it per clone.
+  The checkpoint is persisted in the voice metadata and restored on replay.
+  Existing Qwen clones without checkpoint metadata use the original 0.6B Base.</p>
 <p>Supported language codes for the Piper mapping: <code>en, fr, de, es, ru, zh</code> (see <code>abstractvoice/config/voice_catalog.py</code> and <code>abstractvoice/adapters/tts_piper.py</code>).
 Supertonic supports fixed-style local TTS for <code>ar, bg, cs, da, de, el, en, es, et, fi, fr, hi, hr, hu, id, it, ja, ko, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi</code>.
 For other non-Piper providers (e.g. OmniVoice or remote OpenAI-compatible providers), <code>language</code> is treated as a pass-through hint and the provider decides what it supports.</p>
@@ -1747,16 +1808,17 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 </ul>
 </li>
 <li>
-<p><code>speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, sanitize_syntax: bool = True) -&gt; bytes</code></p>
+<p><code>speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -&gt; bytes</code></p>
 </li>
 <li>
 <p>Headless/server‑friendly: returns encoded audio bytes.</p>
 </li>
 <li>
-<p><code>speak_to_audio_chunks(text: str, *, voice: str | None = None, sanitize_syntax: bool = True) -&gt; Iterator[tuple[np.ndarray, int]]</code></p>
+<p><code>speak_to_audio_chunks(text: str, *, voice: str | None = None, instructions: str | None = None, sanitize_syntax: bool = True) -&gt; Iterator[tuple[np.ndarray, int]]</code></p>
 </li>
+<li>Headless/server‑friendly: yields <code>(audio_chunk, sample_rate)</code> tuples for incremental delivery.</li>
 <li>
-<p>Headless/server‑friendly: yields <code>(audio_chunk, sample_rate)</code> tuples for incremental delivery.</p>
+<p>Qwen3-TTS 1.7B CustomVoice and VoiceDesign accept per-call <code>instructions</code> without changing session state. Unsupported models and cloned speech reject streaming instructions explicitly.</p>
 </li>
 <li>
 <p><code>open_tts_text_stream(*, voice: str | None = None, callback=None, sanitize_syntax: bool = True, max_chars: int | None = None, min_chars: int | None = None) -&gt; TextToSpeechStream</code></p>
@@ -1766,10 +1828,119 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <p>Returned object supports: <code>.push(delta)</code>, <code>.close()</code>, <code>.cancel()</code>, <code>.join(timeout=...)</code>.</p>
 </li>
 <li>
-<p><code>speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, sanitize_syntax: bool = True) -&gt; str</code></p>
+<p><code>speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -&gt; str</code></p>
 </li>
 <li>Writes an audio file and returns the path.</li>
 </ul>
+<h3 id="qwen3-tts-checkpoints">Qwen3-TTS checkpoints<a class="headerlink" href="#qwen3-tts-checkpoints" title="Permanent link">&para;</a></h3>
+<p>Install <code>abstractvoice[qwen3-tts]</code> (Python 3.10+) and explicitly download each
+checkpoint you intend to use. Discovery lists cached checkpoints without
+loading their weights; synthesis loads the selected checkpoint on demand.</p>
+<table>
+<thead>
+<tr>
+<th>Checkpoint suffix</th>
+<th>Sizes</th>
+<th>Selection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CustomVoice</code></td>
+<td>0.6B, 1.7B</td>
+<td><code>tts_model=...</code>, preset via <code>set_profile("aiden")</code>; 1.7B also accepts instructions</td>
+</tr>
+<tr>
+<td><code>VoiceDesign</code></td>
+<td>1.7B</td>
+<td><code>tts_model=...</code>, required natural-language <code>instructions</code></td>
+</tr>
+<tr>
+<td><code>Base</code></td>
+<td>0.6B, 1.7B</td>
+<td><code>cloning_engine="qwen3-tts"</code>, <code>cloning_model=...</code> or per-clone <code>model=...</code></td>
+</tr>
+</tbody>
+</table>
+<p>Full ids follow <code>Qwen/Qwen3-TTS-12Hz-&lt;size&gt;-&lt;suffix&gt;</code>. TTS defaults to
+<code>Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice</code>, cloning to the corresponding <code>Base</code>.
+Supported language codes are <code>en</code>, <code>zh</code>, <code>ja</code>, <code>ko</code>, <code>de</code>, <code>fr</code>, <code>ru</code>, <code>pt</code>,
+<code>es</code>, and <code>it</code>. Long input is split into bounded segments in both buffered
+and streamed delivery, including text without spaces. Streamed output is
+sentence-segmented, not native codec-frame streaming.</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--qwen3-tts<span class="w"> </span>Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
+abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>qwen3-tts<span class="w"> </span>--tts-model<span class="w"> </span>Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--instructions<span class="w"> </span><span class="s2">"A warm, clear narrator."</span><span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"Hello from Qwen."</span><span class="w"> </span>--output<span class="w"> </span>hello.wav
+abstractvoice<span class="w"> </span>web<span class="w"> </span>--tts-engine<span class="w"> </span>qwen3-tts<span class="w"> </span>--cloning-engine<span class="w"> </span>qwen3-tts<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--cloning-model<span class="w"> </span>Qwen/Qwen3-TTS-12Hz-1.7B-Base
+</code></pre></div>
+<p>The web example exposes the TTS model, speech instructions, and Qwen cloning
+model beside their provider selectors. The REPL supports
+<code>/tts engine qwen3-tts</code>, <code>/tts_download qwen3-tts &lt;model-id&gt;</code> and
+<code>/cloning_download qwen3-tts &lt;Base-model-id&gt;</code>; use startup <code>--tts-model</code> and
+<code>--cloning-model</code> to select checkpoints. Switching providers resets the
+model to the target provider's default; switching within a provider retains
+its configured model unless an override is supplied.</p>
+<p>Through AbstractCore, use <code>core.voice.tts(...)</code>, <code>core.voice.tts_stream(...)</code>
+or <code>core.voice.clone(...)</code> with <code>provider="qwen3-tts"</code> and <code>model=&lt;checkpoint&gt;</code>.
+<code>core.voice.voice_catalog(provider="qwen3-tts", model=&lt;checkpoint&gt;)</code> filters
+profiles and stored clones by checkpoint. Plugin defaults can be configured
+with the <code>voice_cloning_model</code> setting, separately from <code>voice_tts_model</code>.</p>
+<h4 id="qwen-performance-controls">Qwen performance controls<a class="headerlink" href="#qwen-performance-controls" title="Permanent link">&para;</a></h4>
+<p>Qwen uses the shared automatic GPU/device policy and a specialized codebook
+predictor by default, retaining PyTorch's multinomial sampler. No additional
+vendor SDK is required. Unsupported generation settings use the original
+Transformers path with a <code>#FALLBACK</code> warning.</p>
+<p>The CLI, web example and AbstractCore plugin always use these defaults. Library
+integrators can choose per runtime through <code>Qwen3TTSSettings</code>; the runtime reads
+them when it loads the model (unload and reload a resident model to change them):</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>Options</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>predictor</code></td>
+<td><code>auto</code></td>
+<td><code>auto</code>: guarded specialized loop; <code>reference</code>: original Transformers generation</td>
+</tr>
+<tr>
+<td><code>sampler</code></td>
+<td><code>multinomial</code></td>
+<td><code>multinomial</code>: standard sampler; <code>exponential</code>: opt-in exponential-race sampler with frame-level validation</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.adapters.tts_qwen3_tts</span><span class="w"> </span><span class="kn">import</span> <span class="n">Qwen3TTSAdapter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.qwen3_tts.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">Qwen3TTSRuntime</span><span class="p">,</span> <span class="n">Qwen3TTSSettings</span>
+
+<span class="n">runtime</span> <span class="o">=</span> <span class="n">Qwen3TTSRuntime</span><span class="p">(</span>
+    <span class="s2">"Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"</span><span class="p">,</span>
+    <span class="n">settings</span><span class="o">=</span><span class="n">Qwen3TTSSettings</span><span class="p">(</span><span class="n">sampler</span><span class="o">=</span><span class="s2">"exponential"</span><span class="p">),</span>  <span class="c1"># or predictor="reference"</span>
+<span class="p">)</span>
+<span class="n">adapter</span> <span class="o">=</span> <span class="n">Qwen3TTSAdapter</span><span class="p">(</span><span class="n">runtime</span><span class="o">=</span><span class="n">runtime</span><span class="p">)</span>
+</code></pre></div>
+<p>An invalid value raises <code>ValueError</code> before any weights load.</p>
+<p><code>reference</code> takes precedence over the sampler choice. Automatic fallback also
+uses the original sampler. Exponential sampling validates all distributions
+before returning a complete codebook frame; invalid probabilities raise without
+emitting that frame. Failed requests may consume more random numbers than the
+standard sampler because validation happens at the frame boundary. Reproducibility
+across different hardware or PyTorch versions is not guaranteed.</p>
+<p>Model loading adds cold-start latency; keep the model resident for repeated
+requests. PyTorch version also matters on Apple Silicon: M5 Max measurements
+with Torch 2.12.0 / Transformers 5.8.1 were substantially faster than Torch 2.8.0
+/ Transformers 5.8.0. Compare warm generation time against audio duration in
+the Python environment running your CLI or plugin; an optimized sampler alone
+does not guarantee realtime throughput.</p>
+<p>Faster inference does not imply native audio streaming: <code>/tts delivery
+buffered</code> waits for complete synthesis, while <code>streamed</code> delivers independently
+synthesized text segments progressively. Neither setting enables native Qwen
+codec-frame streaming.</p>
 <h3 id="language-voice-selection">Language &amp; voice selection<a class="headerlink" href="#language-voice-selection" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>set_language(language: str) -&gt; bool</code></li>
@@ -1921,6 +2092,7 @@ is OmniVoice:</p>
 <li><code>abstractvoice[cloning]</code> → <code>f5_tts</code></li>
 <li><code>abstractvoice[chroma]</code> → <code>chroma</code></li>
 <li><code>abstractvoice[audiodit]</code> → <code>audiodit</code></li>
+<li><code>abstractvoice[qwen3-tts]</code> → <code>qwen3-tts</code> (Base checkpoints)</li>
 </ul>
 <p>Supertonic is not listed here because it is fixed-profile base TTS, not a
 voice-cloning provider.</p>
@@ -1937,8 +2109,8 @@ as <code>ABSTRACTVOICE_OPENAI_VOICE_CONSENT_ID</code>; otherwise the adapter rai
 actionable error instead of silently pretending cloning is standardized.</p>
 <p>Core cloning calls:</p>
 <ul>
-<li><code>clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -&gt; str</code></li>
-<li><code>clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -&gt; str</code></li>
+<li><code>clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None) -&gt; str</code></li>
+<li><code>clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None) -&gt; str</code></li>
 <li><code>speak(..., voice="&lt;voice_id&gt;")</code> / <code>speak_to_bytes(..., voice="&lt;voice_id&gt;")</code> / <code>speak_to_file(..., voice="&lt;voice_id&gt;")</code></li>
 <li><code>list_cloned_voices()</code>, <code>get_cloned_voice(voice_id: str) -&gt; dict</code></li>
 </ul>
