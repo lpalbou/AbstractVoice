@@ -9,6 +9,11 @@ from .store import VoiceCloneStore
 _REMOTE_CLONING_ENGINES = {"openai", "openai-compatible", "remote"}
 
 
+def get_supported_cloning_engines() -> list[str]:
+    """Public engine ids, without importing or loading optional runtimes."""
+    return ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts", "openai", "openai-compatible"]
+
+
 def _normalize_cloning_engine(engine: str | None) -> str:
     name = str(engine or "").strip().lower().replace("_", "-")
     if name in ("f5-tts", "f5tts", "openf5", "open-f5"):
@@ -33,6 +38,7 @@ class VoiceCloner:
         reference_text_whisper_model: str = "small",
         allow_downloads: bool = True,
         default_engine: str = "omnivoice",
+        default_model: str | None = None,
         remote_base_url: str | None = None,
         remote_api_key: str | None = None,
         remote_timeout_s: float | None = None,
@@ -45,6 +51,7 @@ class VoiceCloner:
         self._reference_text_whisper_model = reference_text_whisper_model
         self._allow_downloads = bool(allow_downloads)
         self._default_engine = _normalize_cloning_engine(default_engine) or "omnivoice"
+        self._default_model = str(default_model).strip() if default_model else None
         self._remote_base_url = str(remote_base_url).strip() if remote_base_url else None
         self._remote_api_key = str(remote_api_key).strip() if remote_api_key else None
         self._remote_timeout_s = remote_timeout_s
@@ -53,12 +60,22 @@ class VoiceCloner:
         self._engines: Dict[str, Any] = {}
         self._quality_preset = "standard"
 
-    def _get_engine(self, engine: str) -> Any:
+    def _get_engine(self, engine: str, *, model_id: str | None = None) -> Any:
         name = _normalize_cloning_engine(engine)
         if not name:
             raise ValueError("engine must be a non-empty string")
+        if name == "qwen3-tts":
+            from .engine_qwen3_tts import Qwen3TTSVoiceCloningEngine
+
+            model_id = model_id or self._default_model or Qwen3TTSVoiceCloningEngine.DEFAULT_BASE_MODEL_ID
         if name in self._engines:
-            return self._engines[name]
+            cached = self._engines[name]
+            if name != "qwen3-tts" or cached._model_id == model_id:
+                return cached
+            # Keep one checkpoint resident per engine; stored clones may use
+            # different model sizes, but must never silently reuse the wrong one.
+            cached.unload()
+            del self._engines[name]
 
         # Lazy-load engines to avoid surprise model downloads during list/store operations.
         if name == "f5_tts":
@@ -98,6 +115,7 @@ class VoiceCloner:
                 debug=self.debug,
                 device="auto",
                 allow_downloads=bool(self._allow_downloads),
+                model_id=model_id,
             )
         elif name in _REMOTE_CLONING_ENGINES:
             from .engine_remote import RemoteVoiceCloningEngine
@@ -124,6 +142,27 @@ class VoiceCloner:
 
         self._engines[name] = inst
         return inst
+
+    def _get_engine_for_voice(self, voice: Any) -> Any:
+        name = _normalize_cloning_engine(voice.engine or "f5_tts")
+        if name == "qwen3-tts":
+            from ..qwen3_tts.runtime import DEFAULT_BASE_MODEL_ID
+
+            model_id = (voice.meta or {}).get("model_id") or DEFAULT_BASE_MODEL_ID
+            return self._get_engine(name, model_id=model_id)
+        return self._get_engine(name)
+
+    def _clone_metadata(self, engine: str, meta: dict | None = None, *, model: str | None = None) -> dict:
+        result = dict(meta or {})
+        if model and engine != "qwen3-tts":
+            raise ValueError("Per-clone local model selection is supported by qwen3-tts only")
+        if engine == "qwen3-tts":
+            from ..qwen3_tts.runtime import DEFAULT_BASE_MODEL_ID, KNOWN_MODEL_IDS
+
+            result["model_id"] = model or self._default_model or DEFAULT_BASE_MODEL_ID
+            if result["model_id"] in KNOWN_MODEL_IDS and not result["model_id"].endswith("-Base"):
+                raise ValueError("Qwen3-TTS cloning requires a Base checkpoint")
+        return result
 
     def set_quality_preset(self, preset: str) -> None:
         # Best-effort across loaded engines (new engines are lazy-instantiated).
@@ -177,7 +216,7 @@ class VoiceCloner:
                 engine_name = voice_engine
 
         engine_cached_before = engine_name in self._engines
-        inst = self._get_engine(engine_name)
+        inst = self._get_engine_for_voice(self.store.get_voice(voice_text)) if voice_text else self._get_engine(engine_name)
         engine_cached_after = engine_name in self._engines
         local = engine_name not in _REMOTE_CLONING_ENGINES
         warmed_via_steps: list[str] = ["engine_instance"]
@@ -324,6 +363,7 @@ class VoiceCloner:
         *,
         reference_text: str | None = None,
         engine: str | None = None,
+        model: str | None = None,
     ) -> str:
         """Create a new cloned voice from a file or directory.
 
@@ -336,7 +376,7 @@ class VoiceCloner:
         supported = {".wav", ".flac", ".ogg"}
 
         engine_name = _normalize_cloning_engine(engine or self._default_engine)
-        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", "qwen3-tts", *_REMOTE_CLONING_ENGINES):
+        if engine_name not in (*get_supported_cloning_engines(), "remote"):
             raise ValueError("engine must be one of: omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible")
         if engine_name in _REMOTE_CLONING_ENGINES:
             supported = supported | {".mp3", ".mpeg", ".mpga", ".m4a", ".webm", ".aac"}
@@ -378,7 +418,7 @@ class VoiceCloner:
             name=name,
             reference_text=reference_text,
             engine=engine_name,
-            meta={"source": str(p)},
+            meta=self._clone_metadata(engine_name, {"source": str(p)}, model=model),
         )
         return voice_id
 
@@ -390,16 +430,17 @@ class VoiceCloner:
         reference_text: str | None = None,
         engine: str | None = None,
         meta: Dict[str, Any] | None = None,
+        model: str | None = None,
     ) -> str:
         """Create a new cloned voice from an in-memory WAV payload."""
         if not wav_bytes:
             raise ValueError("wav_bytes must be non-empty")
 
         engine_name = _normalize_cloning_engine(engine or self._default_engine)
-        if engine_name not in ("f5_tts", "chroma", "audiodit", "omnivoice", "qwen3-tts", *_REMOTE_CLONING_ENGINES):
+        if engine_name not in (*get_supported_cloning_engines(), "remote"):
             raise ValueError("engine must be one of: omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible")
 
-        meta_out = dict(meta or {})
+        meta_out = self._clone_metadata(engine_name, meta, model=model)
         meta_out.setdefault("source", "bytes")
 
         if engine_name in _REMOTE_CLONING_ENGINES:
@@ -620,7 +661,7 @@ class VoiceCloner:
             pass
         ref_paths = self.store.resolve_reference_paths(voice_id)
         ref_text = self._ensure_reference_text(voice_id)
-        eng = self._get_engine(getattr(voice, "engine", None) or "f5_tts")
+        eng = self._get_engine_for_voice(voice)
         return eng.infer_to_wav_bytes(
             text=text,
             reference_paths=ref_paths,
@@ -658,7 +699,7 @@ class VoiceCloner:
             pass
         ref_paths = self.store.resolve_reference_paths(voice_id)
         ref_text = self._ensure_reference_text(voice_id)
-        eng = self._get_engine(getattr(voice, "engine", None) or "f5_tts")
+        eng = self._get_engine_for_voice(voice)
         return eng.infer_to_audio_chunks(
             text=text,
             reference_paths=ref_paths,

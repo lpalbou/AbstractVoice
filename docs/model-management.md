@@ -69,6 +69,12 @@ listing stays fast even when heavy engines are installed. Where presence is read
 | `omnivoice` | a cached Hugging Face snapshot holding weights | `~/.cache/huggingface` |
 | `qwen3-tts` | a cached Hugging Face snapshot holding weights | `~/.cache/huggingface` |
 
+For Qwen3-TTS, choose downloaded CustomVoice or VoiceDesign checkpoints with
+`--tts-model` / `VoiceManager(tts_model=...)`. Choose Base checkpoints with
+`--cloning-model` / `VoiceManager(cloning_model=...)`; this is independent of
+the base TTS model. Stored Qwen clones retain their chosen checkpoint. See
+[Qwen3-TTS checkpoints](api.md#qwen3-tts-checkpoints) for CLI, web, and plugin examples.
+
 A consequence worth knowing: an engine whose extra is installed but whose weights are not downloaded
 yet does **not** appear in provider listings. Selecting it still works and still downloads on demand
 when `allow_downloads=True` — only discovery is affected. Prefetch it (see above) to have it listed.

@@ -16,13 +16,14 @@ from typing import Any, Iterable, Optional
 import numpy as np
 import soundfile as sf
 
+from ..qwen3_tts.runtime import DEFAULT_BASE_MODEL_ID
 
 class Qwen3TTSVoiceCloningEngine:
     """Cloning over :class:`abstractvoice.qwen3_tts.runtime.Qwen3TTSRuntime`."""
 
     engine_id = "qwen3-tts"
 
-    DEFAULT_BASE_MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+    DEFAULT_BASE_MODEL_ID = DEFAULT_BASE_MODEL_ID
 
     def __init__(
         self,

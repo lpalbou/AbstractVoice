@@ -1,3 +1,5 @@
+import pytest
+
 from abstractvoice.tts.text_chunking import (
     TextStreamChunker,
     TextStreamChunkingConfig,
@@ -45,3 +47,19 @@ def test_split_complete_text_for_streaming_keeps_fast_first_segment_but_batches_
     assert batches[0] == "CONFIRMED:"
     assert len(batches) < 20
     assert "this first phrase" in " ".join(batches)
+
+
+@pytest.mark.parametrize("text", ["测试这是连续的中文句子。" * 80, "日本語の長い文章です。" * 80, "a" * 1000, "a" * 1000 + ". Next sentence."])
+@pytest.mark.parametrize("splitter", [split_text_batches, split_complete_text_for_streaming])
+def test_multilingual_batches_enforce_hard_limit_without_losing_text(text, splitter):
+    batches = splitter(text, max_chars=200)
+    assert all(0 < len(chunk) <= 200 for chunk in batches)
+    assert "".join(batches).replace(" ", "") == text.replace(" ", "")
+
+
+def test_incremental_chunker_respects_cap_before_a_late_sentence_boundary():
+    chunker = TextStreamChunker(config=TextStreamChunkingConfig(max_chars=200))
+    text = "a" * 1000 + ". Next sentence."
+    chunks = chunker.push(text) + chunker.flush()
+    assert all(len(chunk) <= 200 for chunk in chunks)
+    assert "".join(chunks).replace(" ", "") == text.replace(" ", "")

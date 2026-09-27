@@ -15,6 +15,8 @@
 #      maintains cache_position for in-repo models, and 4.57 passed only the last step's ids.
 #   7. Weights are loaded by orchestration.py via safetensors + load_state_dict(strict=True):
 #      transformers 5.8's from_pretrained reported success while assigning nothing for this class.
+#   8. The talker's private codebook call uses package-owned predictor.generate_codebooks;
+#      public generate() is unchanged and remains the guarded reference path.
 
 # coding=utf-8
 # Copyright 2026 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
@@ -41,6 +43,7 @@ import huggingface_hub
 import torch
 from huggingface_hub import snapshot_download
 from ._mel import librosa_mel_fn
+from .predictor import generate_codebooks
 from torch import nn
 from torch.nn import functional as F
 from transformers.activations import ACT2FN
@@ -1687,20 +1690,19 @@ class Qwen3TTSTalkerForConditionalGeneration(Qwen3TTSTalkerTextPreTrainedModel, 
         # Generate
         else:
             last_id_hidden = self.get_input_embeddings()(input_ids)
-            predictor_result = self.code_predictor.generate(
+            residual_ids = generate_codebooks(
+                self.code_predictor,
                 inputs_embeds=torch.cat((past_hidden, last_id_hidden), dim=1),
                 max_new_tokens=self.config.num_code_groups - 1,
                 do_sample=subtalker_dosample,
                 top_p=subtalker_top_p,
                 top_k=subtalker_top_k,
                 temperature=subtalker_temperature,
-                output_hidden_states=True,
-                return_dict_in_generate=True,
             )
-            codec_ids = torch.cat((input_ids, predictor_result.sequences), dim=-1)
+            codec_ids = torch.cat((input_ids, residual_ids), dim=-1)
             codec_hiddens = torch.cat(
                 [last_id_hidden]
-                + [self.code_predictor.get_input_embeddings()[i](predictor_result.sequences[..., i:i+1]) for i in range(self.config.num_code_groups - 1)],
+                + [self.code_predictor.get_input_embeddings()[i](residual_ids[..., i:i+1]) for i in range(self.config.num_code_groups - 1)],
                 dim=1,
             )
             inputs_embeds = codec_hiddens.sum(1, keepdim=True)

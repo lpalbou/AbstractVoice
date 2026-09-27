@@ -523,7 +523,7 @@ def test_web_ui_tts_engine_switch_resets_role_voice_and_default_profile():
 
     assert switched.status_code == 200
     payload = switched.json()
-    assert dummy.switches == [{"engine": "supertonic", "tts_model": None}]
+    assert dummy.switches == [{"engine": "supertonic", "tts_model": ""}]
     assert payload["tts_engine"] == "supertonic"
     assert payload["current"]["role_voices"]["assistant"] is None
     assert payload["current"]["profile"]["profile_id"] == "M1"

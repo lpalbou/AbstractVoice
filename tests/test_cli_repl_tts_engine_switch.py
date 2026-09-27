@@ -107,7 +107,8 @@ def test_repl_tts_engine_rejects_local_policy_alias(capsys) -> None:
 
     assert vm.calls == []
     out = capsys.readouterr().out
-    assert "Usage: /tts_engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice" in out
+    assert "Usage: /tts_engine " in out
+    assert "qwen3-tts" in out
     assert "local" not in out
 
 

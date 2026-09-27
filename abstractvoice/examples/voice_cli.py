@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+
+from abstractvoice.cloning.manager import get_supported_cloning_engines
 from abstractvoice.examples.cli_repl import VoiceREPL
 from abstractvoice.examples.llm_provider import PROVIDER_PRESETS, DEFAULT_PROVIDER, DEFAULT_MODEL
 
@@ -135,6 +137,7 @@ def parse_args(argv: list[str] | None = None):
 
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--instructions", default=None, help="One-shot TTS speaking style; required for Qwen3 VoiceDesign.")
     parser.add_argument("--verbose", action="store_true", help="Show per-turn performance stats")
     parser.add_argument(
         "--provider",
@@ -156,9 +159,10 @@ def parse_args(argv: list[str] | None = None):
     parser.add_argument(
         "--cloning-engine",
         default="omnivoice",
-        choices=["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
-        help="Default cloning backend for new voices (default: omnivoice; choices: omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible).",
+        choices=get_supported_cloning_engines(),
+        help="Default cloning backend for new voices (default: omnivoice).",
     )
+    parser.add_argument("--cloning-model", default=None, help="Cloning checkpoint id or local directory (Qwen3-TTS Base).")
     parser.add_argument(
         "--voice-mode",
         default="off",
@@ -183,7 +187,7 @@ def parse_args(argv: list[str] | None = None):
     )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
-    parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice)")
+    parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice|qwen3-tts)")
     parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|transformers-asr|auto)")
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines, or a Hugging Face model id when using transformers-asr (e.g. openai/whisper-large-v3, openai/whisper-large-v3-turbo, Qwen/Qwen3-ASR-1.7B)")
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
@@ -307,6 +311,7 @@ def _run_one_shot_tts(args, *, voice_manager_factory=None) -> str:
         remote_timeout_s=args.remote_timeout,
         allow_downloads=True,
         cloning_engine=args.cloning_engine,
+        cloning_model=args.cloning_model,
     )
     try:
         voice_for_call = _apply_tts_voice_profile(vm, args.voice)
@@ -315,6 +320,7 @@ def _run_one_shot_tts(args, *, voice_manager_factory=None) -> str:
             str(args.output),
             format=args.output_format,
             voice=voice_for_call,
+            **({"instructions": args.instructions} if args.instructions else {}),
         )
         print(f"Wrote {out_path}")
         return str(out_path)
@@ -377,6 +383,7 @@ def main():
                 voice_mode=args.voice_mode,
                 disable_tts=args.no_tts,
                 cloning_engine=args.cloning_engine,
+                cloning_model=args.cloning_model,
             )
             # Set temperature and max_tokens
             repl.temperature = args.temperature
@@ -398,6 +405,7 @@ def main():
                     tts_model=args.tts_model,
                     stt_model=args.stt_model,
                     cloning_engine=args.cloning_engine,
+                    cloning_model=args.cloning_model,
                     remote_base_url=args.remote_base_url,
                     remote_api_key=args.remote_api_key,
                     remote_timeout_s=args.remote_timeout,
@@ -447,6 +455,7 @@ def main():
             voice_mode=args.voice_mode,
             disable_tts=args.no_tts,
             cloning_engine=args.cloning_engine,
+            cloning_model=args.cloning_model,
         )
         
         # Set custom system prompt if provided

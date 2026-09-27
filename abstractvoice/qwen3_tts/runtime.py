@@ -18,9 +18,11 @@ from typing import Any, Optional
 
 import numpy as np
 
+from ..audio.fade import apply_edge_fades
 from ..compute import resolve_torch_runtime
 
 DEFAULT_MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+DEFAULT_BASE_MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
 
 # The five 12Hz repos this integration understands. Others load too — the gate
 # is `tts_model_type` read from the snapshot config, not this list.
@@ -42,6 +44,17 @@ _CODES_PER_SECOND = 12.5
 # normal generation long before the cap; a tight "fit" here silently truncated
 # half a sentence for slow presets, which is worse than a loose cap.
 _MIN_CHARS_PER_SECOND = 4.0
+
+
+def _finish_utterance(audio: np.ndarray, sample_rate: int) -> tuple[np.ndarray, int]:
+    """De-click completed utterances, before playback or file/plugin delivery.
+
+    Qwen can begin/end away from zero. Fade just 5 ms at each edge without
+    changing duration or the interior. Do not apply this to native codec packets:
+    those are contiguous pieces of one utterance, not independent waveforms.
+    """
+    sr = int(sample_rate)
+    return apply_edge_fades(audio, sample_rate=sr, fade_ms=5.0), sr
 
 
 def estimate_max_new_tokens(text: str, *, floor: int = 96, ceiling: int = 2048) -> int:
@@ -137,6 +150,8 @@ class Qwen3TTSRuntime:
         self._model = None  # orchestration.Qwen3TTSModel
         self._resolved_device: Optional[str] = None
         self._resolved_dtype: Optional[str] = None
+        self._predictor_mode: Optional[str] = None
+        self._sampler: Optional[str] = None
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ loading
@@ -209,12 +224,22 @@ class Qwen3TTSRuntime:
 
             from .orchestration import Qwen3TTSModel
 
+            predictor_mode = os.environ.get("ABSTRACTVOICE_QWEN3_TTS_PREDICTOR", "auto").strip().lower()
+            if predictor_mode not in {"auto", "reference"}:
+                raise ValueError("ABSTRACTVOICE_QWEN3_TTS_PREDICTOR must be auto or reference")
+            sampler = os.environ.get("ABSTRACTVOICE_QWEN3_TTS_SAMPLER", "multinomial").strip().lower()
+            if sampler not in {"multinomial", "exponential"}:
+                raise ValueError("ABSTRACTVOICE_QWEN3_TTS_SAMPLER must be multinomial or exponential")
             local_dir = self.snapshot_dir()
             runtime = self._resolve_runtime()
 
             model = Qwen3TTSModel.from_pretrained(local_dir, dtype=runtime.torch_dtype)
             model.model.to(runtime.resolved_device)
             model.model.eval()
+            model.model.talker.code_predictor._abstractvoice_predictor = predictor_mode
+            model.model.talker.code_predictor._abstractvoice_sampler = sampler
+            self._predictor_mode = predictor_mode
+            self._sampler = sampler
             # The codec pinned fp32 at load (see codec.py); move it to the device.
             codec = model.model.speech_tokenizer
             codec.model = codec.model.to(device=runtime.resolved_device)
@@ -320,6 +345,8 @@ class Qwen3TTSRuntime:
             "codec_dtype": "float32",
             "model_type": self.model_type() if self.is_loaded else None,
             "quality_preset": self.settings.quality_preset,
+            "predictor_mode": self._predictor_mode,
+            "sampler": "multinomial" if self._predictor_mode == "reference" else self._sampler,
         }
 
     # -------------------------------------------------------------- synthesis
@@ -346,7 +373,7 @@ class Qwen3TTSRuntime:
                 instruct=instruct or None,
                 **kwargs,
             )
-        return np.asarray(wavs[0], dtype=np.float32), int(sr)
+        return _finish_utterance(wavs[0], sr)
 
     def synthesize_voice_design(
         self,
@@ -378,7 +405,7 @@ class Qwen3TTSRuntime:
                 language=language or "Auto",
                 **kwargs,
             )
-        return np.asarray(wavs[0], dtype=np.float32), int(sr)
+        return _finish_utterance(wavs[0], sr)
 
     def build_clone_prompt(
         self,
@@ -421,7 +448,7 @@ class Qwen3TTSRuntime:
                 voice_clone_prompt=clone_prompt,
                 **kwargs,
             )
-        return np.asarray(wavs[0], dtype=np.float32), int(sr)
+        return _finish_utterance(wavs[0], sr)
 
 
 def prefetch_qwen3_tts(*, model_id: str = DEFAULT_MODEL_ID, allow_downloads: bool = True) -> str:

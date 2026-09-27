@@ -18,7 +18,7 @@ def print_examples():
     print("  check-deps - Check dependency compatibility")
     print("  download  - Explicitly prefetch model artifacts")
     print("\nUsage: python -m abstractvoice <example> [--language <lang>] [args...]")
-    print("\nSupported languages: en, fr, de, es, ru, zh")
+    print("\nLanguage support depends on the selected TTS provider.")
     print("\nExamples:")
     print("  python -m abstractvoice cli --language fr    # French CLI")
     print("  python -m abstractvoice web --port 5000      # Local web example")
@@ -107,8 +107,7 @@ def main():
     parser = argparse.ArgumentParser(description="AbstractVoice examples")
     parser.add_argument("example", nargs="?", help="Example to run (cli, web, simple, check-deps, download)")
     parser.add_argument("--language", "--lang", default="en",
-                      choices=["en", "fr", "de", "es", "ru", "zh"],
-                      help="Voice language for examples")
+                      help="Voice language for examples (provider-specific)")
 
     # Parse just the first argument and language
     args, remaining = parser.parse_known_args()

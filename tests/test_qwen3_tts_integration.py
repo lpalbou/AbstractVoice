@@ -140,12 +140,18 @@ def test_vendored_import_emits_no_error_lines(capsys):
 
 
 def test_mel_adapter_matches_librosa_bit_for_bit_enough():
-    librosa = pytest.importorskip("librosa")
+    # Librosa is only an optional reference oracle, not a Qwen dependency.
+    # Its lazy root import can succeed while filters/Numba cannot load (e.g.
+    # an unsupported NumPy version); check the actual oracle module.
+    try:
+        librosa_filters = importlib.import_module("librosa.filters")
+    except ImportError as exc:
+        pytest.skip(f"optional librosa reference unavailable: {exc}")
     pytest.importorskip("transformers")
     from abstractvoice.qwen3_tts._mel import librosa_mel_fn
 
     ours = librosa_mel_fn(sr=24000, n_fft=1024, n_mels=128, fmin=0, fmax=12000)
-    theirs = librosa.filters.mel(sr=24000, n_fft=1024, n_mels=128, fmin=0, fmax=12000)
+    theirs = librosa_filters.mel(sr=24000, n_fft=1024, n_mels=128, fmin=0, fmax=12000)
     assert ours.shape == theirs.shape == (128, 513)
     assert float(np.abs(ours - theirs).max()) < 1e-6
 

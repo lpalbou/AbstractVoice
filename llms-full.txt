@@ -8,6 +8,23 @@ Sources of truth:
 - Supported integrator contract: `docs/api.md`
 - Internal map + diagrams: `docs/architecture.md`
 
+Qwen performance: a guarded specialized codebook predictor with stock
+multinomial sampling is enabled by default. Set
+`ABSTRACTVOICE_QWEN3_TTS_SAMPLER=exponential` before model load to opt in to the
+exponential-race sampler, or `ABSTRACTVOICE_QWEN3_TTS_PREDICTOR=reference` to use
+the original Transformers path (which overrides sampler selection). Unsupported
+generation settings also fall back with a `#FALLBACK` warning. These controls
+apply to CLI, library, and AbstractCore plugin processes. Exponential sampling
+validates a complete frame before returning codes; invalid probabilities raise,
+and failed requests can consume additional RNG. No cross-hardware/version
+reproducibility guarantee. Keep models resident for warm inference; buffered
+delivery waits for complete synthesis and streamed delivery uses text segments,
+not native Qwen codec frames. See [Qwen performance controls](docs/api.md#qwen-performance-controls).
+Apple MPS throughput also depends on runtime versions: measured M5 Max inference
+was substantially faster with Torch 2.12.0 / Transformers 5.8.1 than Torch 2.8.0 /
+Transformers 5.8.0. Check the Python environment actually running the CLI/plugin;
+sampler selection alone does not guarantee realtime throughput.
+
 Requires Python `>=3.9` (see `pyproject.toml`).
 
 Offline-first rule: the REPL runs with `allow_downloads=False`, so downloads should be explicit (prefetch/download commands + clear errors).
@@ -161,6 +178,35 @@ Optional dependency groups (see `pyproject.toml`):
 - [Local web example](abstractvoice/examples/web_ui.py): browser TTS/STT smoke test
 
 ## Engines & adapters
+
+### Qwen3-TTS
+
+Install `abstractvoice[qwen3-tts]` on Python 3.10+ (Torch 2.4+) and explicitly prefetch each
+checkpoint with `python -m abstractvoice download --qwen3-tts <model-id>`.
+Full ids use `Qwen/Qwen3-TTS-12Hz-<size>-<suffix>`:
+
+- CustomVoice (0.6B/1.7B): `tts_engine="qwen3-tts"`, select `tts_model` and
+  a preset via `set_profile("aiden")`. The default is 0.6B CustomVoice.
+- VoiceDesign (1.7B): select the VoiceDesign checkpoint and pass a required
+  voice description via `instructions` to byte/file or chunked synthesis.
+- Base (0.6B/1.7B): `cloning_engine="qwen3-tts"`, choose `cloning_model`
+  independently from base TTS, or pass per-clone `model=...`. The selected
+  checkpoint is persisted in clone metadata; legacy records use 0.6B Base.
+
+The CLI/web expose `--cloning-model` and `--tts-model`. One-shot synthesis
+accepts `--instructions`; the web form exposes model selectors and instructions.
+Through AbstractCore use `core.voice.tts(...)`, `core.voice.tts_stream(...)`,
+and `core.voice.clone(...)` with `provider="qwen3-tts"`, `model=<checkpoint>`.
+Use `core.voice.voice_catalog(provider="qwen3-tts", model=<checkpoint>)` for
+model-filtered voices. Configure plugin clone defaults with
+`voice_cloning_model` or `ABSTRACTVOICE_CLONING_MODEL`.
+
+1.7B CustomVoice/VoiceDesign support per-call instructions in chunked output;
+unsupported models and cloned speech reject streaming instructions explicitly.
+Long text is bounded in both buffered and streamed output, including continuous
+Chinese/Japanese text. Delivery is sentence-segmented, not native codec-frame
+streaming. Switching providers resets a foreign model id to the target default.
+See [the complete Qwen API guide](docs/api.md#qwen3-tts-checkpoints).
 - [Adapters base types](abstractvoice/adapters/base.py)
 - [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): voice selection + caching + synthesis
 - [Supertonic TTS adapter](abstractvoice/adapters/tts_supertonic.py): fixed-profile ONNX TTS (`M1`-`M5`, `F1`-`F5`)

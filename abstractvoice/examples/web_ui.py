@@ -22,6 +22,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from abstractvoice.adapters.tts_registry import get_supported_tts_engines
+from abstractvoice.cloning.manager import get_supported_cloning_engines
 from abstractvoice.examples.llm_provider import DEFAULT_MODEL, DEFAULT_PROVIDER, resolve_provider
 from abstractvoice.examples.tts_defaults import normalize_tts_engine_name, resolve_interactive_tts_engine
 
@@ -548,6 +550,7 @@ PAGE = r"""
                 <option value="openai-compatible">OpenAI-compatible</option>
                 <option value="audiodit">AudioDiT</option>
                 <option value="omnivoice">OmniVoice</option>
+                <option value="qwen3-tts">Qwen3-TTS</option>
               </select>
             </label>
             <label>Base TTS Profile
@@ -556,6 +559,11 @@ PAGE = r"""
               </select>
             </label>
           </div>
+          <label>TTS model
+            <input id="tts-model" list="tts-model-options" placeholder="Provider default">
+            <datalist id="tts-model-options"></datalist>
+          </label>
+          <div class="actions"><button id="apply-tts-model" type="button" class="secondary">Apply model</button></div>
           <div class="grid2">
             <label>Assistant Voice
               <select id="assistant-voice-choice">
@@ -588,6 +596,7 @@ PAGE = r"""
             <label>Provider
               <select id="clone-engine">
                 <option value="omnivoice" selected>OmniVoice</option>
+                <option value="qwen3-tts">Qwen3-TTS</option>
                 <option value="f5_tts">OpenF5</option>
                 <option value="chroma">Chroma</option>
                 <option value="audiodit">AudioDiT</option>
@@ -598,6 +607,9 @@ PAGE = r"""
           </div>
           <label>Reference Audio
             <input id="clone-file" type="file" accept=".wav,.flac,.ogg,.mp3,.m4a,.webm,.aac,audio/*">
+          </label>
+          <label>Cloning model (Qwen3-TTS Base)
+            <input id="clone-model" placeholder="Provider default; Qwen3-TTS uses a Base checkpoint">
           </label>
           <label>Reference Text
             <textarea id="clone-reference-text" class="compact"></textarea>
@@ -623,6 +635,9 @@ PAGE = r"""
           </label>
           <label>Text
             <textarea id="tts-text">Hello from AbstractVoice.</textarea>
+          </label>
+          <label>Voice instructions
+            <textarea id="tts-instructions" class="compact" placeholder="Optional speaking style; required for Qwen3 VoiceDesign."></textarea>
           </label>
           <div class="actions">
             <button id="speak" type="button">Speak</button>
@@ -718,6 +733,7 @@ PAGE = r"""
       {role: "assistant", text: "First item: keep voice selection clear. Second item: keep the HTTP example mapped to VoiceManager."}
     ];
     let optionalDependencies = {};
+    let cloneDefaultsApplied = false;
 
     function setMessage(el, text, kind) {
       el.textContent = text;
@@ -871,6 +887,9 @@ PAGE = r"""
         const firstReady = Array.from(cloneEngineInput.options).find((opt) => !opt.disabled);
         if (firstReady) cloneEngineInput.value = firstReady.value;
       }
+      const cloneModelInput = document.getElementById("clone-model");
+      cloneModelInput.disabled = cloneEngineInput.value !== "qwen3-tts";
+      if (cloneModelInput.disabled) cloneModelInput.value = "";
     }
 
     function updateProfileEngineUi() {
@@ -897,6 +916,8 @@ PAGE = r"""
         role: speakerRole
       };
       if (Number.isFinite(speed)) payload.speed = speed;
+      const instructions = document.getElementById("tts-instructions").value.trim();
+      if (instructions) payload.instructions = instructions;
       if (voice && voice !== "base") payload.voice = voice;
       return payload;
     }
@@ -1136,6 +1157,22 @@ PAGE = r"""
           ttsEngineChoice.value = currentProvider;
         }
         optionalDependencies = data.optional_dependencies || {};
+        if (!cloneDefaultsApplied && data.defaults) {
+          const cloneProvider = String(data.defaults.cloning_engine || "").replace("f5-tts", "f5_tts");
+          if (Array.from(cloneEngineInput.options).some((o) => o.value === cloneProvider)) {
+            cloneEngineInput.value = cloneProvider;
+          }
+          document.getElementById("clone-model").value = data.defaults.cloning_model || "";
+          cloneDefaultsApplied = true;
+        }
+        document.getElementById("tts-model").value = (data.current && data.current.tts_model) || (data.defaults && data.defaults.tts_model) || "";
+        const modelOptions = document.getElementById("tts-model-options");
+        modelOptions.replaceChildren();
+        for (const model of ((data.tts_models || {})[currentProvider] || [])) {
+          const option = document.createElement("option");
+          option.value = model;
+          modelOptions.appendChild(option);
+        }
         updateOptionalEngineUi();
         updateProfileEngineUi();
       } catch (_) {
@@ -1260,11 +1297,12 @@ PAGE = r"""
         const data = await withBusy("Switching TTS provider", detail, () => fetchJson("/api/tts/provider", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({provider})
+          body: JSON.stringify({provider, model: document.getElementById("tts-model").value.trim()})
         }));
         const profile = data.current && data.current.profile;
         const suffix = profile && profile.profile_id ? " Profile: " + profile.profile_id + "." : "";
         await refreshVoices();
+        await refreshStatus();
         setMessage(voiceMessage, "TTS provider set to " + (data.tts_provider || data.tts_engine || provider) + "." + suffix, "ok");
       } catch (err) {
         await refreshVoices();
@@ -1565,6 +1603,8 @@ PAGE = r"""
       const cloneProvider = cloneEngineInput.value || "omnivoice";
       form.append("provider", cloneProvider);
       form.append("engine", cloneProvider);
+      const cloneModel = document.getElementById("clone-model").value.trim();
+      if (cloneModel && cloneProvider === "qwen3-tts") form.append("model", cloneModel);
       form.append("reference_text", cloneReferenceTextInput.value.trim());
       form.append("validate", "true");
 
@@ -1624,7 +1664,17 @@ PAGE = r"""
     document.getElementById("transcribe").addEventListener("click", transcribe);
     document.getElementById("refresh-models").addEventListener("click", refreshModels);
     document.getElementById("refresh-voices").addEventListener("click", () => withBusy("Loading TTS voices", "Reading local profiles and cloned voices; the first run may initialize the TTS provider.", refreshVoices));
-    ttsEngineChoice.addEventListener("change", selectTtsEngine);
+    ttsEngineChoice.addEventListener("change", () => {
+      document.getElementById("tts-model").value = "";
+      selectTtsEngine();
+    });
+    document.getElementById("apply-tts-model").addEventListener("click", selectTtsEngine);
+    cloneEngineInput.addEventListener("change", () => {
+      const modelInput = document.getElementById("clone-model");
+      modelInput.value = "";
+      modelInput.disabled = cloneEngineInput.value !== "qwen3-tts";
+    });
+    document.getElementById("clone-model").disabled = cloneEngineInput.value !== "qwen3-tts";
     assistantVoiceChoice.addEventListener("change", () => selectRoleVoice("assistant"));
     userVoiceChoice.addEventListener("change", () => selectRoleVoice("user"));
     profileChoice.addEventListener("change", selectProfile);
@@ -1652,6 +1702,7 @@ class ExampleState:
         tts_model: Optional[str] = None,
         stt_model: Optional[str] = None,
         cloning_engine: str = "omnivoice",
+        cloning_model: Optional[str] = None,
         remote_base_url: Optional[str] = None,
         remote_api_key: Optional[str] = None,
         remote_timeout_s: Optional[float] = None,
@@ -1665,6 +1716,7 @@ class ExampleState:
         self.stt_engine = str(stt_engine or "openai").strip().lower().replace("_", "-") or "openai"
         self.whisper_model = str(whisper_model or "base").strip() or "base"
         self.tts_model = str(tts_model).strip() if isinstance(tts_model, str) and tts_model.strip() else None
+        self.cloning_model = cloning_model
         self.stt_model = str(stt_model).strip() if isinstance(stt_model, str) and stt_model.strip() else None
         self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower().replace("_", "-") or "omnivoice"
         self.remote_base_url = (
@@ -1704,6 +1756,7 @@ class ExampleState:
                 allow_downloads=self.allow_downloads,
                 cloned_tts_streaming=False,
                 cloning_engine=self.cloning_engine,
+                cloning_model=self.cloning_model,
                 remote_base_url=self.remote_base_url,
                 remote_api_key=self.remote_api_key,
                 remote_timeout_s=self.remote_timeout_s,
@@ -1744,6 +1797,7 @@ class ExampleState:
                     "tts_model": self.tts_model,
                     "stt_model": self.stt_model,
                     "cloning_engine": self.cloning_engine,
+                    "cloning_model": self.cloning_model,
                     "cloning_provider": self.cloning_engine,
                     "remote_base_url": self.remote_base_url,
                     "remote_api_key_configured": bool(self.remote_api_key),
@@ -1754,8 +1808,14 @@ class ExampleState:
                 },
                 "current": current,
                 "optional_dependencies": optional_dependency_status(),
+                "tts_models": self._cached_tts_models(),
                 "routes": LOCAL_ROUTES,
             }
+
+    def _cached_tts_models(self) -> dict[str, list[str]]:
+        from abstractvoice.local_models import cached_tts_model_ids
+
+        return {engine: cached_tts_model_ids(engine) for engine in get_supported_tts_engines()}
 
     def _current_loaded_state(self, vm: Any) -> dict[str, Any]:
         out: dict[str, Any] = {}
@@ -1772,6 +1832,7 @@ class ExampleState:
             engine_id = str(getattr(adapter, "engine_id", "") or getattr(vm, "_tts_engine_name", "") or "")
             out["tts_engine"] = engine_id
             out["tts_provider"] = engine_id
+            out["tts_model"] = getattr(adapter, "model_id", None) or self.tts_model
         except Exception:
             pass
         try:
@@ -1970,15 +2031,15 @@ class ExampleState:
                 return {"ok": True, "current": self.status_dict()["current"]}
         raise ValueError("Voice kind must be base, clone, or profile.")
 
-    def set_tts_provider(self, provider: str) -> dict[str, Any]:
-        return self.set_tts_engine(provider)
+    def set_tts_provider(self, provider: str, *, model: Optional[str] = None) -> dict[str, Any]:
+        return self.set_tts_engine(provider, model=model)
 
-    def set_tts_engine(self, engine: str) -> dict[str, Any]:
+    def set_tts_engine(self, engine: str, *, model: Optional[str] = None) -> dict[str, Any]:
         requested = str(engine or "").strip().lower().replace("_", "-")
         if requested in ("remote", "compatible", "proxy"):
             requested = "openai-compatible"
-        if requested not in {"openai", "openai-compatible", "piper", "supertonic", "audiodit", "omnivoice", "auto"}:
-            raise ValueError("TTS provider must be auto, supertonic, piper, openai, openai-compatible, audiodit, or omnivoice.")
+        if requested not in get_supported_tts_engines():
+            raise ValueError("TTS provider must be one of: " + ", ".join(get_supported_tts_engines()))
         requested = resolve_interactive_tts_engine(requested, language=self.language)
 
         with self.lock:
@@ -1986,8 +2047,12 @@ class ExampleState:
             switch = getattr(vm, "set_tts_engine", None)
             if not callable(switch):
                 raise RuntimeError("The active VoiceManager does not support TTS provider switching.")
-            resolved = str(switch(requested, tts_model=self.tts_model) or requested)
+            model_id = self.tts_model if requested == self.tts_engine else None
+            if model is not None:
+                model_id = str(model).strip() or None
+            resolved = str(switch(requested, tts_model=model_id or "") or requested)
             self.tts_engine = resolved
+            self.tts_model = model_id
             try:
                 self.language = str(vm.get_language())
             except Exception:
@@ -2005,6 +2070,7 @@ class ExampleState:
         role: Optional[str] = None,
         language: Optional[str] = None,
         speed: Optional[float] = None,
+        instructions: Optional[str] = None,
         sanitize_syntax: bool = True,
     ) -> tuple[bytes, Optional[dict[str, Any]]]:
         speak_text = str(text or "").strip()
@@ -2059,6 +2125,7 @@ class ExampleState:
                     format=audio_format,
                     voice=selected_voice,
                     sanitize_syntax=bool(sanitize_syntax),
+                    **({"instructions": instructions} if instructions else {}),
                 )
                 metrics = None
                 try:
@@ -2130,6 +2197,7 @@ class ExampleState:
         filename: str = "reference.wav",
         name: Optional[str] = None,
         engine: Optional[str] = None,
+        model: Optional[str] = None,
         reference_text: Optional[str] = None,
         validate: bool = True,
     ) -> dict[str, Any]:
@@ -2164,6 +2232,7 @@ class ExampleState:
                     name=(str(name or "").strip() or None),
                     reference_text=(str(reference_text or "").strip() or None),
                     engine=(str(engine or "").strip().lower() or None),
+                    **({"model": model.strip()} if model and model.strip() else {}),
                 )
                 info: dict[str, Any] = {}
                 try:
@@ -2249,6 +2318,7 @@ def optional_dependency_status() -> dict[str, dict[str, Any]]:
         "f5_tts": "f5_tts",
         "chroma": "transformers",
         "audiodit": "torch",
+        "qwen3-tts": "torch",
     }
     packages = {
         "piper": "piper-tts",
@@ -2257,9 +2327,12 @@ def optional_dependency_status() -> dict[str, dict[str, Any]]:
         "f5_tts": "f5-tts",
         "chroma": "transformers",
         "audiodit": "torch",
+        "qwen3-tts": "torch",
     }
     for key, module in modules.items():
         installed = importlib.util.find_spec(module) is not None
+        if key == "qwen3-tts":
+            installed = installed and importlib.util.find_spec("transformers") is not None
         version = None
         if installed:
             try:
@@ -2360,6 +2433,7 @@ def create_app(
     tts_model: Optional[str] = None,
     stt_model: Optional[str] = None,
     cloning_engine: str = "omnivoice",
+    cloning_model: Optional[str] = None,
     remote_base_url: Optional[str] = None,
     remote_api_key: Optional[str] = None,
     remote_timeout_s: Optional[float] = None,
@@ -2376,6 +2450,7 @@ def create_app(
         tts_model=tts_model,
         stt_model=stt_model,
         cloning_engine=cloning_engine,
+        cloning_model=cloning_model,
         remote_base_url=remote_base_url,
         remote_api_key=remote_api_key,
         remote_timeout_s=remote_timeout_s,
@@ -2400,6 +2475,7 @@ def create_app(
         language: Optional[str] = Field(None, description="Language code to use for this request.", examples=["en"])
         role: Optional[str] = Field(None, description="Browser example role default: assistant or user.", examples=["assistant"])
         speed: Optional[float] = Field(None, description="Temporary TTS speed for this request, 0.5 to 2.0.", examples=[1.0])
+        instructions: Optional[str] = Field(None, description="Speaking style; required for Qwen3-TTS VoiceDesign.")
         sanitize_syntax: bool = Field(True, description="Sanitize Markdown/code-like syntax before speech.")
 
     class VoiceSelectRequest(BaseModel):
@@ -2410,6 +2486,7 @@ def create_app(
         preload: bool = Field(False, description="Warm the cloned voice before committing the selection.")
 
     class TTSEngineRequest(BaseModel):
+        model: Optional[str] = Field(None, description="Checkpoint id or local model directory; empty selects the provider default.")
         engine: str = Field(
             "auto",
             description="Base TTS provider: auto, supertonic, piper, openai, openai-compatible, audiodit, or omnivoice.",
@@ -2417,6 +2494,7 @@ def create_app(
         )
 
     class TTSProviderRequest(BaseModel):
+        model: Optional[str] = Field(None, description="Checkpoint id or local model directory; empty selects the provider default.")
         provider: Optional[str] = Field(
             None,
             description="Base TTS provider id (preferred). Alias: engine.",
@@ -2477,6 +2555,7 @@ def create_app(
                 role=payload.role,
                 language=payload.language,
                 speed=payload.speed,
+                instructions=payload.instructions,
                 sanitize_syntax=payload.sanitize_syntax,
             )
         except Exception as e:
@@ -2528,7 +2607,7 @@ def create_app(
     @app.post("/api/tts/engine", summary="Switch the base TTS provider (legacy path)")
     async def set_tts_engine(payload: TTSEngineRequest):
         try:
-            return state.set_tts_engine(payload.engine)
+            return state.set_tts_engine(payload.engine, model=payload.model)
         except Exception as e:
             http_error(e)
 
@@ -2536,7 +2615,7 @@ def create_app(
     async def set_tts_provider(payload: TTSProviderRequest):
         try:
             wanted = payload.provider or payload.engine or "auto"
-            return state.set_tts_provider(wanted)
+            return state.set_tts_provider(wanted, model=payload.model)
         except Exception as e:
             http_error(e)
 
@@ -2551,9 +2630,10 @@ def create_app(
     async def clone_voice(
         file: UploadFile = File(..., description="Reference audio file. Browser microphone recordings are sent as WAV."),
         name: Optional[str] = Form(None, description="Friendly cloned voice name.", examples=["my_voice"]),
+        model: Optional[str] = Form(None, description="Qwen3-TTS Base checkpoint id or local directory."),
         engine: Optional[str] = Form(
             None,
-            description="Optional clone engine id, for example omnivoice, f5_tts, audiodit, chroma, openai, or openai-compatible.",
+            description="Optional clone engine id, for example qwen3-tts, omnivoice, f5_tts, audiodit, chroma, openai, or openai-compatible.",
             examples=["openai-compatible"],
         ),
         provider: Optional[str] = Form(
@@ -2578,6 +2658,7 @@ def create_app(
                 filename=str(file.filename or "reference.wav"),
                 name=name,
                 engine=provider or engine,
+                model=model,
                 reference_text=reference_text,
                 validate=bool(validate_clone),
             )
@@ -2596,6 +2677,7 @@ def create_app(
     async def openai_compatible_clone_voice(
         file: UploadFile = File(..., description="Reference audio file."),
         name: Optional[str] = Form(None, description="Friendly cloned voice name.", examples=["my_voice"]),
+        model: Optional[str] = Form(None, description="Qwen3-TTS Base checkpoint id or local directory."),
         reference_text: Optional[str] = Form(None, description="Transcript of the reference audio when available."),
         engine: Optional[str] = Form(None, description="Optional clone engine id."),
         provider: Optional[str] = Form(None, description="Alias for engine (preferred vocabulary: provider)."),
@@ -2608,6 +2690,7 @@ def create_app(
                 filename=str(file.filename or "reference.wav"),
                 name=name,
                 engine=provider or engine,
+                model=model,
                 reference_text=reference_text,
                 validate=bool(validate_clone),
             )
@@ -2717,6 +2800,7 @@ def run_server(
     tts_model: Optional[str] = None,
     stt_model: Optional[str] = None,
     cloning_engine: str = "omnivoice",
+    cloning_model: Optional[str] = None,
     remote_base_url: Optional[str] = None,
     remote_api_key: Optional[str] = None,
     remote_timeout_s: Optional[float] = None,
@@ -2731,6 +2815,7 @@ def run_server(
         tts_model=tts_model,
         stt_model=stt_model,
         cloning_engine=cloning_engine,
+        cloning_model=cloning_model,
         remote_base_url=remote_base_url,
         remote_api_key=remote_api_key,
         remote_timeout_s=remote_timeout_s,
@@ -2755,15 +2840,16 @@ def parse_args(argv: Optional[list[str]] = None):
         help="Default TTS provider id (flag name: --tts-engine).",
     )
     parser.add_argument("--stt-engine", default="openai", help="Default STT provider id (flag name: --stt-engine).")
-    parser.add_argument("--tts-model", default=None, help="Model id for remote TTS providers")
+    parser.add_argument("--tts-model", default=None, help="TTS model id (remote model or local Qwen3-TTS checkpoint)")
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT providers, or a Hugging Face model id when using transformers-asr (e.g. openai/whisper-large-v3, openai/whisper-large-v3-turbo, Qwen/Qwen3-ASR-1.7B)")
     parser.add_argument(
         "--cloning-engine",
         default="omnivoice",
-        choices=["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
+        choices=get_supported_cloning_engines(),
         help="Default cloning provider for new voices (default: omnivoice)",
     )
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
+    parser.add_argument("--cloning-model", default=None, help="Cloning checkpoint id or local directory (Qwen3-TTS Base).")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
     parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")
     parser.add_argument("--whisper", default="base", help="Default faster-whisper model (e.g. tiny|base|small|medium|large-v2|large-v3|large)")
@@ -2785,6 +2871,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             tts_model=args.tts_model,
             stt_model=args.stt_model,
             cloning_engine=args.cloning_engine,
+            cloning_model=args.cloning_model,
             remote_base_url=args.remote_base_url,
             remote_api_key=args.remote_api_key,
             remote_timeout_s=args.remote_timeout,

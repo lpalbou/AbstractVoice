@@ -43,6 +43,7 @@ VoiceManager(
     remote_base_url: str | None = None,
     remote_api_key: str | None = None,
     remote_timeout_s: float | None = None,
+    cloning_model: str | None = None,  # Qwen3-TTS Base checkpoint for new clones
 )
 ```
 
@@ -84,6 +85,10 @@ Notes:
   pass `f5_tts`, `chroma`, `audiodit`, `qwen3-tts`, `openai`, or
   `openai-compatible` explicitly. Qwen3-TTS cloning uses the Base checkpoints
   and the stored reference transcript (auto-filled once via STT when missing).
+  `cloning_model` selects the default Qwen Base checkpoint; `model=...` on
+  `clone_voice(...)` / `clone_voice_from_wav_bytes(...)` overrides it per clone.
+  The checkpoint is persisted in the voice metadata and restored on replay.
+  Existing Qwen clones without checkpoint metadata use the original 0.6B Base.
 
 Supported language codes for the Piper mapping: `en, fr, de, es, ru, zh` (see `abstractvoice/config/voice_catalog.py` and `abstractvoice/adapters/tts_piper.py`).
 Supertonic supports fixed-style local TTS for `ar, bg, cs, da, de, el, en, es, et, fi, fr, hi, hr, hu, id, it, ja, ko, lt, lv, nl, pl, pt, ro, ru, sk, sl, sv, tr, uk, vi`.
@@ -145,18 +150,107 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
     - then each segment is synthesized and enqueued as soon as possible.
     - Engines that can stream audio natively may further reduce TTFB by yielding multiple audio chunks per segment.
 
-- `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, sanitize_syntax: bool = True) -> bytes`
+- `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -> bytes`
   - Headless/server‑friendly: returns encoded audio bytes.
 
-- `speak_to_audio_chunks(text: str, *, voice: str | None = None, sanitize_syntax: bool = True) -> Iterator[tuple[np.ndarray, int]]`
+- `speak_to_audio_chunks(text: str, *, voice: str | None = None, instructions: str | None = None, sanitize_syntax: bool = True) -> Iterator[tuple[np.ndarray, int]]`
   - Headless/server‑friendly: yields `(audio_chunk, sample_rate)` tuples for incremental delivery.
+  - Qwen3-TTS 1.7B CustomVoice and VoiceDesign accept per-call `instructions` without changing session state. Unsupported models and cloned speech reject streaming instructions explicitly.
 
 - `open_tts_text_stream(*, voice: str | None = None, callback=None, sanitize_syntax: bool = True, max_chars: int | None = None, min_chars: int | None = None) -> TextToSpeechStream`
   - Push-based streaming bridge for **LLM streaming → TTS streaming** pipelining.
   - Returned object supports: `.push(delta)`, `.close()`, `.cancel()`, `.join(timeout=...)`.
 
-- `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, sanitize_syntax: bool = True) -> str`
+- `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -> str`
   - Writes an audio file and returns the path.
+
+### Qwen3-TTS checkpoints
+
+Install `abstractvoice[qwen3-tts]` (Python 3.10+) and explicitly download each
+checkpoint you intend to use. Discovery lists cached checkpoints without
+loading their weights; synthesis loads the selected checkpoint on demand.
+
+| Checkpoint suffix | Sizes | Selection |
+| --- | --- | --- |
+| `CustomVoice` | 0.6B, 1.7B | `tts_model=...`, preset via `set_profile("aiden")`; 1.7B also accepts instructions |
+| `VoiceDesign` | 1.7B | `tts_model=...`, required natural-language `instructions` |
+| `Base` | 0.6B, 1.7B | `cloning_engine="qwen3-tts"`, `cloning_model=...` or per-clone `model=...` |
+
+Full ids follow `Qwen/Qwen3-TTS-12Hz-<size>-<suffix>`. TTS defaults to
+`Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice`, cloning to the corresponding `Base`.
+Supported language codes are `en`, `zh`, `ja`, `ko`, `de`, `fr`, `ru`, `pt`,
+`es`, and `it`. Long input is split into bounded segments in both buffered
+and streamed delivery, including text without spaces. Streamed output is
+sentence-segmented, not native codec-frame streaming.
+
+```bash
+python -m abstractvoice download --qwen3-tts Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
+abstractvoice --tts-engine qwen3-tts --tts-model Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign \
+  --instructions "A warm, clear narrator." --prompt "Hello from Qwen." --output hello.wav
+abstractvoice web --tts-engine qwen3-tts --cloning-engine qwen3-tts \
+  --cloning-model Qwen/Qwen3-TTS-12Hz-1.7B-Base
+```
+
+The web example exposes the TTS model, speech instructions, and Qwen cloning
+model beside their provider selectors. The REPL supports
+`/tts engine qwen3-tts`, `/tts_download qwen3-tts <model-id>` and
+`/cloning_download qwen3-tts <Base-model-id>`; use startup `--tts-model` and
+`--cloning-model` to select checkpoints. Switching providers resets the
+model to the target provider's default; switching within a provider retains
+its configured model unless an override is supplied.
+
+Through AbstractCore, use `core.voice.tts(...)`, `core.voice.tts_stream(...)`
+or `core.voice.clone(...)` with `provider="qwen3-tts"` and `model=<checkpoint>`.
+`core.voice.voice_catalog(provider="qwen3-tts", model=<checkpoint>)` filters
+profiles and stored clones by checkpoint. Plugin defaults can be configured
+with `voice_cloning_model` or `ABSTRACTVOICE_CLONING_MODEL`, separately from
+`voice_tts_model` / `ABSTRACTVOICE_TTS_MODEL`.
+
+#### Qwen performance controls
+
+Qwen uses the shared automatic GPU/device policy and a specialized codebook
+predictor by default, retaining PyTorch's multinomial sampler. No additional
+vendor SDK is required. Unsupported generation settings use the original
+Transformers path with a `#FALLBACK` warning.
+
+Set these environment variables **before loading the model** (restart the CLI
+or unload/reload a resident model). They apply to preset, designed, and cloned
+voices, including the AbstractCore plugin process:
+
+| Variable | Default | Options |
+| --- | --- | --- |
+| `ABSTRACTVOICE_QWEN3_TTS_PREDICTOR` | `auto` | `auto`: guarded specialized loop; `reference`: original Transformers generation |
+| `ABSTRACTVOICE_QWEN3_TTS_SAMPLER` | `multinomial` | `multinomial`: standard sampler; `exponential`: opt-in exponential-race sampler with frame-level validation |
+
+```bash
+# Optimized predictor with the standard sampler
+abstractvoice --tts-engine qwen3-tts
+
+# Opt in to exponential sampling in the REPL
+ABSTRACTVOICE_QWEN3_TTS_SAMPLER=exponential abstractvoice --tts-engine qwen3-tts
+
+# Use original generation for comparison
+ABSTRACTVOICE_QWEN3_TTS_PREDICTOR=reference abstractvoice --tts-engine qwen3-tts
+```
+
+`reference` takes precedence over the sampler choice. Automatic fallback also
+uses the original sampler. Exponential sampling validates all distributions
+before returning a complete codebook frame; invalid probabilities raise without
+emitting that frame. Failed requests may consume more random numbers than the
+standard sampler because validation happens at the frame boundary. Reproducibility
+across different hardware or PyTorch versions is not guaranteed.
+
+Model loading adds cold-start latency; keep the model resident for repeated
+requests. PyTorch version also matters on Apple Silicon: M5 Max measurements
+with Torch 2.12.0 / Transformers 5.8.1 were substantially faster than Torch 2.8.0
+/ Transformers 5.8.0. Compare warm generation time against audio duration in
+the Python environment running your CLI or plugin; an optimized sampler alone
+does not guarantee realtime throughput.
+
+Faster inference does not imply native audio streaming: `/tts delivery
+buffered` waits for complete synthesis, while `streamed` delivers independently
+synthesized text segments progressively. Neither setting enables native Qwen
+codec-frame streaming.
 
 ### Language & voice selection
 
@@ -275,6 +369,7 @@ is OmniVoice:
 - `abstractvoice[cloning]` → `f5_tts`
 - `abstractvoice[chroma]` → `chroma`
 - `abstractvoice[audiodit]` → `audiodit`
+- `abstractvoice[qwen3-tts]` → `qwen3-tts` (Base checkpoints)
 
 Supertonic is not listed here because it is fixed-profile base TTS, not a
 voice-cloning provider.
@@ -294,8 +389,8 @@ actionable error instead of silently pretending cloning is standardized.
 
 Core cloning calls:
 
-- `clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -> str`
-- `clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None) -> str`
+- `clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None) -> str`
+- `clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None) -> str`
 - `speak(..., voice="<voice_id>")` / `speak_to_bytes(..., voice="<voice_id>")` / `speak_to_file(..., voice="<voice_id>")`
 - `list_cloned_voices()`, `get_cloned_voice(voice_id: str) -> dict`
 

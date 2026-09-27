@@ -156,6 +156,30 @@ For TTS, AbstractCore can drive the plugin with calls such as
 STT, use `core.audio.transcribe(audio, provider="faster-whisper", model="large")`
 or `provider="transformers-asr:Qwen/Qwen3-ASR-1.7B"`.
 
+For local Qwen3-TTS, install `abstractvoice[qwen3-tts]` and prefetch the
+checkpoint with `python -m abstractvoice download --qwen3-tts <model-id>`.
+CustomVoice checkpoints expose preset speakers; Base checkpoints are for
+cloning; the 1.7B VoiceDesign checkpoint takes a voice description:
+
+```python
+wav = core.voice.tts(
+    "Hello from Qwen.", provider="qwen3-tts",
+    model="Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    instructions="A warm, clear narrator with a relaxed delivery.",
+)
+```
+
+`core.voice.tts_stream(...)` accepts the same description and returns
+sentence-sized audio segments, not native codec-frame streaming. Qwen clone
+creation accepts `model="Qwen/Qwen3-TTS-12Hz-1.7B-Base"`; the stored voice
+retains that checkpoint for later synthesis. See [the Qwen guide in the API](docs/api.md#qwen3-tts-checkpoints).
+
+Qwen uses an optimized predictor with the standard sampler by default. You can
+opt in to exponential sampling with `ABSTRACTVOICE_QWEN3_TTS_SAMPLER=exponential`
+before starting the CLI or AbstractCore process. See
+[Qwen performance controls](docs/api.md#qwen-performance-controls) for settings,
+reference-mode comparison, and streaming limits.
+
 For a remote-first Gateway/Core deployment, the AbstractCore plugin defaults to
 OpenAI remote TTS/STT and reads `OPENAI_API_KEY`. Configure
 `voice_tts_engine=openai-compatible` (provider), `voice_stt_engine=openai-compatible` (provider), and

@@ -633,10 +633,9 @@ def _normalize_support_levels(value: Any) -> tuple[str, ...]:
 
 
 def _known_cloning_provider_ids() -> list[str]:
-    return _ordered_provider_ids(
-        ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts", "openai", "openai-compatible"],
-        ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts", "openai", "openai-compatible"],
-    )
+    from ..cloning.manager import get_supported_cloning_engines
+
+    return get_supported_cloning_engines()
 
 
 def _runtime_installed(kind: str, provider: Any) -> bool | None:
@@ -1179,15 +1178,25 @@ def _profile_model_id(profile: Any) -> str:
     params = profile.get("params")
     if not isinstance(params, dict):
         params = {}
+    meta = params.get("meta") or profile.get("meta") or {}
+    if not isinstance(meta, dict):
+        meta = {}
     for value in (
         params.get("model"),
         params.get("model_id"),
         params.get("model_filename"),
         profile.get("model"),
         profile.get("model_id"),
-        profile.get("language"),
-        params.get("language"),
+        meta.get("model_id"),
     ):
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    if profile.get("kind") == "clone" and _profile_provider_id(profile) == "qwen3-tts":
+        # Legacy Qwen records synthesize with 0.6B Base, not every checkpoint.
+        from ..qwen3_tts.runtime import DEFAULT_BASE_MODEL_ID
+
+        return DEFAULT_BASE_MODEL_ID
+    for value in (profile.get("language"), params.get("language")):
         if isinstance(value, str) and value.strip():
             return value.strip()
     return ""
@@ -1269,7 +1278,7 @@ def _voice_matches_tts_selection(voice: Any, *, provider: Any = None, model: Any
 
 def _dedupe_voice_records(values: Any) -> list[Dict[str, Any]]:
     out: list[Dict[str, Any]] = []
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str, str, str]] = set()
     for voice in list(values or []):
         if not isinstance(voice, dict):
             continue
@@ -1277,7 +1286,7 @@ def _dedupe_voice_records(values: Any) -> list[Dict[str, Any]]:
         kind = str(voice.get("kind") or "profile").strip().lower() or "profile"
         voice_id = (_profile_id(voice) or _profile_voice_id(voice)).lower()
         if voice_id:
-            key = (provider, kind, voice_id)
+            key = (provider, kind, _profile_model_id(voice).lower(), voice_id)
             if key in seen:
                 continue
             seen.add(key)
@@ -1341,6 +1350,7 @@ class _BaseVoice:
             "ABSTRACTVOICE_REMOTE_TTS_MODEL",
         )
         cloning_engine = _env("ABSTRACTVOICE_CLONING_ENGINE", "omnivoice") or "omnivoice"
+        cloning_model = _env("ABSTRACTVOICE_CLONING_MODEL")
         cloned_tts_streaming = _env_bool("ABSTRACTVOICE_CLONED_TTS_STREAMING", True)
         tts_delivery_mode = _env("ABSTRACTVOICE_TTS_DELIVERY_MODE")
         remote_base_url = _env("OPENAI_BASE_URL")
@@ -1370,6 +1380,8 @@ class _BaseVoice:
                     stt_model = str(cfg["voice_stt_model"]).strip()
                 if isinstance(cfg.get("voice_cloning_engine"), str) and str(cfg["voice_cloning_engine"]).strip():
                     cloning_engine = str(cfg["voice_cloning_engine"]).strip().lower()
+                if "voice_cloning_model" in cfg:
+                    cloning_model = _normalize_optional_model_id(cfg["voice_cloning_model"])
                 if isinstance(cfg.get("voice_remote_base_url"), str) and str(cfg["voice_remote_base_url"]).strip():
                     remote_base_url = str(cfg["voice_remote_base_url"]).strip()
                 if isinstance(cfg.get("voice_remote_api_key"), str) and str(cfg["voice_remote_api_key"]).strip():
@@ -1417,6 +1429,7 @@ class _BaseVoice:
             str(tts_model or ""),
             str(stt_model or ""),
             str(cloning_engine),
+            str(cloning_model or ""),
             bool(cloned_tts_streaming),
             str(tts_delivery_mode) if tts_delivery_mode else "",
             str(remote_base_url or ""),
@@ -1438,6 +1451,7 @@ class _BaseVoice:
                     tts_model=str(tts_model) if tts_model else None,
                     stt_model=str(stt_model) if stt_model else None,
                     cloning_engine=str(cloning_engine),
+                    cloning_model=cloning_model,
                     cloned_tts_streaming=bool(cloned_tts_streaming),
                     tts_delivery_mode=str(tts_delivery_mode) if tts_delivery_mode else None,
                     remote_base_url=str(remote_base_url) if remote_base_url else None,
@@ -1562,6 +1576,8 @@ class _BaseVoice:
             current_engine = _norm_engine_id(getattr(current, "cloning_engine", None))
             current_tts_models = {item.lower() for item in _current_tts_model_ids(current)}
             model_ok = (not remote_model_capable) or requested_model is None or requested_model.lower() in current_tts_models
+            if engine == "qwen3-tts" and requested_model:
+                model_ok = requested_model == getattr(current, "cloning_model", None)
             if current_engine == engine and model_ok:
                 return current
 
@@ -1574,6 +1590,8 @@ class _BaseVoice:
             override_cfg["voice_tts_engine"] = engine
         if remote_model_capable and requested_model:
             override_cfg["voice_tts_model"] = requested_model
+        if engine == "qwen3-tts" and requested_model:
+            override_cfg["voice_cloning_model"] = requested_model
 
         owner = type("_AbstractVoiceCloneRequestOverride", (), {"config": override_cfg})()
         cap = self.__class__(owner)
@@ -4182,8 +4200,6 @@ class _VoiceCapability(_BaseVoice):
         if fmt != "wav":
             raise ValueError("AbstractVoice TTS streaming currently emits wav segment chunks only")
         instructions_value = str(instructions or _kwargs.get("instructions") or "").strip()
-        if instructions_value:
-            raise ValueError("AbstractVoice TTS streaming does not support instructions yet; use buffered TTS")
 
         provider_id, requested_model = _resolve_tts_provider_request(provider, model)
         voice_name = ""
@@ -4324,6 +4340,7 @@ class _VoiceCapability(_BaseVoice):
                         str(text),
                         voice=stream_voice,
                         cancel_event=cancel_event,
+                        **({"instructions": instructions_value} if instructions_value else {}),
                     ):
                         if cancel_event is not None and cancel_event.is_set():
                             cancelled = True

@@ -61,6 +61,12 @@ class TTSAdapter(ABC):
         - continuity/efficiency (larger segments)
         """
         return 240
+
+    def synthesize_to_audio_chunks_with_instructions(
+        self, text: str, *, instructions: str
+    ) -> Iterable[Tuple[np.ndarray, int]]:
+        """Call-scoped instructions for adapters that support directed speech."""
+        raise ValueError(f"{getattr(self, 'engine_id', 'This engine')} does not support streaming instructions")
     
     @abstractmethod
     def synthesize_to_bytes(self, text: str, format: str = 'wav') -> bytes:

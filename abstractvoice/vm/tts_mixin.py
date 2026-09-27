@@ -120,6 +120,7 @@ class TtsMixin:
                 reference_text_whisper_model="small",
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
                 default_engine=str(getattr(self, "cloning_engine", "omnivoice") or "omnivoice"),
+                default_model=getattr(self, "cloning_model", None),
                 remote_base_url=getattr(self, "remote_base_url", None),
                 remote_api_key=getattr(self, "remote_api_key", None),
                 remote_timeout_s=getattr(self, "remote_timeout_s", None),
@@ -134,12 +135,14 @@ class TtsMixin:
         *,
         reference_text: str | None = None,
         engine: str | None = None,
+        model: str | None = None,
     ) -> str:
         return self._get_voice_cloner().clone_voice(
             reference_audio_path,
             name=name,
             reference_text=reference_text,
             engine=engine,
+            **({"model": model} if model else {}),
         )
 
     def clone_voice_from_wav_bytes(
@@ -150,6 +153,7 @@ class TtsMixin:
         reference_text: str | None = None,
         engine: str | None = None,
         meta: dict[str, Any] | None = None,
+        model: str | None = None,
     ) -> str:
         """Create a new cloned voice from an in-memory WAV payload.
 
@@ -164,6 +168,7 @@ class TtsMixin:
                 reference_text=reference_text,
                 engine=engine,
                 meta=meta,
+                **({"model": model} if model else {}),
             )
         # Backward-compatible fallback for older cloner versions (should not
         # normally be needed inside this repo).
@@ -181,7 +186,7 @@ class TtsMixin:
             except Exception:
                 pass
         try:
-            return self.clone_voice(str(tmp_path), name=name, reference_text=reference_text, engine=engine)
+            return self.clone_voice(str(tmp_path), name=name, reference_text=reference_text, engine=engine, model=model)
         finally:
             try:
                 tmp_path.unlink(missing_ok=True)  # type: ignore[arg-type]
@@ -1148,7 +1153,13 @@ class TtsMixin:
         except Exception:
             pass
 
-        model_id = tts_model if tts_model is not None else getattr(self, "tts_model", None)
+        current_provider = str(getattr(old_adapter, "engine_id", "") or getattr(self, "_tts_engine_name", ""))
+        target_provider = "openai" if requested == "auto" else requested
+        model_id = tts_model
+        if model_id is None and current_provider == target_provider:
+            model_id = getattr(self, "tts_model", None)
+        if model_id is not None:
+            model_id = str(model_id).strip() or None
         adapter, resolved_engine = create_tts_adapter(
             engine=requested,
             language=str(getattr(self, "language", "en") or "en"),
@@ -1191,8 +1202,7 @@ class TtsMixin:
         self.tts_engine = new_engine
         self._tts_engine_name = str(resolved_engine)
         self._tts_engine_preference = str(requested)
-        if tts_model is not None:
-            self.tts_model = tts_model
+        self.tts_model = model_id
         self.reset_tts_profile(language=str(getattr(self, "language", "en") or "en"))
         self._wire_tts_callbacks()
 
@@ -1490,6 +1500,7 @@ class TtsMixin:
         text: str,
         *,
         voice: str | None = None,
+        instructions: str | None = None,
         cancel_event: threading.Event | None = None,
         sanitize_syntax: bool = True,
         saninitze_syntax: bool | None = None,
@@ -1512,6 +1523,8 @@ class TtsMixin:
             speak_text = sanitize_markdown_for_speech(speak_text)
 
         if voice:
+            if instructions:
+                raise ValueError("Cloned speech does not support streaming instructions")
             cloner = self._get_voice_cloner()
 
             clone_speed, clone_engine_name = self._effective_clone_speed(
@@ -1581,6 +1594,12 @@ class TtsMixin:
             engine_id = ""
         engine_id = engine_id or "tts"
 
+        if instructions and self._compatibility_support_level(
+            kind="tts", provider=engine_id, model=getattr(adapter, "model_id", None),
+            surface="bytes", feature="instructions",
+        ) == "unsupported":
+            raise ValueError(f"{engine_id} model {getattr(adapter, 'model_id', '')} does not support instructions")
+
         def _gen_base():
             import numpy as np
 
@@ -1588,6 +1607,8 @@ class TtsMixin:
             first_chunk_t = None
             chunks = 0
             total_audio_s = 0.0
+            segments = []
+            stream_max_chars = 240
             try:
                 from ..tts.text_chunking import split_complete_text_for_streaming
 
@@ -1612,7 +1633,11 @@ class TtsMixin:
                     seg_text = str(seg_text or "").strip()
                     if not seg_text:
                         continue
-                    for chunk, sr in adapter.synthesize_to_audio_chunks(str(seg_text)):
+                    audio_chunks = (
+                        adapter.synthesize_to_audio_chunks_with_instructions(str(seg_text), instructions=instructions)
+                        if instructions else adapter.synthesize_to_audio_chunks(str(seg_text))
+                    )
+                    for chunk, sr in audio_chunks:
                         if cancel_event is not None and cancel_event.is_set():
                             break
                         mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
@@ -1636,11 +1661,11 @@ class TtsMixin:
                     "ttfb_s": ttfb_s,
                     "audio_s": float(total_audio_s),
                     "rtf": (synth_s / float(total_audio_s)) if total_audio_s else None,
-                        "chunks": int(chunks),
-                        "segments": int(len(segments)),
-                        "segment_max_chars": int(stream_max_chars),
-                        "first_segment_max_chars": int(min(stream_max_chars, 96)),
-                        "language": str(getattr(self, "language", None) or "en"),
+                    "chunks": int(chunks),
+                    "segments": int(len(segments)),
+                    "segment_max_chars": int(stream_max_chars),
+                    "first_segment_max_chars": int(min(stream_max_chars, 96)),
+                    "language": str(getattr(self, "language", None) or "en"),
                     "speed": float(getattr(self, "speed", 1.0) or 1.0),
                     "ts": time.time(),
                 }
@@ -2006,6 +2031,7 @@ class TtsMixin:
         format: str | None = None,
         voice: str | None = None,
         *,
+        instructions: str | None = None,
         sanitize_syntax: bool = True,
         saninitze_syntax: bool | None = None,
     ) -> str:
@@ -2022,12 +2048,12 @@ class TtsMixin:
             speed=float(getattr(self, "speed", 1.0) or 1.0),
         )
         speak_text = str(request.text)
-        if voice:
+        if voice or instructions:
             from pathlib import Path
 
             # For cloned voices, we only have a bytes API; write it out here.
             fmt = str(format or Path(output_path).suffix.lstrip(".") or "wav").strip().lower() or "wav"
-            data = self.speak_to_bytes(speak_text, format=fmt, voice=voice, sanitize_syntax=False)
+            data = self.speak_to_bytes(speak_text, format=fmt, voice=voice, instructions=instructions, sanitize_syntax=False)
             out = Path(output_path)
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(bytes(data))

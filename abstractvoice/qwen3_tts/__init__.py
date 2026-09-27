@@ -19,8 +19,9 @@ from __future__ import annotations
 
 __all__ = [
     "DEFAULT_MODEL_ID",
+    "DEFAULT_BASE_MODEL_ID",
     "KNOWN_MODEL_IDS",
 ]
 
 # Safe to import: runtime.py defers torch/transformers to load time.
-from .runtime import DEFAULT_MODEL_ID, KNOWN_MODEL_IDS  # noqa: E402
+from .runtime import DEFAULT_BASE_MODEL_ID, DEFAULT_MODEL_ID, KNOWN_MODEL_IDS  # noqa: E402

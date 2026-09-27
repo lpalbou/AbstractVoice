@@ -243,6 +243,14 @@ class Qwen3TTSAdapter(TTSAdapter):
     def synthesize(self, text: str) -> np.ndarray:
         return self._synthesize_array(text, speaker=self._active_speaker(), instructions=self._instructions)
 
+    def synthesize_to_audio_chunks_with_instructions(self, text: str, *, instructions: str):
+        from ..tts.text_chunking import split_text_batches
+
+        for chunk in split_text_batches(str(text), max_chars=self.get_max_chars()):
+            if chunk.strip():
+                audio = self._synthesize_chunk(chunk, speaker=self._active_speaker(), instructions=instructions)
+                yield audio, self.get_sample_rate()
+
     def _synthesize_array(
         self,
         text: str,
@@ -250,10 +258,23 @@ class Qwen3TTSAdapter(TTSAdapter):
         speaker: Optional[str],
         instructions: Optional[str],
     ) -> np.ndarray:
+        from ..tts.text_chunking import split_text_batches
+
+        chunks = [
+            self._synthesize_chunk(chunk, speaker=speaker, instructions=instructions)
+            for chunk in split_text_batches(str(text), max_chars=self.get_max_chars())
+            if chunk.strip()
+        ]
+        return np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.float32)
+
+    def _synthesize_chunk(
+        self, text: str, *, speaker: Optional[str], instructions: Optional[str]
+    ) -> np.ndarray:
         model_type = self._model_type_or_raise()
         language = _qwen_language(self._language)
 
         if model_type == "custom_voice":
+            speaker = speaker or self._active_speaker()
             if not speaker:
                 raise RuntimeError(
                     "Qwen3-TTS CustomVoice needs a speaker profile; none are visible. "
@@ -278,7 +299,13 @@ class Qwen3TTSAdapter(TTSAdapter):
         return np.asarray(audio, dtype=np.float32).reshape(-1)
 
     def _model_type_or_raise(self) -> str:
-        model_type = str(self._runtime.model_type() or "").strip().lower()
+        try:
+            model_type = str(self._runtime.model_type() or "").strip().lower()
+        except (OSError, RuntimeError):
+            # Introspection never downloads. Synthesis may load an uncached
+            # model when allowed, including adapters constructed lazily.
+            self._runtime._ensure_loaded()
+            model_type = str(self._runtime.model_type() or "").strip().lower()
         if not model_type:
             raise RuntimeError(
                 "Could not determine the Qwen3-TTS model type. Prefetch the model first: "

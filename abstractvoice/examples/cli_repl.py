@@ -21,6 +21,8 @@ import threading
 import time
 import requests
 from abstractvoice import VoiceManager
+from abstractvoice.adapters.tts_registry import get_supported_tts_engines
+from abstractvoice.cloning.manager import get_supported_cloning_engines
 from abstractvoice.examples.llm_provider import (
     resolve_provider,
     PROVIDER_PRESETS,
@@ -72,6 +74,7 @@ class VoiceREPL(cmd.Cmd):
         disable_tts=False,
         cloning_engine: str = "omnivoice",
         provider: str | None = None,
+        cloning_model: str | None = None,
     ):
         super().__init__()
 
@@ -112,6 +115,7 @@ class VoiceREPL(cmd.Cmd):
         self.remote_api_key = str(remote_api_key).strip() if isinstance(remote_api_key, str) and remote_api_key.strip() else None
         self.remote_timeout_s = remote_timeout_s
         self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower().replace("_", "-")
+        self.cloning_model = cloning_model
 
         # Initialize voice manager with language support
         if disable_tts:
@@ -129,6 +133,7 @@ class VoiceREPL(cmd.Cmd):
                 allow_downloads=False,
                 cloned_tts_streaming=False,
                 cloning_engine=self.cloning_engine,
+                cloning_model=self.cloning_model,
                 remote_base_url=self.remote_base_url,
                 remote_api_key=self.remote_api_key,
                 remote_timeout_s=self.remote_timeout_s,
@@ -337,7 +342,7 @@ class VoiceREPL(cmd.Cmd):
             tts_engine = tts_engine or "openai"
             if tts_engine in ("openai", "openai-compatible"):
                 tts_label = f"{tts_engine} (remote)"
-            elif tts_engine in ("piper", "supertonic", "audiodit", "omnivoice"):
+            elif tts_engine in ("piper", "supertonic", "audiodit", "omnivoice", "qwen3-tts"):
                 tts_label = f"{tts_engine} (local)"
             else:
                 tts_label = tts_engine
@@ -352,7 +357,7 @@ class VoiceREPL(cmd.Cmd):
         intro += "  • Type messages to chat with the LLM\n"
         intro += "  • Voice input (mic): off by default. Enable: /voice stop  (or start with --voice-mode stop)\n"
         intro += "  • PTT: /voice ptt then SPACE to capture (ESC exits)\n"
-        intro += "  • TTS engine: /tts engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice\n"
+        intro += "  • TTS engine: /tts engine " + "|".join(get_supported_tts_engines()) + "\n"
         intro += "  • Base TTS quality: /tts quality low|standard|high\n"
         intro += "  • Voices: /voices  (profiles, base/cloned voice selection, and compatibility commands)\n"
         intro += "  • OmniVoice design/params: /omnivoice  (advanced; only when OmniVoice is active)\n"
@@ -1892,6 +1897,7 @@ class VoiceREPL(cmd.Cmd):
                     allow_downloads=False,
                     cloned_tts_streaming=False,
                     cloning_engine=self.cloning_engine,
+                    cloning_model=getattr(self, "cloning_model", None),
                     remote_base_url=self.remote_base_url,
                     remote_api_key=self.remote_api_key,
                     remote_timeout_s=self.remote_timeout_s,
@@ -2762,7 +2768,7 @@ class VoiceREPL(cmd.Cmd):
                 eng = ""
 
         # Only choose engines that are both TTS adapters and cloning backends.
-        if eng in ("omnivoice", "audiodit", "openai-compatible"):
+        if eng in ("omnivoice", "audiodit", "qwen3-tts", "openai-compatible"):
             return eng
 
         fallback = str(getattr(self, "cloning_engine", "") or "omnivoice").strip().lower() or "omnivoice"
@@ -3030,7 +3036,7 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice from a reference file or folder.
 
         Usage:
-          /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text "reference transcript"]
+          /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text "reference transcript"]
 
         Special source:
           /clone myvoice [name] [...]   # record from mic (SPACE start/stop, ESC cancel)
@@ -3043,12 +3049,12 @@ class VoiceREPL(cmd.Cmd):
             parts = shlex.split(arg.strip())
         except ValueError as e:
             print(
-                f"Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]  (parse error: {e})"
+                f"Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]  (parse error: {e})"
             )
             return
 
         if not parts:
-            print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
+            print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]")
             return
 
         engine = None
@@ -3059,14 +3065,14 @@ class VoiceREPL(cmd.Cmd):
             tok = parts[i]
             if tok in ("--engine",):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
+                    print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]")
                     return
                 engine = parts[i + 1]
                 i += 2
                 continue
             if tok in ("--text", "--reference-text", "--reference_text"):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
+                    print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]")
                     return
                 reference_text = parts[i + 1]
                 i += 2
@@ -3075,7 +3081,7 @@ class VoiceREPL(cmd.Cmd):
             i += 1
 
         if not pos:
-            print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
+            print("Usage: /clone <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]")
             return
 
         path = pos[0]
@@ -3202,7 +3208,7 @@ class VoiceREPL(cmd.Cmd):
         """Clone a voice (or reuse an existing one) and immediately select it.
 
         Usage:
-          /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text "reference transcript"]
+          /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text "reference transcript"]
 
         Shortcut:
           - Paste a WAV/FLAC/OGG path directly (optionally: `path.wav | transcript`).
@@ -3218,12 +3224,12 @@ class VoiceREPL(cmd.Cmd):
             parts = shlex.split(arg.strip())
         except ValueError as e:
             print(
-                f"Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]  (parse error: {e})"
+                f"Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]  (parse error: {e})"
             )
             return
 
         if not parts:
-            print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
+            print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]")
             return
 
         engine = None
@@ -3234,14 +3240,14 @@ class VoiceREPL(cmd.Cmd):
             tok = parts[i]
             if tok in ("--engine",):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
+                    print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]")
                     return
                 engine = parts[i + 1]
                 i += 2
                 continue
             if tok in ("--text", "--reference-text", "--reference_text"):
                 if i + 1 >= len(parts):
-                    print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
+                    print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]")
                     return
                 reference_text = parts[i + 1]
                 i += 2
@@ -3250,7 +3256,7 @@ class VoiceREPL(cmd.Cmd):
             i += 1
 
         if not pos:
-            print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|openai-compatible] [--text \"...\"]")
+            print("Usage: /clone_use <path> [name] [--engine omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai-compatible] [--text \"...\"]")
             return
 
         path = pos[0]
@@ -3940,8 +3946,21 @@ class VoiceREPL(cmd.Cmd):
             print("🔇 TTS is disabled. Use '/tts on' to enable voice features.")
             return
 
-        target = (arg or "").strip().lower() or self.cloning_engine
+        parts = shlex.split(arg or "")
+        target = parts[0].lower() if parts else self.cloning_engine
         engine_name = "f5_tts" if target in ("openf5", "f5", "f5_tts") else target
+        if engine_name == "qwen3-tts":
+            from abstractvoice.qwen3_tts.runtime import prefetch_qwen3_tts
+            from abstractvoice.cloning.engine_qwen3_tts import Qwen3TTSVoiceCloningEngine
+
+            model = parts[1] if len(parts) > 1 else (getattr(self, "cloning_model", None) or Qwen3TTSVoiceCloningEngine.DEFAULT_BASE_MODEL_ID)
+            try:
+                print(f"Downloading Qwen3-TTS cloning checkpoint: {model}")
+                prefetch_qwen3_tts(model_id=model)
+                print("✅ Download complete.")
+            except Exception as e:
+                print(f"❌ Download failed: {e}")
+            return
         if engine_name == "f5_tts":
             if importlib.util.find_spec("f5_tts") is None:
                 print("❌ OpenF5 runtime not installed in this environment (missing: f5_tts).")
@@ -3981,7 +4000,7 @@ class VoiceREPL(cmd.Cmd):
             print("   Configure OPENAI_BASE_URL (or OPENAI_API_KEY for OpenAI) and use /clone --engine openai-compatible.")
             return
         else:
-            print("Usage: /cloning_download [omnivoice|f5_tts|chroma|audiodit|openai-compatible]")
+            print("Usage: /cloning_download [omnivoice|f5_tts|chroma|audiodit|qwen3-tts [model]|openai-compatible]")
             return
 
         try:
@@ -4018,9 +4037,8 @@ class VoiceREPL(cmd.Cmd):
           /tts_download audiodit
           /tts_download omnivoice
         """
-        raw = str(arg or "").strip().lower()
-        parts = raw.split()
-        target = parts[0] if parts else ""
+        parts = shlex.split(str(arg or ""))
+        target = parts[0].lower() if parts else ""
         if not target:
             try:
                 adapter = getattr(self.voice_manager, "tts_adapter", None) if self.voice_manager else None
@@ -4054,8 +4072,14 @@ class VoiceREPL(cmd.Cmd):
 
                 print("Downloading OmniVoice weights + tokenizer (very large; requires HF access).")
                 prefetch_omnivoice()
+            elif target == "qwen3-tts":
+                from abstractvoice.qwen3_tts.runtime import DEFAULT_MODEL_ID, prefetch_qwen3_tts
+
+                model = parts[1] if len(parts) > 1 else (getattr(self, "_initial_tts_model", None) or DEFAULT_MODEL_ID)
+                print(f"Downloading Qwen3-TTS checkpoint: {model}")
+                prefetch_qwen3_tts(model_id=model)
             else:
-                print("Usage: /tts_download [piper [lang]|supertonic|audiodit|omnivoice]")
+                print("Usage: /tts_download [piper [lang]|supertonic|audiodit|omnivoice|qwen3-tts [model]]")
                 return
             print("✅ Download complete.")
         except Exception as e:
@@ -4216,16 +4240,17 @@ class VoiceREPL(cmd.Cmd):
         engine = arg.strip().lower().replace("_", "-")
         if engine in ("remote", "compatible", "proxy"):
             engine = "openai-compatible"
-        if engine not in ("auto", "piper", "supertonic", "openai", "openai-compatible", "audiodit", "omnivoice"):
-            print("Usage: /tts_engine auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice")
+        if engine not in get_supported_tts_engines():
+            print("Usage: /tts_engine " + "|".join(get_supported_tts_engines()))
             return
         engine = resolve_interactive_tts_engine(engine, language=self.current_language)
+        model = self._initial_tts_model if engine == getattr(self, "_initial_tts_engine", None) else None
 
         try:
             if self.voice_manager is None:
                 self.voice_manager = VoiceManager(
                     language=self.current_language,
-                    tts_model=self._initial_tts_model,
+                    tts_model=model,
                     whisper_model=self._initial_whisper_model,
                     stt_model=self._initial_stt_model,
                     debug_mode=self.debug_mode,
@@ -4234,19 +4259,21 @@ class VoiceREPL(cmd.Cmd):
                     allow_downloads=False,
                     cloned_tts_streaming=False,
                     cloning_engine=self.cloning_engine,
+                    cloning_model=getattr(self, "cloning_model", None),
                     remote_base_url=self.remote_base_url,
                     remote_api_key=self.remote_api_key,
                     remote_timeout_s=self.remote_timeout_s,
                 )
                 resolved = str(getattr(self.voice_manager, "_tts_engine_name", "") or engine)
             else:
-                resolved = str(self.voice_manager.set_tts_engine(engine, tts_model=self._initial_tts_model))
+                resolved = str(self.voice_manager.set_tts_engine(engine))
         except Exception as e:
             print(f"❌ Failed to switch TTS engine to {engine}: {e}")
             print("   Tip: prefetch base TTS with /tts_download, or cloning weights with /cloning_download.")
             return
 
         self._initial_tts_engine = str(engine)
+        self._initial_tts_model = getattr(self.voice_manager, "tts_model", model)
         try:
             self.current_language = str(self.voice_manager.get_language())
         except Exception:
@@ -4695,6 +4722,7 @@ class VoiceREPL(cmd.Cmd):
             allow_downloads=False,
             cloned_tts_streaming=False,
             cloning_engine=self.cloning_engine,
+            cloning_model=getattr(self, "cloning_model", None),
             remote_base_url=self.remote_base_url,
             remote_api_key=self.remote_api_key,
             remote_timeout_s=self.remote_timeout_s,
@@ -5025,7 +5053,7 @@ class VoiceREPL(cmd.Cmd):
         print("  /tts                  Show TTS status")
         print("  /tts on|off           Toggle TTS playback")
         print("  /tts engine <engine>  Switch TTS engine: auto|supertonic|piper|openai|openai-compatible|audiodit|omnivoice")
-        print("  /tts_download <e>     Download base TTS artifacts: piper|supertonic|audiodit|omnivoice")
+        print("  /tts_download <e>     Download base TTS artifacts: piper|supertonic|audiodit|omnivoice|qwen3-tts [model]")
         print("  /tts quality <preset> Base TTS quality preset: low|standard|high")
         print("  /tts delivery <mode>  Delivery mode: buffered|streamed")
         print("  /tts speed <number>   Set speed (native when supported; otherwise time-stretch)")
@@ -5051,7 +5079,7 @@ class VoiceREPL(cmd.Cmd):
         print()
         print("Voice cloning (optional)")
         print("  /cloning_status        Check local readiness (no downloads)")
-        print("  /cloning_download <e>  Download artifacts: omnivoice|f5_tts|chroma|audiodit")
+        print("  /cloning_download <e>  Download artifacts: omnivoice|f5_tts|chroma|audiodit|qwen3-tts [model]")
         print("                         Remote engines (openai-compatible) do not need downloads")
         print("  /clone <path> [name] [--engine ...] [--text \"...\"]")
         print("  /clone_use <path> ...  Clone (or reuse existing) and select it")
@@ -5461,9 +5489,10 @@ def parse_args():
     parser.add_argument(
         "--cloning-engine",
         default="omnivoice",
-        choices=["omnivoice", "f5_tts", "chroma", "audiodit", "openai", "openai-compatible"],
-        help="Default cloning backend for new voices (default: omnivoice; choices: omnivoice|f5_tts|chroma|audiodit|openai|openai-compatible)",
+        choices=get_supported_cloning_engines(),
+        help="Default cloning backend for new voices (default: omnivoice)",
     )
+    parser.add_argument("--cloning-model", default=None, help="Cloning checkpoint id or local directory (Qwen3-TTS Base).")
     parser.add_argument(
         "--voice-mode",
         default="off",
@@ -5474,12 +5503,11 @@ def parse_args():
         "--language",
         "--lang",
         default="en",
-        choices=["en", "fr", "de", "es", "ru", "zh"],
-        help="Voice language hint (Piper: en|fr|de|es|ru|zh; Supertonic: 31 languages; OmniVoice: many).",
+        help="Voice language hint (provider-specific; Qwen3-TTS supports en|zh|ja|ko|de|fr|ru|pt|es|it).",
     )
     parser.add_argument("--tts-model",
                       help="Specific TTS model to use (overrides language default)")
-    parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|openai|openai-compatible|supertonic|piper|audiodit|omnivoice)")
+    parser.add_argument("--tts-engine", default="auto", help="Initial TTS engine (auto|openai|openai-compatible|supertonic|piper|audiodit|omnivoice|qwen3-tts)")
     parser.add_argument("--stt-engine", default="openai", help="Initial STT engine (openai|openai-compatible|faster_whisper|transformers-asr|auto)")
     parser.add_argument("--stt-model", default=None, help="Model id for remote STT engines, or a Hugging Face model id when using transformers-asr")
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
@@ -5511,6 +5539,7 @@ def main():
             remote_timeout_s=args.remote_timeout,
             voice_mode=args.voice_mode,
             cloning_engine=args.cloning_engine,
+            cloning_model=args.cloning_model,
         )
         repl.cmdloop()
     except KeyboardInterrupt:

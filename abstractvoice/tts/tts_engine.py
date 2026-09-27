@@ -301,55 +301,47 @@ class NonBlockingAudioPlayer:
                 return
 
         try:
-            if self.current_audio is None or self.current_position >= len(self.current_audio):
-                try:
-                    self.current_audio = self.audio_queue.get_nowait()
-                    self.current_position = 0
-                except queue.Empty:
-                    outdata.fill(0)
-                    if self.is_playing:
-                        self.is_playing = False
-                        self._audio_started = False
-                        if self.on_audio_end:
-                            threading.Thread(target=self.on_audio_end, daemon=True).start()
-                        if self.playback_complete_callback:
-                            threading.Thread(target=self.playback_complete_callback, daemon=True).start()
-                    return
+            outdata.fill(0)
+            written = 0
+            # Chunk boundaries are not silence: a device buffer may span several
+            # queued chunks. Only a genuinely empty queue leaves zero padding.
+            while written < frames:
+                if self.current_audio is None or self.current_position >= len(self.current_audio):
+                    try:
+                        self.current_audio = self.audio_queue.get_nowait()
+                        self.current_position = 0
+                    except queue.Empty:
+                        # Defer completion until a callback emits no audio: any
+                        # samples written above still have to reach the speaker.
+                        if written == 0 and self.is_playing:
+                            self.is_playing = False
+                            self._audio_started = False
+                            if self.on_audio_end:
+                                threading.Thread(target=self.on_audio_end, daemon=True).start()
+                            if self.playback_complete_callback:
+                                threading.Thread(target=self.playback_complete_callback, daemon=True).start()
+                        break
+                    if len(self.current_audio) == 0:
+                        continue
 
-            remaining = len(self.current_audio) - self.current_position
-            frames_to_output = min(frames, remaining)
+                count = min(frames - written, len(self.current_audio) - self.current_position)
+                chunk = self.current_audio[self.current_position : self.current_position + count]
+                outdata[written : written + count] = chunk[:, None]
+                self.current_position += count
+                written += count
 
-            if frames_to_output > 0 and not self._audio_started:
-                self._audio_started = True
-                if self.on_audio_start:
-                    threading.Thread(target=self.on_audio_start, daemon=True).start()
-
-            if frames_to_output > 0:
-                if outdata.shape[1] == 1:
-                    outdata[:frames_to_output, 0] = self.current_audio[
-                        self.current_position : self.current_position + frames_to_output
-                    ]
-                else:
-                    audio_data = self.current_audio[
-                        self.current_position : self.current_position + frames_to_output
-                    ]
-                    outdata[:frames_to_output, 0] = audio_data
-                    outdata[:frames_to_output, 1] = audio_data
+                if not self._audio_started:
+                    self._audio_started = True
+                    if self.on_audio_start:
+                        threading.Thread(target=self.on_audio_start, daemon=True).start()
 
                 # Emit the actual output chunk (mono float32) for optional consumers.
                 try:
                     if self.on_audio_chunk:
-                        chunk = self.current_audio[
-                            self.current_position : self.current_position + frames_to_output
-                        ]
                         self.on_audio_chunk(chunk, int(self.sample_rate))
                 except Exception:
                     # Never let optional hooks break audio playback.
                     pass
-                self.current_position += frames_to_output
-
-            if frames_to_output < frames:
-                outdata[frames_to_output:].fill(0)
 
         except Exception as e:
             if self.debug_mode:

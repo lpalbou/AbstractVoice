@@ -22,7 +22,8 @@ _SENTENCE_TERMINATORS = set(".!?。！？")
 # Soft boundaries that are usually safe to cut on for streamed speech.
 # These are *not* always sentence ends, but they often represent a natural pause.
 _SOFT_TERMINATORS = set(",;:，；：")
-_RE_SOFT_END = re.compile(r"(?<=[,;:，；：])\s+")
+_RE_SENTENCE_END = re.compile(r"[.!?](?=\s|$)|[。！？]")
+_RE_SOFT_END = re.compile(r"[,;:](?=\s|$)|[，；：]")
 
 
 def split_text_batches(text: str, *, max_chars: int = 240) -> list[str]:
@@ -45,58 +46,30 @@ def split_text_batches(text: str, *, max_chars: int = 240) -> list[str]:
     if len(s) <= mc:
         return [s]
 
-    # Split on common sentence terminators.
-    parts = re.split(r"(?<=[\.\!\?\。\！\？])\s+", s)
-
-    # Ensure each part fits under max_chars (word-based fallback).
-    pieces: list[str] = []
-    for p in parts:
-        p = str(p or "").strip()
-        if not p:
-            continue
-        if len(p) <= mc:
-            pieces.append(p)
-            continue
-
-        # Fallback for long sentences:
-        # 1) try soft boundaries first (commas/semicolons/colons)
-        # 2) then word-based chunking.
-        soft_parts = re.split(_RE_SOFT_END, p) if ("," in p or "，" in p or ";" in p or "；" in p or ":" in p or "：" in p) else [p]
-        for sp in soft_parts:
-            sp = str(sp or "").strip()
-            if not sp:
-                continue
-            if len(sp) <= mc:
-                pieces.append(sp)
-                continue
-            cur = ""
-            for w in sp.split(" "):
-                w = w.strip()
-                if not w:
-                    continue
-                cand = (cur + " " + w).strip() if cur else w
-                if len(cand) <= mc:
-                    cur = cand
-                else:
-                    if cur:
-                        pieces.append(cur)
-                    cur = w
-            if cur:
-                pieces.append(cur)
-
-    # Merge pieces into batches (avoid overly short chunks).
+    # Cut at the last natural boundary inside each bounded window. CJK
+    # punctuation does not require whitespace. Slice the original normalized
+    # text so merging sentences never inserts spaces into continuous scripts.
     batches: list[str] = []
-    cur = ""
-    for p in pieces:
-        cand = (cur + " " + p).strip() if cur else p
-        if len(cand) <= mc:
-            cur = cand
-        else:
-            if cur:
-                batches.append(cur)
-            cur = p
-    if cur:
-        batches.append(cur)
+    start = 0
+    while start < len(s):
+        limit = min(start + mc, len(s))
+        end = limit
+        if limit < len(s):
+            for boundary in (_RE_SENTENCE_END, _RE_SOFT_END):
+                cut = max((m.end() for m in boundary.finditer(s, start, limit + 1) if m.end() <= limit), default=0)
+                if cut:
+                    end = cut
+                    break
+            else:
+                end = max(s.rfind(" ", start, limit + 1), start)
+                if end == start:
+                    end = limit  # indivisible word / script: enforce the cap
+        segment = s[start:end].strip()
+        if segment:
+            batches.append(segment)
+        start = end
+        while start < len(s) and s[start].isspace():
+            start += 1
 
     return batches
 
@@ -210,20 +183,20 @@ class TextStreamChunker:
 
         # Prefer early, natural boundaries once we have enough content.
         if n >= max(1, min_chars):
-            for i, ch in enumerate(buf):
+            for i, ch in enumerate(buf[:max_chars]):
                 if ch == "\n" and i + 1 >= max(1, min_chars):
                     return i + 1
                 if ch in _SENTENCE_TERMINATORS:
                     j = i + 1
                     if j >= max(1, min_chars):
                         # Only cut if we're at end or next char looks like a boundary.
-                        if j >= n or buf[j].isspace():
+                        if ch in "。！？" or j >= n or buf[j].isspace():
                             return j
                 if ch in _SOFT_TERMINATORS:
                     j = i + 1
                     if j >= max(1, min_chars):
                         # Only cut if we appear to be at a phrase boundary.
-                        if j >= n or buf[j].isspace():
+                        if ch in "，；：" or j >= n or buf[j].isspace():
                             return j
 
         # Hard cap: cut at the best boundary <= max_chars.

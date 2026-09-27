@@ -43,6 +43,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         remote_base_url: str | None = None,
         remote_api_key: str | None = None,
         remote_timeout_s: float | None = None,
+        cloning_model: str | None = None,
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
@@ -65,6 +66,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
 
             self.tts_delivery_mode = normalize_audio_delivery_mode(tts_delivery_mode)
         self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower()
+        self.cloning_model = str(cloning_model).strip() if cloning_model else None
 
         requested_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
 
@@ -105,7 +107,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
                 engine=str(tts_engine or "openai"),
                 language=language,
                 allow_downloads=bool(self.allow_downloads),
-                auto_load=True,
+                auto_load=requested_engine != "qwen3-tts",
                 debug_mode=bool(debug_mode),
                 model_id=tts_model,
                 base_url=self.remote_base_url,
