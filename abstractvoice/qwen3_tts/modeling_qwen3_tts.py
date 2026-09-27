@@ -17,6 +17,9 @@
 #      transformers 5.8's from_pretrained reported success while assigning nothing for this class.
 #   8. The talker's private codebook call uses package-owned predictor.generate_codebooks;
 #      public generate() is unchanged and remains the guarded reference path.
+#   9. create_causal_mask / create_sliding_window_causal_mask calls pass no cache_position
+#      (removed from masking_utils in transformers 5.9; the query offset now comes from the
+#      KV cache). The qwen3-tts extra therefore floors transformers at 5.9.0.
 
 # coding=utf-8
 # Copyright 2026 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
@@ -1120,7 +1123,6 @@ class Qwen3TTSTalkerCodePredictorModel(Qwen3TTSPreTrainedModel):
                 "config": self.config,
                 "inputs_embeds": inputs_embeds,
                 "attention_mask": attention_mask,
-                "cache_position": cache_position,
                 "past_key_values": past_key_values,
             }
             # Create the masks
@@ -1534,7 +1536,6 @@ class Qwen3TTSTalkerModel(Qwen3TTSTalkerTextPreTrainedModel):
             config=self.config,
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
-            cache_position=cache_position,
             past_key_values=past_key_values,
             position_ids=text_position_ids,
         )

@@ -7,6 +7,8 @@
 #   1. auto_docstring / check_model_inputs routed through abstractvoice._hf_compat (decorator signatures changed across transformers 5.x; docstring lint silenced).
 #   2. ROPE_INIT_FUNCTIONS lookup routed through _hf_compat.rope_init_fn (the 'default' key was dropped in transformers 5.x).
 #   3. create_causal_mask keyword renamed input_embeds -> inputs_embeds (deprecated alias removed in transformers >= 5.6).
+#   4. create_causal_mask / create_sliding_window_causal_mask calls pass no cache_position
+#      (removed from masking_utils in transformers 5.9; the query offset comes from the KV cache).
 
 # coding=utf-8
 # Copyright 2026 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
@@ -549,7 +551,6 @@ class Qwen3TTSTokenizerV2DecoderTransformerModel(Qwen3TTSTokenizerV2DecoderPreTr
                 "config": self.config,
                 "inputs_embeds": inputs_embeds,
                 "attention_mask": attention_mask,
-                "cache_position": cache_position,
                 "past_key_values": past_key_values,
                 "position_ids": position_ids,
             }

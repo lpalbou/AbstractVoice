@@ -90,6 +90,9 @@ def test_loop_matches_reference_logits_tokens_and_rng(predictor, dtype, batch, s
     ("max_time", 1.0), ("cache_implementation", "static"),
     ("output_scores", True), ("sequence_bias", {(3,): 2.0}),
     ("custom_future_option", True),
+    # Fields later Transformers 5.x releases added; neutral only when unset.
+    ("use_mtp", True), ("max_cache_len", 64),
+    ("assistant_ensemble_weight", 0.5), ("speculation_type", "dflash"),
 ])
 def test_nonstandard_config_falls_back_before_inference(predictor, key, value, monkeypatch):
     kwargs = arguments(predictor)
@@ -111,6 +114,24 @@ def test_nonstandard_config_falls_back_before_inference(predictor, key, value, m
     )
     warning.assert_called_once()
     assert "#FALLBACK" in warning.call_args.args[0]
+
+
+def test_installed_transformers_defaults_are_all_classified(predictor):
+    """Every resolved GenerationConfig field is known and neutral at its default.
+
+    A Transformers release that adds a field makes the guarded loop fall back
+    (safe, but slow); this names the field so it is classified deliberately.
+    """
+    from abstractvoice.qwen3_tts import predictor as module
+
+    config, _ = predictor._prepare_generation_config(
+        None, **arguments(predictor), output_hidden_states=True, return_dict_in_generate=True,
+    )
+    unclassified = {
+        key: value for key, value in config.to_dict().items()
+        if key not in module._OVERRIDDEN and value not in module._NEUTRAL.get(key, ())
+    }
+    assert unclassified == {}
 
 
 def test_future_library_semantic_default_is_not_implicitly_accepted(predictor, monkeypatch):
@@ -265,3 +286,24 @@ def test_invalid_logits_fail_atomically_at_any_codebook(predictor, step, bad, de
     finally:
         hook.remove()
     predictor.generate.assert_not_called()
+
+
+@pytest.mark.parametrize("sliding_window", [4, 64])
+def test_codec_decoder_transformer_runs_on_installed_transformers(sliding_window):
+    """The codec's decoder transformer builds its masks through masking_utils.
+
+    Weight-free guard for drift in Transformers' mask helpers (cache_position
+    left their signature in 5.9); every real decode goes through this model.
+    """
+    from abstractvoice.qwen3_tts.configuration_qwen3_tts_tokenizer_v2 import Qwen3TTSTokenizerV2DecoderConfig
+    from abstractvoice.qwen3_tts.modeling_qwen3_tts_tokenizer_v2 import Qwen3TTSTokenizerV2DecoderTransformerModel
+
+    torch.manual_seed(3)
+    config = Qwen3TTSTokenizerV2DecoderConfig(
+        hidden_size=16, latent_dim=8, num_attention_heads=2, num_key_value_heads=2, head_dim=8,
+        intermediate_size=32, num_hidden_layers=2, sliding_window=sliding_window,
+    )
+    model = Qwen3TTSTokenizerV2DecoderTransformerModel(config).eval()
+    with torch.no_grad():
+        hidden = model(inputs_embeds=torch.randn(1, 10, 8)).last_hidden_state
+    assert hidden.shape == (1, 10, 8) and torch.isfinite(hidden).all()

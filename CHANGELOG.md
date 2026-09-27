@@ -38,6 +38,14 @@ Older changelog entries may reference historical CLI commands or model choices.
   in chunked plugin output and one-shot file synthesis.
 - Switching TTS providers resets provider-specific model ids. Creating a Qwen
   clone does not eagerly load unrelated base TTS weights.
+- Qwen3-TTS runs on current Transformers: the vendored model no longer passes
+  `cache_position` to the attention-mask helpers (removed in Transformers 5.9,
+  which made every forward raise `TypeError` on a fresh install), and the
+  optimized codebook predictor recognises the generation options later 5.x
+  releases added (`use_mtp`, `max_cache_len`, `assistant_ensemble_weight`,
+  `speculation_type`) instead of always falling back. The Qwen extra now
+  requires `transformers>=5.9.0,<6`; CI tests Qwen3-TTS on CPU torch against
+  that floor and the newest release.
 - The Qwen extra requires Torch 2.4+ to match its Transformers 5 runtime
   (Transformers 5 disables PyTorch below 2.4). Intel Macs, where PyTorch wheels
   end at 2.2.2, now get a resolver error for `abstractvoice[qwen3-tts]` instead

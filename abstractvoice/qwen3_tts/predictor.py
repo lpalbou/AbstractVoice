@@ -43,6 +43,13 @@ _NEUTRAL.update(dict.fromkeys("""
     num_beams num_beam_groups num_return_sequences typical_p repetition_penalty
     encoder_repetition_penalty length_penalty guidance_scale
 """.split(), (None, 1)))
+# Added in later Transformers 5.x releases (absent before, None by default
+# since): multi-token prediction, speculative-decoding variants and static-
+# cache sizing. Each is inert only at its unset value.
+_NEUTRAL.update(dict.fromkeys("""
+    max_cache_len assistant_ensemble_weight speculation_type
+""".split(), (None,)))
+_NEUTRAL.update(use_mtp=(None, False))
 _NEUTRAL.update(
     use_cache=(True,), num_assistant_tokens=(None, 20),
     num_assistant_tokens_schedule=(None, "constant"),

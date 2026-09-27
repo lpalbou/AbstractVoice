@@ -353,3 +353,6 @@ def test_qwen_extra_requires_torch_compatible_with_transformers_five():
     requirements = [Requirement(item) for item in project["project"]["optional-dependencies"]["qwen3-tts"]]
     torch = next(item for item in requirements if item.name == "torch")
     assert "2.4.0" in torch.specifier and "2.3.1" not in torch.specifier
+    # The vendored model calls masking_utils without cache_position (removed in 5.9).
+    transformers = next(item for item in requirements if item.name == "transformers")
+    assert "5.9.0" in transformers.specifier and "5.8.1" not in transformers.specifier
