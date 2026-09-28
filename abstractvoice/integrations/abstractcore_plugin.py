@@ -1392,6 +1392,9 @@ class _BaseVoice:
                     debug_mode = _coerce_bool(cfg.get("voice_debug_mode"), debug_mode)
         except Exception:
             pass
+        # Outside the lenient block above on purpose: a typo in these settings must
+        # fail loudly (ValueError), not silently fall back to the defaults.
+        qwen3_tts_predictor, qwen3_tts_sampler = self._qwen3_tts_codebook_settings()
 
         key = (
             str(language),
@@ -1409,6 +1412,8 @@ class _BaseVoice:
             str(remote_api_key or ""),
             str(remote_timeout_s or ""),
             bool(debug_mode),
+            qwen3_tts_predictor,
+            qwen3_tts_sampler,
         )
 
         with _VM_CACHE_LOCK:
@@ -1430,6 +1435,8 @@ class _BaseVoice:
                     remote_base_url=str(remote_base_url) if remote_base_url else None,
                     remote_api_key=str(remote_api_key) if remote_api_key else None,
                     remote_timeout_s=remote_timeout_s,
+                    qwen3_tts_predictor=qwen3_tts_predictor,
+                    qwen3_tts_sampler=qwen3_tts_sampler,
                 )
                 _VM_CACHE[key] = cached
                 _VM_LOCKS[cached] = threading.Lock()
@@ -1440,6 +1447,18 @@ class _BaseVoice:
                 pass
             self._vm = cached
             return self._vm
+
+    def _qwen3_tts_codebook_settings(self) -> tuple[str, str]:
+        """The owner's `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`
+        settings (no environment variable), validated: ValueError on a typo."""
+        from ..qwen3_tts.runtime import normalize_qwen3_tts_predictor, normalize_qwen3_tts_sampler
+
+        cfg = getattr(self._owner, "config", None)
+        cfg = cfg if isinstance(cfg, dict) else {}
+        return (
+            normalize_qwen3_tts_predictor(cfg.get("voice_qwen3_tts_predictor")),
+            normalize_qwen3_tts_sampler(cfg.get("voice_qwen3_tts_sampler")),
+        )
 
     def _iter_known_vms(self):
         seen: set[int] = set()

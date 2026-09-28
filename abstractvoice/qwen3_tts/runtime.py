@@ -70,6 +70,30 @@ def estimate_max_new_tokens(text: str, *, floor: int = 96, ceiling: int = 2048) 
     return max(int(floor), min(int(ceiling), tokens))
 
 
+# Codebook predictor and sampler choices (see Qwen3TTSSettings). Every surface
+# (CLI, REPL, web example, AbstractCore plugin settings) validates through the
+# two normalizers below, so a bad value fails before any weights load.
+QWEN3_TTS_PREDICTORS = ("auto", "reference")
+QWEN3_TTS_SAMPLERS = ("multinomial", "exponential")
+
+
+def normalize_qwen3_tts_predictor(value: Any) -> str:
+    """``"auto"`` (default, also for None/empty) or ``"reference"``; anything else raises."""
+    return _normalize_choice(value, QWEN3_TTS_PREDICTORS, "Qwen3-TTS predictor")
+
+
+def normalize_qwen3_tts_sampler(value: Any) -> str:
+    """``"multinomial"`` (default, also for None/empty) or ``"exponential"``; anything else raises."""
+    return _normalize_choice(value, QWEN3_TTS_SAMPLERS, "Qwen3-TTS sampler")
+
+
+def _normalize_choice(value: Any, choices: tuple, label: str) -> str:
+    text = str(value if value is not None else "").strip().lower() or choices[0]
+    if text not in choices:
+        raise ValueError(f"{label} must be one of {', '.join(choices)} (got {value!r})")
+    return text
+
+
 @dataclass
 class Qwen3TTSSettings:
     """Sampling knobs; quality presets map onto these (both samplers together)."""
@@ -90,6 +114,10 @@ class Qwen3TTSSettings:
     # exponential race with frame-level validation); "reference" ignores it.
     predictor: str = "auto"
     sampler: str = "multinomial"
+
+    def __post_init__(self) -> None:
+        self.predictor = normalize_qwen3_tts_predictor(self.predictor)
+        self.sampler = normalize_qwen3_tts_sampler(self.sampler)
 
     def apply_quality_preset(self, preset: str) -> None:
         from ..quality_preset import normalize_quality_preset
@@ -231,12 +259,10 @@ class Qwen3TTSRuntime:
 
             from .orchestration import Qwen3TTSModel
 
-            predictor_mode = str(self.settings.predictor or "").strip().lower()
-            if predictor_mode not in {"auto", "reference"}:
-                raise ValueError("Qwen3TTSSettings.predictor must be auto or reference")
-            sampler = str(self.settings.sampler or "").strip().lower()
-            if sampler not in {"multinomial", "exponential"}:
-                raise ValueError("Qwen3TTSSettings.sampler must be multinomial or exponential")
+            # Re-validated here: the fields are plain attributes and may have
+            # been reassigned after construction.
+            predictor_mode = normalize_qwen3_tts_predictor(self.settings.predictor)
+            sampler = normalize_qwen3_tts_sampler(self.settings.sampler)
             local_dir = self.snapshot_dir()
             runtime = self._resolve_runtime()
 

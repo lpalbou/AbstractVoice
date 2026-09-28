@@ -186,12 +186,18 @@ def test_failures_are_not_retried_after_rng_consumption(predictor):
 
 
 @pytest.mark.parametrize("field,options", [
-    ("predictor", "auto or reference"),
-    ("sampler", "multinomial or exponential"),
+    ("predictor", "one of auto, reference"),
+    ("sampler", "one of multinomial, exponential"),
 ])
 def test_invalid_runtime_mode_is_rejected_before_loading(field, options):
     from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime, Qwen3TTSSettings
-    runtime = Qwen3TTSRuntime(allow_downloads=False, settings=Qwen3TTSSettings(**{field: "typo"}))
+    with pytest.raises(ValueError, match=options):
+        Qwen3TTSSettings(**{field: "typo"})
+    # The fields are plain attributes: a value reassigned later is still
+    # rejected before any snapshot is resolved.
+    settings = Qwen3TTSSettings()
+    setattr(settings, field, "typo")
+    runtime = Qwen3TTSRuntime(allow_downloads=False, settings=settings)
     runtime.snapshot_dir = Mock(side_effect=AssertionError("must validate before loading"))
     with pytest.raises(ValueError, match=options):
         runtime._ensure_loaded()

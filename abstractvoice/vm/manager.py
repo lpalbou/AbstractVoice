@@ -44,6 +44,8 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         remote_api_key: str | None = None,
         remote_timeout_s: float | None = None,
         cloning_model: str | None = None,
+        qwen3_tts_predictor: str | None = None,
+        qwen3_tts_sampler: str | None = None,
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
@@ -67,6 +69,12 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
             self.tts_delivery_mode = normalize_audio_delivery_mode(tts_delivery_mode)
         self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower()
         self.cloning_model = str(cloning_model).strip() if cloning_model else None
+        # Qwen3-TTS codebook predictor/sampler, for synthesis and cloning alike.
+        # Validated here so a typo fails at construction, before any weights load.
+        from ..qwen3_tts.runtime import normalize_qwen3_tts_predictor, normalize_qwen3_tts_sampler
+
+        self.qwen3_tts_predictor = normalize_qwen3_tts_predictor(qwen3_tts_predictor)
+        self.qwen3_tts_sampler = normalize_qwen3_tts_sampler(qwen3_tts_sampler)
 
         requested_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
 
@@ -113,6 +121,8 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
                 base_url=self.remote_base_url,
                 api_key=self.remote_api_key,
                 timeout_s=self.remote_timeout_s,
+                qwen3_tts_predictor=self.qwen3_tts_predictor,
+                qwen3_tts_sampler=self.qwen3_tts_sampler,
             )
         except ValueError:
             # Preserve caller-facing validation semantics (explicit engine names must be valid).

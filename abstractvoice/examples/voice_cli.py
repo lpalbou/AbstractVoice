@@ -14,6 +14,7 @@ import time
 from abstractvoice.cloning.manager import get_supported_cloning_engines
 from abstractvoice.examples.cli_repl import VoiceREPL
 from abstractvoice.examples.llm_provider import PROVIDER_PRESETS, DEFAULT_PROVIDER, DEFAULT_MODEL
+from abstractvoice.examples.tts_defaults import add_qwen3_tts_arguments
 
 
 def _has_cli_option(argv: list[str], *options: str) -> bool:
@@ -163,6 +164,7 @@ def parse_args(argv: list[str] | None = None):
         help="Default cloning backend for new voices (default: omnivoice).",
     )
     parser.add_argument("--cloning-model", default=None, help="Cloning checkpoint id or local directory (Qwen3-TTS Base).")
+    add_qwen3_tts_arguments(parser)
     parser.add_argument(
         "--voice-mode",
         default="off",
@@ -312,6 +314,8 @@ def _run_one_shot_tts(args, *, voice_manager_factory=None) -> str:
         allow_downloads=True,
         cloning_engine=args.cloning_engine,
         cloning_model=args.cloning_model,
+        qwen3_tts_predictor=args.qwen3_tts_predictor,
+        qwen3_tts_sampler=args.qwen3_tts_sampler,
     )
     try:
         voice_for_call = _apply_tts_voice_profile(vm, args.voice)
@@ -384,6 +388,8 @@ def main():
                 disable_tts=args.no_tts,
                 cloning_engine=args.cloning_engine,
                 cloning_model=args.cloning_model,
+                qwen3_tts_predictor=args.qwen3_tts_predictor,
+                qwen3_tts_sampler=args.qwen3_tts_sampler,
             )
             # Set temperature and max_tokens
             repl.temperature = args.temperature
@@ -406,6 +412,8 @@ def main():
                     stt_model=args.stt_model,
                     cloning_engine=args.cloning_engine,
                     cloning_model=args.cloning_model,
+                    qwen3_tts_predictor=args.qwen3_tts_predictor,
+                    qwen3_tts_sampler=args.qwen3_tts_sampler,
                     remote_base_url=args.remote_base_url,
                     remote_api_key=args.remote_api_key,
                     remote_timeout_s=args.remote_timeout,
@@ -456,6 +464,8 @@ def main():
             disable_tts=args.no_tts,
             cloning_engine=args.cloning_engine,
             cloning_model=args.cloning_model,
+            qwen3_tts_predictor=args.qwen3_tts_predictor,
+            qwen3_tts_sampler=args.qwen3_tts_sampler,
         )
         
         # Set custom system prompt if provided

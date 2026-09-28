@@ -125,6 +125,8 @@ class TtsMixin:
                 remote_api_key=getattr(self, "remote_api_key", None),
                 remote_timeout_s=getattr(self, "remote_timeout_s", None),
                 remote_tts_model=getattr(self, "tts_model", None),
+                qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
+                qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
             )
         return self._voice_cloner
 
@@ -1132,6 +1134,35 @@ class TtsMixin:
         except Exception:
             return None
 
+    def set_qwen3_tts_codebook_generation(
+        self,
+        *,
+        predictor: str | None = None,
+        sampler: str | None = None,
+    ) -> dict:
+        """Choose the Qwen3-TTS codebook predictor and sampler, for synthesis and cloning.
+
+        ``predictor``: ``"auto"`` (guarded fast loop, default) or ``"reference"``;
+        ``sampler``: ``"multinomial"`` (default) or ``"exponential"``. ``None``
+        keeps the current value. Invalid values raise ``ValueError`` and change
+        nothing. Both are read when a model loads, so a resident Qwen3-TTS model
+        is unloaded and the next synthesis reloads it with the new choice.
+        """
+        from ..qwen3_tts.runtime import normalize_qwen3_tts_predictor, normalize_qwen3_tts_sampler
+
+        predictor = normalize_qwen3_tts_predictor(
+            getattr(self, "qwen3_tts_predictor", None) if predictor is None else predictor
+        )
+        sampler = normalize_qwen3_tts_sampler(getattr(self, "qwen3_tts_sampler", None) if sampler is None else sampler)
+        self.qwen3_tts_predictor, self.qwen3_tts_sampler = predictor, sampler
+        adapter = getattr(self, "tts_adapter", None)
+        if callable(getattr(adapter, "set_codebook_generation", None)):
+            adapter.set_codebook_generation(predictor=predictor, sampler=sampler)
+        cloner = getattr(self, "_voice_cloner", None)
+        if cloner is not None:
+            cloner.set_qwen3_tts_codebook_generation(predictor=predictor, sampler=sampler)
+        return {"predictor": predictor, "sampler": sampler}
+
     def set_tts_engine(
         self,
         engine: str,
@@ -1170,6 +1201,8 @@ class TtsMixin:
             base_url=getattr(self, "remote_base_url", None),
             api_key=getattr(self, "remote_api_key", None),
             timeout_s=getattr(self, "remote_timeout_s", None),
+            qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
+            qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
         )
         if adapter is None:
             raise RuntimeError(f"TTS engine '{requested}' is not available in this environment.")
@@ -2354,6 +2387,8 @@ class TtsMixin:
                     base_url=getattr(self, "remote_base_url", None),
                     api_key=getattr(self, "remote_api_key", None),
                     timeout_s=getattr(self, "remote_timeout_s", None),
+                    qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
+                    qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
                 )
                 if self.tts_adapter is None:
                     return False
