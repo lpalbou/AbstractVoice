@@ -19,6 +19,8 @@ from typing import Any, Mapping, Optional
 import numpy as np
 import requests
 
+OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
 
 class RemoteVoiceProviderError(RuntimeError):
     """Raised when a remote audio provider request fails."""
@@ -75,7 +77,7 @@ def resolve_base_url(provider: str, base_url: str | None = None) -> str:
     if base_url and str(base_url).strip():
         return str(base_url).strip()
     if p == "openai":
-        return env_first("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        return env_first("OPENAI_BASE_URL") or OPENAI_DEFAULT_BASE_URL
     out = env_first("OPENAI_BASE_URL")
     if not out:
         raise ValueError(
@@ -98,15 +100,16 @@ def remote_endpoint(
     ``openai-compatible`` always uses the shared remote endpoint
     (``remote_base_url`` / ``remote_api_key``). ``openai`` uses its own
     credentials when the host passes ``openai_api_key``: then its base URL is
-    ``openai_base_url`` (None = the OpenAI default), and neither the key nor the
-    requests ever go to the compatible server. Without ``openai_api_key``,
+    ``openai_base_url`` or else the OpenAI default -- never ``OPENAI_BASE_URL``,
+    which names the compatible server -- so neither the key nor the requests
+    ever go to the compatible server. Without ``openai_api_key``,
     ``openai`` keeps using the shared remote endpoint.
     """
     p = normalize_remote_provider(provider)
     key = str(openai_api_key or "").strip()
     if p == "openai" and key:
         base = str(openai_base_url or "").strip()
-        return (base or None), key
+        return (base or OPENAI_DEFAULT_BASE_URL), key
     return remote_base_url, remote_api_key
 
 

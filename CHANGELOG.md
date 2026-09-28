@@ -34,7 +34,8 @@ Older changelog entries may reference historical CLI commands or model choices.
   `voice_openai_api_key` / `voice_openai_base_url` (and
   `VoiceManager(openai_api_key=, openai_base_url=)`) give provider `openai` its own
   key for synthesis, transcription and cloning. That key is never sent to the
-  OpenAI-compatible endpoint (`voice_remote_base_url`).
+  OpenAI-compatible endpoint (`voice_remote_base_url` or `OPENAI_BASE_URL`):
+  without `voice_openai_base_url` it goes to `https://api.openai.com/v1`.
 
 ### Fixed
 

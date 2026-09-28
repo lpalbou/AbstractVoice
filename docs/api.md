@@ -752,7 +752,8 @@ different provider:
   STT, cloning) and never sent to `voice_remote_base_url`; it also makes `openai`
   available in discovery.
 - `voice_openai_base_url`: optional OpenAI base URL used with `voice_openai_api_key`
-  (default: the OpenAI API)
+  (default: the OpenAI API, `https://api.openai.com/v1`; `OPENAI_BASE_URL` is not
+  used for this key, because it names the OpenAI-compatible server)
 - `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`: Qwen3-TTS codebook
   predictor and sampler (see [Qwen performance controls](#qwen-performance-controls))
 - `voice_whisper_model`: faster-whisper model size (e.g. `"base"`, `"small"`)

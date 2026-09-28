@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 import abstractvoice.integrations.abstractcore_plugin as plugin
-from abstractvoice.adapters.openai_compatible_http import remote_endpoint
+from abstractvoice.adapters.openai_compatible_http import OPENAI_DEFAULT_BASE_URL, remote_endpoint
 
 _ENV = (
     "OPENAI_API_KEY",
@@ -42,12 +42,32 @@ class _Owner:
 
 def test_openai_key_never_goes_to_the_compatible_server():
     kw = dict(remote_base_url="http://llm.local/v1", remote_api_key="local-key", openai_api_key="sk-host")
-    assert remote_endpoint("openai", **kw) == (None, "sk-host")
+    assert remote_endpoint("openai", **kw) == (OPENAI_DEFAULT_BASE_URL, "sk-host")
     assert remote_endpoint("openai-compatible", **kw) == ("http://llm.local/v1", "local-key")
     assert remote_endpoint("openai", openai_api_key="sk-host", openai_base_url="https://eu.example/v1") == (
         "https://eu.example/v1",
         "sk-host",
     )
+
+
+def test_host_key_ignores_openai_base_url_env(monkeypatch):
+    """OPENAI_BASE_URL names the compatible server; a host OpenAI key never goes there.
+
+    The autouse fixture deletes OPENAI_BASE_URL, so this test sets it again.
+    """
+    from abstractvoice.cloning.manager import VoiceCloner
+    from abstractvoice.vm.manager import VoiceManager
+
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://compat.local:8000/v1")
+    assert remote_endpoint("openai", openai_api_key="sk-HOST") == (OPENAI_DEFAULT_BASE_URL, "sk-HOST")
+
+    vm = VoiceManager(tts_engine="openai", stt_engine="openai", openai_api_key="sk-HOST")
+    tts = vm.tts_adapter
+    assert (tts.base_url, tts.api_key) == (OPENAI_DEFAULT_BASE_URL, "sk-HOST")
+    stt = vm._get_stt_adapter()
+    assert (stt.base_url, stt.api_key) == (OPENAI_DEFAULT_BASE_URL, "sk-HOST")
+    engine = VoiceCloner(openai_api_key="sk-HOST")._get_engine("openai")
+    assert (engine.base_url, engine.api_key) == (OPENAI_DEFAULT_BASE_URL, "sk-HOST")
 
 
 def test_without_openai_credentials_the_shared_endpoint_is_used():
@@ -74,7 +94,7 @@ def test_voice_manager_tts_and_stt_use_the_openai_credentials(monkeypatch):
         remote_api_key="local-key",
         openai_api_key="sk-host",
     )
-    assert (seen["base_url"], seen["api_key"]) == (None, "sk-host")
+    assert (seen["base_url"], seen["api_key"]) == (OPENAI_DEFAULT_BASE_URL, "sk-host")
     stt = vm._get_stt_adapter()
     assert stt is not None
     assert stt.api_key == "sk-host"
@@ -91,7 +111,7 @@ def test_cloner_openai_engine_uses_the_openai_credentials():
     )
     engine = cloner._get_engine("openai")
     assert engine.api_key == "sk-host"
-    assert engine.base_url is None or "llm.local" not in str(engine.base_url)
+    assert engine.base_url == OPENAI_DEFAULT_BASE_URL
     compatible = cloner._get_engine("openai-compatible")
     assert compatible.api_key == "local-key"
 
@@ -152,6 +172,6 @@ def test_switching_tts_engine_and_cloning_keep_the_openai_credentials(monkeypatc
     assert (seen[-1]["base_url"], seen[-1]["api_key"]) == ("http://llm.local/v1", "local-key")
     with pytest.raises(RuntimeError):
         vm.set_tts_engine("openai")  # the fake returns no adapter
-    assert (seen[-1]["base_url"], seen[-1]["api_key"]) == (None, "sk-host")
+    assert (seen[-1]["base_url"], seen[-1]["api_key"]) == (OPENAI_DEFAULT_BASE_URL, "sk-host")
     cloner = vm._get_voice_cloner()
     assert cloner._get_engine("openai").api_key == "sk-host"
