@@ -10,6 +10,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-28
+
 ### Added
 
 - `abstractvoice.engine_runtime`: `engine_runtime_status(engine)` reports whether a
@@ -40,7 +42,6 @@ Older changelog entries may reference historical CLI commands or model choices.
   `unavailable_reason` (for example `not_configured` for OpenAI without a key)
   when the configured TTS provider cannot run, instead of raising; a selected
   remote provider without its key or base URL is no longer listed as available.
-
 - Qwen3-ASR speech-to-text runs on Transformers 5.x (5.4 through current releases):
   configuration, weight loading, attention masks and generation are compatible,
   and the bundled model is always used even where Transformers ships its own
