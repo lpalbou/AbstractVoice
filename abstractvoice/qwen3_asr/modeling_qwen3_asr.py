@@ -1,3 +1,17 @@
+# Vendored from qwen-asr (https://github.com/QwenLM/Qwen3-ASR, Apache-2.0).
+# Shipped inside AbstractVoice to enable offline-first inference without trust_remote_code.
+# Local modifications made for transformers 5.x (backlog 0946), listed exhaustively for this pass:
+#   1. auto_docstring / check_model_inputs / rope_init_fn / pad_token_id_of routed through
+#      abstractvoice._hf_compat (earlier AbstractVoice change).
+#   2. Qwen3ASRThinkerTextRotaryEmbedding.compute_default_rope_parameters (5.x weight init asks
+#      the module for the "default" schedule).
+#   3. create_causal_mask is called with inputs_embeds= and no cache_position (the input_embeds
+#      alias and cache_position were removed from masking_utils in transformers 5.9).
+#   4. The thinker's prefill/decode split (positions, audio features) is derived from the KV cache:
+#      5.x generate() no longer passes cache_position to in-repo models.
+#   5. Qwen3ASRPreTrainedModel._init_weights rebuilds the audio tower's non-persistent sinusoid
+#      table, which 5.x from_pretrained otherwise leaves uninitialized.
+
 # coding=utf-8
 # Copyright 2026 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
 #
@@ -298,6 +312,18 @@ class Qwen3ASRPreTrainedModel(PreTrainedModel):
         "attentions": Qwen3ASRTextAttention,
     }
 
+    @torch.no_grad()
+    def _init_weights(self, module):
+        # Local modification: transformers 5.x builds the model without real
+        # buffers and re-initializes the non-persistent ones through this hook;
+        # the audio tower's sinusoid table is not in the checkpoint, so without
+        # this it stayed uninitialized after from_pretrained.
+        super()._init_weights(module)
+        if isinstance(module, SinusoidsPositionEmbedding):
+            buffer = module.positional_embedding
+            if not getattr(buffer, "_is_hf_initialized", False):
+                buffer.copy_(module.compute_positional_embedding().to(buffer.device, buffer.dtype))
+
 
 @dataclass
 class Qwen3ASRThinkerCausalLMOutputWithPast(MoeCausalLMOutputWithPast):
@@ -585,14 +611,16 @@ class SinusoidsPositionEmbedding(nn.Module):
         super().__init__()
         if channels % 2 != 0:
             raise ValueError("SinusoidsPositionEmbedding needs even channels input")
-        log_timescale_increment = np.log(max_timescale) / (channels // 2 - 1)
-        inv_timescales = torch.exp(-log_timescale_increment * torch.arange(channels // 2).float())
-        scaled_time = torch.arange(length)[:, np.newaxis] * inv_timescales[np.newaxis, :]
-        self.register_buffer(
-            "positional_embedding",
-            torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], dim=1),
-            persistent=False,
-        )
+        self.length = length
+        self.channels = channels
+        self.max_timescale = max_timescale
+        self.register_buffer("positional_embedding", self.compute_positional_embedding(), persistent=False)
+
+    def compute_positional_embedding(self) -> torch.Tensor:
+        log_timescale_increment = np.log(self.max_timescale) / (self.channels // 2 - 1)
+        inv_timescales = torch.exp(-log_timescale_increment * torch.arange(self.channels // 2).float())
+        scaled_time = torch.arange(self.length)[:, np.newaxis] * inv_timescales[np.newaxis, :]
+        return torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], dim=1)
 
     def forward(self, seqlen: int):
         return self.positional_embedding[:seqlen, :]
@@ -782,6 +810,11 @@ class Qwen3ASRAudioEncoder(Qwen3ASRPreTrainedModel):
         )
 
 
+def _past_seen_tokens(past_key_values: Optional[Cache]) -> int:
+    """Tokens already in the KV cache: 0 at prefill, > 0 at every decode step."""
+    return int(past_key_values.get_seq_length()) if past_key_values is not None else 0
+
+
 class Qwen3ASRThinkerTextRotaryEmbedding(nn.Module):
     inv_freq: torch.Tensor  # fix linting for `register_buffer`
 
@@ -802,6 +835,11 @@ class Qwen3ASRThinkerTextRotaryEmbedding(nn.Module):
         self.original_inv_freq = self.inv_freq
 
         self.mrope_section = config.rope_scaling.get("mrope_section", [24, 20, 20])
+
+    @staticmethod
+    def compute_default_rope_parameters(config=None, device=None, seq_len=None):
+        """The "default" rope schedule; transformers 5.x weight init asks the module for it."""
+        return rope_init_fn("default")(config, device, seq_len)
 
     def apply_interleaved_mrope(self, freqs, mrope_section):
         """Apply interleaved MRoPE to 3D rotary embeddings.
@@ -1030,9 +1068,8 @@ class Qwen3ASRThinkerTextModel(Qwen3ASRPreTrainedModel):
 
         attention_mask = create_causal_mask(
             config=self.config,
-            input_embeds=inputs_embeds,
+            inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
-            cache_position=cache_position,
             past_key_values=past_key_values,
             position_ids=text_position_ids,
         )
@@ -1213,11 +1250,12 @@ class Qwen3ASRThinkerForConditionalGeneration(Qwen3ASRPreTrainedModelForConditio
             audio_feature_lengths = None
 
         if attention_mask is not None and position_ids is None:
-            if (
-                cache_position is None
-                or (cache_position is not None and cache_position[0] == 0)
-                or self.rope_deltas is None
-            ):
+            # Local modification: the prefill/decode split comes from the KV cache,
+            # not `cache_position` -- transformers 5.x generate() no longer passes it
+            # to in-repo models, so upstream's `cache_position[0] == 0` test rebuilt
+            # positions for the whole history at every decode step.
+            past_seen_tokens = _past_seen_tokens(past_key_values)
+            if past_seen_tokens == 0 or self.rope_deltas is None:
                 delta0 = (1 - attention_mask).sum(dim=-1).unsqueeze(1)
                 position_ids, rope_deltas = self.get_rope_index(
                     attention_mask,
@@ -1225,9 +1263,9 @@ class Qwen3ASRThinkerForConditionalGeneration(Qwen3ASRPreTrainedModelForConditio
                 rope_deltas = rope_deltas - delta0
                 self.rope_deltas = rope_deltas
             else:
-                batch_size, seq_length = input_ids.shape
-                delta = cache_position[0] + self.rope_deltas if cache_position is not None else 0
-                position_ids = torch.arange(seq_length, device=input_ids.device)
+                batch_size, seq_length = inputs_embeds.shape[0], inputs_embeds.shape[1]
+                delta = past_seen_tokens + self.rope_deltas
+                position_ids = torch.arange(seq_length, device=inputs_embeds.device)
                 position_ids = position_ids.view(1, -1).expand(batch_size, -1)
                 position_ids = position_ids.add(delta)
                 position_ids = position_ids.unsqueeze(0).expand(3, -1, -1)
@@ -1288,7 +1326,9 @@ class Qwen3ASRThinkerForConditionalGeneration(Qwen3ASRPreTrainedModelForConditio
 
         model_inputs["position_ids"] = None
 
-        if cache_position[0] != 0:
+        # Local modification: audio features only enter the prefill step; the phase
+        # comes from the KV cache (transformers 5.x passes no `cache_position`).
+        if _past_seen_tokens(past_key_values) != 0:
             model_inputs["input_features"] = None
 
         return model_inputs

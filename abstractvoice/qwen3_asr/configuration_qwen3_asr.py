@@ -1,3 +1,7 @@
+# Vendored from qwen-asr (https://github.com/QwenLM/Qwen3-ASR, Apache-2.0).
+# Local modification (transformers 5.x, backlog 0946): Qwen3ASRConfig and Qwen3ASRThinkerConfig
+# set their sub-configs BEFORE PretrainedConfig.__init__, which calls get_text_config() on 5.x.
+
 # coding=utf-8
 # Copyright 2026 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
 #
@@ -336,11 +340,9 @@ class Qwen3ASRThinkerConfig(PretrainedConfig):
         initializer_range=0.02,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.user_token_id = user_token_id
-        self.audio_start_token_id = audio_start_token_id
-        self.initializer_range = initializer_range
-
+        # Sub-configs are set BEFORE the parent constructor: transformers 5.x
+        # validates token ids in PretrainedConfig.__init__ through
+        # get_text_config(), which reads them.
         if isinstance(audio_config, dict):
             audio_config = Qwen3ASRAudioEncoderConfig(**audio_config)
         elif audio_config is None:
@@ -352,6 +354,11 @@ class Qwen3ASRThinkerConfig(PretrainedConfig):
         elif text_config is None:
             text_config = Qwen3ASRTextConfig()
         self.text_config = text_config
+
+        super().__init__(**kwargs)
+        self.user_token_id = user_token_id
+        self.audio_start_token_id = audio_start_token_id
+        self.initializer_range = initializer_range
         self.audio_token_id = audio_token_id
 
 
@@ -400,11 +407,15 @@ class Qwen3ASRConfig(PretrainedConfig):
         support_languages=None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        # Set before the parent constructor, which calls get_text_config() on
+        # transformers 5.x (see Qwen3ASRThinkerConfig).
         if thinker_config is None:
             thinker_config = {}
-
-        self.thinker_config = Qwen3ASRThinkerConfig(**thinker_config)
+        if isinstance(thinker_config, Qwen3ASRThinkerConfig):
+            self.thinker_config = thinker_config
+        else:
+            self.thinker_config = Qwen3ASRThinkerConfig(**thinker_config)
+        super().__init__(**kwargs)
         self.support_languages = support_languages
 
     def get_text_config(self, decoder=False) -> "PretrainedConfig":
