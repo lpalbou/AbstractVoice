@@ -43,6 +43,9 @@ Older changelog entries may reference historical CLI commands or model choices.
   `unavailable_reason` (for example `not_configured` for OpenAI without a key)
   when the configured TTS provider cannot run, instead of raising; a selected
   remote provider without its key or base URL is no longer listed as available.
+- The vendored Qwen3-TTS and Qwen3-ASR model modules import on Python 3.9 again
+  (signatures used `str | None`, evaluated at import there); a torch-free test
+  now checks every package module for such annotations on every Python.
 - `voice_catalog(provider=...)` for a provider that cannot run (for example
   `openai` without a key) or an unknown provider id returns an empty listing with
   `unavailable_reason` instead of raising a misleading `ValueError`; an unknown id

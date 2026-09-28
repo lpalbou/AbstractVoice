@@ -40,7 +40,7 @@
 import json
 import os
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import huggingface_hub
 import torch
@@ -79,10 +79,10 @@ logger = logging.get_logger(__name__)
 
 def download_weights_from_hf_specific(
     model_name_or_path: str,
-    cache_dir: str | None,
+    cache_dir: Optional[str],
     allow_patterns: list[str],
-    revision: str | None = None,
-    ignore_patterns: str | list[str] | None = None,
+    revision: Optional[str] = None,
+    ignore_patterns: Optional[Union[str, list[str]]] = None,
 ) -> str:
     """Download model weights from Hugging Face Hub. Users can specify the
     allow_patterns to download only the necessary weights.

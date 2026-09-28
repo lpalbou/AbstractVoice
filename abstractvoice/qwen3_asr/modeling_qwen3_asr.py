@@ -1371,7 +1371,7 @@ class Qwen3ASRForConditionalGeneration(Qwen3ASRPreTrainedModel, GenerationMixin)
         self,
         input_ids: Optional[torch.Tensor] = None,
         max_new_tokens: int = 4096,
-        eos_token_id: int | list[int] = [151645, 151643],
+        eos_token_id: Union[int, list[int]] = [151645, 151643],
         **kwargs,
     ):
         shared_kwargs = {}
