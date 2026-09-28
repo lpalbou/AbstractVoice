@@ -259,16 +259,15 @@ class Qwen3TTSRuntime:
 
             from ..transformers_floor import QWEN3_TTS_MIN_TRANSFORMERS, require_transformers
 
+            # Re-validated here: the fields are plain attributes and may have
+            # been reassigned after construction.
+            predictor_mode = normalize_qwen3_tts_predictor(self.settings.predictor)
+            sampler = normalize_qwen3_tts_sampler(self.settings.sampler)
             # Before any download or weight load: on an older Transformers the
             # vendored model fails mid-generation instead.
             require_transformers(QWEN3_TTS_MIN_TRANSFORMERS, model="Qwen3-TTS", extra="qwen3-tts")
 
             from .orchestration import Qwen3TTSModel
-
-            # Re-validated here: the fields are plain attributes and may have
-            # been reassigned after construction.
-            predictor_mode = normalize_qwen3_tts_predictor(self.settings.predictor)
-            sampler = normalize_qwen3_tts_sampler(self.settings.sampler)
             local_dir = self.snapshot_dir()
             runtime = self._resolve_runtime()
 

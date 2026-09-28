@@ -235,6 +235,9 @@ def test_runtime_settings_select_predictor_and_sampler_at_load(monkeypatch, sett
     monkeypatch.setattr(
         orchestration.Qwen3TTSModel, "from_pretrained", classmethod(lambda cls, *_a, **_kw: SimpleNamespace(model=inner))
     )
+    # The Transformers floor has its own tests (test_transformers_floor.py); this
+    # one is about settings and must not depend on the installed release.
+    monkeypatch.setattr("abstractvoice.transformers_floor.require_transformers", lambda *_a, **_kw: None)
     runtime = Qwen3TTSRuntime(allow_downloads=False, device="cpu", settings=Qwen3TTSSettings(**settings))
     runtime.snapshot_dir = Mock(return_value="/nonexistent-snapshot")
     runtime._ensure_loaded()
