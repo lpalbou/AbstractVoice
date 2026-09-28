@@ -515,7 +515,7 @@ class TransformersASRAdapter(STTAdapter):
     def _ensure_loaded_qwen3_asr(self, *, torch_device: Any, torch_dtype: Any, local_only: bool) -> None:
         try:
             import torch
-            from transformers import AutoModel, AutoProcessor
+            import transformers  # noqa: F401
         except Exception as e:
             raise RuntimeError(
                 "Qwen3-ASR requires Transformers + Torch optional dependencies.\n"
@@ -525,9 +525,12 @@ class TransformersASRAdapter(STTAdapter):
                 "  pip install \"abstractvoice[gpu]\"    # GPU profile"
             ) from e
 
-        from ..qwen3_asr import register_transformers_qwen3_asr
-
-        register_transformers_qwen3_asr()
+        # The vendored classes are loaded by name, never through AutoModel /
+        # AutoProcessor: newer transformers releases ship their own `qwen3_asr`
+        # model type (5.17 has one, with no `generate()` on the AutoModel class), and
+        # the Auto* lookup would silently swap in that untested implementation.
+        from ..qwen3_asr.modeling_qwen3_asr import Qwen3ASRForConditionalGeneration
+        from ..qwen3_asr.processing_qwen3_asr import Qwen3ASRProcessor
 
         model_kwargs: dict[str, Any] = {
             "local_files_only": bool(local_only),
@@ -545,7 +548,7 @@ class TransformersASRAdapter(STTAdapter):
             # MPS does not support accelerate-style device maps reliably; load then move.
             model_kwargs.pop("device_map", None)
 
-        model = AutoModel.from_pretrained(self._model_id, **model_kwargs)
+        model = Qwen3ASRForConditionalGeneration.from_pretrained(self._model_id, **model_kwargs)
         try:
             if resolved_device.startswith("cuda") or resolved_device.startswith("mps"):
                 model = model.to(torch_device)
@@ -566,7 +569,7 @@ class TransformersASRAdapter(STTAdapter):
             processor_kwargs["fix_mistral_regex"] = True
         except Exception:
             pass
-        processor = AutoProcessor.from_pretrained(self._model_id, **processor_kwargs)
+        processor = Qwen3ASRProcessor.from_pretrained(self._model_id, **processor_kwargs)
 
         self._qwen3_model = model
         self._qwen3_processor = processor

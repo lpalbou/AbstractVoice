@@ -214,6 +214,8 @@ def _qwen3_tts_factory(
         model_id=kwargs.get("model_id"),
         revision=kwargs.get("revision"),
         device=kwargs.get("device", "auto"),
+        predictor=kwargs.get("qwen3_tts_predictor"),
+        sampler=kwargs.get("qwen3_tts_sampler"),
     )
 
 

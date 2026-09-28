@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import importlib.util
 import os
 import threading
 import time
@@ -639,36 +638,18 @@ def _known_cloning_provider_ids() -> list[str]:
 
 
 def _runtime_installed(kind: str, provider: Any) -> bool | None:
+    """`engine_runtime_status(provider).installed`, or None for an engine it does not know."""
+    status = _engine_runtime_status_or_none(provider)
+    return None if status is None else status.installed
+
+
+def _engine_runtime_status_or_none(provider: Any) -> Any:
+    from ..engine_runtime import engine_runtime_status, known_engines
+
     engine = _norm_engine_id(provider)
-    if not engine:
+    if engine not in known_engines():
         return None
-    if engine in {"openai", "openai-compatible"}:
-        return True
-    if kind == "stt" and engine == "faster-whisper":
-        return importlib.util.find_spec("faster_whisper") is not None
-    if kind == "stt" and engine == "transformers-asr":
-        return (
-            importlib.util.find_spec("torch") is not None
-            and importlib.util.find_spec("transformers") is not None
-            and importlib.util.find_spec("soundfile") is not None
-        )
-    if engine == "piper":
-        return (
-            importlib.util.find_spec("piper") is not None
-            or importlib.util.find_spec("piper_phonemize") is not None
-        )
-    if engine == "supertonic":
-        return importlib.util.find_spec("onnxruntime") is not None
-    if engine == "omnivoice":
-        return importlib.util.find_spec("omnivoice") is not None
-    if engine == "f5_tts":
-        return importlib.util.find_spec("f5_tts") is not None
-    if engine in {"audiodit", "chroma", "qwen3-tts"}:
-        return (
-            importlib.util.find_spec("torch") is not None
-            and importlib.util.find_spec("transformers") is not None
-        )
-    return None
+    return engine_runtime_status(engine)
 
 
 def _local_tts_engine_available(engine: Any, extra_candidates: Any = ()) -> bool:
@@ -748,18 +729,9 @@ def _engine_runtime_available(engine: Any, configured_providers: Any = ()) -> bo
         return True
     if normalized in {"openai", "openai-compatible"}:
         return False
-    if normalized == "piper":
-        return importlib.util.find_spec("piper") is not None or importlib.util.find_spec("piper_phonemize") is not None
-    if normalized == "supertonic":
-        return importlib.util.find_spec("onnxruntime") is not None
-    if normalized == "omnivoice":
-        return importlib.util.find_spec("omnivoice") is not None
-    if normalized == "f5_tts":
-        return importlib.util.find_spec("f5_tts") is not None
-    if normalized == "audiodit":
-        return importlib.util.find_spec("torch") is not None and importlib.util.find_spec("transformers") is not None
-    if normalized == "qwen3-tts":
-        return importlib.util.find_spec("torch") is not None and importlib.util.find_spec("transformers") is not None
+    status = _engine_runtime_status_or_none(normalized)
+    if status is not None:
+        return status.installed
     return normalized in {_norm_engine_id(provider) for provider in _local_tts_engines()}
 
 
@@ -1420,6 +1392,13 @@ class _BaseVoice:
                     debug_mode = _coerce_bool(cfg.get("voice_debug_mode"), debug_mode)
         except Exception:
             pass
+        # Provider credentials handed over by the HOST (e.g. keys saved in a
+        # gateway's Providers screen), per plugin instance; never an env var.
+        openai_api_key = self._config_text("voice_openai_api_key") or None
+        openai_base_url = self._config_text("voice_openai_base_url") or None
+        # Outside the lenient block above on purpose: a typo in these settings must
+        # fail loudly (ValueError), not silently fall back to the defaults.
+        qwen3_tts_predictor, qwen3_tts_sampler = self._qwen3_tts_codebook_settings()
 
         key = (
             str(language),
@@ -1437,6 +1416,10 @@ class _BaseVoice:
             str(remote_api_key or ""),
             str(remote_timeout_s or ""),
             bool(debug_mode),
+            qwen3_tts_predictor,
+            qwen3_tts_sampler,
+            str(openai_api_key or ""),
+            str(openai_base_url or ""),
         )
 
         with _VM_CACHE_LOCK:
@@ -1458,6 +1441,10 @@ class _BaseVoice:
                     remote_base_url=str(remote_base_url) if remote_base_url else None,
                     remote_api_key=str(remote_api_key) if remote_api_key else None,
                     remote_timeout_s=remote_timeout_s,
+                    qwen3_tts_predictor=qwen3_tts_predictor,
+                    qwen3_tts_sampler=qwen3_tts_sampler,
+                    openai_api_key=openai_api_key,
+                    openai_base_url=openai_base_url,
                 )
                 _VM_CACHE[key] = cached
                 _VM_LOCKS[cached] = threading.Lock()
@@ -1468,6 +1455,18 @@ class _BaseVoice:
                 pass
             self._vm = cached
             return self._vm
+
+    def _qwen3_tts_codebook_settings(self) -> tuple[str, str]:
+        """The owner's `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`
+        settings (no environment variable), validated: ValueError on a typo."""
+        from ..qwen3_tts.runtime import normalize_qwen3_tts_predictor, normalize_qwen3_tts_sampler
+
+        cfg = getattr(self._owner, "config", None)
+        cfg = cfg if isinstance(cfg, dict) else {}
+        return (
+            normalize_qwen3_tts_predictor(cfg.get("voice_qwen3_tts_predictor")),
+            normalize_qwen3_tts_sampler(cfg.get("voice_qwen3_tts_sampler")),
+        )
 
     def _iter_known_vms(self):
         seen: set[int] = set()
@@ -2221,7 +2220,7 @@ class _BaseVoice:
         )
 
         base_url_s = str(remote_base_url or "").strip().lower()
-        if requested == "openai" or openai_specific or (remote_api_key and ("api.openai.com" in base_url_s or not base_url_s)):
+        if requested == "openai" or openai_specific or self._config_text("voice_openai_api_key") or (remote_api_key and ("api.openai.com" in base_url_s or not base_url_s)):
             add("openai")
         if requested == "openai-compatible" or compatible_specific or (remote_base_url and "api.openai.com" not in base_url_s):
             add("openai-compatible")
@@ -2287,7 +2286,7 @@ class _BaseVoice:
         )
 
         base_url_s = str(remote_base_url or "").strip().lower()
-        if requested == "openai" or openai_specific or (remote_api_key and ("api.openai.com" in base_url_s or not base_url_s)):
+        if requested == "openai" or openai_specific or self._config_text("voice_openai_api_key") or (remote_api_key and ("api.openai.com" in base_url_s or not base_url_s)):
             add("openai")
         if requested == "openai-compatible" or compatible_specific or (remote_base_url and "api.openai.com" not in base_url_s):
             add("openai-compatible")
@@ -2386,6 +2385,8 @@ class _BaseVoice:
         return str(self._config_text("voice_remote_api_key") or _env("OPENAI_API_KEY") or "").strip()
 
     def _openai_provider_available(self) -> bool:
+        if self._config_text("voice_openai_api_key"):
+            return True
         if str(_env("OPENAI_API_KEY") or "").strip():
             return True
         base_url = self._remote_base_url().lower()
@@ -2496,6 +2497,74 @@ class _BaseVoice:
             ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts", "openai", "openai-compatible"],
         )
 
+    def _unavailable_providers(
+        self,
+        *,
+        tts: Any = None,
+        stt: Any = None,
+        cloning: Any = None,
+    ) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """Why each known provider is NOT in the available lists, per kind.
+
+        The available lists alone cannot tell "Supertonic is not installed" from
+        "Supertonic has nothing downloaded" from "no OpenAI key": all three are an
+        empty list. Every provider left out gets one record here with a stable
+        `code` and a plain-words `reason`:
+
+        - `runtime_missing`: the engine's Python packages are not importable
+          (`runtime` carries `abstractvoice.engine_runtime` status: missing
+          modules, extra, install command);
+        - `model_not_downloaded`: the runtime is there, no model is on disk (TTS);
+        - `not_configured`: a remote provider without its API key / base URL.
+
+        Engine-free, like the lists it explains: `find_spec` plus a disk lookup.
+        """
+        available = {
+            "tts": set(_dedupe_provider_ids(self._available_tts_provider_ids() if tts is None else tts)),
+            "stt": set(_dedupe_provider_ids(self._available_stt_provider_ids() if stt is None else stt)),
+            "cloning": set(
+                _dedupe_provider_ids(self._available_cloning_provider_ids() if cloning is None else cloning)
+            ),
+        }
+        remote_reasons = {
+            "openai": "no OpenAI API key is configured (host setting voice_openai_api_key, or OPENAI_API_KEY)",
+            "openai-compatible": "no OpenAI-compatible server base URL is configured",
+        }
+        local = {
+            "tts": [_norm_engine_id(engine) for engine in _local_tts_engines()],
+            "stt": ["faster-whisper", "transformers-asr"],
+            "cloning": ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts"],
+        }
+        out: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for kind in ("tts", "stt", "cloning"):
+            records: Dict[str, Dict[str, Any]] = {}
+            if kind != "cloning":
+                for provider_id, reason in remote_reasons.items():
+                    if provider_id not in available[kind]:
+                        records[provider_id] = {"provider": provider_id, "code": "not_configured", "reason": reason}
+            for provider_id in local[kind]:
+                if provider_id in available[kind]:
+                    continue
+                status = _engine_runtime_status_or_none(provider_id)
+                if status is None:
+                    continue
+                if not status.installed:
+                    records[provider_id] = {
+                        "provider": provider_id,
+                        "code": "runtime_missing",
+                        "reason": status.reason,
+                        "runtime": status.to_dict(),
+                    }
+                elif kind == "tts":
+                    records[provider_id] = {
+                        "provider": provider_id,
+                        "code": "model_not_downloaded",
+                        "reason": f"{status.label} is installed but no {status.label} model is downloaded on this machine yet",
+                        "runtime": status.to_dict(),
+                    }
+            out[kind] = records
+        return out
+
     def _configured_local_tts_model_ids(self, engine: Any) -> list[str]:
         """Checkpoint ids this owner points `engine` at.
 
@@ -2543,6 +2612,20 @@ class _BaseVoice:
         if _norm_engine_id(provider_id) in {_norm_engine_id(item) for item in self._catalog_safe_local_engines()}:
             return True
         return self._active_vm_for_discovery() is None
+
+    def _configured_tts_provider_unavailable(self) -> bool:
+        """True when no manager is built or injected yet and the configured TTS
+        provider is one `available_providers()` explains away (not configured,
+        runtime missing, nothing downloaded)."""
+        if self._vm is not None:
+            return False
+        cfg = getattr(self._owner, "config", None)
+        if isinstance(cfg, dict) and (
+            cfg.get("voice_manager_instance") is not None or callable(cfg.get("voice_manager_factory"))
+        ):
+            return False
+        configured = self._configured_provider_id(kind="tts")
+        return configured in self._unavailable_providers()["tts"]
 
     def _active_vm_for_discovery(self):
         """The active VoiceManager, but only when reading it cannot load a model.
@@ -2795,6 +2878,69 @@ class _BaseVoice:
         return ".bin"
 
 
+def _listing_unavailable_fields(
+    available_providers: Mapping[str, Any],
+    tts_providers: Any,
+    *,
+    requested_provider: str = "",
+    configured_provider: str = "",
+) -> Dict[str, Any]:
+    """`unavailable_providers` + `unavailable_reason` for a TTS listing.
+
+    A listing can carry providers the plain availability check left out (a
+    configured remote engine, a clone's engine), so their records are dropped:
+    a provider is never both listed and explained away.
+    """
+    listed = {_norm_engine_id(item) for item in list(tts_providers or [])}
+    unavailable = {kind: dict(records) for kind, records in dict(available_providers["unavailable"]).items()}
+    unavailable["tts"] = {key: record for key, record in unavailable["tts"].items() if key not in listed}
+    return {
+        "unavailable_providers": unavailable,
+        "unavailable_reason": _listing_unavailable_reason(
+            tts_providers,
+            unavailable["tts"],
+            requested_provider=requested_provider,
+            configured_provider=configured_provider,
+        ),
+    }
+
+
+def _listing_unavailable_reason(
+    tts_providers: Any,
+    unavailable_tts: Mapping[str, Any],
+    *,
+    requested_provider: str = "",
+    configured_provider: str = "",
+) -> Optional[str]:
+    """One sentence saying why a TTS listing has nothing to offer, else None.
+
+    A provider filter asks about that provider only. Unfiltered, the listing is
+    unavailable only when no provider is left, and the configured provider's
+    reason leads because it is the one the operator chose.
+    """
+    listed = {_norm_engine_id(item) for item in list(tts_providers or [])}
+    requested = _norm_engine_id(requested_provider)
+    if requested:
+        if requested in listed:
+            return None
+        record = unavailable_tts.get(requested)
+        if isinstance(record, dict) and record.get("reason"):
+            return str(record["reason"])
+        return f"text-to-speech provider {requested!r} is not available"
+    if listed:
+        return None
+    configured = unavailable_tts.get(_norm_engine_id(configured_provider))
+    reasons = [str(configured["reason"])] if isinstance(configured, dict) and configured.get("reason") else []
+    reasons.extend(
+        str(record["reason"])
+        for key, record in unavailable_tts.items()
+        if key != _norm_engine_id(configured_provider) and isinstance(record, dict) and record.get("reason")
+    )
+    if not reasons:
+        return "no text-to-speech provider is installed or configured"
+    return "no text-to-speech provider is available: " + "; ".join(reasons)
+
+
 class _VoiceCapability(_BaseVoice):
     backend_id = "abstractvoice:default"
 
@@ -2823,6 +2969,7 @@ class _VoiceCapability(_BaseVoice):
                 "stt": _provider_details("stt", stt),
                 "cloning": _provider_details("cloning", cloning),
             },
+            "unavailable": self._unavailable_providers(tts=tts, stt=stt, cloning=cloning),
         }
 
     def _light_voice_catalog(
@@ -2919,9 +3066,18 @@ class _VoiceCapability(_BaseVoice):
             _add_provider_value(tts_voices_by_provider, provider_id, _profile_voice_id(clone))
             _add_provider_value(tts_profiles_by_provider, provider_id, _profile_id(clone))
 
+        not_configured = {
+            key
+            for key, record in available_providers["unavailable"]["tts"].items()
+            if record.get("code") == "not_configured"
+        }
         for engine in self._configured_remote_tts_engines():
             provider_id = _norm_engine_id(engine)
             if requested_provider and provider_id != requested_provider:
+                continue
+            # Selected but missing its key/base URL: explained in
+            # `unavailable_providers`, never listed as if it could speak.
+            if provider_id in not_configured:
                 continue
             if provider_id not in tts_providers:
                 tts_providers.append(provider_id)
@@ -3022,6 +3178,12 @@ class _VoiceCapability(_BaseVoice):
             "compatibility_catalog": {},
             "catalog": {},
             "catalogs": {},
+            **_listing_unavailable_fields(
+                available_providers,
+                tts_providers,
+                requested_provider=requested_provider,
+                configured_provider=self._configured_provider_id(kind="tts"),
+            ),
             "source": "abstractvoice.light_catalog",
         }
 
@@ -3536,6 +3698,12 @@ class _VoiceCapability(_BaseVoice):
         provider_id = _norm_engine_id(provider)
         if providers_only or (provider_id and self._local_provider_answerable_from_disk(provider_id)):
             return self._light_voice_catalog(provider=provider_id, model=model, providers_only=providers_only)
+        if not provider_id and self._configured_tts_provider_unavailable():
+            # Building the active engine would raise (no OpenAI key, runtime not
+            # installed) instead of saying why; the light catalog says why.
+            return self._light_voice_catalog(model=model)
+        # `provider` and `provider_id` are reused as loop variables below.
+        requested_tts_provider = provider_id
 
         vm = self._get_vm()
         available_providers = self.available_providers()
@@ -3947,6 +4115,12 @@ class _VoiceCapability(_BaseVoice):
             "compatibility_catalog": self.compatibility_catalog(),
             "catalog": _json_safe(catalog),
             "catalogs": catalogs,
+            **_listing_unavailable_fields(
+                available_providers,
+                tts_providers,
+                requested_provider=requested_tts_provider,
+                configured_provider=self._configured_provider_id(kind="tts"),
+            ),
         }
 
     def tts(

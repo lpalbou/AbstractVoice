@@ -14,6 +14,7 @@ from ..adapters.tts_registry import create_tts_adapter
 from ..tts.adapter_tts_engine import AdapterTTSEngine
 from ..voice_profiles import VoiceProfile
 
+from .common import remote_endpoint_kwargs
 from .core import VoiceManagerCore
 from .stt_mixin import SttMixin
 from .tts_mixin import TtsMixin
@@ -44,6 +45,10 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         remote_api_key: str | None = None,
         remote_timeout_s: float | None = None,
         cloning_model: str | None = None,
+        openai_api_key: str | None = None,
+        openai_base_url: str | None = None,
+        qwen3_tts_predictor: str | None = None,
+        qwen3_tts_sampler: str | None = None,
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
@@ -52,6 +57,10 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         self.remote_base_url = str(remote_base_url).strip() if remote_base_url else None
         self.remote_api_key = str(remote_api_key).strip() if remote_api_key else None
         self.remote_timeout_s = remote_timeout_s
+        # OpenAI's own credentials, kept apart from the shared OpenAI-compatible
+        # endpoint above so an OpenAI key is never sent to a compatible server.
+        self.openai_api_key = str(openai_api_key).strip() if openai_api_key else None
+        self.openai_base_url = str(openai_base_url).strip() if openai_base_url else None
         # Controls whether the library may download model weights implicitly.
         # The REPL sets this to False to enforce "no surprise downloads".
         self.allow_downloads = bool(allow_downloads)
@@ -67,6 +76,12 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
             self.tts_delivery_mode = normalize_audio_delivery_mode(tts_delivery_mode)
         self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower()
         self.cloning_model = str(cloning_model).strip() if cloning_model else None
+        # Qwen3-TTS codebook predictor/sampler, for synthesis and cloning alike.
+        # Validated here so a typo fails at construction, before any weights load.
+        from ..qwen3_tts.runtime import normalize_qwen3_tts_predictor, normalize_qwen3_tts_sampler
+
+        self.qwen3_tts_predictor = normalize_qwen3_tts_predictor(qwen3_tts_predictor)
+        self.qwen3_tts_sampler = normalize_qwen3_tts_sampler(qwen3_tts_sampler)
 
         requested_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
 
@@ -110,9 +125,10 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
                 auto_load=requested_engine != "qwen3-tts",
                 debug_mode=bool(debug_mode),
                 model_id=tts_model,
-                base_url=self.remote_base_url,
-                api_key=self.remote_api_key,
+                **remote_endpoint_kwargs(self, tts_engine),
                 timeout_s=self.remote_timeout_s,
+                qwen3_tts_predictor=self.qwen3_tts_predictor,
+                qwen3_tts_sampler=self.qwen3_tts_sampler,
             )
         except ValueError:
             # Preserve caller-facing validation semantics (explicit engine names must be valid).

@@ -44,6 +44,10 @@ class VoiceCloner:
         remote_timeout_s: float | None = None,
         remote_tts_model: str | None = None,
         remote_session: Any = None,
+        qwen3_tts_predictor: str | None = None,
+        qwen3_tts_sampler: str | None = None,
+        openai_base_url: str | None = None,
+        openai_api_key: str | None = None,
     ):
         self.store = store or VoiceCloneStore()
         self.debug = debug
@@ -57,8 +61,28 @@ class VoiceCloner:
         self._remote_timeout_s = remote_timeout_s
         self._remote_tts_model = str(remote_tts_model).strip() if remote_tts_model else None
         self._remote_session = remote_session
+        self._openai_base_url = str(openai_base_url).strip() if openai_base_url else None
+        self._openai_api_key = str(openai_api_key).strip() if openai_api_key else None
+        self._qwen3_tts_predictor = qwen3_tts_predictor
+        self._qwen3_tts_sampler = qwen3_tts_sampler
         self._engines: Dict[str, Any] = {}
         self._quality_preset = "standard"
+
+    def set_qwen3_tts_codebook_generation(self, *, predictor: str | None, sampler: str | None) -> None:
+        """Choose the Qwen3-TTS codebook predictor/sampler for cloned speech.
+
+        Read when the engine loads, so a resident Qwen3-TTS cloning engine is
+        dropped and the next clone synthesis builds it with the new choice.
+        """
+        from ..qwen3_tts.runtime import normalize_qwen3_tts_predictor, normalize_qwen3_tts_sampler
+
+        predictor, sampler = normalize_qwen3_tts_predictor(predictor), normalize_qwen3_tts_sampler(sampler)
+        if (self._qwen3_tts_predictor, self._qwen3_tts_sampler) == (predictor, sampler):
+            return
+        self._qwen3_tts_predictor, self._qwen3_tts_sampler = predictor, sampler
+        cached = self._engines.pop("qwen3-tts", None)
+        if cached is not None:
+            cached.unload()
 
     def _get_engine(self, engine: str, *, model_id: str | None = None) -> Any:
         name = _normalize_cloning_engine(engine)
@@ -116,15 +140,26 @@ class VoiceCloner:
                 device="auto",
                 allow_downloads=bool(self._allow_downloads),
                 model_id=model_id,
+                predictor=self._qwen3_tts_predictor,
+                sampler=self._qwen3_tts_sampler,
             )
         elif name in _REMOTE_CLONING_ENGINES:
             from .engine_remote import RemoteVoiceCloningEngine
 
+            from ..adapters.openai_compatible_http import remote_endpoint
+
             provider = "openai" if name == "openai" else "openai-compatible"
+            base_url, api_key = remote_endpoint(
+                provider,
+                remote_base_url=self._remote_base_url,
+                remote_api_key=self._remote_api_key,
+                openai_base_url=self._openai_base_url,
+                openai_api_key=self._openai_api_key,
+            )
             inst = RemoteVoiceCloningEngine(
                 provider=provider,
-                base_url=self._remote_base_url,
-                api_key=self._remote_api_key,
+                base_url=base_url,
+                api_key=api_key,
                 timeout_s=self._remote_timeout_s,
                 tts_model=self._remote_tts_model,
                 session=self._remote_session,

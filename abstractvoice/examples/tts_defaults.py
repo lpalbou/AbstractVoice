@@ -12,6 +12,27 @@ import importlib.util
 from typing import Callable
 
 
+def add_qwen3_tts_arguments(parser) -> None:
+    """``--qwen3-tts-predictor`` / ``--qwen3-tts-sampler``, shared by every launcher.
+
+    argparse ``choices`` rejects a typo at launch, before any model is loaded.
+    """
+    from ..qwen3_tts.runtime import QWEN3_TTS_PREDICTORS, QWEN3_TTS_SAMPLERS
+
+    parser.add_argument(
+        "--qwen3-tts-predictor",
+        default="auto",
+        choices=QWEN3_TTS_PREDICTORS,
+        help="Qwen3-TTS codebook predictor: auto (guarded fast loop, default) or reference (Transformers generate).",
+    )
+    parser.add_argument(
+        "--qwen3-tts-sampler",
+        default="multinomial",
+        choices=QWEN3_TTS_SAMPLERS,
+        help="Qwen3-TTS codebook sampler with the auto predictor: multinomial (default) or exponential (opt-in).",
+    )
+
+
 def normalize_tts_engine_name(engine: str | None) -> str:
     name = str(engine or "").strip().lower().replace("_", "-")
     if name in ("remote", "compatible", "proxy"):

@@ -53,7 +53,17 @@ python -m abstractvoice cli --tts-engine supertonic
 ### A local engine is installed but not listed
 
 Discovery lists a local engine when its runtime is installed **and** at least one of its models is on
-this machine. Installing the extra alone is not enough. Prefetch the engine:
+this machine. The listing says which one is missing: `voice_catalog()["unavailable_reason"]` and
+`available_providers()["unavailable"]` report `runtime_missing` (with the install command) or
+`model_not_downloaded`. To ask about the runtime directly:
+
+```python
+from abstractvoice.engine_runtime import engine_runtime_status
+
+engine_runtime_status("supertonic").reason   # None when installed
+```
+
+Installing the extra alone is not enough. Prefetch the engine:
 
 ```bash
 python -m abstractvoice download --audiodit

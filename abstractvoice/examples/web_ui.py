@@ -25,7 +25,11 @@ from typing import Any, Callable, Optional
 from abstractvoice.adapters.tts_registry import get_supported_tts_engines
 from abstractvoice.cloning.manager import get_supported_cloning_engines
 from abstractvoice.examples.llm_provider import DEFAULT_MODEL, DEFAULT_PROVIDER, resolve_provider
-from abstractvoice.examples.tts_defaults import normalize_tts_engine_name, resolve_interactive_tts_engine
+from abstractvoice.examples.tts_defaults import (
+    add_qwen3_tts_arguments,
+    normalize_tts_engine_name,
+    resolve_interactive_tts_engine,
+)
 
 
 LOCAL_ROUTES = [
@@ -48,6 +52,11 @@ LOCAL_ROUTES = [
         "method": "POST",
         "path": "/api/tts/provider",
         "maps_to": "Alias for /api/tts/engine with provider vocabulary",
+    },
+    {
+        "method": "POST",
+        "path": "/api/qwen3-tts/codebook",
+        "maps_to": "VoiceManager.set_qwen3_tts_codebook_generation(predictor=, sampler=)",
     },
     {
         "method": "GET",
@@ -564,6 +573,20 @@ PAGE = r"""
             <datalist id="tts-model-options"></datalist>
           </label>
           <div class="actions"><button id="apply-tts-model" type="button" class="secondary">Apply model</button></div>
+          <div class="grid2">
+            <label>Qwen3-TTS predictor
+              <select id="qwen3-tts-predictor">
+                <option value="auto">auto (guarded fast loop)</option>
+                <option value="reference">reference (Transformers generate)</option>
+              </select>
+            </label>
+            <label>Qwen3-TTS sampler
+              <select id="qwen3-tts-sampler">
+                <option value="multinomial">multinomial</option>
+                <option value="exponential">exponential</option>
+              </select>
+            </label>
+          </div>
           <div class="grid2">
             <label>Assistant Voice
               <select id="assistant-voice-choice">
@@ -1166,6 +1189,10 @@ PAGE = r"""
           cloneDefaultsApplied = true;
         }
         document.getElementById("tts-model").value = (data.current && data.current.tts_model) || (data.defaults && data.defaults.tts_model) || "";
+        if (data.qwen3_tts) {
+          document.getElementById("qwen3-tts-predictor").value = data.qwen3_tts.predictor;
+          document.getElementById("qwen3-tts-sampler").value = data.qwen3_tts.sampler;
+        }
         const modelOptions = document.getElementById("tts-model-options");
         modelOptions.replaceChildren();
         for (const model of ((data.tts_models || {})[currentProvider] || [])) {
@@ -1286,6 +1313,23 @@ PAGE = r"""
       if (lower.includes("omnivoice") || text.includes("No module named 'omnivoice'")) text += ' Install: pip install "abstractvoice[web,omnivoice]"; prefetch: abstractvoice-prefetch --omnivoice.';
       if (lower.includes("chroma") && lower.includes("artifacts")) text += " Prefetch: abstractvoice-prefetch --chroma.";
       return text;
+    }
+
+    async function applyQwen3TtsCodebook() {
+      try {
+        const data = await fetchJson("/api/qwen3-tts/codebook", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            predictor: document.getElementById("qwen3-tts-predictor").value,
+            sampler: document.getElementById("qwen3-tts-sampler").value
+          })
+        });
+        setMessage(voiceMessage, "Qwen3-TTS predictor " + data.predictor + ", sampler " + data.sampler + " (applies from the next Qwen3-TTS load).", "ok");
+      } catch (err) {
+        await refreshStatus();
+        setMessage(voiceMessage, err.message || String(err), "error");
+      }
     }
 
     async function selectTtsEngine() {
@@ -1669,6 +1713,8 @@ PAGE = r"""
       selectTtsEngine();
     });
     document.getElementById("apply-tts-model").addEventListener("click", selectTtsEngine);
+    document.getElementById("qwen3-tts-predictor").addEventListener("change", applyQwen3TtsCodebook);
+    document.getElementById("qwen3-tts-sampler").addEventListener("change", applyQwen3TtsCodebook);
     cloneEngineInput.addEventListener("change", () => {
       const modelInput = document.getElementById("clone-model");
       modelInput.value = "";
@@ -1709,7 +1755,11 @@ class ExampleState:
         allow_downloads: bool = False,
         debug_mode: bool = False,
         voice_manager_factory: Optional[Callable[["ExampleState"], Any]] = None,
+        qwen3_tts_predictor: Optional[str] = None,
+        qwen3_tts_sampler: Optional[str] = None,
     ) -> None:
+        from abstractvoice.qwen3_tts.runtime import normalize_qwen3_tts_predictor, normalize_qwen3_tts_sampler
+
         self.language = str(language or "en").strip().lower() or "en"
         requested_tts_engine = normalize_tts_engine_name(tts_engine)
         self.tts_engine = resolve_interactive_tts_engine(requested_tts_engine, language=self.language)
@@ -1717,6 +1767,8 @@ class ExampleState:
         self.whisper_model = str(whisper_model or "base").strip() or "base"
         self.tts_model = str(tts_model).strip() if isinstance(tts_model, str) and tts_model.strip() else None
         self.cloning_model = cloning_model
+        self.qwen3_tts_predictor = normalize_qwen3_tts_predictor(qwen3_tts_predictor)
+        self.qwen3_tts_sampler = normalize_qwen3_tts_sampler(qwen3_tts_sampler)
         self.stt_model = str(stt_model).strip() if isinstance(stt_model, str) and stt_model.strip() else None
         self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower().replace("_", "-") or "omnivoice"
         self.remote_base_url = (
@@ -1757,6 +1809,8 @@ class ExampleState:
                 cloned_tts_streaming=False,
                 cloning_engine=self.cloning_engine,
                 cloning_model=self.cloning_model,
+                qwen3_tts_predictor=self.qwen3_tts_predictor,
+                qwen3_tts_sampler=self.qwen3_tts_sampler,
                 remote_base_url=self.remote_base_url,
                 remote_api_key=self.remote_api_key,
                 remote_timeout_s=self.remote_timeout_s,
@@ -1809,6 +1863,7 @@ class ExampleState:
                 "current": current,
                 "optional_dependencies": optional_dependency_status(),
                 "tts_models": self._cached_tts_models(),
+                "qwen3_tts": {"predictor": self.qwen3_tts_predictor, "sampler": self.qwen3_tts_sampler},
                 "routes": LOCAL_ROUTES,
             }
 
@@ -2030,6 +2085,21 @@ class ExampleState:
                 self._set_selected_voice(None, role=target_role)
                 return {"ok": True, "current": self.status_dict()["current"]}
         raise ValueError("Voice kind must be base, clone, or profile.")
+
+    def set_qwen3_tts_codebook(self, *, predictor: Optional[str], sampler: Optional[str]) -> dict[str, Any]:
+        """Validate and apply the Qwen3-TTS predictor/sampler (ValueError on a typo).
+
+        Held here for a VoiceManager built later; applied to one already built.
+        """
+        from abstractvoice.qwen3_tts.runtime import normalize_qwen3_tts_predictor, normalize_qwen3_tts_sampler
+
+        with self.lock:
+            chosen_predictor = normalize_qwen3_tts_predictor(self.qwen3_tts_predictor if predictor is None else predictor)
+            chosen_sampler = normalize_qwen3_tts_sampler(self.qwen3_tts_sampler if sampler is None else sampler)
+            if self.voice_manager is not None:
+                self.voice_manager.set_qwen3_tts_codebook_generation(predictor=chosen_predictor, sampler=chosen_sampler)
+            self.qwen3_tts_predictor, self.qwen3_tts_sampler = chosen_predictor, chosen_sampler
+            return {"ok": True, "predictor": chosen_predictor, "sampler": chosen_sampler}
 
     def set_tts_provider(self, provider: str, *, model: Optional[str] = None) -> dict[str, Any]:
         return self.set_tts_engine(provider, model=model)
@@ -2440,6 +2510,8 @@ def create_app(
     allow_downloads: bool = False,
     debug_mode: bool = False,
     voice_manager_factory: Optional[Callable[[ExampleState], Any]] = None,
+    qwen3_tts_predictor: Optional[str] = None,
+    qwen3_tts_sampler: Optional[str] = None,
 ):
     FastAPI, File, Form, HTTPException, Query, UploadFile, HTMLResponse, Response, BaseModel, Field = _load_fastapi()
     state = ExampleState(
@@ -2457,6 +2529,8 @@ def create_app(
         allow_downloads=allow_downloads,
         debug_mode=debug_mode,
         voice_manager_factory=voice_manager_factory,
+        qwen3_tts_predictor=qwen3_tts_predictor,
+        qwen3_tts_sampler=qwen3_tts_sampler,
     )
 
     @asynccontextmanager
@@ -2492,6 +2566,10 @@ def create_app(
             description="Base TTS provider: auto, supertonic, piper, openai, openai-compatible, audiodit, or omnivoice.",
             examples=["supertonic"],
         )
+
+    class Qwen3TTSCodebookRequest(BaseModel):
+        predictor: Optional[str] = Field(None, description="auto or reference; omitted keeps the current value.")
+        sampler: Optional[str] = Field(None, description="multinomial or exponential; omitted keeps the current value.")
 
     class TTSProviderRequest(BaseModel):
         model: Optional[str] = Field(None, description="Checkpoint id or local model directory; empty selects the provider default.")
@@ -2608,6 +2686,13 @@ def create_app(
     async def set_tts_engine(payload: TTSEngineRequest):
         try:
             return state.set_tts_engine(payload.engine, model=payload.model)
+        except Exception as e:
+            http_error(e)
+
+    @app.post("/api/qwen3-tts/codebook", summary="Choose the Qwen3-TTS codebook predictor and sampler")
+    async def set_qwen3_tts_codebook(payload: Qwen3TTSCodebookRequest):
+        try:
+            return state.set_qwen3_tts_codebook(predictor=payload.predictor, sampler=payload.sampler)
         except Exception as e:
             http_error(e)
 
@@ -2806,6 +2891,8 @@ def run_server(
     remote_timeout_s: Optional[float] = None,
     allow_downloads: bool = False,
     debug_mode: bool = False,
+    qwen3_tts_predictor: Optional[str] = None,
+    qwen3_tts_sampler: Optional[str] = None,
 ) -> None:
     app = create_app(
         language=language,
@@ -2821,6 +2908,8 @@ def run_server(
         remote_timeout_s=remote_timeout_s,
         allow_downloads=allow_downloads,
         debug_mode=debug_mode,
+        qwen3_tts_predictor=qwen3_tts_predictor,
+        qwen3_tts_sampler=qwen3_tts_sampler,
     )
     print(f"Starting AbstractVoice local FastAPI UI on http://{host}:{int(port)}")
     print(f"Model downloads from web requests: {'allowed' if allow_downloads else 'off'}")
@@ -2855,6 +2944,7 @@ def parse_args(argv: Optional[list[str]] = None):
     parser.add_argument("--whisper", default="base", help="Default faster-whisper model (e.g. tiny|base|small|medium|large-v2|large-v3|large)")
     parser.add_argument("--allow-downloads", action="store_true", help="Allow model downloads from web requests")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    add_qwen3_tts_arguments(parser)
     return parser.parse_args(argv)
 
 
@@ -2877,6 +2967,8 @@ def main(argv: Optional[list[str]] = None) -> None:
             remote_timeout_s=args.remote_timeout,
             allow_downloads=args.allow_downloads,
             debug_mode=args.debug,
+            qwen3_tts_predictor=args.qwen3_tts_predictor,
+            qwen3_tts_sampler=args.qwen3_tts_sampler,
         )
     except RuntimeError as e:
         print(f"Error: {e}")

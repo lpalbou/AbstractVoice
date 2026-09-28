@@ -203,7 +203,9 @@ Through AbstractCore, use `core.voice.tts(...)`, `core.voice.tts_stream(...)`
 or `core.voice.clone(...)` with `provider="qwen3-tts"` and `model=<checkpoint>`.
 `core.voice.voice_catalog(provider="qwen3-tts", model=<checkpoint>)` filters
 profiles and stored clones by checkpoint. Plugin defaults can be configured
-with the `voice_cloning_model` setting, separately from `voice_tts_model`.
+with the `voice_cloning_model` setting, separately from `voice_tts_model`, and
+the codebook predictor/sampler with `voice_qwen3_tts_predictor` /
+`voice_qwen3_tts_sampler` (see below).
 
 #### Qwen performance controls
 
@@ -212,9 +214,20 @@ predictor by default, retaining PyTorch's multinomial sampler. No additional
 vendor SDK is required. Unsupported generation settings use the original
 Transformers path with a `#FALLBACK` warning.
 
-The CLI, web example and AbstractCore plugin always use these defaults. Library
-integrators can choose per runtime through `Qwen3TTSSettings`; the runtime reads
-them when it loads the model (unload and reload a resident model to change them):
+Every surface can choose both settings; the runtime reads them when it loads the
+model:
+
+| Surface | How to set them |
+| --- | --- |
+| CLI, REPL, web example | `--qwen3-tts-predictor auto\|reference`, `--qwen3-tts-sampler multinomial\|exponential` |
+| Web example (running) | Qwen3-TTS predictor / sampler selects, or `POST /api/qwen3-tts/codebook` with `{"predictor": ..., "sampler": ...}` |
+| `VoiceManager` | `VoiceManager(qwen3_tts_predictor=..., qwen3_tts_sampler=...)`; change later with `vm.set_qwen3_tts_codebook_generation(predictor=..., sampler=...)` |
+| AbstractCore plugin | settings `voice_qwen3_tts_predictor`, `voice_qwen3_tts_sampler` |
+| Runtime | `Qwen3TTSSettings(predictor=..., sampler=...)` |
+
+The `VoiceManager` choice applies to Qwen3-TTS synthesis and to Qwen3-TTS voice
+cloning. Changing it at runtime unloads a resident Qwen3-TTS model; the next
+synthesis reloads it with the new choice.
 
 | Setting | Default | Options |
 | --- | --- | --- |
@@ -232,7 +245,9 @@ runtime = Qwen3TTSRuntime(
 adapter = Qwen3TTSAdapter(runtime=runtime)
 ```
 
-An invalid value raises `ValueError` before any weights load.
+An invalid value is rejected before any weights load: the launch flags refuse it,
+the Python surfaces and plugin settings raise `ValueError`, and the web endpoint
+answers 400.
 
 `reference` takes precedence over the sampler choice. Automatic fallback also
 uses the original sampler. Exponential sampling validates all distributions
@@ -308,6 +323,14 @@ not resident).
 
 - `transcribe_from_bytes(audio_bytes: bytes, language: str | None = None) -> str`
   - Transcribes audio sent over the network.
+
+### Qwen3-ASR (Transformers ASR)
+
+`stt_engine="transformers-asr"` with a Qwen3-ASR checkpoint (for example
+`Qwen/Qwen3-ASR-0.6B` or `Qwen/Qwen3-ASR-1.7B`) runs AbstractVoice's bundled
+Qwen3-ASR model code, without `trust_remote_code`. It needs `abstractvoice[stt-hf]`
+and runs on Transformers 5.4 or newer (tested in CI on the extra's floor and the
+latest release). Prefetch with `abstractvoice-prefetch --stt-hf Qwen/Qwen3-ASR-0.6B`.
 
 ### STT configuration
 
@@ -518,7 +541,7 @@ integration code:
 - `list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True) -> list[dict]`
 - `list_cloned_voices(provider: str | None = None, model: str | None = None) -> list[dict]`
 - `list_voices(...) -> list[dict]` (alias of `list_tts_voices(...)`)
-- `available_providers() -> {tts, stt, cloning, providers, details}`
+- `available_providers() -> {tts, stt, cloning, providers, details, unavailable}`
 - `compatibility_catalog() -> {version, providers}`
 - `get_capability_support(kind, feature, provider, model=None, surface="default") -> dict | None`
 - `find_compatible_models(kind, feature, surface="default", support_in=("native","emulated","conditional")) -> list[dict]`
@@ -558,6 +581,56 @@ cached model artifacts are present. The same payload also includes
 `known_tts_providers`, `known_stt_providers`, and `known_cloning_providers` so
 UI/provider selectors can distinguish installed availability from the broader
 capability catalog.
+
+A provider left out of those lists is explained, never silently missing.
+`available_providers()["unavailable"]` maps each kind (`tts`, `stt`, `cloning`)
+to one record per known provider that is not available:
+
+| `code` | Meaning |
+| --- | --- |
+| `runtime_missing` | The engine's Python packages are not installed; `runtime` carries the `engine_runtime_status` record (missing modules, extra, install command). |
+| `model_not_downloaded` | The runtime is installed but no model for it is on this machine (TTS). |
+| `not_configured` | A remote provider without its API key (`openai`) or base URL (`openai-compatible`). |
+
+Each record has a plain-words `reason`. `voice_catalog()` carries the same map as
+`unavailable_providers` (without providers the listing does include) plus
+`unavailable_reason`: `None` when the listing has something to offer, otherwise one
+sentence saying why — for a provider filter, that provider's reason; unfiltered,
+the configured provider's reason first.
+
+```python
+catalog = core.voice.voice_catalog(provider="supertonic")
+catalog["unavailable_reason"]
+# 'Supertonic is not installed: the Python package onnxruntime is missing.
+#  Install it with: pip install "abstractvoice[supertonic]"'
+```
+
+### Engine runtime status
+
+`abstractvoice.engine_runtime` answers whether an engine's Python runtime is
+installed, for any known engine, without importing the engine or any ML
+framework (it uses `importlib.util.find_spec` only):
+
+```python
+from abstractvoice.engine_runtime import engine_runtime_status, engine_runtime_installed, known_engines
+
+status = engine_runtime_status("supertonic")        # or "faster-whisper", "qwen3-tts", ...
+status.installed          # bool
+status.missing_modules    # ("onnxruntime",) when missing; groups read "piper or piper_phonemize"
+status.extra              # "supertonic"
+status.install_command    # 'pip install "abstractvoice[supertonic]"'
+status.reason             # plain-words sentence, None when installed
+status.to_dict()          # JSON-safe record
+engine_runtime_installed("faster-whisper", kind="stt")
+known_engines("tts")      # engine ids this module answers for
+```
+
+Engine ids: `openai`, `openai-compatible`, `supertonic`, `piper`, `audiodit`,
+`qwen3-tts`, `omnivoice`, `f5_tts`, `chroma`, `faster-whisper`,
+`transformers-asr` (aliases such as `faster_whisper` or `F5-TTS` are accepted).
+An unknown id, or a `kind` the engine does not serve, raises `ValueError`. Remote
+engines always report `installed=True`; whether they are configured is a separate
+question answered by `available_providers()["unavailable"]`.
 
 Discovery has a cost model, and it is worth knowing which side of it you are on:
 
@@ -674,12 +747,27 @@ different provider:
 - `voice_remote_base_url`: base URL for OpenAI-compatible remote audio endpoints
 - `voice_remote_api_key`: optional bearer key for remote audio endpoints
 - `voice_remote_timeout_s`: request timeout for remote audio endpoints
+- `voice_openai_api_key`: OpenAI API key handed over by the host (for example a key
+  saved in a gateway's Providers screen). Used for provider `openai` only (TTS,
+  STT, cloning) and never sent to `voice_remote_base_url`; it also makes `openai`
+  available in discovery.
+- `voice_openai_base_url`: optional OpenAI base URL used with `voice_openai_api_key`
+  (default: the OpenAI API)
+- `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`: Qwen3-TTS codebook
+  predictor and sampler (see [Qwen performance controls](#qwen-performance-controls))
 - `voice_whisper_model`: faster-whisper model size (e.g. `"base"`, `"small"`)
 - `voice_cloning_engine`: default cloning provider (`"omnivoice"` by default; also `"f5_tts"|"chroma"|"audiodit"|"openai"|"openai-compatible"`)
 - `voice_cloned_tts_streaming`: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when `voice_tts_delivery_mode` is unset.
 - `voice_tts_delivery_mode`: unified audio delivery mode for base + cloned voices (`"buffered"|"streamed"`). Takes precedence over `voice_cloned_tts_streaming`.
 - `voice_tts_streaming`: bool alias for `voice_tts_delivery_mode` (`true` → `"streamed"`, `false` → `"buffered"`).
 - `voice_debug_mode`: enable debug prints (bool)
+
+Hosts pass provider credentials through this config dict, per plugin instance:
+AbstractCore puts `create_llm(...)` keyword arguments there, so
+`create_llm(provider, model=..., voice_openai_api_key=key)` is enough in-process.
+Without `voice_openai_api_key`, provider `openai` uses `voice_remote_api_key` /
+`voice_remote_base_url` as before, then `OPENAI_API_KEY`. The same credentials are
+available on the library API as `VoiceManager(openai_api_key=..., openai_base_url=...)`.
 
 Boolean owner config/env values accept common strings such as `true`, `false`,
 `on`, `off`, `1`, and `0`; string values like `"false"` are not treated as

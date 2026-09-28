@@ -30,7 +30,11 @@ from abstractvoice.examples.llm_provider import (
     DEFAULT_MODEL,
     strip_think_blocks,
 )
-from abstractvoice.examples.tts_defaults import normalize_tts_engine_name, resolve_interactive_tts_engine
+from abstractvoice.examples.tts_defaults import (
+    add_qwen3_tts_arguments,
+    normalize_tts_engine_name,
+    resolve_interactive_tts_engine,
+)
 
 
 # ANSI color codes
@@ -75,6 +79,8 @@ class VoiceREPL(cmd.Cmd):
         cloning_engine: str = "omnivoice",
         provider: str | None = None,
         cloning_model: str | None = None,
+        qwen3_tts_predictor: str | None = None,
+        qwen3_tts_sampler: str | None = None,
     ):
         super().__init__()
 
@@ -116,6 +122,8 @@ class VoiceREPL(cmd.Cmd):
         self.remote_timeout_s = remote_timeout_s
         self.cloning_engine = str(cloning_engine or "omnivoice").strip().lower().replace("_", "-")
         self.cloning_model = cloning_model
+        self.qwen3_tts_predictor = qwen3_tts_predictor
+        self.qwen3_tts_sampler = qwen3_tts_sampler
 
         # Initialize voice manager with language support
         if disable_tts:
@@ -134,6 +142,8 @@ class VoiceREPL(cmd.Cmd):
                 cloned_tts_streaming=False,
                 cloning_engine=self.cloning_engine,
                 cloning_model=self.cloning_model,
+                qwen3_tts_predictor=self.qwen3_tts_predictor,
+                qwen3_tts_sampler=self.qwen3_tts_sampler,
                 remote_base_url=self.remote_base_url,
                 remote_api_key=self.remote_api_key,
                 remote_timeout_s=self.remote_timeout_s,
@@ -1898,6 +1908,8 @@ class VoiceREPL(cmd.Cmd):
                     cloned_tts_streaming=False,
                     cloning_engine=self.cloning_engine,
                     cloning_model=getattr(self, "cloning_model", None),
+                    qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
+                    qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
                     remote_base_url=self.remote_base_url,
                     remote_api_key=self.remote_api_key,
                     remote_timeout_s=self.remote_timeout_s,
@@ -4260,6 +4272,8 @@ class VoiceREPL(cmd.Cmd):
                     cloned_tts_streaming=False,
                     cloning_engine=self.cloning_engine,
                     cloning_model=getattr(self, "cloning_model", None),
+                    qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
+                    qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
                     remote_base_url=self.remote_base_url,
                     remote_api_key=self.remote_api_key,
                     remote_timeout_s=self.remote_timeout_s,
@@ -4723,6 +4737,8 @@ class VoiceREPL(cmd.Cmd):
             cloned_tts_streaming=False,
             cloning_engine=self.cloning_engine,
             cloning_model=getattr(self, "cloning_model", None),
+            qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
+            qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
             remote_base_url=self.remote_base_url,
             remote_api_key=self.remote_api_key,
             remote_timeout_s=self.remote_timeout_s,
@@ -5513,6 +5529,7 @@ def parse_args():
     parser.add_argument("--remote-base-url", default=None, help="Base URL for OpenAI-compatible remote voice endpoints")
     parser.add_argument("--remote-api-key", default=None, help="Bearer API key for remote voice endpoints")
     parser.add_argument("--remote-timeout", type=float, default=None, help="Remote voice request timeout in seconds")
+    add_qwen3_tts_arguments(parser)
     return parser.parse_args()
 
 
@@ -5540,6 +5557,8 @@ def main():
             voice_mode=args.voice_mode,
             cloning_engine=args.cloning_engine,
             cloning_model=args.cloning_model,
+            qwen3_tts_predictor=args.qwen3_tts_predictor,
+            qwen3_tts_sampler=args.qwen3_tts_sampler,
         )
         repl.cmdloop()
     except KeyboardInterrupt:

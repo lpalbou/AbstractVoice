@@ -54,6 +54,8 @@ class Qwen3TTSAdapter(TTSAdapter):
         model_id: str | None = None,
         revision: str | None = None,
         device: str = "auto",
+        predictor: str | None = None,
+        sampler: str | None = None,
         runtime: Any | None = None,
     ):
         self._language = str(language or "en").strip().lower()
@@ -63,7 +65,7 @@ class Qwen3TTSAdapter(TTSAdapter):
         self._instructions: Optional[str] = None
 
         if runtime is None:
-            from ..qwen3_tts.runtime import DEFAULT_MODEL_ID, Qwen3TTSRuntime
+            from ..qwen3_tts.runtime import DEFAULT_MODEL_ID, Qwen3TTSRuntime, Qwen3TTSSettings
 
             runtime = Qwen3TTSRuntime(
                 model_id=model_id or DEFAULT_MODEL_ID,
@@ -71,6 +73,8 @@ class Qwen3TTSAdapter(TTSAdapter):
                 device=device,
                 allow_downloads=bool(allow_downloads),
                 debug=bool(debug_mode),
+                # Validated here, before any weights load (ValueError on a typo).
+                settings=Qwen3TTSSettings(predictor=predictor, sampler=sampler),
             )
         self._runtime = runtime
         # The VoiceManager mixin resolves per-model capability entries (e.g. the
@@ -214,6 +218,24 @@ class Qwen3TTSAdapter(TTSAdapter):
             return self._speaker
         speakers = self._speaker_names()
         return speakers[0] if speakers else None
+
+    # ----------------------------------------------------- codebook generation
+
+    def set_codebook_generation(self, *, predictor: str, sampler: str) -> None:
+        """Choose the codebook predictor/sampler (validated; ValueError on a typo).
+
+        Both are read when the model loads, so a change unloads a resident model
+        and the next synthesis reloads with the new choice.
+        """
+        from ..qwen3_tts.runtime import Qwen3TTSSettings
+
+        chosen = Qwen3TTSSettings(predictor=predictor, sampler=sampler)
+        settings = self._runtime.settings
+        if (settings.predictor, settings.sampler) == (chosen.predictor, chosen.sampler):
+            return
+        settings.predictor, settings.sampler = chosen.predictor, chosen.sampler
+        if self.is_engine_loaded():
+            self._runtime.unload()
 
     # ----------------------------------------------------------- quality preset
 

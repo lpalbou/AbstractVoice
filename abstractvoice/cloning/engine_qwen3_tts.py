@@ -32,8 +32,14 @@ class Qwen3TTSVoiceCloningEngine:
         device: str = "auto",
         allow_downloads: bool = True,
         model_id: str | None = None,
+        predictor: str | None = None,
+        sampler: str | None = None,
     ) -> None:
+        from ..qwen3_tts.runtime import Qwen3TTSSettings
+
         self.debug = bool(debug)
+        # Validated now, so a typo fails before any weights load.
+        self._settings = Qwen3TTSSettings(predictor=predictor, sampler=sampler)
         self._device = str(device or "auto")
         self._allow_downloads = bool(allow_downloads)
         self._model_id = str(model_id or self.DEFAULT_BASE_MODEL_ID)
@@ -55,6 +61,7 @@ class Qwen3TTSVoiceCloningEngine:
                 device=self._device,
                 allow_downloads=self._allow_downloads,
                 debug=self.debug,
+                settings=self._settings,
             )
         return self._runtime
 
