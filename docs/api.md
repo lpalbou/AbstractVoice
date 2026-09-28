@@ -329,8 +329,10 @@ not resident).
 `stt_engine="transformers-asr"` with a Qwen3-ASR checkpoint (for example
 `Qwen/Qwen3-ASR-0.6B` or `Qwen/Qwen3-ASR-1.7B`) runs AbstractVoice's bundled
 Qwen3-ASR model code, without `trust_remote_code`. It needs `abstractvoice[stt-hf]`
-and runs on Transformers 5.4 or newer (tested in CI on the extra's floor and the
-latest release). Prefetch with `abstractvoice-prefetch --stt-hf Qwen/Qwen3-ASR-0.6B`.
+and runs on Transformers 5.4 or newer, so Python 3.10+ (tested in CI on the extra's
+floor and the latest release). With an older Transformers (what the extra resolves
+on Python 3.9) loading refuses with a plain error, which is also the adapter's
+unavailable reason. Prefetch with `abstractvoice-prefetch --stt-hf Qwen/Qwen3-ASR-0.6B`.
 
 ### STT configuration
 

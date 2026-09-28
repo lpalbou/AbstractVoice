@@ -47,6 +47,11 @@ Older changelog entries may reference historical CLI commands or model choices.
   configuration, weight loading, attention masks and generation are compatible,
   and the bundled model is always used even where Transformers ships its own
   `qwen3_asr` model type.
+- Qwen3-ASR on Transformers older than 5.4 (what `abstractvoice[stt-hf]` resolves
+  on Python 3.9) refuses before loading weights with a plain error naming the
+  Transformers 5.4+ / Python 3.10+ requirement and the upgrade command, instead of
+  failing mid-generation with a `TypeError`; offline, that error is the adapter's
+  unavailable reason rather than "model not available locally".
 
 ## [0.12.0] - 2026-09-27
 

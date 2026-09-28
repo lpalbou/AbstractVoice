@@ -71,6 +71,36 @@ def _version_triplet(value: Any) -> tuple[int, int, int]:
         return (0, 0, 0)
 
 
+class UnsupportedTransformersVersion(RuntimeError):
+    """The installed Transformers release cannot run the requested model.
+
+    Raised before any weights load; the message says which release is needed
+    and how to upgrade. It is never rewritten into a "model not downloaded"
+    message, because downloading would not fix it.
+    """
+
+
+# The vendored Qwen3-ASR model runs on Transformers 5.4+ only (the 4.x
+# `create_causal_mask` has another signature). The stt-hf extra resolves 4.x on
+# Python 3.9, where Transformers 5 is not available.
+_QWEN3_ASR_MIN_TRANSFORMERS = (5, 4)
+
+
+def _require_qwen3_asr_transformers(installed_version: Any) -> None:
+    from packaging.version import Version
+
+    if Version(str(installed_version)).release[:2] >= _QWEN3_ASR_MIN_TRANSFORMERS:
+        return
+    raise UnsupportedTransformersVersion(
+        f"Qwen3-ASR needs Transformers 5.4 or newer (Python 3.10+); "
+        f"transformers {installed_version} is installed.\n"
+        "Upgrade with:\n"
+        "  pip install -U \"transformers>=5.4.0\"\n"
+        "On Python 3.9, Transformers 5 is not available: use Python 3.10 or newer, "
+        "or another STT model (for example openai/whisper-large-v3-turbo)."
+    )
+
+
 _QWEN3_ASR_LANG_BY_CODE: dict[str, str] = {
     "zh": "Chinese",
     "en": "English",
@@ -335,6 +365,9 @@ class TransformersASRAdapter(STTAdapter):
                 torch_dtype=torch_dtype,
                 local_only=bool(local_only),
             )
+        except UnsupportedTransformersVersion as e:
+            self._load_error = str(e)
+            raise
         except Exception as e:
             runtime = locals().get("runtime")
             resolved_device = str(getattr(runtime, "resolved_device", "") or "").lower()
@@ -515,7 +548,7 @@ class TransformersASRAdapter(STTAdapter):
     def _ensure_loaded_qwen3_asr(self, *, torch_device: Any, torch_dtype: Any, local_only: bool) -> None:
         try:
             import torch
-            import transformers  # noqa: F401
+            import transformers
         except Exception as e:
             raise RuntimeError(
                 "Qwen3-ASR requires Transformers + Torch optional dependencies.\n"
@@ -524,6 +557,7 @@ class TransformersASRAdapter(STTAdapter):
                 "  pip install \"abstractvoice[apple]\"  # Apple profile\n"
                 "  pip install \"abstractvoice[gpu]\"    # GPU profile"
             ) from e
+        _require_qwen3_asr_transformers(getattr(transformers, "__version__", "0"))
 
         # The vendored classes are loaded by name, never through AutoModel /
         # AutoProcessor: newer transformers releases ship their own `qwen3_asr`
