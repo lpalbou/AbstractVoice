@@ -150,6 +150,31 @@ def test_unfiltered_catalog_without_openai_key_returns_reasons():
         assert "no OpenAI API key is configured" in catalog["unavailable_reason"]
 
 
+def _engine_free(cap, monkeypatch):
+    def _no_manager():
+        raise AssertionError("discovery built a VoiceManager")
+
+    monkeypatch.setattr(cap, "_get_vm", _no_manager)
+    return cap
+
+
+def test_openai_filtered_catalog_without_key_explains_instead_of_raising(monkeypatch):
+    cap = _engine_free(plugin._VoiceCapability(_Owner()), monkeypatch)
+    catalog = cap.voice_catalog(provider="openai")
+    assert catalog["tts_providers"] == []
+    assert catalog["unavailable_providers"]["tts"]["openai"]["code"] == "not_configured"
+    assert catalog["unavailable_reason"].startswith("no OpenAI API key is configured")
+
+
+def test_unknown_provider_catalog_names_the_known_providers(monkeypatch):
+    cap = _engine_free(plugin._VoiceCapability(_Owner()), monkeypatch)
+    catalog = cap.voice_catalog(provider="bogus")
+    assert catalog["tts_providers"] == []
+    reason = catalog["unavailable_reason"]
+    assert reason.startswith("'bogus' is not a known text-to-speech provider (known: openai, openai-compatible")
+    assert "OpenAI" not in reason  # not the misleading missing-key message
+
+
 def test_switching_tts_engine_and_cloning_keep_the_openai_credentials(monkeypatch):
     import abstractvoice.vm.manager as manager
     import abstractvoice.vm.tts_mixin as tts_mixin

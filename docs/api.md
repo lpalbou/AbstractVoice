@@ -598,7 +598,11 @@ Each record has a plain-words `reason`. `voice_catalog()` carries the same map a
 `unavailable_providers` (without providers the listing does include) plus
 `unavailable_reason`: `None` when the listing has something to offer, otherwise one
 sentence saying why — for a provider filter, that provider's reason; unfiltered,
-the configured provider's reason first.
+the configured provider's reason first. A provider that cannot answer — the
+configured one or a filter such as `provider="openai"` without a key — and an
+unknown provider id never raise: the listing comes back empty with the reason
+(`"'bogus' is not a known text-to-speech provider (known: openai, ...)"` for an
+unknown id), without building an engine.
 
 ```python
 catalog = core.voice.voice_catalog(provider="supertonic")
@@ -671,8 +675,9 @@ Discovery has a cost model, and it is worth knowing which side of it you are on:
   filter, `list_tts_voices(provider=...)`, `compatibility_catalog()`,
   `capability_support()`, `find_compatible_models()`, and
   `voice_catalog(providers_only=True)` / `voice_catalog(provider=<local>)`.
-- **Builds the active engine**: the unfiltered `voice_catalog()`,
-  `voice_catalog(provider=<remote>)`, `list_tts_voices()`, `list_cloned_voices()`,
+- **Builds the active engine**: the unfiltered `voice_catalog()` and
+  `voice_catalog(provider=<remote>)` when that provider is available,
+  `list_tts_voices()`, `list_cloned_voices()`,
   and `list_profiles()`. These report the active engine's live state — its
   profiles, its cloned voices, its STT side — and for a local engine that loads
   its weights. It is deliberate: the light path reads cloned voices from the clone

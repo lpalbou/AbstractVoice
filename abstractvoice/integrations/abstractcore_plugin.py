@@ -2613,10 +2613,11 @@ class _BaseVoice:
             return True
         return self._active_vm_for_discovery() is None
 
-    def _configured_tts_provider_unavailable(self) -> bool:
-        """True when no manager is built or injected yet and the configured TTS
-        provider is one `available_providers()` explains away (not configured,
-        runtime missing, nothing downloaded)."""
+    def _tts_provider_unavailable(self, provider_id: str = "") -> bool:
+        """True when no manager is built or injected yet and the TTS provider
+        (`provider_id`, else the configured one) is one `available_providers()`
+        explains away (not configured, runtime missing, nothing downloaded) or no
+        known TTS provider at all. Building a manager for it would only raise."""
         if self._vm is not None:
             return False
         cfg = getattr(self._owner, "config", None)
@@ -2624,8 +2625,10 @@ class _BaseVoice:
             cfg.get("voice_manager_instance") is not None or callable(cfg.get("voice_manager_factory"))
         ):
             return False
-        configured = self._configured_provider_id(kind="tts")
-        return configured in self._unavailable_providers()["tts"]
+        provider_id = provider_id or self._configured_provider_id(kind="tts")
+        if provider_id == "auto":
+            return False
+        return provider_id in self._unavailable_providers()["tts"] or provider_id not in _known_tts_provider_ids()
 
     def _active_vm_for_discovery(self):
         """The active VoiceManager, but only when reading it cannot load a model.
@@ -2926,6 +2929,9 @@ def _listing_unavailable_reason(
         record = unavailable_tts.get(requested)
         if isinstance(record, dict) and record.get("reason"):
             return str(record["reason"])
+        known = _known_tts_provider_ids()
+        if requested not in known:
+            return f"{requested!r} is not a known text-to-speech provider (known: {', '.join(known)})"
         return f"text-to-speech provider {requested!r} is not available"
     if listed:
         return None
@@ -3698,10 +3704,11 @@ class _VoiceCapability(_BaseVoice):
         provider_id = _norm_engine_id(provider)
         if providers_only or (provider_id and self._local_provider_answerable_from_disk(provider_id)):
             return self._light_voice_catalog(provider=provider_id, model=model, providers_only=providers_only)
-        if not provider_id and self._configured_tts_provider_unavailable():
+        if self._tts_provider_unavailable(provider_id):
             # Building the active engine would raise (no OpenAI key, runtime not
-            # installed) instead of saying why; the light catalog says why.
-            return self._light_voice_catalog(model=model)
+            # installed, unknown provider) instead of saying why; the light
+            # catalog says why in `unavailable_reason`.
+            return self._light_voice_catalog(provider=provider_id, model=model)
         # `provider` and `provider_id` are reused as loop variables below.
         requested_tts_provider = provider_id
 

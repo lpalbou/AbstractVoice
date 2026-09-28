@@ -43,6 +43,10 @@ Older changelog entries may reference historical CLI commands or model choices.
   `unavailable_reason` (for example `not_configured` for OpenAI without a key)
   when the configured TTS provider cannot run, instead of raising; a selected
   remote provider without its key or base URL is no longer listed as available.
+- `voice_catalog(provider=...)` for a provider that cannot run (for example
+  `openai` without a key) or an unknown provider id returns an empty listing with
+  `unavailable_reason` instead of raising a misleading `ValueError`; an unknown id
+  is named as such, with the known providers.
 - Qwen3-ASR speech-to-text runs on Transformers 5.x (5.4 through current releases):
   configuration, weight loading, attention masks and generation are compatible,
   and the bundled model is always used even where Transformers ships its own
