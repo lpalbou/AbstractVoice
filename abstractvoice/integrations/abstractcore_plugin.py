@@ -3264,10 +3264,16 @@ class _VoiceCapability(_BaseVoice):
         the same here as one with no models. When that difference matters, read
         `voice_catalog()["unreachable_tts_providers"]`, or the provider's
         `unreachable` flag in `tts_catalog_by_provider`.
+
+        A provider that cannot run (`openai` without a key, nothing downloaded)
+        or an unknown provider id lists nothing, engine-free, like
+        `voice_catalog(provider=...)`; its `unavailable_reason` says why.
         """
         provider_id, requested_model = _resolve_tts_provider_request(provider)
         if requested_model:
             return [requested_model]
+        if provider_id and self._tts_provider_unavailable(provider_id):
+            return []
         if provider_id:
             if provider_id in {"openai", "openai-compatible"}:
                 # The active manager answers for its own provider when consulting it

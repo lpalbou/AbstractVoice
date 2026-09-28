@@ -50,6 +50,10 @@ Older changelog entries may reference historical CLI commands or model choices.
   `openai` without a key) or an unknown provider id returns an empty listing with
   `unavailable_reason` instead of raising a misleading `ValueError`; an unknown id
   is named as such, with the known providers.
+- `list_tts_models(provider)` / `list_models(kind="tts", provider=...)` return `[]`
+  for the same unavailable or unknown providers without building an engine or
+  probing a server (`openai` without a key used to attempt a manager build and
+  list default model ids that `voice_catalog` did not).
 - Qwen3-ASR speech-to-text runs on Transformers 5.x (5.4 through current releases):
   configuration, weight loading, attention masks and generation are compatible,
   and the bundled model is always used even where Transformers ships its own

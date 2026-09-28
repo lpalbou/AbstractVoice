@@ -175,6 +175,26 @@ def test_unknown_provider_catalog_names_the_known_providers(monkeypatch):
     assert "OpenAI" not in reason  # not the misleading missing-key message
 
 
+@pytest.mark.parametrize("provider", ["openai", "bogus"])
+def test_model_lists_for_unavailable_or_unknown_providers_are_engine_free(provider, monkeypatch):
+    """`list_tts_models` / `list_models(kind="tts")` agree with `voice_catalog`:
+    nothing listed, no manager built (its failure used to be swallowed), no probe."""
+    cap = plugin._VoiceCapability(_Owner())
+    calls = []
+
+    def build():
+        calls.append("build")
+        raise ValueError("OpenAI audio requires OPENAI_API_KEY")
+
+    monkeypatch.setattr(cap, "_get_vm", build)
+    monkeypatch.setattr(cap, "_fill_remote_tts_discovery", lambda *a, **k: calls.append("probe"))
+
+    assert cap.list_tts_models(provider) == []
+    assert cap.list_models(kind="tts", provider=provider) == []
+    assert cap.voice_catalog(provider=provider)["tts_models"] == []
+    assert calls == []
+
+
 def test_switching_tts_engine_and_cloning_keep_the_openai_credentials(monkeypatch):
     import abstractvoice.vm.manager as manager
     import abstractvoice.vm.tts_mixin as tts_mixin

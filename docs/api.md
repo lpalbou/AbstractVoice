@@ -602,7 +602,9 @@ the configured provider's reason first. A provider that cannot answer — the
 configured one or a filter such as `provider="openai"` without a key — and an
 unknown provider id never raise: the listing comes back empty with the reason
 (`"'bogus' is not a known text-to-speech provider (known: openai, ...)"` for an
-unknown id), without building an engine.
+unknown id), without building an engine. `list_tts_models(provider)` and
+`list_models(kind="tts", provider=...)` return `[]` for the same providers, also
+engine-free; a list cannot carry the reason, so read it from `voice_catalog`.
 
 ```python
 catalog = core.voice.voice_catalog(provider="supertonic")
