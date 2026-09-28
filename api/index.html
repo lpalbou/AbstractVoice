@@ -466,6 +466,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#qwen3-asr-transformers-asr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-ASR (Transformers ASR)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#stt-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -603,6 +614,17 @@
     <span class="md-ellipsis">
       
         AbstractCore capability plugin (auto-discovery)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#engine-runtime-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine runtime status
       
     </span>
   </a>
@@ -1447,6 +1469,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#qwen3-asr-transformers-asr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-ASR (Transformers ASR)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#stt-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1584,6 +1617,17 @@
     <span class="md-ellipsis">
       
         AbstractCore capability plugin (auto-discovery)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#engine-runtime-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine runtime status
       
     </span>
   </a>
@@ -1835,7 +1879,9 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <h3 id="qwen3-tts-checkpoints">Qwen3-TTS checkpoints<a class="headerlink" href="#qwen3-tts-checkpoints" title="Permanent link">&para;</a></h3>
 <p>Install <code>abstractvoice[qwen3-tts]</code> (Python 3.10+) and explicitly download each
 checkpoint you intend to use. Discovery lists cached checkpoints without
-loading their weights; synthesis loads the selected checkpoint on demand.</p>
+loading their weights; synthesis loads the selected checkpoint on demand.
+It runs on Transformers 5.9 or newer (the extra's floor); with an older
+Transformers, loading refuses with a plain error before any download or weight load.</p>
 <table>
 <thead>
 <tr>
@@ -1885,15 +1931,49 @@ its configured model unless an override is supplied.</p>
 or <code>core.voice.clone(...)</code> with <code>provider="qwen3-tts"</code> and <code>model=&lt;checkpoint&gt;</code>.
 <code>core.voice.voice_catalog(provider="qwen3-tts", model=&lt;checkpoint&gt;)</code> filters
 profiles and stored clones by checkpoint. Plugin defaults can be configured
-with the <code>voice_cloning_model</code> setting, separately from <code>voice_tts_model</code>.</p>
+with the <code>voice_cloning_model</code> setting, separately from <code>voice_tts_model</code>, and
+the codebook predictor/sampler with <code>voice_qwen3_tts_predictor</code> /
+<code>voice_qwen3_tts_sampler</code> (see below).</p>
 <h4 id="qwen-performance-controls">Qwen performance controls<a class="headerlink" href="#qwen-performance-controls" title="Permanent link">&para;</a></h4>
 <p>Qwen uses the shared automatic GPU/device policy and a specialized codebook
 predictor by default, retaining PyTorch's multinomial sampler. No additional
 vendor SDK is required. Unsupported generation settings use the original
 Transformers path with a <code>#FALLBACK</code> warning.</p>
-<p>The CLI, web example and AbstractCore plugin always use these defaults. Library
-integrators can choose per runtime through <code>Qwen3TTSSettings</code>; the runtime reads
-them when it loads the model (unload and reload a resident model to change them):</p>
+<p>Every surface can choose both settings; the runtime reads them when it loads the
+model:</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>How to set them</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLI, REPL, web example</td>
+<td><code>--qwen3-tts-predictor auto\|reference</code>, <code>--qwen3-tts-sampler multinomial\|exponential</code></td>
+</tr>
+<tr>
+<td>Web example (running)</td>
+<td>Qwen3-TTS predictor / sampler selects, or <code>POST /api/qwen3-tts/codebook</code> with <code>{"predictor": ..., "sampler": ...}</code></td>
+</tr>
+<tr>
+<td><code>VoiceManager</code></td>
+<td><code>VoiceManager(qwen3_tts_predictor=..., qwen3_tts_sampler=...)</code>; change later with <code>vm.set_qwen3_tts_codebook_generation(predictor=..., sampler=...)</code></td>
+</tr>
+<tr>
+<td>AbstractCore plugin</td>
+<td>settings <code>voice_qwen3_tts_predictor</code>, <code>voice_qwen3_tts_sampler</code></td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td><code>Qwen3TTSSettings(predictor=..., sampler=...)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>VoiceManager</code> choice applies to Qwen3-TTS synthesis and to Qwen3-TTS voice
+cloning. Changing it at runtime unloads a resident Qwen3-TTS model; the next
+synthesis reloads it with the new choice.</p>
 <table>
 <thead>
 <tr>
@@ -1924,7 +2004,9 @@ them when it loads the model (unload and reload a resident model to change them)
 <span class="p">)</span>
 <span class="n">adapter</span> <span class="o">=</span> <span class="n">Qwen3TTSAdapter</span><span class="p">(</span><span class="n">runtime</span><span class="o">=</span><span class="n">runtime</span><span class="p">)</span>
 </code></pre></div>
-<p>An invalid value raises <code>ValueError</code> before any weights load.</p>
+<p>An invalid value is rejected before any weights load: the launch flags refuse it,
+the Python surfaces and plugin settings raise <code>ValueError</code>, and the web endpoint
+answers 400.</p>
 <p><code>reference</code> takes precedence over the sampler choice. Automatic fallback also
 uses the original sampler. Exponential sampling validates all distributions
 before returning a complete codebook frame; invalid probabilities raise without
@@ -2019,6 +2101,14 @@ not resident).</p>
 </li>
 <li>Transcribes audio sent over the network.</li>
 </ul>
+<h3 id="qwen3-asr-transformers-asr">Qwen3-ASR (Transformers ASR)<a class="headerlink" href="#qwen3-asr-transformers-asr" title="Permanent link">&para;</a></h3>
+<p><code>stt_engine="transformers-asr"</code> with a Qwen3-ASR checkpoint (for example
+<code>Qwen/Qwen3-ASR-0.6B</code> or <code>Qwen/Qwen3-ASR-1.7B</code>) runs AbstractVoice's bundled
+Qwen3-ASR model code, without <code>trust_remote_code</code>. It needs <code>abstractvoice[stt-hf]</code>
+and runs on Transformers 5.4 or newer, so Python 3.10+ (tested in CI on the extra's
+floor and the latest release). With an older Transformers (what the extra resolves
+on Python 3.9) loading refuses with a plain error, which is also the adapter's
+unavailable reason. Prefetch with <code>abstractvoice-prefetch --stt-hf Qwen/Qwen3-ASR-0.6B</code>.</p>
 <h3 id="stt-configuration">STT configuration<a class="headerlink" href="#stt-configuration" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>set_whisper(model_name: str) -&gt; None | bool</code></li>
@@ -2215,7 +2305,7 @@ integration code:
 - <code>list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True) -&gt; list[dict]</code>
 - <code>list_cloned_voices(provider: str | None = None, model: str | None = None) -&gt; list[dict]</code>
 - <code>list_voices(...) -&gt; list[dict]</code> (alias of <code>list_tts_voices(...)</code>)
-- <code>available_providers() -&gt; {tts, stt, cloning, providers, details}</code>
+- <code>available_providers() -&gt; {tts, stt, cloning, providers, details, unavailable}</code>
 - <code>compatibility_catalog() -&gt; {version, providers}</code>
 - <code>get_capability_support(kind, feature, provider, model=None, surface="default") -&gt; dict | None</code>
 - <code>find_compatible_models(kind, feature, surface="default", support_in=("native","emulated","conditional")) -&gt; list[dict]</code>
@@ -2253,6 +2343,69 @@ cached model artifacts are present. The same payload also includes
 <code>known_tts_providers</code>, <code>known_stt_providers</code>, and <code>known_cloning_providers</code> so
 UI/provider selectors can distinguish installed availability from the broader
 capability catalog.</p>
+<p>A provider left out of those lists is explained, never silently missing.
+<code>available_providers()["unavailable"]</code> maps each kind (<code>tts</code>, <code>stt</code>, <code>cloning</code>)
+to one record per known provider that is not available:</p>
+<table>
+<thead>
+<tr>
+<th><code>code</code></th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>runtime_missing</code></td>
+<td>The engine's Python packages are not installed; <code>runtime</code> carries the <code>engine_runtime_status</code> record (missing modules, extra, install command).</td>
+</tr>
+<tr>
+<td><code>model_not_downloaded</code></td>
+<td>The runtime is installed but no model for it is on this machine (TTS).</td>
+</tr>
+<tr>
+<td><code>not_configured</code></td>
+<td>A remote provider without its API key (<code>openai</code>) or base URL (<code>openai-compatible</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>Each record has a plain-words <code>reason</code>. <code>voice_catalog()</code> carries the same map as
+<code>unavailable_providers</code> (without providers the listing does include) plus
+<code>unavailable_reason</code>: <code>None</code> when the listing has something to offer, otherwise one
+sentence saying why — for a provider filter, that provider's reason; unfiltered,
+the configured provider's reason first. A provider that cannot answer — the
+configured one or a filter such as <code>provider="openai"</code> without a key — and an
+unknown provider id never raise: the listing comes back empty with the reason
+(<code>"'bogus' is not a known text-to-speech provider (known: openai, ...)"</code> for an
+unknown id), without building an engine. <code>list_tts_models(provider)</code> and
+<code>list_models(kind="tts", provider=...)</code> return <code>[]</code> for the same providers, also
+engine-free; a list cannot carry the reason, so read it from <code>voice_catalog</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">catalog</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">voice_catalog</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="s2">"supertonic"</span><span class="p">)</span>
+<span class="n">catalog</span><span class="p">[</span><span class="s2">"unavailable_reason"</span><span class="p">]</span>
+<span class="c1"># 'Supertonic is not installed: the Python package onnxruntime is missing.</span>
+<span class="c1">#  Install it with: pip install "abstractvoice[supertonic]"'</span>
+</code></pre></div>
+<h3 id="engine-runtime-status">Engine runtime status<a class="headerlink" href="#engine-runtime-status" title="Permanent link">&para;</a></h3>
+<p><code>abstractvoice.engine_runtime</code> answers whether an engine's Python runtime is
+installed, for any known engine, without importing the engine or any ML
+framework (it uses <code>importlib.util.find_spec</code> only):</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.engine_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">engine_runtime_status</span><span class="p">,</span> <span class="n">engine_runtime_installed</span><span class="p">,</span> <span class="n">known_engines</span>
+
+<span class="n">status</span> <span class="o">=</span> <span class="n">engine_runtime_status</span><span class="p">(</span><span class="s2">"supertonic"</span><span class="p">)</span>        <span class="c1"># or "faster-whisper", "qwen3-tts", ...</span>
+<span class="n">status</span><span class="o">.</span><span class="n">installed</span>          <span class="c1"># bool</span>
+<span class="n">status</span><span class="o">.</span><span class="n">missing_modules</span>    <span class="c1"># ("onnxruntime",) when missing; groups read "piper or piper_phonemize"</span>
+<span class="n">status</span><span class="o">.</span><span class="n">extra</span>              <span class="c1"># "supertonic"</span>
+<span class="n">status</span><span class="o">.</span><span class="n">install_command</span>    <span class="c1"># 'pip install "abstractvoice[supertonic]"'</span>
+<span class="n">status</span><span class="o">.</span><span class="n">reason</span>             <span class="c1"># plain-words sentence, None when installed</span>
+<span class="n">status</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>          <span class="c1"># JSON-safe record</span>
+<span class="n">engine_runtime_installed</span><span class="p">(</span><span class="s2">"faster-whisper"</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stt"</span><span class="p">)</span>
+<span class="n">known_engines</span><span class="p">(</span><span class="s2">"tts"</span><span class="p">)</span>      <span class="c1"># engine ids this module answers for</span>
+</code></pre></div>
+<p>Engine ids: <code>openai</code>, <code>openai-compatible</code>, <code>supertonic</code>, <code>piper</code>, <code>audiodit</code>,
+<code>qwen3-tts</code>, <code>omnivoice</code>, <code>f5_tts</code>, <code>chroma</code>, <code>faster-whisper</code>,
+<code>transformers-asr</code> (aliases such as <code>faster_whisper</code> or <code>F5-TTS</code> are accepted).
+An unknown id, or a <code>kind</code> the engine does not serve, raises <code>ValueError</code>. Remote
+engines always report <code>installed=True</code>; whether they are configured is a separate
+question answered by <code>available_providers()["unavailable"]</code>.</p>
 <p>Discovery has a cost model, and it is worth knowing which side of it you are on:</p>
 <ul>
 <li><strong>Local providers cost a <code>stat()</code>.</strong> "Is this model here?" is answered from the
@@ -2290,8 +2443,9 @@ capability catalog.</p>
   filter, <code>list_tts_voices(provider=...)</code>, <code>compatibility_catalog()</code>,
   <code>capability_support()</code>, <code>find_compatible_models()</code>, and
   <code>voice_catalog(providers_only=True)</code> / <code>voice_catalog(provider=&lt;local&gt;)</code>.</li>
-<li><strong>Builds the active engine</strong>: the unfiltered <code>voice_catalog()</code>,
-  <code>voice_catalog(provider=&lt;remote&gt;)</code>, <code>list_tts_voices()</code>, <code>list_cloned_voices()</code>,
+<li><strong>Builds the active engine</strong>: the unfiltered <code>voice_catalog()</code> and
+  <code>voice_catalog(provider=&lt;remote&gt;)</code> when that provider is available,
+  <code>list_tts_voices()</code>, <code>list_cloned_voices()</code>,
   and <code>list_profiles()</code>. These report the active engine's live state — its
   profiles, its cloned voices, its STT side — and for a local engine that loads
   its weights. It is deliberate: the light path reads cloned voices from the clone
@@ -2363,12 +2517,27 @@ different provider:
 - <code>voice_remote_base_url</code>: base URL for OpenAI-compatible remote audio endpoints
 - <code>voice_remote_api_key</code>: optional bearer key for remote audio endpoints
 - <code>voice_remote_timeout_s</code>: request timeout for remote audio endpoints
+- <code>voice_openai_api_key</code>: OpenAI API key handed over by the host (for example a key
+  saved in a gateway's Providers screen). Used for provider <code>openai</code> only (TTS,
+  STT, cloning) and never sent to <code>voice_remote_base_url</code>; it also makes <code>openai</code>
+  available in discovery.
+- <code>voice_openai_base_url</code>: optional OpenAI base URL used with <code>voice_openai_api_key</code>
+  (default: the OpenAI API, <code>https://api.openai.com/v1</code>; <code>OPENAI_BASE_URL</code> is not
+  used for this key, because it names the OpenAI-compatible server)
+- <code>voice_qwen3_tts_predictor</code> / <code>voice_qwen3_tts_sampler</code>: Qwen3-TTS codebook
+  predictor and sampler (see <a href="#qwen-performance-controls">Qwen performance controls</a>)
 - <code>voice_whisper_model</code>: faster-whisper model size (e.g. <code>"base"</code>, <code>"small"</code>)
 - <code>voice_cloning_engine</code>: default cloning provider (<code>"omnivoice"</code> by default; also <code>"f5_tts"|"chroma"|"audiodit"|"openai"|"openai-compatible"</code>)
 - <code>voice_cloned_tts_streaming</code>: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when <code>voice_tts_delivery_mode</code> is unset.
 - <code>voice_tts_delivery_mode</code>: unified audio delivery mode for base + cloned voices (<code>"buffered"|"streamed"</code>). Takes precedence over <code>voice_cloned_tts_streaming</code>.
 - <code>voice_tts_streaming</code>: bool alias for <code>voice_tts_delivery_mode</code> (<code>true</code> → <code>"streamed"</code>, <code>false</code> → <code>"buffered"</code>).
 - <code>voice_debug_mode</code>: enable debug prints (bool)</p>
+<p>Hosts pass provider credentials through this config dict, per plugin instance:
+AbstractCore puts <code>create_llm(...)</code> keyword arguments there, so
+<code>create_llm(provider, model=..., voice_openai_api_key=key)</code> is enough in-process.
+Without <code>voice_openai_api_key</code>, provider <code>openai</code> uses <code>voice_remote_api_key</code> /
+<code>voice_remote_base_url</code> as before, then <code>OPENAI_API_KEY</code>. The same credentials are
+available on the library API as <code>VoiceManager(openai_api_key=..., openai_base_url=...)</code>.</p>
 <p>Boolean owner config/env values accept common strings such as <code>true</code>, <code>false</code>,
 <code>on</code>, <code>off</code>, <code>1</code>, and <code>0</code>; string values like <code>"false"</code> are not treated as
 truthy.</p>

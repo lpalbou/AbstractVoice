@@ -1501,6 +1501,7 @@ abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<s
 <li><code>--tts-model &lt;id&gt;</code>: model id for remote TTS engines.</li>
 <li><code>--whisper &lt;id&gt;</code>: faster-whisper model size (<code>tiny|base|small|medium|large-v2|large-v3|large</code>).</li>
 <li><code>--stt-model &lt;id&gt;</code>: model id for remote STT engines, or a Hugging Face model id when <code>--stt-engine transformers-asr</code> (for example <code>openai/whisper-large-v3</code>, <code>openai/whisper-large-v3-turbo</code>, or <code>Qwen/Qwen3-ASR-1.7B</code>).</li>
+<li><code>--qwen3-tts-predictor auto|reference</code> / <code>--qwen3-tts-sampler multinomial|exponential</code>: Qwen3-TTS codebook predictor and sampler (defaults <code>auto</code> / <code>multinomial</code>; see <a href="../api/#qwen-performance-controls">Qwen performance controls</a>).</li>
 <li><code>--remote-base-url &lt;url&gt;</code> / <code>--remote-api-key &lt;key&gt;</code>: OpenAI-compatible remote voice endpoint config. <code>--tts-engine openai</code> and <code>--stt-engine openai</code> default to OpenAI's hosted API and read <code>OPENAI_API_KEY</code>.</li>
 </ul>
 <p>The default provider preset is Ollama at <code>http://localhost:11434</code>.</p>

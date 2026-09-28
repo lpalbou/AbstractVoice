@@ -1599,7 +1599,14 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 <h2 id="provider-and-model-discovery">Provider And Model Discovery<a class="headerlink" href="#provider-and-model-discovery" title="Permanent link">&para;</a></h2>
 <h3 id="a-local-engine-is-installed-but-not-listed">A local engine is installed but not listed<a class="headerlink" href="#a-local-engine-is-installed-but-not-listed" title="Permanent link">&para;</a></h3>
 <p>Discovery lists a local engine when its runtime is installed <strong>and</strong> at least one of its models is on
-this machine. Installing the extra alone is not enough. Prefetch the engine:</p>
+this machine. The listing says which one is missing: <code>voice_catalog()["unavailable_reason"]</code> and
+<code>available_providers()["unavailable"]</code> report <code>runtime_missing</code> (with the install command) or
+<code>model_not_downloaded</code>. To ask about the runtime directly:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.engine_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">engine_runtime_status</span>
+
+<span class="n">engine_runtime_status</span><span class="p">(</span><span class="s2">"supertonic"</span><span class="p">)</span><span class="o">.</span><span class="n">reason</span>   <span class="c1"># None when installed</span>
+</code></pre></div>
+<p>Installing the extra alone is not enough. Prefetch the engine:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--audiodit
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--omnivoice
 python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--supertonic
