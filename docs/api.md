@@ -169,6 +169,8 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
 Install `abstractvoice[qwen3-tts]` (Python 3.10+) and explicitly download each
 checkpoint you intend to use. Discovery lists cached checkpoints without
 loading their weights; synthesis loads the selected checkpoint on demand.
+It runs on Transformers 5.9 or newer (the extra's floor); with an older
+Transformers, loading refuses with a plain error before any download or weight load.
 
 | Checkpoint suffix | Sizes | Selection |
 | --- | --- | --- |

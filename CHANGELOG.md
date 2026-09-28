@@ -43,6 +43,11 @@ Older changelog entries may reference historical CLI commands or model choices.
   `unavailable_reason` (for example `not_configured` for OpenAI without a key)
   when the configured TTS provider cannot run, instead of raising; a selected
   remote provider without its key or base URL is no longer listed as available.
+- Qwen3-TTS on Transformers older than 5.9 (the `qwen3-tts` extra's floor) refuses
+  before any download or weight load with the same plain error as Qwen3-ASR,
+  instead of failing mid-generation. Both loaders share one check
+  (`abstractvoice.transformers_floor`), whose floors a test holds equal to the
+  install extras' floors in `pyproject.toml`.
 - The vendored Qwen3-TTS and Qwen3-ASR model modules import on Python 3.9 again
   (signatures used `str | None`, evaluated at import there); a torch-free test
   now checks every package module for such annotations on every Python.

@@ -25,7 +25,7 @@ def _message(version: str) -> str:
 
 def test_transformers_4_is_refused_with_a_plain_message():
     message = _message("4.57.6")
-    assert "Qwen3-ASR needs Transformers 5.4 or newer (Python 3.10+)" in message
+    assert "Qwen3-ASR needs Transformers 5.4.0 or newer (Python 3.10+)" in message
     assert "transformers 4.57.6 is installed" in message
     assert 'pip install -U "transformers>=5.4.0"' in message
 
@@ -47,7 +47,7 @@ def test_loader_refuses_before_loading_weights(monkeypatch):
     monkeypatch.setattr(asr.TransformersASRAdapter, "_ensure_loaded", lambda self: None)
 
     adapter = asr.TransformersASRAdapter(model_id="Qwen/Qwen3-ASR-0.6B", device="cpu", allow_downloads=False)
-    with pytest.raises(RuntimeError, match="Qwen3-ASR needs Transformers 5.4 or newer"):
+    with pytest.raises(RuntimeError, match="Qwen3-ASR needs Transformers 5.4.0 or newer"):
         adapter._ensure_loaded_qwen3_asr(torch_device="cpu", torch_dtype=None, local_only=True)
 
 
@@ -64,5 +64,5 @@ def test_unavailable_reason_names_the_transformers_floor(monkeypatch):
     adapter = asr.TransformersASRAdapter(model_id="Qwen/Qwen3-ASR-0.6B", device="cpu", allow_downloads=False)
     assert not adapter.is_available()
     reason = adapter.get_unavailable_reason() or ""
-    assert "Qwen3-ASR needs Transformers 5.4 or newer" in reason
+    assert "Qwen3-ASR needs Transformers 5.4.0 or newer" in reason
     assert "not available locally" not in reason

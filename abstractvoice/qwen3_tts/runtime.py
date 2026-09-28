@@ -257,6 +257,12 @@ class Qwen3TTSRuntime:
 
             import torch
 
+            from ..transformers_floor import QWEN3_TTS_MIN_TRANSFORMERS, require_transformers
+
+            # Before any download or weight load: on an older Transformers the
+            # vendored model fails mid-generation instead.
+            require_transformers(QWEN3_TTS_MIN_TRANSFORMERS, model="Qwen3-TTS", extra="qwen3-tts")
+
             from .orchestration import Qwen3TTSModel
 
             # Re-validated here: the fields are plain attributes and may have

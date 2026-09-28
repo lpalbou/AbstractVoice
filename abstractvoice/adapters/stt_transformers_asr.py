@@ -22,6 +22,7 @@ import numpy as np
 
 from ..audio.resample import linear_resample_mono
 from ..compute import looks_like_torch_device_error, resolve_torch_runtime
+from ..transformers_floor import QWEN3_ASR_MIN_TRANSFORMERS, UnsupportedTransformersVersion, require_transformers
 from .base import STTAdapter
 
 
@@ -71,33 +72,13 @@ def _version_triplet(value: Any) -> tuple[int, int, int]:
         return (0, 0, 0)
 
 
-class UnsupportedTransformersVersion(RuntimeError):
-    """The installed Transformers release cannot run the requested model.
-
-    Raised before any weights load; the message says which release is needed
-    and how to upgrade. It is never rewritten into a "model not downloaded"
-    message, because downloading would not fix it.
-    """
-
-
-# The vendored Qwen3-ASR model runs on Transformers 5.4+ only (the 4.x
-# `create_causal_mask` has another signature). The stt-hf extra resolves 4.x on
-# Python 3.9, where Transformers 5 is not available.
-_QWEN3_ASR_MIN_TRANSFORMERS = (5, 4)
-
-
 def _require_qwen3_asr_transformers(installed_version: Any) -> None:
-    from packaging.version import Version
-
-    if Version(str(installed_version)).release[:2] >= _QWEN3_ASR_MIN_TRANSFORMERS:
-        return
-    raise UnsupportedTransformersVersion(
-        f"Qwen3-ASR needs Transformers 5.4 or newer (Python 3.10+); "
-        f"transformers {installed_version} is installed.\n"
-        "Upgrade with:\n"
-        "  pip install -U \"transformers>=5.4.0\"\n"
-        "On Python 3.9, Transformers 5 is not available: use Python 3.10 or newer, "
-        "or another STT model (for example openai/whisper-large-v3-turbo)."
+    require_transformers(
+        QWEN3_ASR_MIN_TRANSFORMERS,
+        model="Qwen3-ASR",
+        extra="stt-hf",
+        installed=str(installed_version),
+        hint="or another STT model (for example openai/whisper-large-v3-turbo)",
     )
 
 
