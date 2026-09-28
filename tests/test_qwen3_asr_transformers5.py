@@ -19,13 +19,25 @@ forward, and greedy generation with and without the KV cache.
 
 from __future__ import annotations
 
+import importlib.metadata
 import importlib.util
 
 import pytest
 
+
+def _transformers_5_4_installed() -> bool:
+    if importlib.util.find_spec("torch") is None or importlib.util.find_spec("transformers") is None:
+        return False
+    from packaging.version import Version
+
+    return Version(importlib.metadata.version("transformers")).release[:2] >= (5, 4)
+
+
+# On Transformers < 5.4 (Python 3.9's stt-hf) the loader refuses on purpose;
+# tests/test_qwen3_asr_transformers_floor.py covers that side.
 pytestmark = pytest.mark.skipif(
-    importlib.util.find_spec("torch") is None or importlib.util.find_spec("transformers") is None,
-    reason="Qwen3-ASR needs abstractvoice[stt-hf] (torch + transformers)",
+    not _transformers_5_4_installed(),
+    reason="Qwen3-ASR needs abstractvoice[stt-hf] with Transformers 5.4+ (torch + transformers)",
 )
 
 AUDIO_TOKEN, AUDIO_START, AUDIO_END = 60, 61, 62
