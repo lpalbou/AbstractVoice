@@ -11,10 +11,10 @@ pytest.importorskip("transformers")
 
 from packaging.version import Version
 
-if Version(importlib.metadata.version("transformers")).release[:2] < (5, 9):
-    # The qwen3-tts extra floors transformers at 5.9 (Python 3.10+); on the 4.x
-    # that Python 3.9's stt-hf resolves, the vendored model cannot run.
-    pytest.skip("Qwen3-TTS needs Transformers 5.9+ (the qwen3-tts extra's floor)", allow_module_level=True)
+if Version(importlib.metadata.version("transformers")).major < 5:
+    # The vendored model is written for Transformers 5 (the qwen3-tts extra floors
+    # 5.9, Python 3.10+); on the 4.x that Python 3.9's stt-hf resolves it cannot run.
+    pytest.skip("Qwen3-TTS needs Transformers 5 (the qwen3-tts extra floors 5.9)", allow_module_level=True)
 
 from abstractvoice.qwen3_tts.configuration_qwen3_tts import Qwen3TTSTalkerConfig
 from abstractvoice.qwen3_tts.modeling_qwen3_tts import Qwen3TTSTalkerCodePredictorModelForConditionalGeneration
