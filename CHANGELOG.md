@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [Unreleased]
+
+### Added
+
+- `abstractvoice.engine_runtime`: `engine_runtime_status(engine)` reports whether a
+  voice engine's Python runtime is installed (missing modules, install extra,
+  install command, plain-words reason) without importing the engine; also
+  `engine_runtime_installed()` and `known_engines()`.
+- Voice discovery explains missing providers: `available_providers()["unavailable"]`
+  and `voice_catalog()["unavailable_providers"]` give a `code`
+  (`runtime_missing`, `model_not_downloaded`, `not_configured`) and a `reason` per
+  provider, and `voice_catalog()["unavailable_reason"]` says why a listing is
+  empty instead of returning an empty list with no explanation.
+- Qwen3-TTS codebook predictor and sampler on every surface: launch flags
+  `--qwen3-tts-predictor` / `--qwen3-tts-sampler` (CLI, REPL, web example),
+  `VoiceManager(qwen3_tts_predictor=, qwen3_tts_sampler=)` and
+  `VoiceManager.set_qwen3_tts_codebook_generation()`, AbstractCore plugin settings
+  `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`, and web example selects
+  backed by `POST /api/qwen3-tts/codebook`. Defaults are unchanged; invalid values
+  are rejected before any weights load.
+
+### Fixed
+
+- Qwen3-ASR speech-to-text runs on Transformers 5.x (5.4 through current releases):
+  configuration, weight loading, attention masks and generation are compatible,
+  and the bundled model is always used even where Transformers ships its own
+  `qwen3_asr` model type.
+
 ## [0.12.0] - 2026-09-27
 
 ### Added

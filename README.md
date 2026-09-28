@@ -174,9 +174,12 @@ sentence-sized audio segments, not native codec-frame streaming. Qwen clone
 creation accepts `model="Qwen/Qwen3-TTS-12Hz-1.7B-Base"`; the stored voice
 retains that checkpoint for later synthesis. See [the Qwen guide in the API](docs/api.md#qwen3-tts-checkpoints).
 
-Qwen uses an optimized predictor with the standard sampler by default. Library
-integrators can opt in to exponential sampling, or compare against the original
-Transformers generation, through `Qwen3TTSSettings`. See
+Qwen uses an optimized predictor with the standard sampler by default. Opt in to
+exponential sampling, or compare against the original Transformers generation,
+with `--qwen3-tts-sampler exponential` / `--qwen3-tts-predictor reference` (CLI,
+REPL, web example), `VoiceManager(qwen3_tts_sampler=..., qwen3_tts_predictor=...)`
+or the AbstractCore plugin settings `voice_qwen3_tts_sampler` /
+`voice_qwen3_tts_predictor`. See
 [Qwen performance controls](docs/api.md#qwen-performance-controls) for settings,
 reference-mode comparison, and streaming limits.
 

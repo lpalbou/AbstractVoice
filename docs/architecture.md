@@ -60,6 +60,7 @@ TTS implementation:
 - Remote OpenAI-compatible TTS adapter: `abstractvoice/adapters/tts_openai_compatible.py` + `abstractvoice/adapters/openai_compatible_http.py`
 - TTS engine selection (registry): `abstractvoice/adapters/tts_registry.py`
 - Local model presence (filesystem only, no engine imports): `abstractvoice/local_models.py`
+- Engine runtime status (`find_spec` only, no engine imports): `abstractvoice/engine_runtime.py`
 - AudioDiT adapter/runtime: `abstractvoice/adapters/tts_audiodit.py`, `abstractvoice/audiodit/runtime.py`
 - OmniVoice adapter/runtime: `abstractvoice/adapters/tts_omnivoice.py`, `abstractvoice/omnivoice/runtime.py`
 - Qwen3-TTS adapter/runtime: `abstractvoice/adapters/tts_qwen3_tts.py`, `abstractvoice/qwen3_tts/` (vendored 12Hz model core + codec + runtime; see `abstractvoice/_hf_compat.py` for the transformers-version seams shared with `qwen3_asr`)

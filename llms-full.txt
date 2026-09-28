@@ -9,12 +9,16 @@ Sources of truth:
 - Internal map + diagrams: `docs/architecture.md`
 
 Qwen performance: a guarded specialized codebook predictor with stock
-multinomial sampling is enabled by default. Library integrators pass
-`Qwen3TTSSettings(sampler="exponential")` to `Qwen3TTSRuntime` to opt in to the
-exponential-race sampler, or `Qwen3TTSSettings(predictor="reference")` to use
-the original Transformers path (which overrides sampler selection); both are read
-at model load. Unsupported generation settings also fall back with a `#FALLBACK`
-warning. The CLI, web example and AbstractCore plugin use the defaults. Exponential sampling
+multinomial sampling is enabled by default. Opt in to the exponential-race
+sampler with `--qwen3-tts-sampler exponential`, or use the original Transformers
+path (which overrides sampler selection) with `--qwen3-tts-predictor reference`
+(CLI, REPL, web example). The same choice is `VoiceManager(qwen3_tts_sampler=...,
+qwen3_tts_predictor=...)` / `set_qwen3_tts_codebook_generation(...)`, the AbstractCore
+plugin settings `voice_qwen3_tts_sampler` / `voice_qwen3_tts_predictor`, the web
+example's selects (`POST /api/qwen3-tts/codebook`), or `Qwen3TTSSettings`; all are
+read at model load and invalid values are rejected before weights load.
+Unsupported generation settings also fall back with a `#FALLBACK`
+warning. Exponential sampling
 validates a complete frame before returning codes; invalid probabilities raise,
 and failed requests can consume additional RNG. No cross-hardware/version
 reproducibility guarantee. Keep models resident for warm inference; buffered
@@ -44,6 +48,8 @@ Positioning:
 - Local engine preload/unload is explicit:
   - library: `VoiceManager.preload_tts_engine(...)` / `preload_stt_engine(...)` and `unload_tts_engine()` / `unload_stt_engine()`
   - AbstractCore plugin: `load_resident_model(...)` / `list_resident_models(...)` / `unload_resident_model(...)` (local engines only; remote providers remain configured)
+- Engine runtime status: `abstractvoice.engine_runtime.engine_runtime_status(engine)` reports, via `find_spec` only, whether an engine's Python runtime is installed (`installed`, `missing_modules`, `extra`, `install_command`, `reason`). Missing providers are explained: `available_providers()["unavailable"]` and `voice_catalog()["unavailable_providers"]` carry a `code` (`runtime_missing` | `model_not_downloaded` | `not_configured`) and `reason` per provider, and `voice_catalog()["unavailable_reason"]` says why a listing is empty. See `docs/api.md#engine-runtime-status`.
+- Qwen3-ASR (`transformers-asr` with `Qwen/Qwen3-ASR-0.6B` / `-1.7B`) runs the bundled model code on Transformers 5.4+ via `abstractvoice[stt-hf]`.
 - The STT-only plugin backend (`abstractvoice:stt`) also implements AbstractCore's generic capability discovery contract (`available_providers(task=None)`, `list_models(task=None, provider=...|provider_id=...)`) so `llm.capabilities.*` can query audio discovery without special-casing.
 - The plugin accepts both split and combined selectors: `tts(..., provider=\"openai\", model=\"tts-1\", voice=\"alloy\")`, `tts(..., provider=\"openai:tts-1\", voice=\"voice_...\")`, `stt(..., provider=\"faster-whisper\", model=\"large\")`, or `stt(..., provider=\"transformers-asr:Qwen/Qwen3-ASR-1.7B\")`.
 - `voice_catalog()` includes `tts_model_variants` and `stt_engine_variants` so AbstractCore can expose clean OpenAI-compatible `/v1/audio/voices`, `/v1/audio/speech/models`, and `/v1/audio/transcriptions/models` discovery endpoints.
@@ -165,6 +171,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [TTS methods + cloning orchestration](abstractvoice/vm/tts_mixin.py)
 - [Runtime TTS switching](abstractvoice/vm/tts_mixin.py): `set_tts_engine(...)` resets the base profile to the provider/language default
 - [Voice profiles abstraction](abstractvoice/voice_profiles.py): cross-engine `VoiceProfile` ids + metadata
+- [Engine runtime status](abstractvoice/engine_runtime.py): `engine_runtime_status(...)` / `engine_runtime_installed(...)` / `known_engines(...)` — is an engine's Python runtime installed; `find_spec` only
 - [Local model presence](abstractvoice/local_models.py): `cached_tts_model_ids(...)` / `hf_repo_is_cached(...)` — discovery reads the model cache; no engine or ML framework imports
 - [Remote audio HTTP helpers](abstractvoice/adapters/openai_compatible_http.py): lightweight requests-based OpenAI-compatible audio client
 - [Remote TTS adapter](abstractvoice/adapters/tts_openai_compatible.py): `/audio/speech` + remote profile discovery (model/voice answers are remembered for five minutes then re-probed — `ABSTRACTVOICE_REMOTE_DISCOVERY_TTL_S`, floored at 300s and required to be finite; `refresh_profiles()` forces an immediate re-probe)

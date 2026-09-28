@@ -72,6 +72,7 @@ Useful startup flags:
 - `--tts-model <id>`: model id for remote TTS engines.
 - `--whisper <id>`: faster-whisper model size (`tiny|base|small|medium|large-v2|large-v3|large`).
 - `--stt-model <id>`: model id for remote STT engines, or a Hugging Face model id when `--stt-engine transformers-asr` (for example `openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`, or `Qwen/Qwen3-ASR-1.7B`).
+- `--qwen3-tts-predictor auto|reference` / `--qwen3-tts-sampler multinomial|exponential`: Qwen3-TTS codebook predictor and sampler (defaults `auto` / `multinomial`; see [Qwen performance controls](api.md#qwen-performance-controls)).
 - `--remote-base-url <url>` / `--remote-api-key <key>`: OpenAI-compatible remote voice endpoint config. `--tts-engine openai` and `--stt-engine openai` default to OpenAI's hosted API and read `OPENAI_API_KEY`.
 
 The default provider preset is Ollama at `http://localhost:11434`.
