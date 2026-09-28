@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .common import import_voice_recognizer
+from .common import import_voice_recognizer, remote_endpoint_kwargs
 
 
 class SttMixin:
@@ -229,8 +229,7 @@ class SttMixin:
                 self.stt_adapter = OpenAICompatibleSTTAdapter(
                     provider=provider,
                     language=getattr(self, "language", None),
-                    base_url=getattr(self, "remote_base_url", None),
-                    api_key=getattr(self, "remote_api_key", None),
+                    **remote_endpoint_kwargs(self, provider),
                     model_id=getattr(self, "stt_model", None),
                     timeout_s=getattr(self, "remote_timeout_s", None),
                     debug_mode=bool(getattr(self, "debug_mode", False)),

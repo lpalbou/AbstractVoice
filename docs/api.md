@@ -747,12 +747,27 @@ different provider:
 - `voice_remote_base_url`: base URL for OpenAI-compatible remote audio endpoints
 - `voice_remote_api_key`: optional bearer key for remote audio endpoints
 - `voice_remote_timeout_s`: request timeout for remote audio endpoints
+- `voice_openai_api_key`: OpenAI API key handed over by the host (for example a key
+  saved in a gateway's Providers screen). Used for provider `openai` only (TTS,
+  STT, cloning) and never sent to `voice_remote_base_url`; it also makes `openai`
+  available in discovery.
+- `voice_openai_base_url`: optional OpenAI base URL used with `voice_openai_api_key`
+  (default: the OpenAI API)
+- `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`: Qwen3-TTS codebook
+  predictor and sampler (see [Qwen performance controls](#qwen-performance-controls))
 - `voice_whisper_model`: faster-whisper model size (e.g. `"base"`, `"small"`)
 - `voice_cloning_engine`: default cloning provider (`"omnivoice"` by default; also `"f5_tts"|"chroma"|"audiodit"|"openai"|"openai-compatible"`)
 - `voice_cloned_tts_streaming`: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when `voice_tts_delivery_mode` is unset.
 - `voice_tts_delivery_mode`: unified audio delivery mode for base + cloned voices (`"buffered"|"streamed"`). Takes precedence over `voice_cloned_tts_streaming`.
 - `voice_tts_streaming`: bool alias for `voice_tts_delivery_mode` (`true` → `"streamed"`, `false` → `"buffered"`).
 - `voice_debug_mode`: enable debug prints (bool)
+
+Hosts pass provider credentials through this config dict, per plugin instance:
+AbstractCore puts `create_llm(...)` keyword arguments there, so
+`create_llm(provider, model=..., voice_openai_api_key=key)` is enough in-process.
+Without `voice_openai_api_key`, provider `openai` uses `voice_remote_api_key` /
+`voice_remote_base_url` as before, then `OPENAI_API_KEY`. The same credentials are
+available on the library API as `VoiceManager(openai_api_key=..., openai_base_url=...)`.
 
 Boolean owner config/env values accept common strings such as `true`, `false`,
 `on`, `off`, `1`, and `0`; string values like `"false"` are not treated as

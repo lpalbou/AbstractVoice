@@ -184,7 +184,8 @@ or the AbstractCore plugin settings `voice_qwen3_tts_sampler` /
 reference-mode comparison, and streaming limits.
 
 For a remote-first Gateway/Core deployment, the AbstractCore plugin defaults to
-OpenAI remote TTS/STT and reads `OPENAI_API_KEY`. Configure
+OpenAI remote TTS/STT and reads `OPENAI_API_KEY`; a host can instead pass the
+key in the plugin settings (`voice_openai_api_key`). Configure
 `voice_tts_engine=openai-compatible` (provider), `voice_stt_engine=openai-compatible` (provider), and
 `voice_remote_base_url=...` for a compatible audio endpoint. For local
 Supertonic/Piper/faster-whisper inside the same environment, install

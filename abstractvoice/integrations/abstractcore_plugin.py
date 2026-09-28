@@ -1392,6 +1392,10 @@ class _BaseVoice:
                     debug_mode = _coerce_bool(cfg.get("voice_debug_mode"), debug_mode)
         except Exception:
             pass
+        # Provider credentials handed over by the HOST (e.g. keys saved in a
+        # gateway's Providers screen), per plugin instance; never an env var.
+        openai_api_key = self._config_text("voice_openai_api_key") or None
+        openai_base_url = self._config_text("voice_openai_base_url") or None
         # Outside the lenient block above on purpose: a typo in these settings must
         # fail loudly (ValueError), not silently fall back to the defaults.
         qwen3_tts_predictor, qwen3_tts_sampler = self._qwen3_tts_codebook_settings()
@@ -1414,6 +1418,8 @@ class _BaseVoice:
             bool(debug_mode),
             qwen3_tts_predictor,
             qwen3_tts_sampler,
+            str(openai_api_key or ""),
+            str(openai_base_url or ""),
         )
 
         with _VM_CACHE_LOCK:
@@ -1437,6 +1443,8 @@ class _BaseVoice:
                     remote_timeout_s=remote_timeout_s,
                     qwen3_tts_predictor=qwen3_tts_predictor,
                     qwen3_tts_sampler=qwen3_tts_sampler,
+                    openai_api_key=openai_api_key,
+                    openai_base_url=openai_base_url,
                 )
                 _VM_CACHE[key] = cached
                 _VM_LOCKS[cached] = threading.Lock()
@@ -2212,7 +2220,7 @@ class _BaseVoice:
         )
 
         base_url_s = str(remote_base_url or "").strip().lower()
-        if requested == "openai" or openai_specific or (remote_api_key and ("api.openai.com" in base_url_s or not base_url_s)):
+        if requested == "openai" or openai_specific or self._config_text("voice_openai_api_key") or (remote_api_key and ("api.openai.com" in base_url_s or not base_url_s)):
             add("openai")
         if requested == "openai-compatible" or compatible_specific or (remote_base_url and "api.openai.com" not in base_url_s):
             add("openai-compatible")
@@ -2278,7 +2286,7 @@ class _BaseVoice:
         )
 
         base_url_s = str(remote_base_url or "").strip().lower()
-        if requested == "openai" or openai_specific or (remote_api_key and ("api.openai.com" in base_url_s or not base_url_s)):
+        if requested == "openai" or openai_specific or self._config_text("voice_openai_api_key") or (remote_api_key and ("api.openai.com" in base_url_s or not base_url_s)):
             add("openai")
         if requested == "openai-compatible" or compatible_specific or (remote_base_url and "api.openai.com" not in base_url_s):
             add("openai-compatible")
@@ -2377,6 +2385,8 @@ class _BaseVoice:
         return str(self._config_text("voice_remote_api_key") or _env("OPENAI_API_KEY") or "").strip()
 
     def _openai_provider_available(self) -> bool:
+        if self._config_text("voice_openai_api_key"):
+            return True
         if str(_env("OPENAI_API_KEY") or "").strip():
             return True
         base_url = self._remote_base_url().lower()
@@ -2517,7 +2527,7 @@ class _BaseVoice:
             ),
         }
         remote_reasons = {
-            "openai": "no OpenAI API key is configured",
+            "openai": "no OpenAI API key is configured (host setting voice_openai_api_key, or OPENAI_API_KEY)",
             "openai-compatible": "no OpenAI-compatible server base URL is configured",
         }
         local = {
@@ -2602,6 +2612,20 @@ class _BaseVoice:
         if _norm_engine_id(provider_id) in {_norm_engine_id(item) for item in self._catalog_safe_local_engines()}:
             return True
         return self._active_vm_for_discovery() is None
+
+    def _configured_tts_provider_unavailable(self) -> bool:
+        """True when no manager is built or injected yet and the configured TTS
+        provider is one `available_providers()` explains away (not configured,
+        runtime missing, nothing downloaded)."""
+        if self._vm is not None:
+            return False
+        cfg = getattr(self._owner, "config", None)
+        if isinstance(cfg, dict) and (
+            cfg.get("voice_manager_instance") is not None or callable(cfg.get("voice_manager_factory"))
+        ):
+            return False
+        configured = self._configured_provider_id(kind="tts")
+        return configured in self._unavailable_providers()["tts"]
 
     def _active_vm_for_discovery(self):
         """The active VoiceManager, but only when reading it cannot load a model.
@@ -3042,9 +3066,18 @@ class _VoiceCapability(_BaseVoice):
             _add_provider_value(tts_voices_by_provider, provider_id, _profile_voice_id(clone))
             _add_provider_value(tts_profiles_by_provider, provider_id, _profile_id(clone))
 
+        not_configured = {
+            key
+            for key, record in available_providers["unavailable"]["tts"].items()
+            if record.get("code") == "not_configured"
+        }
         for engine in self._configured_remote_tts_engines():
             provider_id = _norm_engine_id(engine)
             if requested_provider and provider_id != requested_provider:
+                continue
+            # Selected but missing its key/base URL: explained in
+            # `unavailable_providers`, never listed as if it could speak.
+            if provider_id in not_configured:
                 continue
             if provider_id not in tts_providers:
                 tts_providers.append(provider_id)
@@ -3665,6 +3698,10 @@ class _VoiceCapability(_BaseVoice):
         provider_id = _norm_engine_id(provider)
         if providers_only or (provider_id and self._local_provider_answerable_from_disk(provider_id)):
             return self._light_voice_catalog(provider=provider_id, model=model, providers_only=providers_only)
+        if not provider_id and self._configured_tts_provider_unavailable():
+            # Building the active engine would raise (no OpenAI key, runtime not
+            # installed) instead of saying why; the light catalog says why.
+            return self._light_voice_catalog(model=model)
         # `provider` and `provider_id` are reused as loop variables below.
         requested_tts_provider = provider_id
 

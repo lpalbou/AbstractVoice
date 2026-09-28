@@ -85,6 +85,31 @@ def resolve_base_url(provider: str, base_url: str | None = None) -> str:
     return str(out).strip()
 
 
+def remote_endpoint(
+    provider: str,
+    *,
+    remote_base_url: str | None = None,
+    remote_api_key: str | None = None,
+    openai_base_url: str | None = None,
+    openai_api_key: str | None = None,
+) -> tuple[Optional[str], Optional[str]]:
+    """``(base_url, api_key)`` a VoiceManager hands the remote adapter for ``provider``.
+
+    ``openai-compatible`` always uses the shared remote endpoint
+    (``remote_base_url`` / ``remote_api_key``). ``openai`` uses its own
+    credentials when the host passes ``openai_api_key``: then its base URL is
+    ``openai_base_url`` (None = the OpenAI default), and neither the key nor the
+    requests ever go to the compatible server. Without ``openai_api_key``,
+    ``openai`` keeps using the shared remote endpoint.
+    """
+    p = normalize_remote_provider(provider)
+    key = str(openai_api_key or "").strip()
+    if p == "openai" and key:
+        base = str(openai_base_url or "").strip()
+        return (base or None), key
+    return remote_base_url, remote_api_key
+
+
 def resolve_api_key(provider: str, api_key: str | None = None) -> Optional[str]:
     if api_key and str(api_key).strip():
         return str(api_key).strip()

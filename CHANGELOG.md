@@ -28,8 +28,18 @@ Older changelog entries may reference historical CLI commands or model choices.
   `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`, and web example selects
   backed by `POST /api/qwen3-tts/codebook`. Defaults are unchanged; invalid values
   are rejected before any weights load.
+- Provider credentials from the host: AbstractCore plugin settings
+  `voice_openai_api_key` / `voice_openai_base_url` (and
+  `VoiceManager(openai_api_key=, openai_base_url=)`) give provider `openai` its own
+  key for synthesis, transcription and cloning. That key is never sent to the
+  OpenAI-compatible endpoint (`voice_remote_base_url`).
 
 ### Fixed
+
+- The unfiltered `voice_catalog()` returns `unavailable_providers` /
+  `unavailable_reason` (for example `not_configured` for OpenAI without a key)
+  when the configured TTS provider cannot run, instead of raising; a selected
+  remote provider without its key or base URL is no longer listed as available.
 
 - Qwen3-ASR speech-to-text runs on Transformers 5.x (5.4 through current releases):
   configuration, weight loading, attention masks and generation are compatible,

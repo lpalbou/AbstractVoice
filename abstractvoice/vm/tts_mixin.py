@@ -13,6 +13,7 @@ import time
 from ..adapters.base import TTSAdapter
 from ..text_sanitize import sanitize_markdown_for_speech
 from ..adapters.tts_registry import create_tts_adapter
+from .common import remote_endpoint_kwargs
 from ..speech_request import SpeechCapabilities, SpeechCapability, build_speech_request
 
 def _resolve_sanitize_syntax_arg(
@@ -123,6 +124,8 @@ class TtsMixin:
                 default_model=getattr(self, "cloning_model", None),
                 remote_base_url=getattr(self, "remote_base_url", None),
                 remote_api_key=getattr(self, "remote_api_key", None),
+                openai_base_url=getattr(self, "openai_base_url", None),
+                openai_api_key=getattr(self, "openai_api_key", None),
                 remote_timeout_s=getattr(self, "remote_timeout_s", None),
                 remote_tts_model=getattr(self, "tts_model", None),
                 qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
@@ -1198,8 +1201,7 @@ class TtsMixin:
             auto_load=bool(auto_load),
             debug_mode=bool(getattr(self, "debug_mode", False)),
             model_id=model_id,
-            base_url=getattr(self, "remote_base_url", None),
-            api_key=getattr(self, "remote_api_key", None),
+            **remote_endpoint_kwargs(self, requested),
             timeout_s=getattr(self, "remote_timeout_s", None),
             qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
             qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
@@ -2384,8 +2386,7 @@ class TtsMixin:
                     auto_load=False,
                     debug_mode=bool(getattr(self, "debug_mode", False)),
                     model_id=getattr(self, "tts_model", None),
-                    base_url=getattr(self, "remote_base_url", None),
-                    api_key=getattr(self, "remote_api_key", None),
+                    **remote_endpoint_kwargs(self, pref),
                     timeout_s=getattr(self, "remote_timeout_s", None),
                     qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
                     qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
