@@ -8,59 +8,69 @@ Measured boundary: 159 chars works, 160 kills the process.
 
 These tests exercise the guard without piper installed and without espeak ever
 running: the guard's whole point is to decide things *before* the C library is
-involved.
+involved. They pass an explicit limit measured from `tmp_path`, so they do not
+depend on how long TMPDIR is (a deep TMPDIR puts every tmp path over 160).
 """
 
 from __future__ import annotations
 
 import sys
 import types
+from functools import partial
 from pathlib import Path
 
 import pytest
 
-from abstractvoice.adapters.tts_piper import (
-    PiperTTSAdapter,
-    _ESPEAK_PATH_HOME_LIMIT,
-    _espeak_data_dir_override,
-)
+import abstractvoice.adapters.tts_piper as tts_piper
+from abstractvoice.adapters.tts_piper import PiperTTSAdapter, _espeak_data_dir_override
+
+# An alias under `tmp_path / "h"` (h/.cache/abstractvoice/espeak-<10 hex>) adds 40
+# characters; the limit leaves room for it and for `tmp_path/espeak-ng-data`.
+_ALIAS_ROOM = 60
 
 
 @pytest.fixture()
-def deep_data_dir(tmp_path) -> Path:
-    """A real directory whose absolute path is over the espeak limit."""
-    pad = "d" * max(1, _ESPEAK_PATH_HOME_LIMIT - len(str(tmp_path)) - 2)
-    deep = tmp_path / pad / "espeak-ng-data"
+def limit(tmp_path) -> int:
+    """The espeak path limit these tests apply, measured from `tmp_path`."""
+    return len(str(tmp_path)) + _ALIAS_ROOM
+
+
+@pytest.fixture()
+def deep_data_dir(tmp_path, limit) -> Path:
+    """A real directory whose absolute path is over the limit."""
+    deep = tmp_path / ("d" * _ALIAS_ROOM) / "espeak-ng-data"
     deep.mkdir(parents=True)
     (deep / "phontab").write_bytes(b"x")
-    assert len(str(deep)) >= _ESPEAK_PATH_HOME_LIMIT
+    assert len(str(deep)) >= limit
     return deep
 
 
-def test_a_fitting_path_is_left_alone(tmp_path):
+def test_a_fitting_path_is_left_alone(tmp_path, limit):
     data = tmp_path / "espeak-ng-data"
     data.mkdir()
 
-    assert _espeak_data_dir_override(data) is None
+    assert _espeak_data_dir_override(data, limit=limit) is None
+    # The boundary itself: one character less than the path is already over it.
+    assert _espeak_data_dir_override(data, limit=len(str(data)) + 1) is None
 
 
-def test_an_over_limit_path_is_aliased_through_a_short_symlink(deep_data_dir, tmp_path, monkeypatch):
+def test_an_over_limit_path_is_aliased_through_a_short_symlink(deep_data_dir, tmp_path, limit, monkeypatch):
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "h"))
 
-    alias = _espeak_data_dir_override(deep_data_dir)
+    alias = _espeak_data_dir_override(deep_data_dir, limit=limit)
 
     assert alias is not None
-    assert len(str(alias)) < _ESPEAK_PATH_HOME_LIMIT
+    assert len(str(alias)) < limit
     assert alias.is_symlink()
     assert alias.resolve() == deep_data_dir.resolve()
     assert (alias / "phontab").read_bytes() == b"x"  # espeak reads through it
 
 
-def test_the_alias_is_stable_and_a_stale_one_is_repointed(deep_data_dir, tmp_path, monkeypatch):
+def test_the_alias_is_stable_and_a_stale_one_is_repointed(deep_data_dir, tmp_path, limit, monkeypatch):
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "h"))
 
-    first = _espeak_data_dir_override(deep_data_dir)
-    second = _espeak_data_dir_override(deep_data_dir)
+    first = _espeak_data_dir_override(deep_data_dir, limit=limit)
+    second = _espeak_data_dir_override(deep_data_dir, limit=limit)
     assert first == second, "one install, one alias"
 
     elsewhere = tmp_path / "elsewhere"
@@ -68,28 +78,29 @@ def test_the_alias_is_stable_and_a_stale_one_is_repointed(deep_data_dir, tmp_pat
     first.unlink()
     first.symlink_to(elsewhere, target_is_directory=True)
 
-    repointed = _espeak_data_dir_override(deep_data_dir)
+    repointed = _espeak_data_dir_override(deep_data_dir, limit=limit)
     assert repointed.resolve() == deep_data_dir.resolve()
 
 
-def test_when_no_short_alias_is_possible_the_guard_raises_instead_of_dying(deep_data_dir, tmp_path, monkeypatch):
+def test_when_no_short_alias_is_possible_the_guard_raises_instead_of_dying(deep_data_dir, tmp_path, limit, monkeypatch):
     import tempfile
 
-    deep_home = tmp_path / ("h" * max(1, _ESPEAK_PATH_HOME_LIMIT - len(str(tmp_path)) - 2))
+    deep_home = tmp_path / ("h" * _ALIAS_ROOM)
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: deep_home))
     monkeypatch.setattr(tempfile, "gettempdir", lambda: str(deep_home))
 
     with pytest.raises(RuntimeError) as err:
-        _espeak_data_dir_override(deep_data_dir)
+        _espeak_data_dir_override(deep_data_dir, limit=limit)
 
     message = str(err.value)
     assert "espeak-ng" in message
-    assert str(_ESPEAK_PATH_HOME_LIMIT) in message
+    assert f"limit {limit}" in message
     assert "shorter path" in message
 
 
-def _adapter_with_fake_piper(monkeypatch, tmp_path, data_dir: Path, *, load_accepts_alias: bool):
-    """A PiperTTSAdapter wired to a fake piper install at `data_dir`."""
+def _adapter_with_fake_piper(monkeypatch, tmp_path, data_dir: Path, *, load_accepts_alias: bool, limit: int):
+    """A PiperTTSAdapter wired to a fake piper install at `data_dir`, guarded at `limit`."""
+    monkeypatch.setattr(tts_piper, "_espeak_data_dir_override", partial(_espeak_data_dir_override, limit=limit))
     fake_phonemize = types.ModuleType("piper.phonemize_espeak")
     fake_phonemize.ESPEAK_DATA_DIR = data_dir
     fake_piper = types.ModuleType("piper")
@@ -116,29 +127,31 @@ def _adapter_with_fake_piper(monkeypatch, tmp_path, data_dir: Path, *, load_acce
 def test_load_kwargs_are_empty_for_a_normal_install(monkeypatch, tmp_path):
     data = tmp_path / "espeak-ng-data"
     data.mkdir()
-    adapter = _adapter_with_fake_piper(monkeypatch, tmp_path, data, load_accepts_alias=True)
+    adapter = _adapter_with_fake_piper(
+        monkeypatch, tmp_path, data, load_accepts_alias=True, limit=len(str(data)) + 1
+    )
 
     assert adapter._espeak_load_kwargs() == {}
 
 
-def test_load_kwargs_carry_the_alias_for_a_deep_install(monkeypatch, tmp_path, deep_data_dir):
+def test_load_kwargs_carry_the_alias_for_a_deep_install(monkeypatch, tmp_path, deep_data_dir, limit):
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "h"))
-    adapter = _adapter_with_fake_piper(monkeypatch, tmp_path, deep_data_dir, load_accepts_alias=True)
+    adapter = _adapter_with_fake_piper(monkeypatch, tmp_path, deep_data_dir, load_accepts_alias=True, limit=limit)
 
     kwargs = adapter._espeak_load_kwargs()
 
     assert set(kwargs) == {"espeak_data_dir"}
     assert Path(kwargs["espeak_data_dir"]).resolve() == deep_data_dir.resolve()
-    assert len(kwargs["espeak_data_dir"]) < _ESPEAK_PATH_HOME_LIMIT
+    assert len(kwargs["espeak_data_dir"]) < limit
 
 
 def test_a_piper_that_cannot_take_an_alias_gets_a_clear_error_not_a_dead_process(
-    monkeypatch, tmp_path, deep_data_dir
+    monkeypatch, tmp_path, deep_data_dir, limit
 ):
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "h"))
-    adapter = _adapter_with_fake_piper(monkeypatch, tmp_path, deep_data_dir, load_accepts_alias=False)
+    adapter = _adapter_with_fake_piper(monkeypatch, tmp_path, deep_data_dir, load_accepts_alias=False, limit=limit)
 
     with pytest.raises(RuntimeError) as err:
         adapter._espeak_load_kwargs()
 
-    assert "espeak_data_dir" in str(err.value)
+    assert "PiperVoice.load has no espeak_data_dir parameter" in str(err.value)
