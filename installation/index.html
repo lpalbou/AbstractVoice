@@ -415,6 +415,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#nvidia-gpus-linux-and-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NVIDIA GPUs (Linux and Windows)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1234,6 +1245,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#nvidia-gpus-linux-and-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NVIDIA GPUs (Linux and Windows)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1432,6 +1454,16 @@ sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w
 </code></pre></div>
 <h3 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h3>
 <p>Usually works out of the box. If device access fails, check OS microphone permissions and installed audio drivers.</p>
+<p>AEC (<code>aec-audio-processing</code>) has Windows wheels for Python 3.11 to 3.13.</p>
+<h3 id="nvidia-gpus-linux-and-windows">NVIDIA GPUs (Linux and Windows)<a class="headerlink" href="#nvidia-gpus-linux-and-windows" title="Permanent link">&para;</a></h3>
+<p>On Linux and Windows, <code>abstractvoice[gpu]</code> and <code>[all-gpu]</code> also install NVIDIA's CUDA 12 cuBLAS
+and runtime wheels (<code>nvidia-cublas-cu12</code>, <code>nvidia-cuda-runtime-cu12</code>). faster-whisper's
+CTranslate2 loads CUDA 12 cuBLAS (<code>libcublas.so.12</code> / <code>cublas64_12.dll</code>), which a CUDA 13 PyTorch
+build does not carry. Before faster-whisper runs, AbstractVoice preloads those libraries on Linux
+and adds their folders to the DLL search on Windows, and it picks CUDA for faster-whisper only when
+CUDA 12 cuBLAS actually loads; otherwise it runs faster-whisper on the CPU and logs why.
+<code>ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda</code> overrides the choice. Validated on Linux with a Quadro
+RTX 5000 (driver 595, CUDA 13).</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Piper model not available locally</strong>: run <code>python -m abstractvoice download --piper &lt;lang&gt;</code>.</li>
