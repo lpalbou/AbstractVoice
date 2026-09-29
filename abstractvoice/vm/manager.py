@@ -19,6 +19,10 @@ from .core import VoiceManagerCore
 from .stt_mixin import SttMixin
 from .tts_mixin import TtsMixin
 
+# The `tts_engine` value that builds a speech-to-text-only VoiceManager (no
+# TTS adapter, no TTS runtime or credentials required).
+STT_ONLY_TTS_ENGINE = "none"
+
 
 class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
     """Main class for voice interaction capabilities."""
@@ -114,22 +118,33 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         self._tts_engine_name = None
         self.tts_engine = None
 
+        # `tts_engine="none"` builds a speech-to-text-only manager: no TTS
+        # adapter is created, so an STT caller (the AbstractCore audio
+        # capability, a provider-routed transcription) never needs the TTS
+        # engine's runtime or credentials. Without it the unconfigured TTS
+        # default (openai) raised "OpenAI audio requires OPENAI_API_KEY" while
+        # constructing a manager that was only asked to transcribe with a local
+        # engine (framework backlog 0989).
+        #
         # Create the playback engine as long as the selected adapter runtime is
         # importable. This keeps audio output available for cloning backends even
         # when no TTS model is cached locally (offline-first).
         try:
-            self.tts_adapter, resolved_engine = create_tts_adapter(
-                engine=str(tts_engine or "openai"),
-                language=language,
-                allow_downloads=bool(self.allow_downloads),
-                auto_load=requested_engine != "qwen3-tts",
-                debug_mode=bool(debug_mode),
-                model_id=tts_model,
-                **remote_endpoint_kwargs(self, tts_engine),
-                timeout_s=self.remote_timeout_s,
-                qwen3_tts_predictor=self.qwen3_tts_predictor,
-                qwen3_tts_sampler=self.qwen3_tts_sampler,
-            )
+            if requested_engine == STT_ONLY_TTS_ENGINE:
+                resolved_engine = None
+            else:
+                self.tts_adapter, resolved_engine = create_tts_adapter(
+                    engine=str(tts_engine or "openai"),
+                    language=language,
+                    allow_downloads=bool(self.allow_downloads),
+                    auto_load=requested_engine != "qwen3-tts",
+                    debug_mode=bool(debug_mode),
+                    model_id=tts_model,
+                    **remote_endpoint_kwargs(self, tts_engine),
+                    timeout_s=self.remote_timeout_s,
+                    qwen3_tts_predictor=self.qwen3_tts_predictor,
+                    qwen3_tts_sampler=self.qwen3_tts_sampler,
+                )
         except ValueError:
             # Preserve caller-facing validation semantics (explicit engine names must be valid).
             raise

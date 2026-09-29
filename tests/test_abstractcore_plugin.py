@@ -1700,3 +1700,73 @@ def test_audio_capability_prefers_transcribe_file_for_paths_and_artifacts(tmp_pa
     assert cap.transcribe(ref, artifact_store=store) == "ok"
     assert calls["bytes"] == 0  # never needed for path/artifact inputs
     assert calls["file"][-1][0].endswith(".webm")
+
+
+def _stub_real_vm_transcription(monkeypatch):
+    """Keep the REAL VoiceManager constructor; stub only the transcription call."""
+
+    from abstractvoice.vm.manager import VoiceManager
+
+    def _fake_transcribe_from_bytes(self, audio_bytes, language=None):
+        return f"{self._stt_engine_preference}|{self.whisper_model}|tts={self.tts_adapter!r}"
+
+    monkeypatch.setattr(VoiceManager, "transcribe_from_bytes", _fake_transcribe_from_bytes)
+
+
+def test_audio_capability_local_stt_needs_no_tts_credentials(monkeypatch):
+    """Framework backlog 0989: a faster-whisper transcription through the AbstractCore
+    audio capability failed with "OpenAI audio requires OPENAI_API_KEY" because the
+    VoiceManager built for it also constructed the default openai TTS adapter."""
+
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    plugin._VM_CACHE.clear()
+    _stub_real_vm_transcription(monkeypatch)
+
+    class _Owner:
+        config = {}
+
+    cap = _AudioCapability(_Owner())
+    out = cap.transcribe(b"audio", provider="faster-whisper", model="base")
+
+    assert out == "faster-whisper|base|tts=None"
+
+
+def test_audio_capability_default_manager_builds_without_tts(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    plugin._VM_CACHE.clear()
+
+    class _Owner:
+        config = {"voice_stt_engine": "faster-whisper", "voice_tts_engine": "openai"}
+
+    vm = _AudioCapability(_Owner())._get_vm()
+
+    assert vm.tts_adapter is None
+    assert vm.tts_engine is None
+    assert vm._stt_engine_preference == "faster-whisper"
+
+
+def test_voice_capability_stt_provider_request_needs_no_tts_credentials(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    _clear_plugin_env(monkeypatch)
+    plugin._VM_CACHE.clear()
+    _stub_real_vm_transcription(monkeypatch)
+
+    class _Owner:
+        config = {}
+
+    out = _VoiceCapability(_Owner()).stt(b"audio", provider="faster-whisper:base")
+
+    assert out == "faster-whisper|base|tts=None"
+
+
+def test_voice_manager_default_openai_tts_still_fails_loudly_without_key(monkeypatch):
+    from abstractvoice.vm.manager import VoiceManager
+
+    _clear_plugin_env(monkeypatch)
+    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        VoiceManager(stt_engine="faster-whisper")

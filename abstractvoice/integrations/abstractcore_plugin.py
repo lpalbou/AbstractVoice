@@ -1280,6 +1280,11 @@ def _dedupe_voice_records(values: Any) -> list[Dict[str, Any]]:
 
 
 class _BaseVoice:
+    # A speech-to-text-only capability builds its VoiceManagers without a TTS
+    # adapter (see `_get_vm`): transcription must not depend on the TTS
+    # engine's runtime or credentials (framework backlog 0989).
+    _stt_only = False
+
     def __init__(self, owner: Any):
         self._owner = owner
         self._vm = None
@@ -1405,6 +1410,15 @@ class _BaseVoice:
                     debug_mode = _coerce_bool(cfg.get("voice_debug_mode"), debug_mode)
         except Exception:
             pass
+        if self._stt_only:
+            # The STT capability never synthesizes: build the manager without a
+            # TTS adapter instead of constructing the configured (or default
+            # openai) TTS engine, whose missing key used to fail every local
+            # transcription (framework backlog 0989).
+            from ..vm.manager import STT_ONLY_TTS_ENGINE
+
+            tts_engine = STT_ONLY_TTS_ENGINE
+            tts_model = None
         # Provider credentials handed over by the HOST (e.g. keys saved in a
         # gateway's Providers screen), per plugin instance; never an env var.
         openai_api_key = self._config_text("voice_openai_api_key") or None
@@ -2778,6 +2792,14 @@ class _BaseVoice:
 
         if tts_engine:
             override_cfg["voice_tts_engine"] = tts_engine
+        elif stt_engine:
+            # A speech-to-text request routes the STT engine only: the manager
+            # built for it carries no TTS adapter, so a local STT engine works
+            # without the TTS engine's credentials (framework backlog 0989).
+            from ..vm.manager import STT_ONLY_TTS_ENGINE
+
+            override_cfg["voice_tts_engine"] = STT_ONLY_TTS_ENGINE
+            override_cfg.pop("voice_tts_model", None)
         if stt_engine:
             override_cfg["voice_stt_engine"] = stt_engine
         if tts_language:
@@ -4719,6 +4741,7 @@ class _VoiceCapability(_BaseVoice):
 
 class _AudioCapability(_BaseVoice):
     backend_id = "abstractvoice:stt"
+    _stt_only = True
 
     def available_providers(self, task: Any = None) -> Dict[str, Any]:
         """Return selectable STT provider ids without constructing heavy runtimes."""

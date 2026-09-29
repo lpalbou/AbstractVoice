@@ -25,6 +25,15 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ### Fixed
 
+- Speech-to-text through AbstractCore no longer needs the TTS engine's credentials. A transcription with a local
+  engine (`provider="faster-whisper"`, as the AbstractGateway sends for its configured `input.voice` route) failed
+  with "OpenAI audio requires OPENAI_API_KEY or remote_api_key=..." on any host without an OpenAI key: the
+  VoiceManager built for it also constructed the TTS adapter, and the unconfigured TTS default is `openai`, whose
+  adapter refuses to construct without a key. `VoiceManager(tts_engine="none")` now builds a speech-to-text-only
+  manager (no TTS adapter); the AbstractCore audio capability always builds its managers that way, and a
+  provider-routed STT request on the voice capability (`stt(provider=...)`) does too. `VoiceManager()` with the
+  default openai TTS and no key still fails at construction. Not Linux-specific; found on the Linux + NVIDIA gpu
+  install (framework backlog 0989).
 - Linux + NVIDIA: faster-whisper on CUDA failed at the first transcription with "Library libcublas.so.12 is not
   found or cannot be loaded" unless torch had been imported first (CTranslate2 loads CUDA 12 cuBLAS by name; the
   NVIDIA wheels unpack to `site-packages/nvidia/<lib>/lib`, off the loader's path). AbstractVoice now preloads
