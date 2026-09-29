@@ -1860,7 +1860,16 @@ smaller installs.</p>
 <li><strong>Why</strong>: local STT adapter path.</li>
 <li><strong>Where</strong>: <code>abstractvoice/adapters/stt_faster_whisper.py</code></li>
 <li><strong>Repo</strong>: <code>https://github.com/SYSTRAN/faster-whisper</code></li>
-<li><strong>License</strong>: <code>https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE</code></p>
+</li>
+<li>
+<p><strong>av (PyAV)</strong>, held below 19 (<code>av&lt;19</code>) in every extra that installs faster-whisper
+  (<code>stt</code>, <code>apple</code>, <code>gpu</code>, <code>all-apple</code>, <code>all-gpu</code>)</p>
+</li>
+<li><strong>Why</strong>: faster-whisper 1.2.1 decodes audio files with an <code>av.open</code> option that PyAV 19 no
+    longer accepts, so file transcription needs PyAV 18 or older.</li>
+<li><strong>Repo</strong>: <code>https://github.com/PyAV-Org/PyAV</code></li>
 </ul>
 <h2 id="notable-runtimes-debugging-oriented">Notable runtimes (debugging-oriented)<a class="headerlink" href="#notable-runtimes-debugging-oriented" title="Permanent link">&para;</a></h2>
 <ul>

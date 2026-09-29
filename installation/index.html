@@ -1328,7 +1328,7 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abst
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-gpu]"</span><span class="w">   </span><span class="c1"># GPU stack + local FastAPI browser example</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[piper]"</span><span class="w">     </span><span class="c1"># Local Piper TTS only</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[supertonic]"</span><span class="w"> </span><span class="c1"># Local Supertonic 3 ONNX TTS only</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[stt]"</span><span class="w">       </span><span class="c1"># Local faster-whisper STT</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[stt]"</span><span class="w">       </span><span class="c1"># Local faster-whisper STT (keeps PyAV below 19, which faster-whisper 1.2.1 needs)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[stt-hf]"</span><span class="w">    </span><span class="c1"># Local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, Qwen/Qwen3-ASR-1.7B)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audio-io]"</span><span class="w">  </span><span class="c1"># Microphone/playback/VAD dependencies</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[cloning]"</span><span class="w">   </span><span class="c1"># explicit OpenF5-based cloning (heavy; Python 3.10+)</span>
