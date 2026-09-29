@@ -363,6 +363,12 @@ smaller installs.
   - **Repo**: `https://github.com/SYSTRAN/faster-whisper`
   - **License**: `https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE`
 
+- **av (PyAV)**, held below 19 (`av<19`) in every extra that installs faster-whisper
+  (`stt`, `apple`, `gpu`, `all-apple`, `all-gpu`)
+  - **Why**: faster-whisper 1.2.1 decodes audio files with an `av.open` option that PyAV 19 no
+    longer accepts, so file transcription needs PyAV 18 or older.
+  - **Repo**: `https://github.com/PyAV-Org/PyAV`
+
 ## Notable runtimes (debugging-oriented)
 
 - **CTranslate2** (used by `faster-whisper`)

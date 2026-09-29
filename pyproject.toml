@@ -193,6 +193,8 @@ aec = [
 # Local Speech-to-Text functionality.
 stt = [
     "faster-whisper>=0.10.0",
+    # faster-whisper 1.2.1 decodes files with av.open(metadata_errors=...), which PyAV 19 removed.
+    "av>=11.0.0,<19",
     "soundfile>=0.12.1",
 ]
 

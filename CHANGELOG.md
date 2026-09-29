@@ -10,13 +10,17 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-09-29
+
 ### Fixed
 
 - Speech-to-text from a file (the gateway's transcription, `transcribe_file`) failed with
   `open() got an unexpected keyword argument 'metadata_errors'` on installs that resolved PyAV 19.0.0
   (released 2026-09-29): faster-whisper 1.2.1 decodes files with `av.open(..., metadata_errors=...)`,
-  which PyAV 19 removed. `av` is capped below 19 until faster-whisper supports it (framework
-  rehearsal 0.6.3 on the Linux NVIDIA machine).
+  which PyAV 19 removed. `av` is capped below 19 until faster-whisper supports it, in every extra
+  that installs faster-whisper (`apple`, `gpu`, `all-apple`, `all-gpu`) and in `chroma`. The `stt`
+  extra, which AbstractFramework's installer uses for the gateway's voice stack, gains the same
+  `av<19` pin: it previously reached PyAV only through faster-whisper's own unbounded `av>=11`.
 
 ## [0.13.1] - 2026-09-29
 

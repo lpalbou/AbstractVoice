@@ -47,7 +47,7 @@ pip install "abstractvoice[all-apple]" # Apple stack + local FastAPI browser exa
 pip install "abstractvoice[all-gpu]"   # GPU stack + local FastAPI browser example
 pip install "abstractvoice[piper]"     # Local Piper TTS only
 pip install "abstractvoice[supertonic]" # Local Supertonic 3 ONNX TTS only
-pip install "abstractvoice[stt]"       # Local faster-whisper STT
+pip install "abstractvoice[stt]"       # Local faster-whisper STT (keeps PyAV below 19, which faster-whisper 1.2.1 needs)
 pip install "abstractvoice[stt-hf]"    # Local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, Qwen/Qwen3-ASR-1.7B)
 pip install "abstractvoice[audio-io]"  # Microphone/playback/VAD dependencies
 pip install "abstractvoice[cloning]"   # explicit OpenF5-based cloning (heavy; Python 3.10+)
