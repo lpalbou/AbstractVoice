@@ -23,6 +23,17 @@ Older changelog entries may reference historical CLI commands or model choices.
   first GPU transcription. Other platforms are unchanged; `ABSTRACTVOICE_WHISPER_DEVICE` still
   overrides.
 
+### Fixed
+
+- Linux + NVIDIA: faster-whisper on CUDA failed at the first transcription with "Library libcublas.so.12 is not
+  found or cannot be loaded" unless torch had been imported first (CTranslate2 loads CUDA 12 cuBLAS by name; the
+  NVIDIA wheels unpack to `site-packages/nvidia/<lib>/lib`, off the loader's path). AbstractVoice now preloads
+  `libcudart.so.12`, `libcublasLt.so.12`, `libcublas.so.12` from those wheels (`RTLD_GLOBAL`) before
+  faster-whisper loads, and `best_faster_whisper_device()` picks CUDA on Linux only when `libcublas.so.12` then
+  loads, else `cpu` with a warning (new `cublas12_available()`; `windows_cublas12_available` stays as an alias).
+  The `gpu`/`all-gpu` CUDA 12 cuBLAS wheels now also install on Linux, where torch's CUDA 13 build carries only
+  CUDA 13 cuBLAS. Measured on a Quadro RTX 5000 (framework backlog 0989).
+
 ## [0.13.0] - 2026-09-28
 
 ### Added

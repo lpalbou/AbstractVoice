@@ -94,7 +94,7 @@ class FasterWhisperAdapter(STTAdapter):
         
         # Try to import faster-whisper
         try:
-            # Windows: CUDA 12 cuBLAS from the NVIDIA wheels onto the DLL search (no-op elsewhere).
+            # Windows/Linux: make CUDA 12 cuBLAS from the NVIDIA wheels findable (no-op elsewhere).
             from ..compute.windows_cuda import prepare_windows_cuda_dlls
 
             prepare_windows_cuda_dlls()

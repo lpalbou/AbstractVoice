@@ -109,17 +109,127 @@ def test_forced_device_is_honoured_on_windows(wc, monkeypatch) -> None:
     assert best_faster_whisper_device() == "cuda"
 
 
-def test_off_windows_nothing_is_added_and_cublas_is_not_probed(wc, tmp_path, monkeypatch) -> None:
+def test_macos_nothing_is_added_and_cublas_is_not_probed(wc, tmp_path, monkeypatch) -> None:
     from abstractvoice.compute.device import best_faster_whisper_device
 
     _fake_nvidia(tmp_path, monkeypatch)
     _fake_ctranslate2(monkeypatch, cuda_devices=1)
-    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(sys, "platform", "darwin")
     before = os.environ.get("PATH")
 
     assert best_faster_whisper_device() == "cuda"
     assert wc.prepare_windows_cuda_dlls() == []
     assert os.environ.get("PATH") == before
+    assert wc._cublas12 is None
+
+
+def _fake_nvidia_linux(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, files: dict) -> Path:
+    """A fake `site-packages/nvidia` with the Linux layout (`<lib>/lib/<file>`)."""
+
+    root = tmp_path / "site-packages" / "nvidia"
+    for name, filenames in files.items():
+        folder = root / name / "lib"
+        folder.mkdir(parents=True)
+        for filename in filenames:
+            (folder / filename).write_bytes(b"")
+    spec = importlib.util.spec_from_loader("nvidia", loader=None, is_package=True)
+    spec.submodule_search_locations = [str(root)]
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name, *a, **k: spec if name == "nvidia" else real_find_spec(name, *a, **k)
+    )
+    return root
+
+
+def _simulate_linux(monkeypatch: pytest.MonkeyPatch, loadable_names: set) -> list:
+    """sys.platform = linux; ctypes.CDLL records every load. A path loads when the file exists
+    (and, once loaded, its basename becomes loadable by name, as with RTLD_GLOBAL); a bare name
+    loads when it is in `loadable_names` or was preloaded."""
+
+    import ctypes
+
+    loads: list = []
+    preloaded: set = set()
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    def fake_cdll(name, mode=0, *a, **k):
+        loads.append((name, mode))
+        if os.sep in str(name):
+            if not Path(name).is_file():
+                raise OSError(f"{name}: cannot open shared object file")
+            preloaded.add(Path(name).name)
+            return object()
+        if name in loadable_names or name in preloaded:
+            return object()
+        raise OSError(f"{name}: cannot open shared object file: No such file or directory")
+
+    monkeypatch.setattr(ctypes, "CDLL", fake_cdll)
+    return loads
+
+
+def test_linux_preloads_cuda12_runtime_and_cublas_from_the_nvidia_wheels_then_picks_cuda(
+    wc, tmp_path, monkeypatch
+) -> None:
+    # Measured on a Linux + NVIDIA gpu install (backlog 0989): without the preload CTranslate2
+    # fails at the first GPU transcription with "Library libcublas.so.12 is not found".
+    import ctypes
+
+    from abstractvoice.compute.device import best_faster_whisper_device
+
+    root = _fake_nvidia_linux(
+        tmp_path,
+        monkeypatch,
+        {"cuda_runtime": ["libcudart.so.12"], "cublas": ["libcublasLt.so.12", "libcublas.so.12"]},
+    )
+    _fake_ctranslate2(monkeypatch, cuda_devices=1)
+    loads = _simulate_linux(monkeypatch, loadable_names=set())
+    before = os.environ.get("PATH")
+
+    assert best_faster_whisper_device() == "cuda"
+    preloads = [(n, m) for n, m in loads if os.sep in str(n)]
+    assert [n for n, _ in preloads] == [
+        str(root / "cuda_runtime" / "lib" / "libcudart.so.12"),
+        str(root / "cublas" / "lib" / "libcublasLt.so.12"),
+        str(root / "cublas" / "lib" / "libcublas.so.12"),
+    ]
+    assert all(m == ctypes.RTLD_GLOBAL for _, m in preloads)
+    assert ("libcublas.so.12", 0) in loads
+    assert os.environ.get("PATH") == before
+
+
+def test_linux_without_cublas12_falls_back_to_cpu_with_a_warning(wc, tmp_path, monkeypatch, caplog) -> None:
+    from abstractvoice.compute.device import best_faster_whisper_device
+
+    _fake_nvidia_linux(tmp_path, monkeypatch, {"cu13": ["libcublas.so.13"]})
+    _fake_ctranslate2(monkeypatch, cuda_devices=1)
+    _simulate_linux(monkeypatch, loadable_names=set())
+
+    with caplog.at_level("WARNING"):
+        assert best_faster_whisper_device() == "cpu"
+    assert "libcublas.so.12" in caplog.text
+
+
+def test_linux_with_a_system_cublas12_picks_cuda_without_wheels(wc, monkeypatch) -> None:
+    from abstractvoice.compute.device import best_faster_whisper_device
+
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name, *a, **k: None if name == "nvidia" else real_find_spec(name, *a, **k)
+    )
+    _fake_ctranslate2(monkeypatch, cuda_devices=1)
+    loads = _simulate_linux(monkeypatch, loadable_names={"libcublas.so.12"})
+
+    assert best_faster_whisper_device() == "cuda"
+    assert [n for n, _ in loads] == ["libcublas.so.12"]
+
+
+def test_linux_without_cuda_stays_on_cpu_without_probing_cublas(wc, monkeypatch) -> None:
+    from abstractvoice.compute.device import best_faster_whisper_device
+
+    _fake_ctranslate2(monkeypatch, cuda_devices=0)
+    _simulate_linux(monkeypatch, loadable_names={"libcublas.so.12"})
+
+    assert best_faster_whisper_device() == "cpu"
     assert wc._cublas12 is None
 
 

@@ -79,10 +79,10 @@ gpu = [
     "piper-tts>=1.2.0",
     "onnxruntime>=1.19.0",
     "faster-whisper>=0.10.0",
-    # Windows: CTranslate2 needs CUDA 12 cuBLAS; torch's CUDA 13 build does not carry it and
-    # CUDA 13 cuBLAS has no Windows wheel (framework backlog 0988).
-    "nvidia-cublas-cu12>=12.4; sys_platform == 'win32'",
-    "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32'",
+    # Windows and Linux: CTranslate2 needs CUDA 12 cuBLAS; torch's CUDA 13 build does not carry
+    # it (and CUDA 13 cuBLAS has no Windows wheel). Framework backlogs 0988/0989.
+    "nvidia-cublas-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
+    "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
@@ -253,10 +253,10 @@ all-gpu = [
     "piper-tts>=1.2.0",
     "onnxruntime>=1.19.0",
     "faster-whisper>=0.10.0",
-    # Windows: CTranslate2 needs CUDA 12 cuBLAS; torch's CUDA 13 build does not carry it and
-    # CUDA 13 cuBLAS has no Windows wheel (framework backlog 0988).
-    "nvidia-cublas-cu12>=12.4; sys_platform == 'win32'",
-    "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32'",
+    # Windows and Linux: CTranslate2 needs CUDA 12 cuBLAS; torch's CUDA 13 build does not carry
+    # it (and CUDA 13 cuBLAS has no Windows wheel). Framework backlogs 0988/0989.
+    "nvidia-cublas-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
+    "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
