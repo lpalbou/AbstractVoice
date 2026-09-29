@@ -65,6 +65,7 @@ Notes:
   - `openai-compatible` (remote compatible `/v1/audio/speech`; configure `remote_base_url` or `OPENAI_BASE_URL`)
   - `audiodit` (LongCat-AudioDiT; requires `abstractvoice[audiodit]`; upstream focuses on EN/ZH; direct/base TTS has a known quality caveat in `0.8.1`)
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
+  - `none` (speech-to-text only: no TTS adapter is built, so the manager needs no TTS runtime or credentials)
   - `qwen3-tts` (Qwen3-TTS 12Hz; requires `abstractvoice[qwen3-tts]`, Python 3.10+; `tts_model` selects the checkpoint — the default `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice` exposes 9 preset speakers as profiles, the 1.7B VoiceDesign checkpoint builds voices from the `instructions` selector and refuses an empty description; Base checkpoints are cloning-only and are not offered as TTS models)
 - `stt_engine` selects the STT provider and supports `openai|auto|faster_whisper|openai-compatible|transformers-asr`. `auto` resolves to `openai`.
   - `faster_whisper` requires `abstractvoice[stt]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `whisper_model`/`--whisper` for `tiny|base|small|medium|large-v2|large-v3|large`.

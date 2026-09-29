@@ -199,13 +199,18 @@ sudo apt-get install -y portaudio19-dev
 
 Usually works out of the box. If device access fails, check OS microphone permissions and installed audio drivers.
 
-On Windows, `abstractvoice[gpu]` also installs NVIDIA's CUDA 12 cuBLAS and runtime wheels
-(`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`): faster-whisper's CTranslate2 loads
-`cublas64_12.dll`, which a CUDA 13 PyTorch build does not carry. AbstractVoice adds their folders
-to the DLL search before faster-whisper runs, and picks CUDA for faster-whisper only when
-`cublas64_12.dll` actually loads; otherwise it runs faster-whisper on the CPU and logs why.
-`ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda` still overrides the choice. AEC (`aec-audio-processing`)
-has Windows wheels for Python 3.11 to 3.13.
+AEC (`aec-audio-processing`) has Windows wheels for Python 3.11 to 3.13.
+
+### NVIDIA GPUs (Linux and Windows)
+
+On Linux and Windows, `abstractvoice[gpu]` and `[all-gpu]` also install NVIDIA's CUDA 12 cuBLAS
+and runtime wheels (`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`). faster-whisper's
+CTranslate2 loads CUDA 12 cuBLAS (`libcublas.so.12` / `cublas64_12.dll`), which a CUDA 13 PyTorch
+build does not carry. Before faster-whisper runs, AbstractVoice preloads those libraries on Linux
+and adds their folders to the DLL search on Windows, and it picks CUDA for faster-whisper only when
+CUDA 12 cuBLAS actually loads; otherwise it runs faster-whisper on the CPU and logs why.
+`ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda` overrides the choice. Validated on Linux with a Quadro
+RTX 5000 (driver 595, CUDA 13).
 
 ## Troubleshooting
 

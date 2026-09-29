@@ -10,38 +10,33 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-09-29
+
 ### Changed
 
-- Windows + NVIDIA: the `gpu` and `all-gpu` extras add `nvidia-cublas-cu12` and
-  `nvidia-cuda-runtime-cu12` on Windows only (`sys_platform == 'win32'`). faster-whisper's
-  CTranslate2 loads `cublas64_12.dll`; the AbstractFramework installer may pair the gpu setting
-  with PyTorch's CUDA 13 build, which carries only CUDA 13 cuBLAS, and CUDA 13 cuBLAS has no
-  Windows wheel. The wheels' `nvidia\<lib>\bin` folders are added to the DLL search
-  (`os.add_dll_directory` and `PATH`) before faster-whisper loads (framework backlog 0988).
-- `best_faster_whisper_device()` on Windows picks CUDA only when `cublas64_12.dll` loads in the
-  process (a `ctypes` probe), and otherwise returns `cpu` with a warning, instead of failing at the
-  first GPU transcription. Other platforms are unchanged; `ABSTRACTVOICE_WHISPER_DEVICE` still
-  overrides.
+- NVIDIA GPUs on Linux and Windows: the `gpu` and `all-gpu` extras add NVIDIA's CUDA 12 cuBLAS
+  and runtime wheels (`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`) on Linux and Windows.
+  faster-whisper's CTranslate2 loads CUDA 12 cuBLAS, which a CUDA 13 PyTorch build does not carry.
+  AbstractVoice preloads these libraries on Linux and adds their folders to the DLL search on
+  Windows before faster-whisper loads.
+- `best_faster_whisper_device()` picks CUDA on Linux and Windows only when CUDA 12 cuBLAS loads in
+  the process, and otherwise returns `cpu` with a warning, instead of failing at the first GPU
+  transcription. New `cublas12_available()` (`windows_cublas12_available` stays as an alias);
+  `ABSTRACTVOICE_WHISPER_DEVICE` still overrides. Validated on Linux with a Quadro RTX 5000
+  (driver 595, CUDA 13).
+- AbstractCore plugin: runtime-missing reasons and the residency hint name AbstractCore's install
+  settings (`abstractcore[apple]` / `abstractcore[gpu]`) instead of AbstractVoice's standalone
+  extras. The structured `engine_runtime_status()` result (`install_command`) is unchanged for
+  standalone callers.
 
 ### Fixed
 
-- Speech-to-text through AbstractCore no longer needs the TTS engine's credentials. A transcription with a local
-  engine (`provider="faster-whisper"`, as the AbstractGateway sends for its configured `input.voice` route) failed
-  with "OpenAI audio requires OPENAI_API_KEY or remote_api_key=..." on any host without an OpenAI key: the
-  VoiceManager built for it also constructed the TTS adapter, and the unconfigured TTS default is `openai`, whose
-  adapter refuses to construct without a key. `VoiceManager(tts_engine="none")` now builds a speech-to-text-only
-  manager (no TTS adapter); the AbstractCore audio capability always builds its managers that way, and a
-  provider-routed STT request on the voice capability (`stt(provider=...)`) does too. `VoiceManager()` with the
-  default openai TTS and no key still fails at construction. Not Linux-specific; found on the Linux + NVIDIA gpu
-  install (framework backlog 0989).
-- Linux + NVIDIA: faster-whisper on CUDA failed at the first transcription with "Library libcublas.so.12 is not
-  found or cannot be loaded" unless torch had been imported first (CTranslate2 loads CUDA 12 cuBLAS by name; the
-  NVIDIA wheels unpack to `site-packages/nvidia/<lib>/lib`, off the loader's path). AbstractVoice now preloads
-  `libcudart.so.12`, `libcublasLt.so.12`, `libcublas.so.12` from those wheels (`RTLD_GLOBAL`) before
-  faster-whisper loads, and `best_faster_whisper_device()` picks CUDA on Linux only when `libcublas.so.12` then
-  loads, else `cpu` with a warning (new `cublas12_available()`; `windows_cublas12_available` stays as an alias).
-  The `gpu`/`all-gpu` CUDA 12 cuBLAS wheels now also install on Linux, where torch's CUDA 13 build carries only
-  CUDA 13 cuBLAS. Measured on a Quadro RTX 5000 (framework backlog 0989).
+- Speech-to-text through AbstractCore no longer needs TTS credentials. A transcription with a local
+  engine (for example `provider="faster-whisper"`, as AbstractGateway sends for its `input.voice`
+  route) no longer fails with "OpenAI audio requires OPENAI_API_KEY" on a host without an OpenAI
+  key. New `VoiceManager(tts_engine="none")` builds a speech-to-text-only manager (no TTS adapter);
+  the AbstractCore audio capability and provider-routed STT (`stt(provider=...)`) use it.
+  `VoiceManager()` with the default `openai` TTS and no key still fails at construction.
 
 ## [0.13.0] - 2026-09-28
 

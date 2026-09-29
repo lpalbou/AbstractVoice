@@ -187,6 +187,12 @@ Optional dependency groups (see `pyproject.toml`):
 
 ## Engines & adapters
 
+- STT-only managers: `VoiceManager(tts_engine="none")` builds no TTS adapter, so a
+  transcription needs no TTS runtime or credentials; the AbstractCore audio capability uses it.
+- NVIDIA GPUs: `abstractvoice[gpu]` installs CUDA 12 cuBLAS wheels on Linux and Windows; faster-whisper
+  runs on CUDA only when CUDA 12 cuBLAS loads (`abstractvoice.compute.windows_cuda.cublas12_available()`),
+  else on the CPU with a warning. See [Installation](docs/installation.md#nvidia-gpus-linux-and-windows).
+
 ### Qwen3-TTS
 
 Install `abstractvoice[qwen3-tts]` on Python 3.10+ (Torch 2.4+) and explicitly prefetch each
