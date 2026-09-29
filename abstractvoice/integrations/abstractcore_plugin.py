@@ -637,6 +637,19 @@ def _known_cloning_provider_ids() -> list[str]:
     return get_supported_cloning_engines()
 
 
+def _abstractcore_runtime_missing_reason(status: Any) -> str:
+    """`status.reason` for an AbstractCore user: the missing modules, then AbstractCore's
+    local-engine setting (every AbstractVoice engine runtime ships in abstractvoice[all-apple] /
+    [all-gpu], which `abstractcore[apple]` / `abstractcore[gpu]` install)."""
+
+    missing = ", ".join(status.missing_modules) or "its runtime"
+    return (
+        f"{status.label} is not installed ({missing} missing). Local voice engines come with "
+        'AbstractCore\'s local-engine setting: pip install "abstractcore[apple]" (Apple silicon) or '
+        'pip install "abstractcore[gpu]" (Linux GPU machines).'
+    )
+
+
 def _runtime_installed(kind: str, provider: Any) -> bool | None:
     """`engine_runtime_status(provider).installed`, or None for an engine it does not know."""
     status = _engine_runtime_status_or_none(provider)
@@ -1795,8 +1808,9 @@ class _BaseVoice:
                     code="not_implemented_yet",
                     message=(
                         "Local base TTS residency requires the local engine runtime + cached model weights. "
-                        "Install the provider extra (for example abstractvoice[piper] / abstractvoice[supertonic] / "
-                        "abstractvoice[omnivoice] / abstractvoice[audiodit]) and prefetch models before warming."
+                        "Local voice engines come with AbstractCore's local-engine setting: "
+                        "pip install \"abstractcore[apple]\" (Apple silicon) or pip install \"abstractcore[gpu]\" "
+                        "(Linux GPU machines); then prefetch models before warming."
                     ),
                     state="not_implemented",
                     local=True,
@@ -2549,10 +2563,12 @@ class _BaseVoice:
                 if status is None:
                     continue
                 if not status.installed:
+                    # AbstractCore-facing wording (operator ruling 2026-09-29): an AbstractCore user
+                    # is told the setting, never AbstractVoice's standalone extra (`status.reason`).
                     records[provider_id] = {
                         "provider": provider_id,
                         "code": "runtime_missing",
-                        "reason": status.reason,
+                        "reason": _abstractcore_runtime_missing_reason(status),
                         "runtime": status.to_dict(),
                     }
                 elif kind == "tts":

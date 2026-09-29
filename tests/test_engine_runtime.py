@@ -161,6 +161,11 @@ def test_voice_catalog_for_uninstalled_provider_says_why(monkeypatch):
     record = catalog["unavailable_providers"]["tts"]["supertonic"]
     assert record["code"] == "runtime_missing"
     assert record["runtime"]["install_command"] == 'pip install "abstractvoice[supertonic]"'
+    # The sentence an AbstractCore user reads names AbstractCore's settings, never the
+    # standalone extra (operator ruling 2026-09-29).
+    for sentence in (record["reason"], catalog["unavailable_reason"]):
+        assert 'abstractcore[apple]' in sentence and 'abstractcore[gpu]' in sentence
+        assert "abstractvoice[" not in sentence
 
 
 def test_voice_catalog_distinguishes_missing_model_from_missing_runtime(monkeypatch):
