@@ -141,14 +141,35 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
         assert f5 == ["f5-tts>=1.1.0; python_version >= '3.11'"], (name, f5)
     assert _has_marked_dep(platform, "omnivoice>=0.1.5", "python_version >= '3.10'")
     assert _has_marked_dep(platform, "aec-audio-processing>=1.0.1", "python_version >= '3.11'")
-    assert extras["gpu"] == platform
+    # gpu = apple + the Windows-only CUDA 12 cuBLAS wheels for CTranslate2 (framework backlog 0988).
+    assert [d for d in extras["gpu"] if d not in WINDOWS_CUDA12_WHEELS] == platform
 
     all_apple = extras["all-apple"]
     for dep in platform:
         assert dep in all_apple
     for dep in extras["web"]:
         assert dep in all_apple
-    assert extras["all-gpu"] == all_apple
+    assert [d for d in extras["all-gpu"] if d not in WINDOWS_CUDA12_WHEELS] == all_apple
+
+
+WINDOWS_CUDA12_WHEELS = (
+    "nvidia-cublas-cu12>=12.4; sys_platform == 'win32'",
+    "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32'",
+)
+
+
+def test_gpu_profiles_add_cuda12_cublas_on_windows_only() -> None:
+    # CTranslate2 (faster-whisper) loads cublas64_12.dll; the installer's torch CUDA 13 build
+    # carries only CUDA 13 cuBLAS, and CUDA 13 cuBLAS has no Windows wheel (backlog 0988).
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    extras = pyproject["project"]["optional-dependencies"]
+    for name in ("gpu", "all-gpu"):
+        for dep in WINDOWS_CUDA12_WHEELS:
+            assert dep in extras[name], (name, dep)
+    for name, deps in extras.items():
+        if name in ("gpu", "all-gpu"):
+            continue
+        assert not [d for d in deps if d.startswith("nvidia-")], name
 
 
 def test_remote_and_heavy_engine_extras_are_self_contained() -> None:

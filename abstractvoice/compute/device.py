@@ -67,6 +67,22 @@ def best_faster_whisper_device() -> str:
     # IMPORTANT:
     # faster-whisper is backed by CTranslate2 and can be CUDA-enabled even when
     # PyTorch is not installed. Therefore, CUDA detection must not rely on torch.
+    if _ctranslate2_sees_cuda():
+        # Windows: CTranslate2 loads CUDA 12 cuBLAS lazily, at the first GPU run. A torch CUDA 13
+        # stack does not carry it, so pick CUDA only when cublas64_12.dll really loads
+        # (framework backlog 0988); otherwise the CPU works where CUDA would fail mid-call.
+        from .windows_cuda import windows_cublas12_available
+
+        if windows_cublas12_available():
+            return "cuda"
+    return "cpu"
+
+
+def _ctranslate2_sees_cuda() -> bool:
+    if sys.platform == "win32":
+        from .windows_cuda import prepare_windows_cuda_dlls
+
+        prepare_windows_cuda_dlls()
     try:
         import ctranslate2  # type: ignore
 
@@ -75,7 +91,7 @@ def best_faster_whisper_device() -> str:
             try:
                 n = int(ctranslate2.get_cuda_device_count())  # type: ignore[attr-defined]
                 if n > 0:
-                    return "cuda"
+                    return True
             except Exception:
                 # If the package wasn't compiled with CUDA support, some builds raise.
                 pass
@@ -85,12 +101,11 @@ def best_faster_whisper_device() -> str:
             try:
                 types = ctranslate2.get_supported_compute_types("cuda", 0)  # type: ignore[attr-defined]
                 if types:
-                    return "cuda"
+                    return True
             except Exception:
                 pass
     except Exception:
         # If ctranslate2 isn't importable, keep a conservative fallback.
         pass
-
-    return "cpu"
+    return False
 

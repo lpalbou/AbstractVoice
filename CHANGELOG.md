@@ -10,6 +10,19 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Changed
+
+- Windows + NVIDIA: the `gpu` and `all-gpu` extras add `nvidia-cublas-cu12` and
+  `nvidia-cuda-runtime-cu12` on Windows only (`sys_platform == 'win32'`). faster-whisper's
+  CTranslate2 loads `cublas64_12.dll`; the AbstractFramework installer may pair the gpu setting
+  with PyTorch's CUDA 13 build, which carries only CUDA 13 cuBLAS, and CUDA 13 cuBLAS has no
+  Windows wheel. The wheels' `nvidia\<lib>\bin` folders are added to the DLL search
+  (`os.add_dll_directory` and `PATH`) before faster-whisper loads (framework backlog 0988).
+- `best_faster_whisper_device()` on Windows picks CUDA only when `cublas64_12.dll` loads in the
+  process (a `ctypes` probe), and otherwise returns `cpu` with a warning, instead of failing at the
+  first GPU transcription. Other platforms are unchanged; `ABSTRACTVOICE_WHISPER_DEVICE` still
+  overrides.
+
 ## [0.13.0] - 2026-09-28
 
 ### Added

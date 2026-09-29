@@ -199,6 +199,14 @@ sudo apt-get install -y portaudio19-dev
 
 Usually works out of the box. If device access fails, check OS microphone permissions and installed audio drivers.
 
+On Windows, `abstractvoice[gpu]` also installs NVIDIA's CUDA 12 cuBLAS and runtime wheels
+(`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`): faster-whisper's CTranslate2 loads
+`cublas64_12.dll`, which a CUDA 13 PyTorch build does not carry. AbstractVoice adds their folders
+to the DLL search before faster-whisper runs, and picks CUDA for faster-whisper only when
+`cublas64_12.dll` actually loads; otherwise it runs faster-whisper on the CPU and logs why.
+`ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda` still overrides the choice. AEC (`aec-audio-processing`)
+has Windows wheels for Python 3.11 to 3.13.
+
 ## Troubleshooting
 
 - **Piper model not available locally**: run `python -m abstractvoice download --piper <lang>`.
