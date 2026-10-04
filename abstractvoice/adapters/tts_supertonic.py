@@ -160,9 +160,17 @@ class SupertonicTTSAdapter(TTSAdapter):
                 "active_profile": self._active_style,
                 "quality_preset": self._quality_preset,
                 "onnxruntime_available": bool(self._onnx_available),
+                **self.execution_device(),
             }
         )
         return info
+
+    def execution_device(self) -> Dict[str, Any]:
+        """Where synthesis runs (`device`, and `reason` when it is the CPU) — stamped on stream metrics."""
+        try:
+            return self._get_runtime().execution_device() if self._onnx_available else {"device": "cpu", "reason": "ONNX Runtime is not installed"}
+        except Exception as e:  # noqa: BLE001 - metadata must never break synthesis
+            return {"device": "cpu", "reason": f"device unknown: {e}"}
 
     def set_quality_preset(self, preset: str) -> bool:
         from ..quality_preset import normalize_quality_preset

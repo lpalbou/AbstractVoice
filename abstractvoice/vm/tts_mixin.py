@@ -36,6 +36,27 @@ def _resolve_sanitize_syntax_arg(
     return resolved
 
 
+
+# First streamed segment cap (characters): one short sentence/clause so the
+# first audio arrives within ~1.5 s on a CPU engine (Supertonic: 35 chars
+# ~1.0 s, 96 chars ~1.8 s on an M5 Max under load).
+STREAM_FIRST_SEGMENT_MAX_CHARS = 60
+
+
+def _adapter_device(adapter) -> dict:
+    """`device` / `device_reason` of an adapter that reports them (else nothing)."""
+    fn = getattr(adapter, "execution_device", None)
+    if not callable(fn):
+        return {}
+    try:
+        info = fn() or {}
+    except Exception:  # noqa: BLE001 - metadata must never break synthesis
+        return {}
+    out = {"device": info.get("device")}
+    if info.get("reason"):
+        out["device_reason"] = info.get("reason")
+    return out
+
 class TtsMixin:
     def _adapter_method_overridden(self, adapter, method_name: str) -> bool:
         if adapter is None:
@@ -1655,10 +1676,12 @@ class TtsMixin:
                     max_chars = 240
 
                 stream_max_chars = min(int(max_chars), 240)
+                # The first segment is one short sentence or clause (round 6):
+                # it is synthesised and played while the rest is synthesised.
                 segments = split_complete_text_for_streaming(
                     str(speak_text),
                     max_chars=stream_max_chars,
-                    first_max_chars=min(stream_max_chars, 96),
+                    first_max_chars=min(stream_max_chars, STREAM_FIRST_SEGMENT_MAX_CHARS),
                 )
                 if not segments:
                     segments = [str(speak_text)]
@@ -1699,7 +1722,8 @@ class TtsMixin:
                     "chunks": int(chunks),
                     "segments": int(len(segments)),
                     "segment_max_chars": int(stream_max_chars),
-                    "first_segment_max_chars": int(min(stream_max_chars, 96)),
+                    "first_segment_max_chars": int(min(stream_max_chars, STREAM_FIRST_SEGMENT_MAX_CHARS)),
+                    **_adapter_device(adapter),
                     "language": str(getattr(self, "language", None) or "en"),
                     "speed": float(getattr(self, "speed", 1.0) or 1.0),
                     "ts": time.time(),

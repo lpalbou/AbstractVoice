@@ -10,6 +10,7 @@ Faster-Whisper is a Whisper-family implementation using CTranslate2:
 
 from __future__ import annotations
 
+import sys
 import os
 import io
 import logging
@@ -495,4 +496,11 @@ class FasterWhisperAdapter(STTAdapter):
                           f"{self.MODELS.get(self._model_size, {}).get('accuracy', 'unknown')} accuracy",
             'memory_optimization': 'INT8 quantization' if self._compute_type == 'int8' else None
         })
+        if sys.platform == "darwin" and str(self._device or "cpu") in {"cpu", "auto"}:
+            # Round 6 (measured, M5 Max): large-v3 int8 takes ~26-35 s for a
+            # 3.6 s clip (about half of it language detection), small ~4 s, base ~2 s.
+            info['device_reason'] = (
+                "CPU: CTranslate2 (faster-whisper) has no Apple GPU backend; large models are slow here "
+                "(large-v3 ~30 s for a 4 s clip) — name the spoken language or pick a smaller model"
+            )
         return info

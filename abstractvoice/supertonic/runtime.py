@@ -364,6 +364,39 @@ class SupertonicRuntime:
     def is_cached(self) -> bool:
         return is_supertonic_cached(self.cache_dir)
 
+    # Execution device on this host (round 6, measured on an M5 Max under load):
+    # ONNX Runtime's CoreML provider runs Supertonic SLOWER than the CPU
+    # provider (real-time factor 0.61 vs 0.39-0.53, plus ~9 s of CoreML
+    # compilation at load), so the CPU provider stays the default and the
+    # reason is reported with every synthesis (`execution_device`).
+    CPU_REASON = (
+        "CPU: ONNX Runtime's CoreML provider measured slower than the CPU for Supertonic on Apple Silicon "
+        "(real-time factor 0.61 vs 0.39, plus ~9 s to compile at load)"
+    )
+    # Intra-op threads when none is given: all cores oversubscribe a busy
+    # machine (measured: 35-char sentence 1.52 s with all 18 cores, 0.99 s with
+    # 4; 96 chars 2.43 s vs 1.79 s) and starve the host process.
+    DEFAULT_INTRA_OP_THREADS = 4
+
+    def execution_device(self) -> dict:
+        """`{"device": "cpu"|"coreml", "reason": str|None, "providers": [...], "threads": n}` for metadata."""
+        try:
+            providers = list(self._resolve_providers())
+        except Exception:
+            providers = ["CPUExecutionProvider"]
+        coreml = bool(providers) and providers[0] == "CoreMLExecutionProvider"
+        return {
+            "device": "coreml" if coreml else "cpu",
+            "reason": None if coreml else self.CPU_REASON,
+            "providers": providers,
+            "threads": self._intra_op_threads(),
+        }
+
+    def _intra_op_threads(self) -> int:
+        if self.intra_op_num_threads is not None:
+            return int(self.intra_op_num_threads)
+        return max(1, min(self.DEFAULT_INTRA_OP_THREADS, os.cpu_count() or 1))
+
     def _resolve_providers(self):
         import onnxruntime as ort  # type: ignore
 
@@ -412,8 +445,7 @@ class SupertonicRuntime:
         opts = ort.SessionOptions()
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        if self.intra_op_num_threads is not None:
-            opts.intra_op_num_threads = int(self.intra_op_num_threads)
+        opts.intra_op_num_threads = self._intra_op_threads()
         if self.inter_op_num_threads is not None:
             opts.inter_op_num_threads = int(self.inter_op_num_threads)
 
