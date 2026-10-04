@@ -10,6 +10,12 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Changed
+
+- Streamed speech starts sooner: the first segment is one short sentence or clause (`STREAM_FIRST_SEGMENT_MAX_CHARS = 60`, was 96); later segments still pack sentences up to 240 characters. Through the gateway (Supertonic, warm): first audio 1.6–1.9 s → 1.1–1.3 s, a 424-character reply 11.7–12.2 s → 8.2–8.3 s.
+- Supertonic runs ONNX Runtime with 4 intra-op threads unless told otherwise: all cores oversubscribe a busy machine (35-character sentence 1.52 s → 0.99 s, 96 characters 2.43 s → 1.79 s on an M5 Max under load).
+- Stream metrics carry `device` and, on the CPU, `device_reason` (Supertonic: the CoreML provider measured slower than the CPU — real-time factor 0.61 vs 0.39 plus ~9 s to compile; faster-whisper: CTranslate2 has no Apple GPU backend). `SupertonicRuntime.execution_device()` / the adapter's `execution_device()` report it.
+
 ## [0.13.2] - 2026-09-29
 
 ### Fixed
