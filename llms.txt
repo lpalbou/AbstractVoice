@@ -82,7 +82,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Audio chunk smoothing](abstractvoice/audio/fade.py): edge fades + headroom scaling
 - [STT/listening orchestration](abstractvoice/vm/stt_mixin.py): `listen()` + `transcribe_*()`
 - [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): model caching + synthesis
-- [Supertonic TTS adapter](abstractvoice/adapters/tts_supertonic.py): fixed-profile ONNX TTS (`M1`-`M5`, `F1`-`F5`)
+- [Supertonic TTS adapter](abstractvoice/adapters/tts_supertonic.py): fixed-profile ONNX TTS (`M1`-`M5`, `F1`-`F5`); CPU provider with 4 intra-op threads by default, `execution_device()` reports `device`/`reason`
 - [Supertonic runtime](abstractvoice/supertonic/runtime.py): internal ONNX loader + explicit `--supertonic` prefetch; no external Supertonic SDK dependency
 - [AudioDiT TTS adapter (optional)](abstractvoice/adapters/tts_audiodit.py): LongCat-AudioDiT engine (extra)
 - [OmniVoice runtime (optional)](abstractvoice/omnivoice/runtime.py): offline-first load + device/dtype policy glue

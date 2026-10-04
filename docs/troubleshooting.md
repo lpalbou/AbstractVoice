@@ -180,6 +180,21 @@ coordination section of `docs/architecture.md`.
 The first call loads the model and opens the audio device. Prefetch weights ahead of time, and
 `AdapterTTSEngine.warmup_audio_output()` opens the playback stream before the first utterance.
 
+### Local transcription is slow on a Mac
+
+faster-whisper runs on CTranslate2, which has no Apple GPU backend, so on macOS it transcribes on the
+CPU and `get_info()` carries a `device_reason` saying so. Large models are slow there (large-v3 takes
+about 30 s for a 4-second clip, half of it language detection). Name the spoken language, or choose a
+smaller model (`small`, `base`) for interactive dictation.
+
+### Streamed speech takes long to start
+
+Streamed delivery synthesizes a short first segment (one sentence or clause, at most 60 characters)
+and plays it while the rest is synthesized. `pop_last_tts_metrics()` after a streamed synthesis
+reports `ttfb_s` (time to first audio), the segment sizes and, for Supertonic, the execution
+`device` with `device_reason`. Keep the engine loaded between replies: a cold start adds the model
+load to the first segment.
+
 ### A local engine loads weights when you only wanted to browse
 
 Reach for the discovery calls, which never load an engine: `available_providers()`,

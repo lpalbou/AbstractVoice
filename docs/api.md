@@ -133,7 +133,7 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
   - **Remote OpenAI note**: hosted built-in voices are always exposed as profiles (for example `vm.set_profile("alloy")`), and the adapter also tries OpenAI voice discovery for account/org-specific voices such as `voice_...`. `tts_engine="openai"` defaults to `https://api.openai.com/v1` and reads `OPENAI_API_KEY`.
   - **Remote compatible note**: compatible endpoints may expose `GET /v1/audio/voices` (adapter path: `GET /audio/voices`) returning `profiles`, `voices`, `cloned_voices`, or OpenAI-style `data`. Returned ids are exposed as `VoiceProfile`s and used as the request `voice` for `/audio/speech`.
   - The `voice=` argument on `speak_to_bytes(...)` remains the cloned-voice handle path for backward compatibility; select base-provider voices with `set_profile(...)`.
-  - **Supertonic note**: `tts_engine="supertonic"` exposes fixed local profiles `M1`-`M5` and `F1`-`F5`. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or `allow_downloads=True`.
+  - **Supertonic note**: `tts_engine="supertonic"` exposes fixed local profiles `M1`-`M5` and `F1`-`F5`. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or `allow_downloads=True`. By default Supertonic runs on ONNX Runtime's CPU provider with 4 intra-op threads (fewer on smaller machines), which keeps a busy host responsive; on Apple Silicon the CoreML provider measured slower than the CPU for this model. `SupertonicRuntime(intra_op_num_threads=...)` sets another thread count, and the adapter's `execution_device()` (also in `get_info()`) reports `device`, `reason`, `providers` and `threads`.
   - **OmniVoice notes**:
     - Some profiles may enable **persistent prompt caching** (a tokenized `voice_clone_prompt`). The first `set_profile(...)` can pay a one-time build cost; later synthesis reuses cached tokens for stable voice identity. Prompt-conditioned synthesis can be heavier than pure voice design; use `/tts quality low|standard|high` (or `VoiceManager.set_tts_quality_preset(...)`) to tune the trade-off.
     - On macOS / Apple Silicon, OmniVoice uses **MPS (Metal)** by default when `device="auto"`.
@@ -147,8 +147,11 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
 - `set_tts_delivery_mode(mode: str | None) -> bool`, `get_tts_delivery_mode() -> str`, `get_tts_delivery_modes() -> dict`
   - Toggle buffered vs streamed delivery (applies to both base TTS and cloned voices).
   - **Behavior note**: streamed delivery is implemented as a pipeline:
-    - **text** is chunked into short segments (sentence-first),
-    - then each segment is synthesized and enqueued as soon as possible.
+    - **text** is chunked into short segments (sentence-first): the first segment is one short sentence or
+      clause of at most 60 characters, so the first audio arrives quickly; later segments pack whole sentences
+      up to 240 characters (or the engine's own limit when smaller),
+    - then each segment is synthesized and enqueued as soon as possible, so later segments are synthesized
+      while the first one plays.
     - Engines that can stream audio natively may further reduce TTFB by yielding multiple audio chunks per segment.
 
 - `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -> bytes`
@@ -442,6 +445,9 @@ Provider caveats that affect release choice are tracked in `docs/known-issues.md
 
 - `pop_last_tts_metrics() -> dict | None`
   - Best-effort last-utterance stats used by the REPL verbose mode.
+  - Streamed synthesis (`speak_to_audio_chunks(...)`) records `engine`, `ttfb_s`, `synth_s`, `audio_s`, `rtf`,
+    `chunks`, `segments`, `segment_max_chars`, `first_segment_max_chars` and, for engines that report it,
+    `device` (`cpu` or `coreml` for Supertonic) with `device_reason` when synthesis runs on the CPU.
 
 ## Callbacks & hooks
 

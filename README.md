@@ -20,7 +20,8 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 - **Hardware profile aliases**: `abstractvoice[apple]` and `abstractvoice[gpu]` install the local stack; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` add the lightweight web example dependencies.
 - **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[supertonic]`, `abstractvoice[stt]`, `abstractvoice[stt-hf]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[qwen3-tts]`, `abstractvoice[chroma]`
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
-- **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`
+- **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()`; the first segment is one short
+  sentence or clause (at most 60 characters) so audio starts quickly, later segments up to 240 characters
 - **Voice cloning / heavier TTS (optional)**: OmniVoice is the recommended/default local cloning backend; OpenF5, Chroma, and AudioDiT remain explicit alternatives. Supertonic is fixed-profile TTS, not cloning.
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
