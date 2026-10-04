@@ -929,6 +929,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#local-transcription-is-slow-on-a-mac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local transcription is slow on a Mac
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streamed-speech-takes-long-to-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streamed speech takes long to start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1516,6 +1538,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#local-transcription-is-slow-on-a-mac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local transcription is slow on a Mac
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streamed-speech-takes-long-to-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streamed speech takes long to start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1686,6 +1730,17 @@ coordination section of <code>docs/architecture.md</code>.</p>
 <h3 id="first-synthesis-is-much-slower-than-later-ones">First synthesis is much slower than later ones<a class="headerlink" href="#first-synthesis-is-much-slower-than-later-ones" title="Permanent link">&para;</a></h3>
 <p>The first call loads the model and opens the audio device. Prefetch weights ahead of time, and
 <code>AdapterTTSEngine.warmup_audio_output()</code> opens the playback stream before the first utterance.</p>
+<h3 id="local-transcription-is-slow-on-a-mac">Local transcription is slow on a Mac<a class="headerlink" href="#local-transcription-is-slow-on-a-mac" title="Permanent link">&para;</a></h3>
+<p>faster-whisper runs on CTranslate2, which has no Apple GPU backend, so on macOS it transcribes on the
+CPU and <code>get_info()</code> carries a <code>device_reason</code> saying so. Large models are slow there (large-v3 takes
+about 30 s for a 4-second clip, half of it language detection). Name the spoken language, or choose a
+smaller model (<code>small</code>, <code>base</code>) for interactive dictation.</p>
+<h3 id="streamed-speech-takes-long-to-start">Streamed speech takes long to start<a class="headerlink" href="#streamed-speech-takes-long-to-start" title="Permanent link">&para;</a></h3>
+<p>Streamed delivery synthesizes a short first segment (one sentence or clause, at most 60 characters)
+and plays it while the rest is synthesized. <code>pop_last_tts_metrics()</code> after a streamed synthesis
+reports <code>ttfb_s</code> (time to first audio), the segment sizes and, for Supertonic, the execution
+<code>device</code> with <code>device_reason</code>. Keep the engine loaded between replies: a cold start adds the model
+load to the first segment.</p>
 <h3 id="a-local-engine-loads-weights-when-you-only-wanted-to-browse">A local engine loads weights when you only wanted to browse<a class="headerlink" href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" title="Permanent link">&para;</a></h3>
 <p>Reach for the discovery calls, which never load an engine: <code>available_providers()</code>,
 <code>list_models(...)</code>, <code>list_tts_voices(provider=...)</code>, and <code>voice_catalog(providers_only=True)</code> or

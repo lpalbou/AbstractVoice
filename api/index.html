@@ -1820,7 +1820,7 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <li><strong>Remote OpenAI note</strong>: hosted built-in voices are always exposed as profiles (for example <code>vm.set_profile("alloy")</code>), and the adapter also tries OpenAI voice discovery for account/org-specific voices such as <code>voice_...</code>. <code>tts_engine="openai"</code> defaults to <code>https://api.openai.com/v1</code> and reads <code>OPENAI_API_KEY</code>.</li>
 <li><strong>Remote compatible note</strong>: compatible endpoints may expose <code>GET /v1/audio/voices</code> (adapter path: <code>GET /audio/voices</code>) returning <code>profiles</code>, <code>voices</code>, <code>cloned_voices</code>, or OpenAI-style <code>data</code>. Returned ids are exposed as <code>VoiceProfile</code>s and used as the request <code>voice</code> for <code>/audio/speech</code>.</li>
 <li>The <code>voice=</code> argument on <code>speak_to_bytes(...)</code> remains the cloned-voice handle path for backward compatibility; select base-provider voices with <code>set_profile(...)</code>.</li>
-<li><strong>Supertonic note</strong>: <code>tts_engine="supertonic"</code> exposes fixed local profiles <code>M1</code>-<code>M5</code> and <code>F1</code>-<code>F5</code>. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or <code>allow_downloads=True</code>.</li>
+<li><strong>Supertonic note</strong>: <code>tts_engine="supertonic"</code> exposes fixed local profiles <code>M1</code>-<code>M5</code> and <code>F1</code>-<code>F5</code>. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or <code>allow_downloads=True</code>. By default Supertonic runs on ONNX Runtime's CPU provider with 4 intra-op threads (fewer on smaller machines), which keeps a busy host responsive; on Apple Silicon the CoreML provider measured slower than the CPU for this model. <code>SupertonicRuntime(intra_op_num_threads=...)</code> sets another thread count, and the adapter's <code>execution_device()</code> (also in <code>get_info()</code>) reports <code>device</code>, <code>reason</code>, <code>providers</code> and <code>threads</code>.</li>
 <li>
 <p><strong>OmniVoice notes</strong>:</p>
 <ul>
@@ -1847,8 +1847,11 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <li>
 <p><strong>Behavior note</strong>: streamed delivery is implemented as a pipeline:</p>
 <ul>
-<li><strong>text</strong> is chunked into short segments (sentence-first),</li>
-<li>then each segment is synthesized and enqueued as soon as possible.</li>
+<li><strong>text</strong> is chunked into short segments (sentence-first): the first segment is one short sentence or
+  clause of at most 60 characters, so the first audio arrives quickly; later segments pack whole sentences
+  up to 240 characters (or the engine's own limit when smaller),</li>
+<li>then each segment is synthesized and enqueued as soon as possible, so later segments are synthesized
+  while the first one plays.</li>
 <li>Engines that can stream audio natively may further reduce TTFB by yielding multiple audio chunks per segment.</li>
 </ul>
 </li>
@@ -2222,6 +2225,9 @@ actionable error instead of silently pretending cloning is standardized.</p>
 <ul>
 <li><code>pop_last_tts_metrics() -&gt; dict | None</code></li>
 <li>Best-effort last-utterance stats used by the REPL verbose mode.</li>
+<li>Streamed synthesis (<code>speak_to_audio_chunks(...)</code>) records <code>engine</code>, <code>ttfb_s</code>, <code>synth_s</code>, <code>audio_s</code>, <code>rtf</code>,
+    <code>chunks</code>, <code>segments</code>, <code>segment_max_chars</code>, <code>first_segment_max_chars</code> and, for engines that report it,
+    <code>device</code> (<code>cpu</code> or <code>coreml</code> for Supertonic) with <code>device_reason</code> when synthesis runs on the CPU.</li>
 </ul>
 <h2 id="callbacks-hooks">Callbacks &amp; hooks<a class="headerlink" href="#callbacks-hooks" title="Permanent link">&para;</a></h2>
 <ul>
