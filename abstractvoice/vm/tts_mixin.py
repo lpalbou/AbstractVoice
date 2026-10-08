@@ -43,6 +43,9 @@ def _resolve_sanitize_syntax_arg(
 STREAM_FIRST_SEGMENT_MAX_CHARS = 60
 
 
+from .stt_mixin import _stt_device  # noqa: E402  (where a local STT engine runs, and why)
+
+
 def _adapter_device(adapter) -> dict:
     """`device` / `device_reason` of an adapter that reports them (else nothing)."""
     fn = getattr(adapter, "execution_device", None)
@@ -761,6 +764,7 @@ class TtsMixin:
                             "resident": True,
                             "local": True,
                             "unloadable": True,
+                            **_stt_device(stt_adapter),
                         }
                     )
 

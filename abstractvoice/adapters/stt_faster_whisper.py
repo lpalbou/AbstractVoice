@@ -45,6 +45,9 @@ class FasterWhisperAdapter(STTAdapter):
         'medium': {'params': '769M', 'speed': 'slow', 'accuracy': 'high'},
         'large-v2': {'params': '1550M', 'speed': 'very_slow', 'accuracy': 'best'},
         'large-v3': {'params': '1550M', 'speed': 'very_slow', 'accuracy': 'best'},
+        # faster-whisper's own table maps it to mobiuslabsgmbh/faster-whisper-large-v3-turbo
+        # (1.62 GB). Offered, never the default.
+        'large-v3-turbo': {'params': '809M', 'speed': 'medium', 'accuracy': 'high'},
     }
 
     # Friendly aliases (kept intentionally small).
@@ -52,6 +55,7 @@ class FasterWhisperAdapter(STTAdapter):
     # is typically best mapped to the latest `large-v3`.
     _MODEL_ALIASES = {
         "large": "large-v3",
+        "turbo": "large-v3-turbo",
     }
 
     @classmethod
@@ -77,9 +81,12 @@ class FasterWhisperAdapter(STTAdapter):
         
         Args:
             model_size: Model size ('tiny', 'base', 'small', 'medium', 'large-v2', 'large-v3')
-            device: Device to run on ('cpu', 'cuda', 'auto')
-            compute_type: Computation type ('int8', 'float16', 'float32')
-                         int8 provides 60% memory reduction with minimal accuracy loss
+            device: Device to run on ('cpu', 'cuda', 'auto'). 'auto' (and an explicit 'cuda')
+                go through `resolve_faster_whisper_device`: CUDA when it really works here,
+                else the CPU with the reason recorded (`execution_device()`, `get_info()`).
+            compute_type: Computation type ('int8', 'float16', 'float32', ...), or 'auto' for
+                the best type the chosen device supports (int8_float16 on most NVIDIA GPUs,
+                int8 on the CPU).
         """
         self.engine_id = self.ENGINE_ID
         self.provider = self.ENGINE_ID
@@ -90,6 +97,8 @@ class FasterWhisperAdapter(STTAdapter):
         self._model_size = model_size
         self._device = device
         self._compute_type = compute_type
+        self._device_reason: Optional[str] = None
+        self._device_refused = False
         self._current_language = None
         self._allow_downloads = bool(allow_downloads)
         
@@ -148,10 +157,7 @@ class FasterWhisperAdapter(STTAdapter):
             model_size = raw
         
         try:
-            from ..compute import best_faster_whisper_device
-
-            if device == "auto":
-                device = best_faster_whisper_device()
+            device, compute_type = self._resolve_device(device, compute_type)
 
             meta = self.MODELS.get(str(model_size).strip().lower())
             params = meta.get("params") if isinstance(meta, dict) else None
@@ -179,14 +185,15 @@ class FasterWhisperAdapter(STTAdapter):
                         "ignore",
                         message=r"^You are sending unauthenticated requests to the HF Hub\\..*",
                     )
-                    self._model = self._WhisperModel(
-                        model_size,
-                        device=device,
-                        compute_type=compute_type,
-                        download_root=None,  # Use default cache (~/.cache/huggingface)
-                        local_files_only=bool(not self._allow_downloads),
-                        use_auth_token=False if not self._allow_downloads else None,
-                    )
+                    try:
+                        self._model = self._construct(model_size, device, compute_type)
+                    except Exception as exc:
+                        if device != "cuda":
+                            raise
+                        # CUDA failed to load (a missing/mismatched CUDA library, out of GPU
+                        # memory): run on the CPU and record why, never fail silently.
+                        device, compute_type = self._fall_back_to_cpu(f"loading on CUDA failed ({exc})")
+                        self._model = self._construct(model_size, device, compute_type)
             finally:
                 if not self._allow_downloads:
                     if old_offline is None:
@@ -220,6 +227,83 @@ class FasterWhisperAdapter(STTAdapter):
                 # Offline mode: model might simply not be cached locally.
                 logger.info(f"ℹ️ Faster-Whisper model '{model_size}' not available locally (offline mode).")
             return False
+
+    def _construct(self, model_size: str, device: str, compute_type: str):
+        return self._WhisperModel(
+            model_size,
+            device=device,
+            compute_type=compute_type,
+            download_root=None,  # Use default cache (~/.cache/huggingface)
+            local_files_only=bool(not self._allow_downloads),
+            use_auth_token=False if not self._allow_downloads else None,
+        )
+
+    def _resolve_device(self, device: str, compute_type: str) -> tuple[str, str]:
+        """('auto'|'cuda'|'cpu', type|'auto') -> the device and compute type to load with.
+
+        Records `_device_reason` (why not a GPU) and `_device_refused` (an explicit 'cuda'
+        that cannot run here) from `resolve_faster_whisper_device`."""
+
+        from ..compute.device import resolve_faster_whisper_device
+
+        want = str(device or "auto").strip().lower() or "auto"
+        if want == "cpu":
+            choice = resolve_faster_whisper_device("cpu")
+            self._device_reason = (
+                "CTranslate2 (faster-whisper) has no Apple GPU backend, so Whisper runs on the processor; "
+                "mlx-whisper runs it on the Apple GPU"
+                if sys.platform == "darwin"
+                else "the processor was requested"
+            )
+            self._device_refused = False
+        else:
+            choice = resolve_faster_whisper_device(None if want == "auto" else want)
+            self._device_reason = choice.reason
+            self._device_refused = bool(choice.refused)
+        chosen_type = str(compute_type or "auto").strip().lower() or "auto"
+        if chosen_type == "auto" or (choice.device != want and want != "auto"):
+            # 'auto', or the requested device was refused: its compute type may not exist here.
+            chosen_type = choice.compute_type
+        elif choice.device == "cpu" and chosen_type in {"float16", "int8_float16", "bfloat16", "int8_bfloat16"}:
+            chosen_type = choice.compute_type
+        return choice.device, chosen_type
+
+    def _fall_back_to_cpu(self, why: str) -> tuple[str, str]:
+        from ..compute.device import resolve_faster_whisper_device
+
+        cpu = resolve_faster_whisper_device("cpu")
+        self._device_reason = f"{why}; running on the processor"
+        logger.warning("faster-whisper: %s", self._device_reason)
+        self._device, self._compute_type = cpu.device, cpu.compute_type
+        return cpu.device, cpu.compute_type
+
+    def _run(self, audio: Any, **kwargs: Any):
+        """`WhisperModel.transcribe` with the segments materialised (decoding happens while
+        they are iterated). A CUDA failure at run time (cuDNN/cuBLAS that loads lazily, GPU
+        out of memory) reloads the model on the CPU, records why, and retries once."""
+
+        try:
+            segments, info = self._model.transcribe(audio, **kwargs)
+            return list(segments), info
+        except Exception as exc:
+            if str(self._device) != "cuda":
+                raise
+            device, compute_type = self._fall_back_to_cpu(f"transcribing on CUDA failed ({exc})")
+            self._model = self._construct(str(self._model_size), device, compute_type)
+            if hasattr(audio, "seek"):
+                audio.seek(0)
+            segments, info = self._model.transcribe(audio, **kwargs)
+            return list(segments), info
+
+    def execution_device(self) -> Dict[str, Any]:
+        """`{device, compute_type, reason, refused}`: where Whisper runs and why not on a GPU."""
+
+        return {
+            "device": self._device,
+            "compute_type": self._compute_type,
+            "reason": self._device_reason,
+            "refused": bool(self._device_refused),
+        }
 
     def unload(self) -> None:
         """Best-effort release of the loaded model to free memory."""
@@ -263,7 +347,7 @@ class FasterWhisperAdapter(STTAdapter):
                 warnings.filterwarnings("ignore", category=RuntimeWarning, message=r".*encountered in matmul.*")
 
                 # Transcribe with faster-whisper
-                segments, info = self._model.transcribe(
+                segments, info = self._run(
                     audio_path,
                     language=language,
                     beam_size=5,
@@ -373,7 +457,7 @@ class FasterWhisperAdapter(STTAdapter):
                 # (e.g. stop-phrase detection) to override for speed.
                 beam = int(beam_size) if beam_size is not None else 5
                 best = int(best_of) if best_of is not None else 5
-                segments, info = self._model.transcribe(
+                segments, info = self._run(
                     x,
                     language=language,
                     beam_size=beam,
@@ -496,11 +580,11 @@ class FasterWhisperAdapter(STTAdapter):
                           f"{self.MODELS.get(self._model_size, {}).get('accuracy', 'unknown')} accuracy",
             'memory_optimization': 'INT8 quantization' if self._compute_type == 'int8' else None
         })
-        if sys.platform == "darwin" and str(self._device or "cpu") in {"cpu", "auto"}:
-            # Round 6 (measured, M5 Max): large-v3 int8 takes ~26-35 s for a
-            # 3.6 s clip (about half of it language detection), small ~4 s, base ~2 s.
-            info['device_reason'] = (
-                "CPU: CTranslate2 (faster-whisper) has no Apple GPU backend; large models are slow here "
-                "(large-v3 ~30 s for a 4 s clip) — name the spoken language or pick a smaller model"
-            )
+        if self._device_reason:
+            # Why Whisper is not on a GPU (no CUDA, a missing CUDA library, a refused request, a
+            # CUDA failure that fell back to the CPU; on macOS: CTranslate2 has no Apple GPU
+            # backend -- mlx-whisper is the Apple GPU engine).
+            info['device_reason'] = self._device_reason
+        if self._device_refused:
+            info['device_refused'] = True
         return info

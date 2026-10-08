@@ -51,6 +51,8 @@ apple = [
     "piper-tts>=1.2.0",
     "onnxruntime>=1.19.0",
     "faster-whisper>=0.10.0",
+    # Whisper on the Apple GPU (MLX); faster-whisper (CTranslate2) has no Apple GPU backend.
+    "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
@@ -83,6 +85,11 @@ gpu = [
     # it (and CUDA 13 cuBLAS has no Windows wheel). Framework backlogs 0988/0989.
     "nvidia-cublas-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
     "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
+    # cuDNN 9 for CUDA 12: CTranslate2 runs the Whisper encoder's convolutions through it on the
+    # GPU; torch's CUDA 13 build carries cuDNN for CUDA 13 only (round 16).
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
+    # Same profile on an Apple Silicon Mac: Whisper on its GPU (MLX). No-op elsewhere.
+    "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
@@ -198,6 +205,15 @@ stt = [
     "soundfile>=0.12.1",
 ]
 
+# Whisper on the Apple GPU (MLX): the `mlx-whisper` speech-to-text engine. Apple Silicon only;
+# the apple / all-apple profiles carry it.
+stt-mlx = [
+    "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "huggingface_hub>=0.20.0",
+    "av>=11.0.0,<19",
+    "soundfile>=0.12.1",
+]
+
 # Local Speech-to-Text functionality (Transformers-based Hugging Face models).
 stt-hf = [
     "soundfile>=0.12.1",
@@ -224,6 +240,8 @@ all-apple = [
     "piper-tts>=1.2.0",
     "onnxruntime>=1.19.0",
     "faster-whisper>=0.10.0",
+    # Whisper on the Apple GPU (MLX); faster-whisper (CTranslate2) has no Apple GPU backend.
+    "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
@@ -259,6 +277,11 @@ all-gpu = [
     # it (and CUDA 13 cuBLAS has no Windows wheel). Framework backlogs 0988/0989.
     "nvidia-cublas-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
     "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
+    # cuDNN 9 for CUDA 12: CTranslate2 runs the Whisper encoder's convolutions through it on the
+    # GPU; torch's CUDA 13 build carries cuDNN for CUDA 13 only (round 16).
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
+    # Same profile on an Apple Silicon Mac: Whisper on its GPU (MLX). No-op elsewhere.
+    "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",

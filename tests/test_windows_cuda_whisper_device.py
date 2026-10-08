@@ -22,6 +22,7 @@ def wc(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(windows_cuda, "_prepared", None)
     monkeypatch.setattr(windows_cuda, "_cublas12", None)
+    monkeypatch.setattr(windows_cuda, "_cudnn9", None)
     monkeypatch.setattr(windows_cuda, "_handles", [])
     monkeypatch.delenv("ABSTRACTVOICE_WHISPER_DEVICE", raising=False)
     return windows_cuda
@@ -43,9 +44,21 @@ def _fake_nvidia(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, libs=("cublas"
     return bins
 
 
-def _fake_ctranslate2(monkeypatch: pytest.MonkeyPatch, cuda_devices: int) -> None:
+CUDA_TYPES = {"float32", "int8", "int8_float32", "int8_float16", "float16", "bfloat16", "int8_bfloat16"}
+
+
+def _fake_ctranslate2(monkeypatch: pytest.MonkeyPatch, cuda_devices: int, cuda_types=CUDA_TYPES) -> None:
     module = types.ModuleType("ctranslate2")
     module.get_cuda_device_count = lambda: cuda_devices  # type: ignore[attr-defined]
+
+    def supported(device, index=0):
+        if device == "cpu":
+            return {"int8", "int8_float32", "float32"}
+        if device == "cuda" and cuda_devices > 0:
+            return set(cuda_types)
+        raise ValueError("This CTranslate2 package was not compiled with CUDA support")
+
+    module.get_supported_compute_types = supported  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "ctranslate2", module)
 
 
@@ -72,7 +85,7 @@ def test_windows_cuda_with_cublas12_picks_cuda_and_puts_the_wheel_bins_on_the_dl
 
     bins = _fake_nvidia(tmp_path, monkeypatch)
     _fake_ctranslate2(monkeypatch, cuda_devices=1)
-    added = _simulate_windows(monkeypatch, loadable={"cublas64_12.dll"})
+    added = _simulate_windows(monkeypatch, loadable={"cublas64_12.dll", "cudnn_ops64_9.dll"})
 
     assert best_faster_whisper_device() == "cuda"
     assert added == [str(b) for b in bins]
@@ -101,12 +114,29 @@ def test_windows_without_cuda_stays_on_cpu_without_probing_cublas(wc, monkeypatc
     assert wc._cublas12 is None
 
 
-def test_forced_device_is_honoured_on_windows(wc, monkeypatch) -> None:
-    from abstractvoice.compute.device import best_faster_whisper_device
+def test_forced_cuda_without_a_usable_cuda_is_refused_with_a_reason(wc, monkeypatch) -> None:
+    # Round 16: ABSTRACTVOICE_WHISPER_DEVICE=cuda used to be returned as is, so a host without a
+    # working CUDA failed to load the model (no STT at all). Now: the CPU, refused, said why.
+    from abstractvoice.compute.device import best_faster_whisper_device, resolve_faster_whisper_device
 
+    _fake_ctranslate2(monkeypatch, cuda_devices=1)
     _simulate_windows(monkeypatch, loadable=set())
     monkeypatch.setenv("ABSTRACTVOICE_WHISPER_DEVICE", "cuda:0")
-    assert best_faster_whisper_device() == "cuda"
+    choice = resolve_faster_whisper_device()
+    assert (choice.device, choice.compute_type, choice.refused, choice.requested) == ("cpu", "int8", True, "cuda")
+    assert choice.reason.startswith("ABSTRACTVOICE_WHISPER_DEVICE=cuda:0 refused:")
+    assert "cublas64_12.dll" in choice.reason
+    assert best_faster_whisper_device() == "cpu"
+
+
+def test_forced_cuda_with_a_usable_cuda_is_honoured(wc, monkeypatch) -> None:
+    from abstractvoice.compute.device import resolve_faster_whisper_device
+
+    _fake_ctranslate2(monkeypatch, cuda_devices=1)
+    _simulate_windows(monkeypatch, loadable={"cublas64_12.dll", "cudnn_ops64_9.dll"})
+    monkeypatch.setenv("ABSTRACTVOICE_WHISPER_DEVICE", "cuda")
+    choice = resolve_faster_whisper_device()
+    assert (choice.device, choice.compute_type, choice.refused, choice.reason) == ("cuda", "int8_float16", False, None)
 
 
 def test_macos_nothing_is_added_and_cublas_is_not_probed(wc, tmp_path, monkeypatch) -> None:
@@ -179,7 +209,11 @@ def test_linux_preloads_cuda12_runtime_and_cublas_from_the_nvidia_wheels_then_pi
     root = _fake_nvidia_linux(
         tmp_path,
         monkeypatch,
-        {"cuda_runtime": ["libcudart.so.12"], "cublas": ["libcublasLt.so.12", "libcublas.so.12"]},
+        {
+            "cuda_runtime": ["libcudart.so.12"],
+            "cublas": ["libcublasLt.so.12", "libcublas.so.12"],
+            "cudnn": ["libcudnn.so.9"],
+        },
     )
     _fake_ctranslate2(monkeypatch, cuda_devices=1)
     loads = _simulate_linux(monkeypatch, loadable_names=set())
@@ -191,6 +225,7 @@ def test_linux_preloads_cuda12_runtime_and_cublas_from_the_nvidia_wheels_then_pi
         str(root / "cuda_runtime" / "lib" / "libcudart.so.12"),
         str(root / "cublas" / "lib" / "libcublasLt.so.12"),
         str(root / "cublas" / "lib" / "libcublas.so.12"),
+        str(root / "cudnn" / "lib" / "libcudnn.so.9"),
     ]
     assert all(m == ctypes.RTLD_GLOBAL for _, m in preloads)
     assert ("libcublas.so.12", 0) in loads
@@ -217,10 +252,10 @@ def test_linux_with_a_system_cublas12_picks_cuda_without_wheels(wc, monkeypatch)
         importlib.util, "find_spec", lambda name, *a, **k: None if name == "nvidia" else real_find_spec(name, *a, **k)
     )
     _fake_ctranslate2(monkeypatch, cuda_devices=1)
-    loads = _simulate_linux(monkeypatch, loadable_names={"libcublas.so.12"})
+    loads = _simulate_linux(monkeypatch, loadable_names={"libcublas.so.12", "libcudnn.so.9"})
 
     assert best_faster_whisper_device() == "cuda"
-    assert [n for n, _ in loads] == ["libcublas.so.12"]
+    assert [n for n, _ in loads] == ["libcublas.so.12", "libcudnn.so.9"]
 
 
 def test_linux_without_cuda_stays_on_cpu_without_probing_cublas(wc, monkeypatch) -> None:

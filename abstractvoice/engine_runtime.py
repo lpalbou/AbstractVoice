@@ -73,6 +73,8 @@ _ENGINES: Dict[str, _EngineRequirement] = {
     "f5_tts": _EngineRequirement("OpenF5 (F5-TTS)", ("cloning",), (("f5_tts",),), "cloning"),
     "chroma": _EngineRequirement("Chroma", ("cloning",), (("torch",), ("transformers",)), "chroma"),
     "faster-whisper": _EngineRequirement("faster-whisper", ("stt",), (("faster_whisper",),), "stt"),
+    # Whisper on the Apple GPU (MLX); Apple Silicon only (abstractvoice[apple] carries it there).
+    "mlx-whisper": _EngineRequirement("mlx-whisper (Apple GPU)", ("stt",), (("mlx_whisper",),), "stt-mlx"),
     "transformers-asr": _EngineRequirement(
         "Transformers ASR (Whisper, Qwen3-ASR)",
         ("stt",),

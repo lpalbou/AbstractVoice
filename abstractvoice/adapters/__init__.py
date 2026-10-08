@@ -14,6 +14,7 @@ __all__ = [
     'SupertonicTTSAdapter',
     'FasterWhisperAdapter',
     'TransformersASRAdapter',
+    'MLXWhisperAdapter',
     'OpenAICompatibleTTSAdapter',
     'OpenAICompatibleSTTAdapter',
 ]
@@ -32,6 +33,10 @@ def __getattr__(name: str):
         from .stt_faster_whisper import FasterWhisperAdapter
 
         return FasterWhisperAdapter
+    if name == "MLXWhisperAdapter":
+        from .stt_mlx_whisper import MLXWhisperAdapter
+
+        return MLXWhisperAdapter
     if name == "TransformersASRAdapter":
         from .stt_transformers_asr import TransformersASRAdapter
 

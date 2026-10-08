@@ -7,6 +7,30 @@ from typing import Optional
 from .common import import_voice_recognizer, remote_endpoint_kwargs
 
 
+
+def _stt_device(adapter) -> dict:
+    """`device` / `device_reason` / `compute_type` of a local STT adapter that reports them.
+
+    Where Whisper runs, and why not on a GPU (no CUDA, a missing CUDA library, a refused
+    ABSTRACTVOICE_WHISPER_DEVICE, a CUDA failure that fell back to the CPU). Metadata only:
+    never breaks the call it describes."""
+
+    fn = getattr(adapter, "execution_device", None)
+    if not callable(fn):
+        return {}
+    try:
+        info = dict(fn() or {})
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {"device": info.get("device")}
+    if info.get("compute_type"):
+        out["compute_type"] = info.get("compute_type")
+    if info.get("reason"):
+        out["device_reason"] = info.get("reason")
+    if info.get("refused"):
+        out["device_refused"] = True
+    return out
+
 class SttMixin:
     def preload_stt_engine(
         self,
@@ -89,6 +113,7 @@ class SttMixin:
             "unloadable": True,
             "warmed": bool(warm_ok),
             "warm_error": warm_error,
+            **_stt_device(adapter),
         }
 
     def unload_stt_engine(self) -> dict:
@@ -276,23 +301,40 @@ class SttMixin:
                     ) from e
                 return None
 
+        if pref == "mlx_whisper":
+            try:
+                from ..adapters.stt_mlx_whisper import MLXWhisperAdapter
+            except Exception as e:  # pragma: no cover - the module imports numpy only
+                raise RuntimeError(f"Local STT engine 'mlx-whisper' could not be imported: {e}") from e
+            model_id = getattr(self, "stt_model", None) or getattr(self, "whisper_model", None)
+            self.stt_adapter = MLXWhisperAdapter(
+                model_size=str(model_id or MLXWhisperAdapter.DEFAULT_MODEL),
+                allow_downloads=bool(getattr(self, "allow_downloads", True)),
+                language=getattr(self, "language", None),
+            )
+            if self.stt_adapter.is_available():
+                return self.stt_adapter
+            reason = self.stt_adapter.get_unavailable_reason()
+            self.stt_adapter = None
+            raise RuntimeError(
+                f"Local STT engine 'mlx-whisper' is not available: {reason}\n"
+                "Install with:\n"
+                "  pip install \"abstractvoice[stt-mlx]\"\n"
+                "  pip install \"abstractvoice[apple]\"  # Apple profile"
+            )
+
         if pref not in ("auto", "faster_whisper", "faster-whisper"):
             return None
 
         try:
-            from ..compute import best_faster_whisper_device
             from ..adapters.stt_faster_whisper import FasterWhisperAdapter
 
-            device = str(best_faster_whisper_device() or "cpu").strip().lower() or "cpu"
-            # Reasonable default mapping:
-            # - CPU: INT8 (fast, low memory)
-            # - CUDA: INT8 weights + FP16 compute (good speed/memory balance)
-            compute_type = "int8_float16" if device == "cuda" else "int8"
-
+            # device/compute "auto": CUDA with the best compute type the GPU supports when CUDA
+            # really works here, else the CPU (int8) with the reason recorded on the adapter.
             self.stt_adapter = FasterWhisperAdapter(
                 model_size=self.whisper_model,
-                device=device,
-                compute_type=compute_type,
+                device="auto",
+                compute_type="auto",
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
             )
             if self.stt_adapter.is_available():
@@ -321,6 +363,10 @@ class SttMixin:
         ).strip().lower().replace("-", "_")
         if pref in {"faster_whisper", "whisper", "local"} or adapter_engine in {"faster_whisper", "whisper", "local"}:
             self.stt_adapter = None
+        elif pref == "mlx_whisper" or adapter_engine == "mlx_whisper":
+            # Same model ids; the MLX adapter switches its weights on the next call.
+            if adapter is not None:
+                adapter.model_id = str(model_name)
         if self.voice_recognizer:
             return self.voice_recognizer.change_whisper_model(model_name)
         return self.whisper_model
@@ -358,6 +404,7 @@ class SttMixin:
                 "transformers",
                 "hf_asr",
                 "hf",
+                "mlx_whisper",
             ):
                 stt_adapter = self._get_stt_adapter()
 

@@ -332,6 +332,14 @@ def _norm_engine_id(value: Any) -> str:
     return text
 
 
+# Local speech-to-text engines (AbstractVoice adapters), in display order. ONE list: every
+# place that asks "is this a local STT engine" reads it (round 16 added mlx-whisper).
+_LOCAL_STT_ENGINES: tuple[str, ...] = ("faster-whisper", "mlx-whisper", "transformers-asr")
+# Local engines whose model ids are Whisper's short names (tiny ... large-v3, large-v3-turbo).
+_WHISPER_ID_STT_ENGINES: frozenset[str] = frozenset({"faster-whisper", "mlx-whisper"})
+_STT_PROVIDER_ORDER: list[str] = ["openai", "openai-compatible", *_LOCAL_STT_ENGINES]
+
+
 def _engine_aliases(value: Any) -> set[str]:
     engine = _norm_engine_id(value)
     if not engine:
@@ -388,10 +396,7 @@ def _known_tts_provider_ids() -> list[str]:
 
 
 def _known_stt_provider_ids() -> list[str]:
-    return _ordered_provider_ids(
-        ["openai", "openai-compatible", "faster-whisper", "transformers-asr"],
-        ["openai", "openai-compatible", "faster-whisper", "transformers-asr"],
-    )
+    return _ordered_provider_ids(list(_STT_PROVIDER_ORDER), _STT_PROVIDER_ORDER)
 
 
 def _selectable_stt_model_ids(adapter_cls: Any, *, fallback: list[str]) -> list[str]:
@@ -424,6 +429,11 @@ def _stt_model_ids_for_provider(provider: Any) -> list[str]:
             )
         except Exception:
             return _dedupe_strings(["tiny", "base", "small", "medium", "large-v2", "large-v3", "large"])
+
+    if normalized == "mlx-whisper":
+        from ..adapters.stt_mlx_whisper import MLXWhisperAdapter
+
+        return _selectable_stt_model_ids(MLXWhisperAdapter, fallback=[])
 
     if normalized in {"transformers-asr", "transformers_asr", "hf", "hf-asr"}:
         try:
@@ -686,9 +696,7 @@ def _local_tts_engine_available(engine: Any, extra_candidates: Any = ()) -> bool
 
 def _local_stt_engine_available(engine: Any) -> bool:
     normalized = _norm_engine_id(engine)
-    if normalized == "faster-whisper":
-        return bool(_runtime_installed("stt", normalized))
-    if normalized == "transformers-asr":
+    if normalized in _LOCAL_STT_ENGINES:
         return bool(_runtime_installed("stt", normalized))
     return False
 
@@ -885,14 +893,11 @@ def _extract_stt_model_ids(vm: Any) -> list[str]:
     )
     if engine in {"openai", "openai-compatible", "remote"}:
         model_ids.extend(["gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"])
-    if engine in {"faster_whisper", "faster-whisper", "whisper", "local"} and (
-        live_local_provider == "faster-whisper" or _local_stt_engine_available("faster-whisper")
-    ):
-        model_ids.extend(_stt_model_ids_for_provider("faster-whisper"))
-    if engine in {"transformers-asr", "transformers_asr", "hf", "hf-asr"} and (
-        live_local_provider == "transformers-asr" or _local_stt_engine_available("transformers-asr")
-    ):
-        model_ids.extend(_stt_model_ids_for_provider("transformers-asr"))
+    for local_engine in _LOCAL_STT_ENGINES:
+        if _norm_compat_provider_id("stt", engine) == local_engine and (
+            live_local_provider == local_engine or _local_stt_engine_available(local_engine)
+        ):
+            model_ids.extend(_stt_model_ids_for_provider(local_engine))
     return _dedupe_strings(model_ids)
 
 
@@ -955,7 +960,7 @@ def _current_stt_model_ids(vm: Any) -> list[str]:
         or getattr(vm, "_stt_engine_name", None)
         or getattr(vm, "_stt_engine_preference", None)
         or getattr(vm, "stt_engine", None)
-    ) in {"faster-whisper", "faster_whisper", "whisper", "local"}:
+    ) in {"faster-whisper", "faster_whisper", "whisper", "local", "mlx-whisper"}:
         whisper_model = getattr(vm, "whisper_model", None)
         if isinstance(whisper_model, str) and whisper_model.strip():
             model_ids.append(whisper_model.strip())
@@ -2452,7 +2457,7 @@ class _BaseVoice:
 
     def _active_local_stt_provider_is_live(self, provider: Any) -> bool:
         provider_id = _norm_engine_id(provider)
-        if provider_id not in {"faster-whisper", "transformers-asr"}:
+        if provider_id not in _LOCAL_STT_ENGINES:
             return False
         vm = self._vm
         try:
@@ -2494,7 +2499,7 @@ class _BaseVoice:
         active_provider = self._active_vm_provider_id(kind="stt")
         if active_provider in {"openai", "openai-compatible"}:
             providers.append(active_provider)
-        elif active_provider in {"faster-whisper", "transformers-asr"}:
+        elif active_provider in _LOCAL_STT_ENGINES:
             if _local_stt_engine_available(active_provider) or self._active_local_stt_provider_is_live(active_provider):
                 providers.append(active_provider)
         elif active_provider in _known_stt_provider_ids():
@@ -2503,11 +2508,10 @@ class _BaseVoice:
             providers.append("openai")
         if self._openai_compatible_provider_available():
             providers.append("openai-compatible")
-        if _local_stt_engine_available("faster-whisper"):
-            providers.append("faster-whisper")
-        if _local_stt_engine_available("transformers-asr"):
-            providers.append("transformers-asr")
-        return _ordered_provider_ids(providers, ["openai", "openai-compatible", "faster-whisper", "transformers-asr"])
+        for local_engine in _LOCAL_STT_ENGINES:
+            if _local_stt_engine_available(local_engine):
+                providers.append(local_engine)
+        return _ordered_provider_ids(providers, _STT_PROVIDER_ORDER)
 
     def _available_cloning_provider_ids(self) -> list[str]:
         providers: list[str] = []
@@ -2560,7 +2564,7 @@ class _BaseVoice:
         }
         local = {
             "tts": [_norm_engine_id(engine) for engine in _local_tts_engines()],
-            "stt": ["faster-whisper", "transformers-asr"],
+            "stt": list(_LOCAL_STT_ENGINES),
             "cloning": ["omnivoice", "f5_tts", "chroma", "audiodit", "qwen3-tts"],
         }
         out: Dict[str, Dict[str, Dict[str, Any]]] = {}
@@ -2808,7 +2812,7 @@ class _BaseVoice:
             override_cfg["voice_tts_model"] = tts_model.strip()
         if isinstance(stt_model, str) and stt_model.strip():
             override_cfg["voice_stt_model"] = stt_model.strip()
-            if stt_engine in {"faster-whisper", "faster_whisper", "whisper", "local"}:
+            if stt_engine in {"faster-whisper", "faster_whisper", "whisper", "local", "mlx-whisper", "mlx_whisper"}:
                 override_cfg["voice_whisper_model"] = stt_model.strip()
         if remote_timeout_s is not None:
             # Shorten only: an operator who configured a tighter budget meant it.
@@ -3390,7 +3394,7 @@ class _VoiceCapability(_BaseVoice):
                     pass
                 model_ids.extend(self._configured_stt_model_ids(provider_id))
                 return _dedupe_strings(model_ids)
-            if provider_id in {"faster-whisper", "transformers-asr"}:
+            if provider_id in _LOCAL_STT_ENGINES:
                 model_ids: list[str] = []
                 model_ids.extend(self._configured_stt_model_ids(provider_id))
                 model_ids.extend(_stt_model_ids_for_provider(provider_id))
@@ -3410,10 +3414,9 @@ class _VoiceCapability(_BaseVoice):
             pass
         for engine in self._configured_remote_stt_engines():
             model_ids.extend(self._configured_stt_model_ids(engine))
-        if _local_stt_engine_available("faster-whisper") or self._active_local_stt_provider_is_live("faster-whisper"):
-            model_ids.extend(_stt_model_ids_for_provider("faster-whisper"))
-        if _local_stt_engine_available("transformers-asr") or self._active_local_stt_provider_is_live("transformers-asr"):
-            model_ids.extend(_stt_model_ids_for_provider("transformers-asr"))
+        for local_engine in _LOCAL_STT_ENGINES:
+            if _local_stt_engine_available(local_engine) or self._active_local_stt_provider_is_live(local_engine):
+                model_ids.extend(_stt_model_ids_for_provider(local_engine))
         return _dedupe_strings(model_ids)
 
     def list_cloning_models(self, provider: Optional[str] = None) -> list[str]:
@@ -3843,11 +3846,11 @@ class _VoiceCapability(_BaseVoice):
         stt_providers = [
             provider
             for provider in stt_providers
-            if _norm_engine_id(provider) not in {"faster-whisper", "transformers-asr"}
+            if _norm_engine_id(provider) not in _LOCAL_STT_ENGINES
             or _norm_engine_id(provider) in available_stt_provider_ids
             or _norm_engine_id(provider) == live_local_stt_provider
         ]
-        for local_stt_provider in ("faster-whisper", "transformers-asr"):
+        for local_stt_provider in _LOCAL_STT_ENGINES:
             if local_stt_provider not in available_stt_provider_ids:
                 continue
             stt_providers.append(local_stt_provider)
@@ -4006,12 +4009,10 @@ class _VoiceCapability(_BaseVoice):
             provider = _norm_engine_id(engine)
             for model_id in self._configured_stt_model_ids(engine):
                 _add_provider_value(stt_models_by_provider, provider, model_id)
-        if "faster-whisper" in stt_providers:
-            for model_id in _stt_model_ids_for_provider("faster-whisper"):
-                _add_provider_value(stt_models_by_provider, "faster-whisper", model_id)
-        if "transformers-asr" in stt_providers:
-            for model_id in _stt_model_ids_for_provider("transformers-asr"):
-                _add_provider_value(stt_models_by_provider, "transformers-asr", model_id)
+        for local_engine in _LOCAL_STT_ENGINES:
+            if local_engine in stt_providers:
+                for model_id in _stt_model_ids_for_provider(local_engine):
+                    _add_provider_value(stt_models_by_provider, local_engine, model_id)
 
         for provider, model_ids in list(tts_models_by_provider.items()):
             tts_models_by_provider[provider] = _order_like(model_ids, tts_models)
@@ -4825,7 +4826,7 @@ class _AudioCapability(_BaseVoice):
             normalized_provider = _norm_engine_id(provider_name)
             if normalized_provider in {"openai", "openai-compatible"}:
                 model_ids.extend(self._configured_stt_model_ids(normalized_provider))
-            elif normalized_provider in {"faster-whisper", "transformers-asr"}:
+            elif normalized_provider in _LOCAL_STT_ENGINES:
                 model_ids.extend(self._configured_stt_model_ids(normalized_provider))
                 model_ids.extend(_stt_model_ids_for_provider(normalized_provider))
 
@@ -4933,6 +4934,9 @@ class _AudioCapability(_BaseVoice):
         details = {
             "warmed": bool(result.get("warmed", False)),
             "warm_error": result.get("warm_error"),
+            # Where the engine runs and why not on a GPU (faster-whisper: CUDA or the CPU with
+            # the reason; mlx-whisper: the Apple GPU).
+            **{k: result[k] for k in ("device", "compute_type", "device_reason", "device_refused") if k in result},
         }
         loaded = bool(result.get("resident", False))
         return self._engine_residency_entry(
@@ -4977,7 +4981,11 @@ class _AudioCapability(_BaseVoice):
                 if model and component_model_s and str(model).strip() and str(model).strip().lower() != "default":
                     if component_model_s.strip().lower() != str(model).strip().lower():
                         continue
-                details = {}
+                details = {
+                    k: component[k]
+                    for k in ("device", "compute_type", "device_reason", "device_refused")
+                    if component.get(k) is not None
+                }
                 if cache_key is not None:
                     details["cache_key"] = _json_safe(list(cache_key))
                 out.append(

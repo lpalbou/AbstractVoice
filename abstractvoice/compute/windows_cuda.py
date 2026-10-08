@@ -23,6 +23,10 @@ first GPU transcription otherwise (measured on a Linux + NVIDIA gpu install, fra
 from those folders with ``RTLD_GLOBAL`` (the way torch does), so a later load by name resolves to
 them, and `cublas12_available()` asks the loader whether ``libcublas.so.12`` loads.
 
+cuDNN 9 is the third library CTranslate2 needs on the GPU (the Whisper encoder's convolutions run
+through it): the extras add ``nvidia-cudnn-cu12`` on Windows and Linux, Linux preloads its
+dispatcher with the others, and `cudnn9_available()` checks it the same way (round 16).
+
 Everything here is a no-op off Windows and Linux and never imports torch or CTranslate2.
 """
 
@@ -40,6 +44,11 @@ logger = logging.getLogger(__name__)
 
 CUBLAS12_DLL = "cublas64_12.dll"
 CUBLAS12_SO = "libcublas.so.12"
+# cuDNN 9: CTranslate2 runs the Whisper encoder's convolutions through cuDNN on the GPU. Its
+# Windows wheel bundles only the dispatcher `cudnn64_9.dll`, which loads the operation library
+# below by name; on Linux the dispatcher itself is loaded by name.
+CUDNN9_DLL = "cudnn_ops64_9.dll"
+CUDNN9_SO = "libcudnn.so.9"
 # `site-packages/nvidia/<name>/bin` folders of the Windows CUDA 12 wheels.
 NVIDIA_CU12_LIBS = ("cublas", "cuda_runtime", "cudnn")
 # Linux: the CUDA 12 libraries CTranslate2 loads by name, in dependency order, and the
@@ -48,11 +57,14 @@ LINUX_CU12_PRELOAD = (
     ("cuda_runtime", "libcudart.so.12"),
     ("cublas", "libcublasLt.so.12"),
     ("cublas", "libcublas.so.12"),
+    # cuDNN 9 dispatcher (nvidia-cudnn-cu12); it finds its sub-libraries next to itself.
+    ("cudnn", "libcudnn.so.9"),
 )
 
 _prepared: Optional[List[str]] = None
 _handles: list = []
 _cublas12: Optional[bool] = None
+_cudnn9: Optional[bool] = None
 
 
 def _nvidia_roots() -> List[Path]:
@@ -171,6 +183,32 @@ def cublas12_available() -> bool:
                 name,
             )
     return bool(_cublas12)
+
+
+def cudnn9_available() -> bool:
+    """True when cuDNN 9 (``cudnn_ops64_9.dll`` / ``libcudnn.so.9``) loads in this process.
+
+    The Whisper encoder's convolutions need it when CTranslate2 runs on CUDA; without it the
+    first GPU transcription fails ("Could not load library libcudnn_ops.so.9"). Windows and
+    Linux only; True elsewhere. Cached after the first probe."""
+
+    global _cudnn9
+    if sys.platform == "win32":
+        name, load = CUDNN9_DLL, _load_library
+    elif sys.platform.startswith("linux"):
+        name, load = CUDNN9_SO, _load_shared_object
+    else:
+        return True
+    if _cudnn9 is None:
+        prepare_windows_cuda_dlls()
+        _cudnn9 = load(name)
+        if not _cudnn9:
+            logger.warning(
+                "faster-whisper runs on the CPU: CUDA was found but %s (cuDNN 9 for CUDA 12, needed by "
+                "the Whisper encoder on the GPU) does not load. Install AbstractVoice's gpu extra, which adds it.",
+                name,
+            )
+    return bool(_cudnn9)
 
 
 # The Windows-only name of `cublas12_available`, kept for callers of 0.13.x.

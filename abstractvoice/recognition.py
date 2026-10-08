@@ -152,13 +152,9 @@ class VoiceRecognizer:
             # Pick a reasonable compute type:
             # - CPU: INT8 weights (fast, low memory)
             # - CUDA: INT8 weights + FP16 compute (best speed/memory balance)
-            try:
-                from .compute.device import best_faster_whisper_device
-
-                _best = str(best_faster_whisper_device() or "cpu").strip().lower() or "cpu"
-                compute_type = "int8_float16" if _best == "cuda" else "int8"
-            except Exception:
-                compute_type = "int8"
+            # 'auto': CUDA with the GPU's best compute type when CUDA works here, else int8 on
+            # the CPU, with the reason recorded on the adapter.
+            compute_type = "auto"
             self.stt_adapter = STTAdapter(
                 model_size=whisper_model,
                 device="auto",
@@ -763,13 +759,9 @@ class VoiceRecognizer:
         try:
             # Recreate adapter to switch model size.
             STTAdapter = _import_transcriber()
-            try:
-                from .compute.device import best_faster_whisper_device
-
-                _best = str(best_faster_whisper_device() or "cpu").strip().lower() or "cpu"
-                compute_type = "int8_float16" if _best == "cuda" else "int8"
-            except Exception:
-                compute_type = "int8"
+            # 'auto': CUDA with the GPU's best compute type when CUDA works here, else int8 on
+            # the CPU, with the reason recorded on the adapter.
+            compute_type = "auto"
             self.stt_adapter = STTAdapter(
                 model_size=model_name,
                 device="auto",

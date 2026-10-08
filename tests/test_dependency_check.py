@@ -155,7 +155,23 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
 CUDA12_WHEELS = (
     "nvidia-cublas-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
     "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
+    # Round 16: cuDNN 9 for CUDA 12 (the Whisper encoder's convolutions on the GPU).
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
 )
+
+MLX_WHISPER = "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'"
+
+
+def test_apple_gpu_whisper_ships_with_every_local_profile_on_apple_silicon_only() -> None:
+    # Round 16: faster-whisper (CTranslate2) has no Apple GPU backend; mlx-whisper is the Apple
+    # GPU engine. Marked so no other platform resolves it.
+    extras = tomllib.loads(Path("pyproject.toml").read_text())["project"]["optional-dependencies"]
+    for name in ("stt-mlx", "apple", "all-apple", "gpu", "all-gpu"):
+        assert MLX_WHISPER in extras[name], name
+    for name, deps in extras.items():
+        for dep in deps:
+            if dep.startswith("mlx-whisper"):
+                assert dep == MLX_WHISPER, (name, dep)
 
 
 def test_gpu_profiles_add_cuda12_cublas_on_windows_and_linux_only() -> None:

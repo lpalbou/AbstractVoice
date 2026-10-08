@@ -15,6 +15,7 @@ import pkgutil
 from typing import Any, Iterable, Literal
 
 from .adapters.stt_faster_whisper import FasterWhisperAdapter
+from .adapters.stt_mlx_whisper import MLXWhisperAdapter
 from .adapters.stt_transformers_asr import TransformersASRAdapter
 from .adapters.tts_openai_compatible import _OPENAI_KNOWN_TTS_MODELS, _configured_tts_models
 from .adapters.tts_piper import PiperTTSAdapter
@@ -70,6 +71,8 @@ def _norm_provider(value: Any, *, kind: CapabilityKind | None = None) -> str:
         return "openai-compatible"
     if kind == "stt" and text in {"faster-whisper", "faster_whisper", "whisper", "local"}:
         return "faster-whisper"
+    if kind == "stt" and text == "mlx-whisper":
+        return "mlx-whisper"
     if kind == "stt" and text in {"transformers_asr", "transformers", "hf_asr", "hf"}:
         return "transformers-asr"
     if kind == "cloning" and text in {"f5-tts", "f5tts", "openf5", "open-f5"}:
@@ -581,6 +584,7 @@ def _known_stt_models(
             + _env_split("ABSTRACTVOICE_OPENAI_STT_MODELS")
         ),
         "faster-whisper": list(FasterWhisperAdapter.selectable_model_ids()),
+        "mlx-whisper": list(MLXWhisperAdapter.selectable_model_ids()),
         "transformers-asr": list(TransformersASRAdapter.selectable_model_ids()),
     }
     if current_model:
