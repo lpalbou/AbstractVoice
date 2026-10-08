@@ -41,13 +41,14 @@ AbstractVoice is discovered as the voice/audio capability backend.
 ## Optional extras
 
 ```bash
-pip install "abstractvoice[apple]"     # Apple Silicon local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines
+pip install "abstractvoice[apple]"     # Apple Silicon local stack: Piper, Supertonic, faster-whisper + mlx-whisper (Apple GPU), AEC, cloning/TTS engines
 pip install "abstractvoice[gpu]"       # GPU local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines
 pip install "abstractvoice[all-apple]" # Apple stack + local FastAPI browser example
 pip install "abstractvoice[all-gpu]"   # GPU stack + local FastAPI browser example
 pip install "abstractvoice[piper]"     # Local Piper TTS only
 pip install "abstractvoice[supertonic]" # Local Supertonic 3 ONNX TTS only
 pip install "abstractvoice[stt]"       # Local faster-whisper STT (keeps PyAV below 19, which faster-whisper 1.2.1 needs)
+pip install "abstractvoice[stt-mlx]"   # mlx-whisper: Whisper on the Apple GPU (Apple Silicon only)
 pip install "abstractvoice[stt-hf]"    # Local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, Qwen/Qwen3-ASR-1.7B)
 pip install "abstractvoice[audio-io]"  # Microphone/playback/VAD dependencies
 pip install "abstractvoice[cloning]"   # explicit OpenF5-based cloning (heavy; Python 3.10+)
@@ -203,14 +204,50 @@ AEC (`aec-audio-processing`) has Windows wheels for Python 3.11 to 3.13.
 
 ### NVIDIA GPUs (Linux and Windows)
 
-On Linux and Windows, `abstractvoice[gpu]` and `[all-gpu]` also install NVIDIA's CUDA 12 cuBLAS
-and runtime wheels (`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`). faster-whisper's
-CTranslate2 loads CUDA 12 cuBLAS (`libcublas.so.12` / `cublas64_12.dll`), which a CUDA 13 PyTorch
-build does not carry. Before faster-whisper runs, AbstractVoice preloads those libraries on Linux
-and adds their folders to the DLL search on Windows, and it picks CUDA for faster-whisper only when
-CUDA 12 cuBLAS actually loads; otherwise it runs faster-whisper on the CPU and logs why.
-`ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda` overrides the choice. Validated on Linux with a Quadro
-RTX 5000 (driver 595, CUDA 13).
+On Linux and Windows, `abstractvoice[gpu]` and `[all-gpu]` also install NVIDIA's CUDA 12 cuBLAS,
+runtime and cuDNN 9 wheels (`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`, `nvidia-cudnn-cu12`).
+faster-whisper's CTranslate2 loads CUDA 12 cuBLAS (`libcublas.so.12` / `cublas64_12.dll`) and runs
+the Whisper encoder's convolutions through cuDNN 9; a CUDA 13 PyTorch build carries neither for
+CUDA 12. Before faster-whisper runs, AbstractVoice preloads those libraries on Linux and adds their
+folders to the DLL search on Windows. It picks CUDA only when CTranslate2 sees a CUDA GPU and both
+libraries load, with the best compute type the GPU supports (`int8_float16` on most cards);
+otherwise it runs on the CPU and records why. A CUDA failure while loading or at the first
+transcription falls back to the CPU with the reason recorded. `ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda`
+is a request: `cuda` without a usable GPU is refused with a sentence. See
+[Where Whisper runs](api.md#where-whisper-runs).
+
+Check Whisper on an NVIDIA machine (after `pip install "abstractvoice[gpu]"`):
+
+```bash
+python -c "from abstractvoice.compute import resolve_faster_whisper_device as r; print(r().to_dict())"
+# {'device': 'cuda', 'compute_type': 'int8_float16', 'reason': None, 'requested': 'auto', 'refused': False}
+python - <<'PY'
+from abstractvoice.adapters.stt_faster_whisper import FasterWhisperAdapter
+import numpy as np
+a = FasterWhisperAdapter("large-v3", device="auto", compute_type="auto")
+print(a.execution_device())
+print(a.transcribe_from_array(np.zeros(16000, dtype=np.float32), 16000, language="en"))
+print(a.execution_device())   # still {'device': 'cuda', ...}: the first GPU run did not fall back
+PY
+nvidia-smi                    # the Python process holds GPU memory while the model is loaded
+```
+
+### Whisper on the Apple GPU
+
+CTranslate2, faster-whisper's engine, has no Apple GPU backend, so on a Mac faster-whisper runs on
+the CPU. The `mlx-whisper` engine runs the same Whisper models on the Apple GPU through MLX
+(`mlx-whisper`, from `abstractvoice[apple]` or `abstractvoice[stt-mlx]`; Apple Silicon only). Select
+it with `VoiceManager(stt_engine="mlx-whisper", whisper_model="large-v3")`, or as the
+`mlx-whisper` provider of an AbstractCore speech-input route. Weights come from the
+`mlx-community` repos in the Hugging Face cache (`large-v3`: `mlx-community/whisper-large-v3-mlx`,
+3.1 GB; `large-v3-turbo`: `mlx-community/whisper-large-v3-turbo`, 1.6 GB).
+
+Measured on an M5 Max, one 17-second English clip, warm model:
+
+| Engine | Device | large-v3 | large-v3-turbo |
+|---|---|---|---|
+| faster-whisper (int8, beam 5) | CPU | about 20 s | about 6 s |
+| mlx-whisper (float16, greedy) | Apple GPU | about 1.4 s | about 0.25 s |
 
 ## Troubleshooting
 

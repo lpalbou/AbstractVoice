@@ -1,5 +1,5 @@
 # AbstractVoice
-> Modular Python voice I/O for AI apps. The base install is remote-first (OpenAI/OpenAI-compatible TTS/STT by default); `abstractvoice[apple]` and `[gpu]` install the local Piper/Supertonic/faster-whisper/audio/cloning stack.
+> Modular Python voice I/O for AI apps. The base install is remote-first (OpenAI/OpenAI-compatible TTS/STT by default); `abstractvoice[apple]` and `[gpu]` install the local Piper/Supertonic/faster-whisper/mlx-whisper (Apple GPU)/audio/cloning stack.
 
 Start with `README.md` for the primary entry flow and treat `docs/api.md` as the supported integrator contract. Requires Python `>=3.9` (see `pyproject.toml`).
 
@@ -93,7 +93,8 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [Qwen performance controls](docs/api.md#qwen-performance-controls): guarded optimized predictor and stock sampler by default; opt-in exponential sampler / reference predictor via `--qwen3-tts-sampler` / `--qwen3-tts-predictor` (CLI, REPL, web), `VoiceManager(qwen3_tts_*=)`, plugin settings `voice_qwen3_tts_*`, or `Qwen3TTSSettings`; read at model load
 - [Qwen3-TTS cloning engine (optional)](abstractvoice/cloning/engine_qwen3_tts.py): ICL cloning on Base checkpoints (extra)
 - [HF compat seams](abstractvoice/_hf_compat.py): transformers 4.57↔5.x shims shared by the vendored model families
-- [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py): STT backend
+- [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py): STT backend (CUDA on NVIDIA GPUs, else CPU)
+- [mlx-whisper STT adapter](abstractvoice/adapters/stt_mlx_whisper.py): Whisper on the Apple GPU (MLX), same model ids
 - [Mic/VAD/STT loop](abstractvoice/recognition.py): listening thread + stop phrase handling
 - [Stop phrase matching](abstractvoice/stop_phrase.py): normalization/matching (dependency-light)
 - [Explicit prefetch CLI](abstractvoice/prefetch.py): `abstractvoice-prefetch ...`

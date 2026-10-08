@@ -67,8 +67,9 @@ Notes:
   - `omnivoice` (OmniVoice; requires `abstractvoice[omnivoice]`; upstream supports 600+ languages)
   - `none` (speech-to-text only: no TTS adapter is built, so the manager needs no TTS runtime or credentials)
   - `qwen3-tts` (Qwen3-TTS 12Hz; requires `abstractvoice[qwen3-tts]`, Python 3.10+; `tts_model` selects the checkpoint — the default `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice` exposes 9 preset speakers as profiles, the 1.7B VoiceDesign checkpoint builds voices from the `instructions` selector and refuses an empty description; Base checkpoints are cloning-only and are not offered as TTS models)
-- `stt_engine` selects the STT provider and supports `openai|auto|faster_whisper|openai-compatible|transformers-asr`. `auto` resolves to `openai`.
-  - `faster_whisper` requires `abstractvoice[stt]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `whisper_model`/`--whisper` for `tiny|base|small|medium|large-v2|large-v3|large`.
+- `stt_engine` selects the STT provider and supports `openai|auto|faster_whisper|mlx-whisper|openai-compatible|transformers-asr`. `auto` resolves to `openai`.
+  - `faster_whisper` requires `abstractvoice[stt]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `whisper_model`/`--whisper` for `tiny|base|small|medium|large-v2|large-v3|large-v3-turbo|large|turbo`. It runs on CUDA when CTranslate2 can (see `resolve_faster_whisper_device` below), otherwise on the CPU.
+  - `mlx-whisper` (Apple Silicon) requires `abstractvoice[apple]` or `abstractvoice[stt-mlx]`, takes the same model ids (`stt_model`, else `whisper_model`), and runs them on the Apple GPU from the `mlx-community` Hugging Face repos (`MLXWhisperAdapter.MODEL_REPOS`).
   - `transformers-asr` requires `abstractvoice[stt-hf]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`, and uses `stt_model` as the Hugging Face model id (for example `openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`, or `Qwen/Qwen3-ASR-1.7B`).
   Missing credentials or missing explicit local dependencies raise actionable errors; the legacy OpenAI Whisper fallback was removed.
 - `tts_model` is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request `model`.
@@ -643,8 +644,30 @@ known_engines("tts")      # engine ids this module answers for
 ```
 
 Engine ids: `openai`, `openai-compatible`, `supertonic`, `piper`, `audiodit`,
-`qwen3-tts`, `omnivoice`, `f5_tts`, `chroma`, `faster-whisper`,
+`qwen3-tts`, `omnivoice`, `f5_tts`, `chroma`, `faster-whisper`, `mlx-whisper`,
 `transformers-asr` (aliases such as `faster_whisper` or `F5-TTS` are accepted).
+
+### Where Whisper runs
+
+```python
+from abstractvoice.compute import resolve_faster_whisper_device
+
+choice = resolve_faster_whisper_device()   # or ("cpu" | "cuda")
+choice.device         # "cuda" or "cpu"
+choice.compute_type   # the best type the device supports: "int8_float16" on most NVIDIA GPUs, "int8" on the CPU
+choice.reason         # why Whisper is NOT on a GPU (None on CUDA)
+choice.refused        # True when an explicit "cuda" could not be honoured
+```
+
+faster-whisper runs on CUDA when CTranslate2 sees a CUDA GPU and the CUDA 12 cuBLAS and cuDNN 9
+libraries it loads at the first GPU run are loadable; the compute type follows
+`ctranslate2.get_supported_compute_types("cuda")` (`int8_float16`, then `float16`, `int8`,
+`float32`). `ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda` is a request: `cuda` without a usable GPU is
+refused with a sentence and the CPU runs. If CUDA fails while loading or at the first transcription,
+the adapter reloads on the CPU and records why. `FasterWhisperAdapter.execution_device()` returns
+`{device, compute_type, reason, refused}`; `get_info()` carries `device_reason`, and the resident
+STT component (`list_resident_components()`) carries `device`, `compute_type` and `device_reason`.
+`MLXWhisperAdapter.execution_device()` reports the Apple GPU (`metal`).
 An unknown id, or a `kind` the engine does not serve, raises `ValueError`. Remote
 engines always report `installed=True`; whether they are configured is a separate
 question answered by `available_providers()["unavailable"]`.

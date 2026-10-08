@@ -71,7 +71,8 @@ STT implementation:
 
 - Mic/VAD/STT loop: `abstractvoice/recognition.py`
 - VAD wrapper: `abstractvoice/vad/voice_detector.py`
-- faster-whisper adapter: `abstractvoice/adapters/stt_faster_whisper.py`
+- faster-whisper adapter (CTranslate2: CUDA or CPU): `abstractvoice/adapters/stt_faster_whisper.py`; device and compute type: `abstractvoice/compute/device.py` (`resolve_faster_whisper_device`), CUDA 12 library preparation: `abstractvoice/compute/windows_cuda.py`
+- mlx-whisper adapter (Apple GPU, one dedicated MLX thread): `abstractvoice/adapters/stt_mlx_whisper.py`
 - Remote OpenAI-compatible STT adapter: `abstractvoice/adapters/stt_openai_compatible.py`
 - Stop phrase normalization: `abstractvoice/stop_phrase.py`
 

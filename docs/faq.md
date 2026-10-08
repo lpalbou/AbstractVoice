@@ -345,8 +345,10 @@ python -m abstractvoice download --piper fr
   `tts_engine="supertonic"`.
 - Piper remains available as a smaller local TTS fallback; install
   `abstractvoice[piper]`, `abstractvoice[apple]`, or `abstractvoice[gpu]`.
-- faster-whisper is the local STT path; install `abstractvoice[stt]`,
-  `abstractvoice[apple]`, or `abstractvoice[gpu]`.
+- faster-whisper is the local STT path (CUDA on an NVIDIA GPU, the CPU
+  elsewhere); install `abstractvoice[stt]`, `abstractvoice[apple]`, or
+  `abstractvoice[gpu]`. On Apple Silicon, `mlx-whisper` runs the same Whisper
+  models on the Apple GPU (`abstractvoice[apple]` or `abstractvoice[stt-mlx]`).
 - OmniVoice is the recommended/default local cloning backend. OpenF5, Chroma,
   and AudioDiT remain optional heavier alternatives for explicit selection.
 - Qwen3-TTS (`abstractvoice[qwen3-tts]`, `tts_engine="qwen3-tts"`) is a local

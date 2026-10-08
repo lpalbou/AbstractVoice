@@ -1,5 +1,5 @@
 # AbstractVoice (full)
-> Modular Python voice I/O for AI apps. The base install is remote-first (OpenAI/OpenAI-compatible TTS/STT by default); `abstractvoice[apple]` and `[gpu]` install the local Piper/Supertonic/faster-whisper/audio/cloning stack.
+> Modular Python voice I/O for AI apps. The base install is remote-first (OpenAI/OpenAI-compatible TTS/STT by default); `abstractvoice[apple]` and `[gpu]` install the local Piper/Supertonic/faster-whisper/mlx-whisper (Apple GPU)/audio/cloning stack.
 
 This is an expanded, agent-oriented repo index. For the short version, see `llms.txt`.
 
@@ -116,6 +116,7 @@ Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[piper]`: local Piper TTS only
 - `abstractvoice[supertonic]`: local Supertonic 3 ONNX TTS only
 - `abstractvoice[stt]`: local faster-whisper STT path
+- `abstractvoice[stt-mlx]`: mlx-whisper, Whisper on the Apple GPU (Apple Silicon; also in `apple`/`all-apple`)
 - `abstractvoice[audio-io]`: microphone/playback/VAD dependencies
 - `abstractvoice[cloning]`: explicit F5‑TTS cloning backend (still requires explicit OpenF5 artifact downloads)
 - The `apple`/`gpu`/`all-apple`/`all-gpu` profiles include F5‑TTS only on Python 3.11+ (on 3.10 `f5-tts` pins `numpy<=1.26.4`); on 3.10 install `abstractvoice[cloning]` explicitly
@@ -191,9 +192,10 @@ Optional dependency groups (see `pyproject.toml`):
   transcription needs no TTS runtime or credentials; the AbstractCore audio capability uses it.
 - faster-whisper file transcription needs PyAV 18 or older: every extra that installs faster-whisper
   (`stt`, `apple`, `gpu`, `all-apple`, `all-gpu`) pins `av<19`.
-- NVIDIA GPUs: `abstractvoice[gpu]` installs CUDA 12 cuBLAS wheels on Linux and Windows; faster-whisper
-  runs on CUDA only when CUDA 12 cuBLAS loads (`abstractvoice.compute.windows_cuda.cublas12_available()`),
-  else on the CPU with a warning. See [Installation](docs/installation.md#nvidia-gpus-linux-and-windows).
+- NVIDIA GPUs: `abstractvoice[gpu]` installs CUDA 12 cuBLAS, runtime and cuDNN 9 wheels on Linux and
+  Windows; faster-whisper runs on CUDA only when both cuBLAS 12 and cuDNN 9 load
+  (`abstractvoice.compute.resolve_faster_whisper_device()`), with the GPU's best compute type, else on the
+  CPU with the reason recorded; `ABSTRACTVOICE_WHISPER_DEVICE=cuda` without a usable GPU is refused. See [Installation](docs/installation.md#nvidia-gpus-linux-and-windows).
 
 ### Qwen3-TTS
 
@@ -233,7 +235,8 @@ See [the complete Qwen API guide](docs/api.md#qwen3-tts-checkpoints).
 - [OmniVoice TTS adapter (optional)](abstractvoice/adapters/tts_omnivoice.py)
 - [OmniVoice runtime wrapper (optional)](abstractvoice/omnivoice/runtime.py)
 - [OmniVoice cloning engine (optional)](abstractvoice/cloning/engine_omnivoice.py)
-- [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py): on macOS it runs on the CPU (CTranslate2 has no Apple GPU backend) and `get_info()` carries `device_reason`; name the spoken language or pick a smaller model for interactive use
+- [faster-whisper STT adapter](abstractvoice/adapters/stt_faster_whisper.py): CUDA on an NVIDIA GPU (compute type by capability, CPU fallback with a recorded reason; `resolve_faster_whisper_device()`), the CPU elsewhere; on macOS CTranslate2 has no Apple GPU backend and `get_info()` carries `device_reason`
+- [mlx-whisper STT adapter](abstractvoice/adapters/stt_mlx_whisper.py): the same Whisper model ids on the Apple GPU (MLX; large-v3 about 1.4 s vs about 20 s on the CPU for a 17 s clip, M5 Max); every MLX call runs on one dedicated thread
 - [Remote OpenAI-compatible TTS adapter](abstractvoice/adapters/tts_openai_compatible.py)
 - [Remote OpenAI-compatible STT adapter](abstractvoice/adapters/stt_openai_compatible.py)
 - [TTS engine wrapper](abstractvoice/tts/adapter_tts_engine.py): wraps adapters + uses `NonBlockingAudioPlayer`

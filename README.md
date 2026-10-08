@@ -16,7 +16,7 @@ embed `VoiceManager` directly when you want an in-process library; install it
 beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 
 - **Remote audio (base install)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
-- **Platform local stacks (`abstractvoice[apple]`, `abstractvoice[gpu]`)**: Piper, Supertonic 3, faster-whisper, microphone/playback, AEC, and local cloning/TTS engines
+- **Platform local stacks (`abstractvoice[apple]`, `abstractvoice[gpu]`)**: Piper, Supertonic 3, faster-whisper (CUDA on NVIDIA GPUs), mlx-whisper (Apple GPU, Apple Silicon), microphone/playback, AEC, and local cloning/TTS engines
 - **Hardware profile aliases**: `abstractvoice[apple]` and `abstractvoice[gpu]` install the local stack; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` add the lightweight web example dependencies.
 - **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[supertonic]`, `abstractvoice[stt]`, `abstractvoice[stt-hf]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[qwen3-tts]`, `abstractvoice[chroma]`
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
@@ -146,7 +146,7 @@ AbstractCore discovers AbstractVoice through the
 The abstraction is intentionally simple:
 
 - `provider` = engine/backend (`openai`, `openai-compatible`, `piper`,
-  `supertonic`, `faster-whisper`, `transformers-asr`, ...)
+  `supertonic`, `faster-whisper`, `mlx-whisper`, `transformers-asr`, ...)
 - `model` = provider-specific selectable model id
 - `voice` = a built-in/base voice profile id or a cloned voice id available for
   the selected `provider` + `model`
@@ -267,6 +267,7 @@ pip install "abstractvoice[web]"               # local FastAPI web example
 pip install "abstractvoice[piper]"             # local Piper TTS only
 pip install "abstractvoice[supertonic]"        # local Supertonic 3 ONNX TTS only
 pip install "abstractvoice[stt]"               # local faster-whisper STT only
+pip install "abstractvoice[stt-mlx]"           # mlx-whisper: Whisper on the Apple GPU (Apple Silicon)
 pip install "abstractvoice[stt-hf]"            # local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, openai/whisper-large-v3-turbo, Qwen/Qwen3-ASR-1.7B)
 pip install "abstractvoice[omnivoice]"         # recommended/default local cloning engine
 pip install "abstractvoice[qwen3-tts]"         # Qwen3-TTS: preset speakers, cloning, voice design (Python 3.10+)

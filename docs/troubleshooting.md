@@ -183,9 +183,20 @@ The first call loads the model and opens the audio device. Prefetch weights ahea
 ### Local transcription is slow on a Mac
 
 faster-whisper runs on CTranslate2, which has no Apple GPU backend, so on macOS it transcribes on the
-CPU and `get_info()` carries a `device_reason` saying so. Large models are slow there (large-v3 takes
-about 30 s for a 4-second clip, half of it language detection). Name the spoken language, or choose a
-smaller model (`small`, `base`) for interactive dictation.
+CPU and `get_info()` carries a `device_reason` saying so (large-v3: about 20 s for a 17-second clip
+on an M5 Max). Select the `mlx-whisper` engine instead: it runs the same models on the Apple GPU
+(large-v3 about 1.4 s, large-v3-turbo about 0.25 s for that clip). It ships with
+`abstractvoice[apple]` and `abstractvoice[stt-mlx]`; see
+[Whisper on the Apple GPU](installation.md#whisper-on-the-apple-gpu). On the CPU, `large-v3-turbo`
+is the faster model (about 6 s for that clip).
+
+### Whisper runs on the CPU on an NVIDIA machine
+
+`FasterWhisperAdapter.execution_device()` (and `get_info()["device_reason"]`) says why: no CUDA GPU
+visible to CTranslate2, CUDA 12 cuBLAS or cuDNN 9 not loadable, a refused
+`ABSTRACTVOICE_WHISPER_DEVICE=cuda`, or a CUDA failure at load or first transcription that fell back
+to the CPU. Install `abstractvoice[gpu]` (it carries the CUDA 12 cuBLAS, runtime and cuDNN 9 wheels)
+and see [NVIDIA GPUs](installation.md#nvidia-gpus-linux-and-windows).
 
 ### Streamed speech takes long to start
 
