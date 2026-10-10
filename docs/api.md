@@ -331,6 +331,31 @@ not resident).
 - `transcribe_from_bytes(audio_bytes: bytes, language: str | None = None) -> str`
   - Transcribes audio sent over the network.
 
+`language=None` means auto on every engine: the engine detects the spoken language. Only an explicit
+code (`"fr"`) fixes it, which skips detection — short phrases and speech mixing two languages
+transcribe reliably and a little faster. The manager's own `language` is the voice's (TTS) and never
+stands in for a missing STT language.
+
+### Spoken languages and the engine's report
+
+- `abstractvoice.stt.languages` is the one list of spoken languages the local engines support:
+  `SUPPORTED_LANGUAGES` (ISO 639-1 codes: `en`, `fr`, `de`, `es`, `ru`, `zh`, `it`, `pt`, `ja`, `ko`,
+  `ar`, `hi`, `nl`, `pl`, `vi`, `el`), `LANGUAGE_LABELS` (display names), `normalize_language(value)`
+  (`None`/`""`/`"auto"` → `None`; a supported code, any case, `fr-FR` accepted → `"fr"`; anything else
+  raises `ValueError` with one user-readable sentence), `choices()` (`[{"value": "auto", "label":
+  "Auto (detected)"}, {"value": "en", "label": "English"}, …]`) and `language_label(code)`. Every local
+  adapter's `get_supported_languages()` returns this list; remote OpenAI-compatible engines pass the
+  code through.
+- `STTAdapter.transcribe_detailed(audio_path, language=None) -> Transcription` and
+  `transcribe_from_bytes_detailed(audio_bytes, language=None) -> Transcription`
+  (`abstractvoice.adapters.base.Transcription`: `text`, `language` — what the engine was told,
+  `None` = auto — and `detected_language`, the code the engine reported, or `None` when it reports
+  none). faster-whisper reports it from its segment info, mlx-whisper from its result, an
+  OpenAI-compatible endpoint only when its answer carries `language` (verbose formats); the
+  Transformers ASR pipeline reports none. The AbstractCore audio plugin's `transcribe_detailed`
+  answers the same three facts as a dict, which is how AbstractCore and AbstractGateway show
+  "Detected: fr" and let an account choose its spoken language once, server-side.
+
 ### Qwen3-ASR (Transformers ASR)
 
 `stt_engine="transformers-asr"` with a Qwen3-ASR checkpoint (for example

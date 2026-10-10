@@ -12,12 +12,15 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ### Added
 
+- Spoken languages, one list: `abstractvoice.stt.languages` (`SUPPORTED_LANGUAGES`, `LANGUAGE_LABELS`, `normalize_language` with its refusal sentence, `choices`, `language_label`) — faster-whisper, mlx-whisper and Transformers ASR all advertise it through `get_supported_languages()`, so a client never keeps a list of its own.
+- `STTAdapter.transcribe_detailed` / `transcribe_from_bytes_detailed` → `Transcription(text, language, detected_language)`: what the engine was told (`None` = auto) and the language it reported (faster-whisper from its segment info, mlx-whisper from its result, OpenAI-compatible endpoints from a verbose answer). The AbstractCore audio plugin gains `transcribe_detailed` → `{"text", "language", "detected_language"}`.
 - `mlx-whisper` speech-to-text engine: Whisper on the Apple GPU (MLX), Apple Silicon only. Same model ids as faster-whisper (`tiny` … `large-v3`, `large-v3-turbo`), weights from the `mlx-community` Hugging Face repos (`MLXWhisperAdapter.MODEL_REPOS`). On an M5 Max, a 17-second clip with large-v3 takes about 1.4 s instead of about 20 s with faster-whisper on the CPU (large-v3-turbo: about 0.25 s). Select it with `stt_engine="mlx-whisper"`, or as the `mlx-whisper` provider of an AbstractCore speech-input route. New `stt-mlx` extra; `apple`, `all-apple`, `gpu` and `all-gpu` carry it on Apple Silicon.
 - `large-v3-turbo` (alias `turbo`) is a selectable faster-whisper model.
 - `resolve_faster_whisper_device()` (`abstractvoice.compute`): faster-whisper's device, compute type and, when it is not a GPU, the reason. `FasterWhisperAdapter.execution_device()` reports `{device, compute_type, reason, refused}`; the resident STT component and `get_info()` carry `device_reason`.
 
 ### Changed
 
+- `language=None` is auto on every STT engine: the VoiceManager no longer seeds the mlx-whisper and OpenAI-compatible STT adapters with its TTS `language`, which had made a transcription without a language hint fixed to the voice's language instead of detected. Only an explicit `set_language(code)` or a call's `language` fixes it.
 - faster-whisper on NVIDIA GPUs: the compute type follows what the GPU supports (`int8_float16`, then `float16`, `int8`, `float32`); CUDA is chosen only when CUDA 12 cuBLAS and cuDNN 9 both load; a CUDA failure while loading or at the first transcription falls back to the CPU with the reason recorded.
 - `ABSTRACTVOICE_WHISPER_DEVICE=cuda` on a machine without a usable CUDA GPU is refused with a sentence and runs on the CPU (it previously left speech-to-text unavailable).
 - `gpu` and `all-gpu` install `nvidia-cudnn-cu12` (cuDNN 9 for CUDA 12) on Linux and Windows, which the Whisper encoder needs on the GPU.
