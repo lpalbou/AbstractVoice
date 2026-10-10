@@ -183,6 +183,7 @@ Optional dependency groups (see `pyproject.toml`):
 - [Text→audio streaming bridge](abstractvoice/tts/text_to_speech_stream.py): `TextToSpeechStream` (LLM streaming → TTS)
 - [Audio chunk smoothing](abstractvoice/audio/fade.py): edge fades + headroom scaling
 - [STT + listening methods](abstractvoice/vm/stt_mixin.py)
+- [Spoken languages](abstractvoice/stt/languages.py): THE list of STT language codes (`SUPPORTED_LANGUAGES`, labels, `normalize_language`, `choices`); every local adapter's `get_supported_languages()` returns it. `language=None` is auto on every engine; `STTAdapter.transcribe_detailed` → `Transcription(text, language, detected_language)` carries what the engine was told and what it reported (see docs/api.md "Spoken languages and the engine's report").
 - [Explicit prefetch tool](abstractvoice/prefetch.py): `abstractvoice-prefetch ...`
 - [Local web example](abstractvoice/examples/web_ui.py): browser TTS/STT smoke test
 
