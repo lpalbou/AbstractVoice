@@ -251,9 +251,11 @@ class SttMixin:
                 from ..adapters.stt_openai_compatible import OpenAICompatibleSTTAdapter
 
                 provider = "openai" if pref == "openai" else "openai-compatible"
+                # language=None: the remote engine detects the language unless a call names one.
+                # The manager's `language` is the TTS voice's and never stands in here (round 18).
                 self.stt_adapter = OpenAICompatibleSTTAdapter(
                     provider=provider,
-                    language=getattr(self, "language", None),
+                    language=None,
                     **remote_endpoint_kwargs(self, provider),
                     model_id=getattr(self, "stt_model", None),
                     timeout_s=getattr(self, "remote_timeout_s", None),
@@ -307,10 +309,12 @@ class SttMixin:
             except Exception as e:  # pragma: no cover - the module imports numpy only
                 raise RuntimeError(f"Local STT engine 'mlx-whisper' could not be imported: {e}") from e
             model_id = getattr(self, "stt_model", None) or getattr(self, "whisper_model", None)
+            # language=None: mlx-whisper detects the language unless a call names one (round 18;
+            # seeding it with the manager's TTS language made "auto" silently fixed).
             self.stt_adapter = MLXWhisperAdapter(
                 model_size=str(model_id or MLXWhisperAdapter.DEFAULT_MODEL),
                 allow_downloads=bool(getattr(self, "allow_downloads", True)),
-                language=getattr(self, "language", None),
+                language=None,
             )
             if self.stt_adapter.is_available():
                 return self.stt_adapter

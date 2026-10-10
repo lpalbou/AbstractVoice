@@ -24,6 +24,7 @@ from ..audio.resample import linear_resample_mono
 from ..compute import looks_like_torch_device_error, resolve_torch_runtime
 from ..transformers_floor import QWEN3_ASR_MIN_TRANSFORMERS, UnsupportedTransformersVersion, require_transformers
 from .base import STTAdapter
+from ..stt.languages import SUPPORTED_LANGUAGES
 
 
 def _env_bool(key: str, default: bool = False) -> bool:
@@ -173,24 +174,8 @@ class TransformersASRAdapter(STTAdapter):
         return list(dict.fromkeys([*cls.KNOWN_MODELS.keys(), *cls._MODEL_ALIASES.keys()]))
 
     # Keep a conservative list for UI/default validation; many HF models support more.
-    LANGUAGES = [
-        "en",
-        "fr",
-        "de",
-        "es",
-        "ru",
-        "zh",
-        "it",
-        "pt",
-        "ja",
-        "ko",
-        "ar",
-        "hi",
-        "nl",
-        "pl",
-        "vi",
-        "el",
-    ]
+    #: THE list (abstractvoice.stt.languages): every local STT engine advertises the same codes.
+    LANGUAGES = list(SUPPORTED_LANGUAGES)
 
     def __init__(
         self,

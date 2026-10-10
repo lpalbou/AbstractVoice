@@ -293,6 +293,18 @@ def extract_audio_bytes_from_response(response: Any) -> bytes:
     raise RemoteVoiceProviderError("audio/speech returned JSON without audio bytes")
 
 
+def extract_transcription_language(response: Any) -> Optional[str]:
+    """The ``language`` an OpenAI-style verbose transcription answer carries, else None."""
+    if not is_json_response(response):
+        return None
+    payload = response_json(response)
+    for holder in (payload, payload.get("data") if isinstance(payload.get("data"), dict) else {}):
+        value = holder.get("language") if isinstance(holder, dict) else None
+        if isinstance(value, str) and value.strip():
+            return value.strip().lower()
+    return None
+
+
 def extract_transcription_text(response: Any) -> str:
     if is_json_response(response):
         payload = response_json(response)

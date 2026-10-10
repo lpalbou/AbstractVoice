@@ -33,6 +33,7 @@ from typing import Any, Callable, Dict, Optional
 import numpy as np
 
 from .base import STTAdapter
+from ..stt.languages import SUPPORTED_LANGUAGES
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,8 @@ class MLXWhisperAdapter(STTAdapter):
     _MODEL_ALIASES: Dict[str, str] = {"large": "large-v3", "turbo": "large-v3-turbo"}
     DEFAULT_MODEL = "large-v3"
 
-    LANGUAGES = ["en", "fr", "de", "es", "ru", "zh", "it", "pt", "ja", "ko", "ar", "hi"]
+    #: THE list (abstractvoice.stt.languages): every local STT engine advertises the same codes.
+    LANGUAGES = list(SUPPORTED_LANGUAGES)
 
     @classmethod
     def selectable_model_ids(cls) -> list[str]:
@@ -239,6 +241,8 @@ class MLXWhisperAdapter(STTAdapter):
         if not self._ensure_loaded():
             raise RuntimeError(self._unavailable_reason or "mlx-whisper is not available")
         path = str(self._loaded_path)
+        # None = auto: mlx-whisper detects the language. Only an explicit set_language() (or the
+        # constructor's language) stands in for None; a VoiceManager's TTS language never does.
         lang = language or self._current_language
 
         def _run() -> str:
@@ -252,6 +256,8 @@ class MLXWhisperAdapter(STTAdapter):
                 condition_on_previous_text=bool(condition_on_previous_text),
                 verbose=None,
             )
+            # mlx-whisper reports the language it decoded (detected under auto).
+            self._note_detected_language(result.get("language"))
             return str(result.get("text") or "").strip()
 
         try:

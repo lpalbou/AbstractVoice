@@ -5121,6 +5121,26 @@ class _AudioCapability(_BaseVoice):
         metadata: Optional[Dict[str, Any]] = None,
         **_kwargs: Any,
     ) -> str:
+        return str(
+            self.transcribe_detailed(
+                audio, language=language, model=model, provider=provider, artifact_store=artifact_store, metadata=metadata
+            )["text"]
+        )
+
+    def transcribe_detailed(
+        self,
+        audio: Union[bytes, Dict[str, Any], str],
+        *,
+        language: Optional[str] = None,
+        model: Optional[str] = None,
+        provider: Optional[str] = None,
+        artifact_store: Any = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **_kwargs: Any,
+    ) -> Dict[str, Any]:
+        """``transcribe`` plus the spoken-language facts (round 18): ``{"text", "language",
+        "detected_language"}`` — ``language`` is what the engine was told (``None`` = it detected
+        the language), ``detected_language`` what it reported (``None`` when it reports none)."""
         _ = metadata
         provider_id, requested_model = _resolve_stt_provider_request(provider, model)
         vm = self._get_vm_for_provider(stt_provider=provider_id, stt_model=requested_model)
@@ -5151,7 +5171,8 @@ class _AudioCapability(_BaseVoice):
                         except Exception:
                             pass
                 if isinstance(audio, str):
-                    return vm.transcribe_file(str(audio), language=language)
+                    text = vm.transcribe_file(str(audio), language=language)
+                    return _transcription(vm, text, language)
 
                 if isinstance(audio, dict):
                     import os
@@ -5163,7 +5184,8 @@ class _AudioCapability(_BaseVoice):
                         tmp_file.write(bytes(audio_bytes))
                         tmp_path = tmp_file.name
                     try:
-                        return vm.transcribe_file(tmp_path, language=language)
+                        text = vm.transcribe_file(tmp_path, language=language)
+                        return _transcription(vm, text, language)
                     finally:
                         try:
                             os.unlink(tmp_path)
@@ -5171,7 +5193,8 @@ class _AudioCapability(_BaseVoice):
                             pass
 
                 audio_bytes = self._resolve_audio_bytes(audio, artifact_store=artifact_store)
-                return vm.transcribe_from_bytes(bytes(audio_bytes), language=language)
+                text = vm.transcribe_from_bytes(bytes(audio_bytes), language=language)
+                return _transcription(vm, text, language)
             finally:
                 if old_vm_model is not sentinel:
                     try:
@@ -5188,6 +5211,17 @@ class _AudioCapability(_BaseVoice):
                         setattr(adapter, "model_id", old_adapter_model)
                     except Exception:
                         pass
+
+
+def _transcription(vm: Any, text: Any, language: Optional[str]) -> Dict[str, Any]:
+    """The plugin's ``{"text", "language", "detected_language"}`` answer: the text the manager
+    returned, the language it was told, and the language its STT adapter reported for that call
+    (``STTAdapter.pop_detected_language``, read under the manager's lock right after the call;
+    ``None`` when the engine reports none)."""
+    adapter = getattr(vm, "stt_adapter", None)
+    pop = getattr(adapter, "pop_detected_language", None)
+    detected = pop() if callable(pop) else None
+    return {"text": str(text or ""), "language": language, "detected_language": detected}
 
 
 def register(registry: Any) -> None:
