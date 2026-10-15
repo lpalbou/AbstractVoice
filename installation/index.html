@@ -426,6 +426,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#whisper-on-the-apple-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Whisper on the Apple GPU
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1256,6 +1267,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#whisper-on-the-apple-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Whisper on the Apple GPU
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1322,13 +1344,14 @@ runtimes explicitly:</p>
 <p>AbstractCore provides <code>/v1/audio/speech</code> and <code>/v1/audio/transcriptions</code>;
 AbstractVoice is discovered as the voice/audio capability backend.</p>
 <h2 id="optional-extras">Optional extras<a class="headerlink" href="#optional-extras" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[apple]"</span><span class="w">     </span><span class="c1"># Apple Silicon local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[apple]"</span><span class="w">     </span><span class="c1"># Apple Silicon local stack: Piper, Supertonic, faster-whisper + mlx-whisper (Apple GPU), AEC, cloning/TTS engines</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[gpu]"</span><span class="w">       </span><span class="c1"># GPU local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-apple]"</span><span class="w"> </span><span class="c1"># Apple stack + local FastAPI browser example</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-gpu]"</span><span class="w">   </span><span class="c1"># GPU stack + local FastAPI browser example</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[piper]"</span><span class="w">     </span><span class="c1"># Local Piper TTS only</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[supertonic]"</span><span class="w"> </span><span class="c1"># Local Supertonic 3 ONNX TTS only</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[stt]"</span><span class="w">       </span><span class="c1"># Local faster-whisper STT (keeps PyAV below 19, which faster-whisper 1.2.1 needs)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[stt-mlx]"</span><span class="w">   </span><span class="c1"># mlx-whisper: Whisper on the Apple GPU (Apple Silicon only)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[stt-hf]"</span><span class="w">    </span><span class="c1"># Local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, Qwen/Qwen3-ASR-1.7B)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audio-io]"</span><span class="w">  </span><span class="c1"># Microphone/playback/VAD dependencies</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[cloning]"</span><span class="w">   </span><span class="c1"># explicit OpenF5-based cloning (heavy; Python 3.10+)</span>
@@ -1456,14 +1479,63 @@ sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w
 <p>Usually works out of the box. If device access fails, check OS microphone permissions and installed audio drivers.</p>
 <p>AEC (<code>aec-audio-processing</code>) has Windows wheels for Python 3.11 to 3.13.</p>
 <h3 id="nvidia-gpus-linux-and-windows">NVIDIA GPUs (Linux and Windows)<a class="headerlink" href="#nvidia-gpus-linux-and-windows" title="Permanent link">&para;</a></h3>
-<p>On Linux and Windows, <code>abstractvoice[gpu]</code> and <code>[all-gpu]</code> also install NVIDIA's CUDA 12 cuBLAS
-and runtime wheels (<code>nvidia-cublas-cu12</code>, <code>nvidia-cuda-runtime-cu12</code>). faster-whisper's
-CTranslate2 loads CUDA 12 cuBLAS (<code>libcublas.so.12</code> / <code>cublas64_12.dll</code>), which a CUDA 13 PyTorch
-build does not carry. Before faster-whisper runs, AbstractVoice preloads those libraries on Linux
-and adds their folders to the DLL search on Windows, and it picks CUDA for faster-whisper only when
-CUDA 12 cuBLAS actually loads; otherwise it runs faster-whisper on the CPU and logs why.
-<code>ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda</code> overrides the choice. Validated on Linux with a Quadro
-RTX 5000 (driver 595, CUDA 13).</p>
+<p>On Linux and Windows, <code>abstractvoice[gpu]</code> and <code>[all-gpu]</code> also install NVIDIA's CUDA 12 cuBLAS,
+runtime and cuDNN 9 wheels (<code>nvidia-cublas-cu12</code>, <code>nvidia-cuda-runtime-cu12</code>, <code>nvidia-cudnn-cu12</code>).
+faster-whisper's CTranslate2 loads CUDA 12 cuBLAS (<code>libcublas.so.12</code> / <code>cublas64_12.dll</code>) and runs
+the Whisper encoder's convolutions through cuDNN 9; a CUDA 13 PyTorch build carries neither for
+CUDA 12. Before faster-whisper runs, AbstractVoice preloads those libraries on Linux and adds their
+folders to the DLL search on Windows. It picks CUDA only when CTranslate2 sees a CUDA GPU and both
+libraries load, with the best compute type the GPU supports (<code>int8_float16</code> on most cards);
+otherwise it runs on the CPU and records why. A CUDA failure while loading or at the first
+transcription falls back to the CPU with the reason recorded. <code>ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda</code>
+is a request: <code>cuda</code> without a usable GPU is refused with a sentence. See
+<a href="../api/#where-whisper-runs">Where Whisper runs</a>.</p>
+<p>Check Whisper on an NVIDIA machine (after <code>pip install "abstractvoice[gpu]"</code>):</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"from abstractvoice.compute import resolve_faster_whisper_device as r; print(r().to_dict())"</span>
+<span class="c1"># {'device': 'cuda', 'compute_type': 'int8_float16', 'reason': None, 'requested': 'auto', 'refused': False}</span>
+python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;'PY'</span>
+<span class="s">from abstractvoice.adapters.stt_faster_whisper import FasterWhisperAdapter</span>
+<span class="s">import numpy as np</span>
+<span class="s">a = FasterWhisperAdapter("large-v3", device="auto", compute_type="auto")</span>
+<span class="s">print(a.execution_device())</span>
+<span class="s">print(a.transcribe_from_array(np.zeros(16000, dtype=np.float32), 16000, language="en"))</span>
+<span class="s">print(a.execution_device())   # still {'device': 'cuda', ...}: the first GPU run did not fall back</span>
+<span class="s">PY</span>
+nvidia-smi<span class="w">                    </span><span class="c1"># the Python process holds GPU memory while the model is loaded</span>
+</code></pre></div>
+<h3 id="whisper-on-the-apple-gpu">Whisper on the Apple GPU<a class="headerlink" href="#whisper-on-the-apple-gpu" title="Permanent link">&para;</a></h3>
+<p>CTranslate2, faster-whisper's engine, has no Apple GPU backend, so on a Mac faster-whisper runs on
+the CPU. The <code>mlx-whisper</code> engine runs the same Whisper models on the Apple GPU through MLX
+(<code>mlx-whisper</code>, from <code>abstractvoice[apple]</code> or <code>abstractvoice[stt-mlx]</code>; Apple Silicon only). Select
+it with <code>VoiceManager(stt_engine="mlx-whisper", whisper_model="large-v3")</code>, or as the
+<code>mlx-whisper</code> provider of an AbstractCore speech-input route. Weights come from the
+<code>mlx-community</code> repos in the Hugging Face cache (<code>large-v3</code>: <code>mlx-community/whisper-large-v3-mlx</code>,
+3.1 GB; <code>large-v3-turbo</code>: <code>mlx-community/whisper-large-v3-turbo</code>, 1.6 GB).</p>
+<p>Measured on an M5 Max, one 17-second English clip, warm model:</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Device</th>
+<th>large-v3</th>
+<th>large-v3-turbo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>faster-whisper (int8, beam 5)</td>
+<td>CPU</td>
+<td>about 20 s</td>
+<td>about 6 s</td>
+</tr>
+<tr>
+<td>mlx-whisper (float16, greedy)</td>
+<td>Apple GPU</td>
+<td>about 1.4 s</td>
+<td>about 0.25 s</td>
+</tr>
+</tbody>
+</table>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Piper model not available locally</strong>: run <code>python -m abstractvoice download --piper &lt;lang&gt;</code>.</li>

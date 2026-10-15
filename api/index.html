@@ -632,6 +632,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#where-whisper-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where Whisper runs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#abstractcore-openai-compatible-audio-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1635,6 +1646,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#where-whisper-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where Whisper runs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#abstractcore-openai-compatible-audio-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1751,8 +1773,9 @@ for the interactive REPL, and <code>docs/architecture.md</code> for implementati
   - <code>omnivoice</code> (OmniVoice; requires <code>abstractvoice[omnivoice]</code>; upstream supports 600+ languages)
   - <code>none</code> (speech-to-text only: no TTS adapter is built, so the manager needs no TTS runtime or credentials)
   - <code>qwen3-tts</code> (Qwen3-TTS 12Hz; requires <code>abstractvoice[qwen3-tts]</code>, Python 3.10+; <code>tts_model</code> selects the checkpoint — the default <code>Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice</code> exposes 9 preset speakers as profiles, the 1.7B VoiceDesign checkpoint builds voices from the <code>instructions</code> selector and refuses an empty description; Base checkpoints are cloning-only and are not offered as TTS models)
-- <code>stt_engine</code> selects the STT provider and supports <code>openai|auto|faster_whisper|openai-compatible|transformers-asr</code>. <code>auto</code> resolves to <code>openai</code>.
-  - <code>faster_whisper</code> requires <code>abstractvoice[stt]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>, and uses <code>whisper_model</code>/<code>--whisper</code> for <code>tiny|base|small|medium|large-v2|large-v3|large</code>.
+- <code>stt_engine</code> selects the STT provider and supports <code>openai|auto|faster_whisper|mlx-whisper|openai-compatible|transformers-asr</code>. <code>auto</code> resolves to <code>openai</code>.
+  - <code>faster_whisper</code> requires <code>abstractvoice[stt]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>, and uses <code>whisper_model</code>/<code>--whisper</code> for <code>tiny|base|small|medium|large-v2|large-v3|large-v3-turbo|large|turbo</code>. It runs on CUDA when CTranslate2 can (see <code>resolve_faster_whisper_device</code> below), otherwise on the CPU.
+  - <code>mlx-whisper</code> (Apple Silicon) requires <code>abstractvoice[apple]</code> or <code>abstractvoice[stt-mlx]</code>, takes the same model ids (<code>stt_model</code>, else <code>whisper_model</code>), and runs them on the Apple GPU from the <code>mlx-community</code> Hugging Face repos (<code>MLXWhisperAdapter.MODEL_REPOS</code>).
   - <code>transformers-asr</code> requires <code>abstractvoice[stt-hf]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>, and uses <code>stt_model</code> as the Hugging Face model id (for example <code>openai/whisper-large-v3</code>, <code>openai/whisper-large-v3-turbo</code>, or <code>Qwen/Qwen3-ASR-1.7B</code>).
   Missing credentials or missing explicit local dependencies raise actionable errors; the legacy OpenAI Whisper fallback was removed.
 - <code>tts_model</code> is reserved/back-compat for local Piper (selection is language-driven today); for remote TTS it maps to the request <code>model</code>.
@@ -2408,8 +2431,26 @@ framework (it uses <code>importlib.util.find_spec</code> only):</p>
 <span class="n">known_engines</span><span class="p">(</span><span class="s2">"tts"</span><span class="p">)</span>      <span class="c1"># engine ids this module answers for</span>
 </code></pre></div>
 <p>Engine ids: <code>openai</code>, <code>openai-compatible</code>, <code>supertonic</code>, <code>piper</code>, <code>audiodit</code>,
-<code>qwen3-tts</code>, <code>omnivoice</code>, <code>f5_tts</code>, <code>chroma</code>, <code>faster-whisper</code>,
-<code>transformers-asr</code> (aliases such as <code>faster_whisper</code> or <code>F5-TTS</code> are accepted).
+<code>qwen3-tts</code>, <code>omnivoice</code>, <code>f5_tts</code>, <code>chroma</code>, <code>faster-whisper</code>, <code>mlx-whisper</code>,
+<code>transformers-asr</code> (aliases such as <code>faster_whisper</code> or <code>F5-TTS</code> are accepted).</p>
+<h3 id="where-whisper-runs">Where Whisper runs<a class="headerlink" href="#where-whisper-runs" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.compute</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_faster_whisper_device</span>
+
+<span class="n">choice</span> <span class="o">=</span> <span class="n">resolve_faster_whisper_device</span><span class="p">()</span>   <span class="c1"># or ("cpu" | "cuda")</span>
+<span class="n">choice</span><span class="o">.</span><span class="n">device</span>         <span class="c1"># "cuda" or "cpu"</span>
+<span class="n">choice</span><span class="o">.</span><span class="n">compute_type</span>   <span class="c1"># the best type the device supports: "int8_float16" on most NVIDIA GPUs, "int8" on the CPU</span>
+<span class="n">choice</span><span class="o">.</span><span class="n">reason</span>         <span class="c1"># why Whisper is NOT on a GPU (None on CUDA)</span>
+<span class="n">choice</span><span class="o">.</span><span class="n">refused</span>        <span class="c1"># True when an explicit "cuda" could not be honoured</span>
+</code></pre></div>
+<p>faster-whisper runs on CUDA when CTranslate2 sees a CUDA GPU and the CUDA 12 cuBLAS and cuDNN 9
+libraries it loads at the first GPU run are loadable; the compute type follows
+<code>ctranslate2.get_supported_compute_types("cuda")</code> (<code>int8_float16</code>, then <code>float16</code>, <code>int8</code>,
+<code>float32</code>). <code>ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda</code> is a request: <code>cuda</code> without a usable GPU is
+refused with a sentence and the CPU runs. If CUDA fails while loading or at the first transcription,
+the adapter reloads on the CPU and records why. <code>FasterWhisperAdapter.execution_device()</code> returns
+<code>{device, compute_type, reason, refused}</code>; <code>get_info()</code> carries <code>device_reason</code>, and the resident
+STT component (<code>list_resident_components()</code>) carries <code>device</code>, <code>compute_type</code> and <code>device_reason</code>.
+<code>MLXWhisperAdapter.execution_device()</code> reports the Apple GPU (<code>metal</code>).
 An unknown id, or a <code>kind</code> the engine does not serve, raises <code>ValueError</code>. Remote
 engines always report <code>installed=True</code>; whether they are configured is a separate
 question answered by <code>available_providers()["unavailable"]</code>.</p>

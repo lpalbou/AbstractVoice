@@ -1379,7 +1379,8 @@ caveats.</p>
 <ul>
 <li>Mic/VAD/STT loop: <code>abstractvoice/recognition.py</code></li>
 <li>VAD wrapper: <code>abstractvoice/vad/voice_detector.py</code></li>
-<li>faster-whisper adapter: <code>abstractvoice/adapters/stt_faster_whisper.py</code></li>
+<li>faster-whisper adapter (CTranslate2: CUDA or CPU): <code>abstractvoice/adapters/stt_faster_whisper.py</code>; device and compute type: <code>abstractvoice/compute/device.py</code> (<code>resolve_faster_whisper_device</code>), CUDA 12 library preparation: <code>abstractvoice/compute/windows_cuda.py</code></li>
+<li>mlx-whisper adapter (Apple GPU, one dedicated MLX thread): <code>abstractvoice/adapters/stt_mlx_whisper.py</code></li>
 <li>Remote OpenAI-compatible STT adapter: <code>abstractvoice/adapters/stt_openai_compatible.py</code></li>
 <li>Stop phrase normalization: <code>abstractvoice/stop_phrase.py</code></li>
 </ul>

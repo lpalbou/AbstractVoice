@@ -2264,8 +2264,10 @@ OpenAI-compatible audio endpoints such as:</p>
   <code>tts_engine="supertonic"</code>.</li>
 <li>Piper remains available as a smaller local TTS fallback; install
   <code>abstractvoice[piper]</code>, <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>.</li>
-<li>faster-whisper is the local STT path; install <code>abstractvoice[stt]</code>,
-  <code>abstractvoice[apple]</code>, or <code>abstractvoice[gpu]</code>.</li>
+<li>faster-whisper is the local STT path (CUDA on an NVIDIA GPU, the CPU
+  elsewhere); install <code>abstractvoice[stt]</code>, <code>abstractvoice[apple]</code>, or
+  <code>abstractvoice[gpu]</code>. On Apple Silicon, <code>mlx-whisper</code> runs the same Whisper
+  models on the Apple GPU (<code>abstractvoice[apple]</code> or <code>abstractvoice[stt-mlx]</code>).</li>
 <li>OmniVoice is the recommended/default local cloning backend. OpenF5, Chroma,
   and AudioDiT remain optional heavier alternatives for explicit selection.</li>
 <li>Qwen3-TTS (<code>abstractvoice[qwen3-tts]</code>, <code>tts_engine="qwen3-tts"</code>) is a local
