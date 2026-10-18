@@ -5535,6 +5535,9 @@ def parse_args():
 
 def main():
     """Entry point for the application."""
+    from abstractvoice._stdio import safe_stdio
+
+    safe_stdio()  # piped output on Windows (cp1252) must not crash on emoji
     try:
         # Parse command line arguments
         args = parse_args()

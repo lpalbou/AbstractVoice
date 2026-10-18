@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.15.1] - 2026-10-18
+
+### Fixed
+
+- Windows: `abstractvoice`, `abstractvoice-prefetch`, `python -m abstractvoice` and the REPL no longer stop with `UnicodeEncodeError` when their output is piped or redirected (`| more`, `> log.txt`, a CI log). Such streams use the ANSI code page (often cp1252), which has no emoji; a character it lacks is written as `?` instead. UTF-8 streams and interactive consoles are unchanged.
+
 ## [0.15.0] - 2026-10-15
 
 ### Added

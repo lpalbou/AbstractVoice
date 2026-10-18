@@ -10,6 +10,9 @@ import argparse
 
 
 def main(argv: list[str] | None = None) -> int:
+    from abstractvoice._stdio import safe_stdio
+
+    safe_stdio()  # piped output on Windows (cp1252) must not crash on emoji
     parser = argparse.ArgumentParser(prog="abstractvoice-prefetch", description="AbstractVoice explicit prefetch")
     parser.add_argument(
         "--stt",

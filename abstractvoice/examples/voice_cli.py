@@ -337,6 +337,9 @@ def _run_one_shot_tts(args, *, voice_manager_factory=None) -> str:
 
 def main():
     """Entry point for AbstractVoice CLI."""
+    from abstractvoice._stdio import safe_stdio
+
+    safe_stdio()  # piped output on Windows (cp1252) must not crash on emoji
     try:
         if len(sys.argv) > 1 and sys.argv[1] == "web":
             from abstractvoice.examples.web_ui import main as web_main
