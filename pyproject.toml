@@ -51,7 +51,7 @@ apple = [
     "piper-tts>=1.2.0",
     "onnxruntime>=1.19.0",
     # Supertonic speaks one language per call: the reply's language, identified once.
-    "py3langid>=0.4.0",
+    "py3langid>=0.3.0",
     "faster-whisper>=0.10.0",
     # Whisper on the Apple GPU (MLX); faster-whisper (CTranslate2) has no Apple GPU backend.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
@@ -83,7 +83,7 @@ gpu = [
     "piper-tts>=1.2.0",
     "onnxruntime>=1.19.0",
     # Supertonic speaks one language per call: the reply's language, identified once.
-    "py3langid>=0.4.0",
+    "py3langid>=0.3.0",
     "faster-whisper>=0.10.0",
     # Windows and Linux: CTranslate2 needs CUDA 12 cuBLAS; torch's CUDA 13 build does not carry
     # it (and CUDA 13 cuBLAS has no Windows wheel). Framework backlogs 0988/0989.
@@ -126,7 +126,7 @@ piper = [
 supertonic = [
     "onnxruntime>=1.19.0",
     # Supertonic speaks one language per call: the reply's language, identified once.
-    "py3langid>=0.4.0",
+    "py3langid>=0.3.0",
 ]
 
 # Local audio input/output and VAD.
@@ -246,7 +246,7 @@ all-apple = [
     "piper-tts>=1.2.0",
     "onnxruntime>=1.19.0",
     # Supertonic speaks one language per call: the reply's language, identified once.
-    "py3langid>=0.4.0",
+    "py3langid>=0.3.0",
     "faster-whisper>=0.10.0",
     # Whisper on the Apple GPU (MLX); faster-whisper (CTranslate2) has no Apple GPU backend.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
@@ -281,7 +281,7 @@ all-gpu = [
     "piper-tts>=1.2.0",
     "onnxruntime>=1.19.0",
     # Supertonic speaks one language per call: the reply's language, identified once.
-    "py3langid>=0.4.0",
+    "py3langid>=0.3.0",
     "faster-whisper>=0.10.0",
     # Windows and Linux: CTranslate2 needs CUDA 12 cuBLAS; torch's CUDA 13 build does not carry
     # it (and CUDA 13 cuBLAS has no Windows wheel). Framework backlogs 0988/0989.
@@ -322,7 +322,7 @@ all-gpu = [
 # CI/test dependencies.
 test = [
     "pytest>=7.0.0",
-    "py3langid>=0.4.0",
+    "py3langid>=0.3.0",
     "httpx>=0.23.0",
     "soundfile>=0.12.1",
     "webrtcvad-wheels>=2.0.14",

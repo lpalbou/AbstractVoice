@@ -27,7 +27,9 @@ def _identifier(languages: tuple[str, ...]):
         if ident is None:
             from py3langid.langid import MODEL_FILE, LanguageIdentifier
 
-            ident = LanguageIdentifier.from_model_file(MODEL_FILE, norm_probs=True)
+            # py3langid 0.4 (Python 3.10+) renamed the loader; 0.3 serves Python 3.9.
+            load = getattr(LanguageIdentifier, "from_model_file", None) or LanguageIdentifier.from_pickled_model
+            ident = load(MODEL_FILE, norm_probs=True)
             ident.set_languages(list(languages))
             _identifiers[languages] = ident
         return ident
