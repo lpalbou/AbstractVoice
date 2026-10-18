@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from abstractvoice.vm.tts_mixin import STREAM_FIRST_SEGMENT_MAX_CHARS, TtsMixin
+from abstractvoice.vm.tts_mixin import TtsMixin
 
 
 class _CountingAdapter:
@@ -25,7 +25,7 @@ class _CountingAdapter:
 
     def synthesize_to_audio_chunks(self, text):
         self.calls.append(text)
-        yield np.zeros(240, dtype=np.float32), 24000
+        yield np.full(240, 0.1, dtype=np.float32), 24000
 
 
 class _VM(TtsMixin):
@@ -56,18 +56,14 @@ def test_a_2000_word_reply_yields_the_first_chunk_before_the_second_is_synthesis
     assert first[1] == 24000
     # Exactly ONE segment was synthesised when the first audio is available.
     assert len(adapter.calls) == 1
-    assert len(adapter.calls[0]) <= STREAM_FIRST_SEGMENT_MAX_CHARS
+    assert adapter.calls[0] == "The gateway reads this reply aloud while the next sentence is synthesised."
     second = next(stream)
     assert second is not None and len(adapter.calls) == 2
     rest = list(stream)
     assert len(adapter.calls) == 2 + len(rest)
     assert all(len(c) <= 240 for c in adapter.calls)
     assert vm.metrics["device"] == "cpu" and vm.metrics["device_reason"] == "test reason"
-    assert vm.metrics["first_segment_max_chars"] == STREAM_FIRST_SEGMENT_MAX_CHARS
-
-
-def test_first_segment_cap_is_one_short_clause():
-    assert STREAM_FIRST_SEGMENT_MAX_CHARS <= 60
+    assert vm.metrics["segment_chars"][0] == len(adapter.calls[0])
 
 
 def test_supertonic_reports_cpu_with_reason_and_bounded_threads():

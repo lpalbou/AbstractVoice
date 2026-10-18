@@ -250,7 +250,9 @@ See [the complete Qwen API guide](docs/api.md#qwen3-tts-checkpoints).
 ## Voice profiles + streaming TTS (cross-engine)
 - [Preset profile catalogs](abstractvoice/assets/voice_profiles/): shipped presets (engine-specific)
 - [TTS delivery mode](abstractvoice/tts/delivery_mode.py): `"buffered"` vs `"streamed"`
-- [Text chunking](abstractvoice/tts/text_chunking.py): sentence + soft-boundary segmentation; streamed delivery sends a first segment of one short sentence or clause (at most 60 characters, `STREAM_FIRST_SEGMENT_MAX_CHARS`) and later segments up to 240 characters; `pop_last_tts_metrics()` after a streamed synthesis reports `ttfb_s`, the segment sizes and `device` / `device_reason`
+- [Text chunking](abstractvoice/tts/text_chunking.py): streamed delivery speaks whole sentences: the first sentence alone (merged with the next when shorter than 30 characters), then groups of sentences sized to be synthesized before the previous segment has played, up to 240 characters; only a longer single sentence is cut, at a clause pause; `pop_last_tts_metrics()` after a streamed synthesis reports `ttfb_s`, `segment_chars`, `language`, `language_source` and `device` / `device_reason`
+- [Reply language](abstractvoice/tts/language_id.py): engines that take a language per call (Supertonic) speak a streamed reply in one language: the caller's `language`, else the reply's language identified once on the whole text (py3langid, 80% confidence), else the configured one
+- [Streamed chunk silence](abstractvoice/vm/tts_mixin.py): `trim_stream_silence()` keeps at most 0.05 s before and 0.25 s after the sound of each streamed chunk
 - [Text→audio streaming bridge](abstractvoice/tts/text_to_speech_stream.py): incremental LLM → TTS pipelining
 - [Audio chunk smoothing](abstractvoice/audio/fade.py): mitigate clicks/clipping at chunk boundaries
 

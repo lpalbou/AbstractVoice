@@ -200,11 +200,21 @@ and see [NVIDIA GPUs](installation.md#nvidia-gpus-linux-and-windows).
 
 ### Streamed speech takes long to start
 
-Streamed delivery synthesizes a short first segment (one sentence or clause, at most 60 characters)
-and plays it while the rest is synthesized. `pop_last_tts_metrics()` after a streamed synthesis
-reports `ttfb_s` (time to first audio), the segment sizes and, for Supertonic, the execution
-`device` with `device_reason`. Keep the engine loaded between replies: a cold start adds the model
+Streamed delivery synthesizes the first sentence alone and plays it while the rest is synthesized;
+a reply that opens with one long sentence starts once that sentence is ready.
+`pop_last_tts_metrics()` after a streamed synthesis reports `ttfb_s` (time to first audio),
+`segment_chars` (the length of each segment) and, for Supertonic, the execution `device` with
+`device_reason`. Keep the engine loaded between replies: a cold start adds the model
 load to the first segment.
+
+### Streamed speech uses the wrong language
+
+Supertonic speaks a streamed reply in one language: the `language` you pass to
+`speak_to_audio_chunks()`, else the reply's language identified on the whole text, else the
+configured language (`set_language()`). A short reply (under 20 characters) or a mix of languages may
+not be identified with confidence; it is then spoken in the configured language. Pass `language`
+when you know it. `pop_last_tts_metrics()` reports the `language` used and its `language_source`
+(`request`, `reply` or `configured`).
 
 ### A local engine loads weights when you only wanted to browse
 

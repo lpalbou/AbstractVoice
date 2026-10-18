@@ -148,9 +148,15 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
 - `set_tts_delivery_mode(mode: str | None) -> bool`, `get_tts_delivery_mode() -> str`, `get_tts_delivery_modes() -> dict`
   - Toggle buffered vs streamed delivery (applies to both base TTS and cloned voices).
   - **Behavior note**: streamed delivery is implemented as a pipeline:
-    - **text** is chunked into short segments (sentence-first): the first segment is one short sentence or
-      clause of at most 60 characters, so the first audio arrives quickly; later segments pack whole sentences
-      up to 240 characters (or the engine's own limit when smaller),
+    - **text** is split into whole sentences: the first segment is the first sentence (merged with the next one
+      when shorter than 30 characters), so the first audio arrives quickly; later segments group whole sentences,
+      each sized to be synthesized before the previous one has played, up to 240 characters (or the engine's own
+      limit when smaller); only a single sentence longer than that is cut, at a clause pause,
+    - engines that take a language per call (Supertonic) speak the whole reply in one language: the caller's
+      `language`, else the reply's language identified once on the whole text (kept at 80% confidence or more),
+      else the configured language,
+    - the silence an engine leaves around each streamed segment is trimmed to 0.05 s before and 0.25 s after,
+      so segments play back to back with a short natural pause,
     - then each segment is synthesized and enqueued as soon as possible, so later segments are synthesized
       while the first one plays.
     - Engines that can stream audio natively may further reduce TTFB by yielding multiple audio chunks per segment.
@@ -158,7 +164,8 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
 - `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -> bytes`
   - Headless/server‑friendly: returns encoded audio bytes.
 
-- `speak_to_audio_chunks(text: str, *, voice: str | None = None, instructions: str | None = None, sanitize_syntax: bool = True) -> Iterator[tuple[np.ndarray, int]]`
+- `speak_to_audio_chunks(text: str, *, voice: str | None = None, instructions: str | None = None, sanitize_syntax: bool = True, language: str | None = None) -> Iterator[tuple[np.ndarray, int]]`
+  - `language`: the language of the whole reply for engines that take a language per call (Supertonic); when omitted, the reply's own language is identified once on the whole text.
   - Headless/server‑friendly: yields `(audio_chunk, sample_rate)` tuples for incremental delivery.
   - Qwen3-TTS 1.7B CustomVoice and VoiceDesign accept per-call `instructions` without changing session state. Unsupported models and cloned speech reject streaming instructions explicitly.
 
@@ -447,8 +454,9 @@ Provider caveats that affect release choice are tracked in `docs/known-issues.md
 - `pop_last_tts_metrics() -> dict | None`
   - Best-effort last-utterance stats used by the REPL verbose mode.
   - Streamed synthesis (`speak_to_audio_chunks(...)`) records `engine`, `ttfb_s`, `synth_s`, `audio_s`, `rtf`,
-    `chunks`, `segments`, `segment_max_chars`, `first_segment_max_chars` and, for engines that report it,
-    `device` (`cpu` or `coreml` for Supertonic) with `device_reason` when synthesis runs on the CPU.
+    `chunks`, `segments`, `segment_max_chars`, `segment_chars` (each segment's length), `language` with
+    `language_source` (`request`, `reply` or `configured`) and, for engines that report it, `device` (`cpu` or
+    `coreml` for Supertonic) with `device_reason` when synthesis runs on the CPU.
 
 ## Callbacks & hooks
 

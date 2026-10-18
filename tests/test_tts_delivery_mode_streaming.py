@@ -23,7 +23,7 @@ def test_stop_speaking_cancels_base_streaming_worker(monkeypatch):
             # Yield many chunks slowly (simulates a streaming backend).
             for _ in range(50):
                 produced["n"] += 1
-                yield np.zeros((240,), dtype=np.float32), 24000
+                yield np.full((240,), 0.1, dtype=np.float32), 24000
                 time.sleep(0.01)
 
     class FakeEngine:

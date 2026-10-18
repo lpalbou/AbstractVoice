@@ -16,7 +16,7 @@ def test_open_tts_text_stream_pipes_text_deltas_to_playback_engine():
             return 24000
 
         def synthesize_to_audio_chunks(self, _text: str):
-            yield np.zeros((240,), dtype=np.float32), 24000
+            yield np.full((240,), 0.1, dtype=np.float32), 24000
 
     class FakeEngine:
         def __init__(self):
@@ -64,7 +64,7 @@ def test_open_tts_text_stream_is_cancelled_by_stop_speaking():
             return 24000
 
         def synthesize_to_audio_chunks(self, _text: str):
-            yield np.zeros((240,), dtype=np.float32), 24000
+            yield np.full((240,), 0.1, dtype=np.float32), 24000
 
     class FakeEngine:
         def begin_playback(self, callback=None, **_kwargs):

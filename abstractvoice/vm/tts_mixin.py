@@ -37,13 +37,32 @@ def _resolve_sanitize_syntax_arg(
 
 
 
-# First streamed segment cap (characters): one short sentence/clause so the
-# first audio arrives within ~1.5 s on a CPU engine (Supertonic: 35 chars
-# ~1.0 s, 96 chars ~1.8 s on an M5 Max under load).
-STREAM_FIRST_SEGMENT_MAX_CHARS = 60
 
 
 from .stt_mixin import _stt_device  # noqa: E402  (where a local STT engine runs, and why)
+
+
+# Streamed chunks play back to back: the silence an engine leaves around each one adds up at
+# every boundary (Supertonic: 0.35-0.60 s before, 0.40-0.75 s after, i.e. a ~1 s hole between
+# sentences). Each streamed chunk keeps at most this much of it; quieter than -50 dBFS is silence.
+STREAM_KEEP_LEADING_SILENCE_S = 0.05
+STREAM_KEEP_TRAILING_SILENCE_S = 0.25
+STREAM_SILENCE_THRESHOLD = 0.003
+
+
+def trim_stream_silence(mono, sample_rate: int):
+    """`mono` without the silence beyond `STREAM_KEEP_LEADING_SILENCE_S` before the first sound
+    and `STREAM_KEEP_TRAILING_SILENCE_S` after the last one (all of it when it is all silence)."""
+    import numpy as np
+
+    if sample_rate <= 0 or mono.size == 0:
+        return mono
+    loud = np.flatnonzero(np.abs(mono) > STREAM_SILENCE_THRESHOLD)
+    if loud.size == 0:
+        return mono[:0]
+    start = max(0, int(loud[0]) - int(STREAM_KEEP_LEADING_SILENCE_S * sample_rate))
+    end = min(mono.size, int(loud[-1]) + 1 + int(STREAM_KEEP_TRAILING_SILENCE_S * sample_rate))
+    return mono[start:end]
 
 
 def _adapter_device(adapter) -> dict:
@@ -1564,6 +1583,7 @@ class TtsMixin:
         cancel_event: threading.Event | None = None,
         sanitize_syntax: bool = True,
         saninitze_syntax: bool | None = None,
+        language: str | None = None,
     ):
         """Synthesize to an iterator of `(audio_chunk, sample_rate)` tuples.
 
@@ -1574,6 +1594,9 @@ class TtsMixin:
         - For base TTS, engines may yield a single chunk (buffered synthesis).
         - For cloned voices, chunking is implemented by cloning engines and is
           typically sentence/punctuation batch based.
+        - One language for the whole reply: `language` when given, else the reply's own
+          language identified once on the whole text (engines that take a language per call),
+          else the configured one; never decided per segment.
         """
         # Clear prior metrics for this new utterance (best-effort; populated on completion).
         self._set_last_tts_metrics(None)
@@ -1660,6 +1683,8 @@ class TtsMixin:
         ) == "unsupported":
             raise ValueError(f"{engine_id} model {getattr(adapter, 'model_id', '')} does not support instructions")
 
+        reply_language = self._reply_language(adapter, speak_text, language)
+
         def _gen_base():
             import numpy as np
 
@@ -1669,6 +1694,9 @@ class TtsMixin:
             total_audio_s = 0.0
             segments = []
             stream_max_chars = 240
+            configured_language = getattr(adapter, "_language", None)
+            if reply_language and reply_language != configured_language:
+                adapter.set_language(reply_language)
             try:
                 from ..tts.text_chunking import split_complete_text_for_streaming
 
@@ -1680,12 +1708,11 @@ class TtsMixin:
                     max_chars = 240
 
                 stream_max_chars = min(int(max_chars), 240)
-                # The first segment is one short sentence or clause (round 6):
-                # it is synthesised and played while the rest is synthesised.
+                # Whole sentences: the first sentence alone, then groups sized to stay ahead
+                # of playback (round 17, text_chunking.split_complete_text_for_streaming).
                 segments = split_complete_text_for_streaming(
                     str(speak_text),
                     max_chars=stream_max_chars,
-                    first_max_chars=min(stream_max_chars, STREAM_FIRST_SEGMENT_MAX_CHARS),
                 )
                 if not segments:
                     segments = [str(speak_text)]
@@ -1702,10 +1729,10 @@ class TtsMixin:
                     for chunk, sr in audio_chunks:
                         if cancel_event is not None and cancel_event.is_set():
                             break
-                        mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
+                        sr_i = int(sr) if sr else 0
+                        mono = trim_stream_silence(np.asarray(chunk, dtype=np.float32).reshape(-1), sr_i)
                         if mono.size <= 0:
                             continue
-                        sr_i = int(sr) if sr else 0
                         if sr_i > 0:
                             total_audio_s += float(len(mono)) / float(sr_i)
                         chunks += 1
@@ -1726,15 +1753,33 @@ class TtsMixin:
                     "chunks": int(chunks),
                     "segments": int(len(segments)),
                     "segment_max_chars": int(stream_max_chars),
-                    "first_segment_max_chars": int(min(stream_max_chars, STREAM_FIRST_SEGMENT_MAX_CHARS)),
+                    "segment_chars": [len(str(x)) for x in segments],
                     **_adapter_device(adapter),
-                    "language": str(getattr(self, "language", None) or "en"),
+                    "language": str(reply_language or getattr(adapter, "_language", None) or getattr(self, "language", None) or "en"),
+                    "language_source": "request" if language else "reply" if reply_language else "configured",
                     "speed": float(getattr(self, "speed", 1.0) or 1.0),
                     "ts": time.time(),
                 }
+                if reply_language and reply_language != configured_language and configured_language:
+                    adapter.set_language(configured_language)
                 self._set_last_tts_metrics(metrics)
 
         return _gen_base()
+
+    @staticmethod
+    def _reply_language(adapter, text: str, language: str | None) -> str | None:
+        """The language to speak this whole reply in, for an engine that takes a language per call
+        (`language_per_call`): the caller's, else the reply's own when identified with confidence;
+        None keeps the engine's configured language."""
+        if not getattr(adapter, "language_per_call", False):
+            return None
+        supported = [str(x).lower() for x in (adapter.get_supported_languages() or [])]
+        if language:
+            lang = str(language).strip().lower()
+            return lang if lang in supported else None
+        from ..tts.language_id import identify_language
+
+        return identify_language(text, supported)
 
     def open_tts_text_stream(
         self,

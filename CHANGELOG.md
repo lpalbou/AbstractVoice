@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.15.2] - 2026-10-18
+
+### Changed
+
+- Streamed speech is spoken in whole sentences. The first segment is the first sentence (merged with the next one when shorter than 30 characters), so a reply starting "Oui." or "Ah oui," no longer begins with a fragment followed by a pause. Later segments group whole sentences, each sized to be synthesized before the previous one has played, up to 240 characters; only a single sentence longer than that is cut, at a clause pause. A reply that opens with one long sentence starts speaking once that sentence is ready. `STREAM_FIRST_SEGMENT_MAX_CHARS` is removed.
+- Streamed segments play back to back with a short natural pause: the silence around each streamed chunk is trimmed to 0.05 s before and 0.25 s after its sound (`trim_stream_silence()`).
+- Supertonic speaks a streamed reply in one language: the `language` passed to `speak_to_audio_chunks()`, else the reply's language identified once on the whole text (kept at 80% confidence or more), else the configured language. Engines whose language is their voice model (Piper and others) are unchanged.
+- Streamed metrics report `segment_chars`, `language` and `language_source`; `first_segment_max_chars` is removed.
+
+### Added
+
+- `speak_to_audio_chunks(..., language=...)`.
+- `py3langid` (BSD-3-Clause, pure Python) in the `supertonic`, `apple`, `gpu`, `all-apple`, `all-gpu` and `test` extras.
+
 ## [0.15.1] - 2026-10-18
 
 ### Fixed

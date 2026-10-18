@@ -28,6 +28,9 @@ from ..voice_profiles import VoiceProfile
 class SupertonicTTSAdapter(TTSAdapter):
     """Adapter for Supertone Supertonic 3 fixed-style ONNX TTS."""
 
+    # One call speaks one language (`<fr>…</fr>`): the reply's language can change per call.
+    language_per_call = True
+
     engine_id = "supertonic"
 
     def __init__(

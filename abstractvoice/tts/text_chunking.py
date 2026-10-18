@@ -74,18 +74,87 @@ def split_text_batches(text: str, *, max_chars: int = 240) -> list[str]:
     return batches
 
 
+# Streamed delivery of a complete text (round 17, measured on a public gateway 2026-10-17):
+# a first segment cut at the EARLIEST pause ("Ah oui,", "Oui.") played 1.3 s of audio, then
+# the voice stopped 1.7-3.3 s while the rest of the sentence was made, and a fragment of a
+# few words came out in the wrong language ("Ah oui," heard as English "Are we?"). Streaming
+# TTS libraries (LiveKit, RealtimeTTS, Pipecat) send the first SENTENCE alone, never a
+# fragment, then group sentences so each segment is made before the previous one has played.
+STREAM_FIRST_MIN_CHARS = 30
+STREAM_MIN_SEGMENT_CHARS = 20
+# The pace used to size each segment so it is made before the audio already made has played
+# (each segment waits for the previous one: one engine at a time). Measured on the public
+# gateway's Supertonic (2026-10-17): ~15 characters of speech per second, synthesis at 0.36x
+# real time and ~0.5 s per call; rounded here to the cautious side.
+STREAM_CHARS_PER_SECOND = 15.0
+STREAM_SYNTH_RATIO = 0.4
+STREAM_CALL_OVERHEAD_S = 0.6
+
+
+def _cut_positions(s: str, start: int, stop: int, pattern: re.Pattern[str]) -> list[int]:
+    return [m.end() for m in pattern.finditer(s, start, stop + 1) if m.end() <= stop]
+
+
+def _choose_cut(s: str, start: int, *, min_len: int, budget: int, max_len: int, earliest: bool) -> int:
+    """Where the segment starting at `start` ends, always at a sentence end when there is one
+    within `max_len`: the first one at or after `min_len` (`earliest`: the first segment) or the
+    last one within `budget` (later segments: whole sentences together); a sentence longer than
+    the budget is still taken whole. Only a single sentence longer than `max_len` (the engine's
+    cap) is cut, at a clause pause, else a space. A cut never leaves a tail shorter than
+    `STREAM_MIN_SEGMENT_CHARS`."""
+    n = len(s)
+    if not earliest and n - start <= min(budget, max_len):
+        return n
+    stop = min(start + max_len, n)
+
+    def ok(c: int) -> bool:
+        if c - start < min_len:
+            return False
+        tail = len(s[c:].strip())
+        return tail == 0 or tail >= STREAM_MIN_SEGMENT_CHARS
+
+    ends = [c for c in _cut_positions(s, start, stop, _RE_SENTENCE_END) if ok(c)]
+    if stop == n and n - start <= max_len:
+        ends.append(n)
+    if ends:
+        if earliest:
+            return ends[0]
+        within = [c for c in ends if c - start <= budget]
+        return within[-1] if within else ends[0]
+    if earliest:
+        # A short first sentence followed by one longer than the cap: the short one alone (a
+        # whole sentence) rather than a first segment cut at a comma.
+        shorter = [c for c in _cut_positions(s, start, stop, _RE_SENTENCE_END)
+                   if len(s[c:].strip()) == 0 or len(s[c:].strip()) >= STREAM_MIN_SEGMENT_CHARS]
+        if shorter:
+            return shorter[0]
+    cuts = [c for c in _cut_positions(s, start, stop, _RE_SOFT_END) if ok(c)]
+    if cuts:
+        return cuts[-1]
+    spaces = [i for i in range(start + 1, stop + 1) if i < n and s[i] == " " and ok(i)]
+    if spaces:
+        return spaces[-1]
+    return stop  # one indivisible run (a long word, continuous script): enforce the cap
+
+
 def split_complete_text_for_streaming(
     text: str,
     *,
     max_chars: int = 240,
-    first_max_chars: int = 96,
+    first_min_chars: int = STREAM_FIRST_MIN_CHARS,
+    chars_per_second: float = STREAM_CHARS_PER_SECOND,
+    synth_ratio: float = STREAM_SYNTH_RATIO,
+    call_overhead_s: float = STREAM_CALL_OVERHEAD_S,
 ) -> list[str]:
-    """Split a complete text for low-latency streamed TTS delivery.
+    """Split a complete text for streamed TTS in whole sentences: soon-ready first audio, no gaps.
 
-    The first segment is allowed to cut at an early natural pause to minimize
-    time-to-first-audio. The remaining text is then batched with
-    `split_text_batches` so complete responses do not produce one provider call
-    per comma/colon.
+    - The first segment is the first sentence; one shorter than `first_min_chars` ("Oui.")
+      goes with the next one. It is never cut at a comma.
+    - Each later segment groups whole sentences, as many as can be synthesised before the audio
+      already made has played (at `chars_per_second`, synthesis at `synth_ratio` of real time
+      plus `call_overhead_s` per segment); one longer sentence is still taken whole.
+    - Only a sentence longer than `max_chars` (the engine's cap) is cut, at a clause pause.
+    - No segment is shorter than `STREAM_MIN_SEGMENT_CHARS` unless the whole text is.
     """
 
     try:
@@ -94,31 +163,42 @@ def split_complete_text_for_streaming(
         mc = 240
     if mc <= 0:
         mc = 240
-    try:
-        first_mc = int(first_max_chars)
-    except Exception:
-        first_mc = 96
-    if first_mc <= 0:
-        first_mc = 96
-    first_mc = min(mc, first_mc)
+    first_min = max(1, min(int(first_min_chars), mc))
 
     s = _RE_WS.sub(" ", str(text or "")).strip()
     if not s:
         return []
-    if len(s) <= first_mc:
-        return [s]
 
-    cut = TextStreamChunker._find_cut_index(s, max_chars=first_mc, min_chars=1)
-    if cut is None:
-        return split_text_batches(s, max_chars=mc)
-
-    first = s[:cut].strip()
-    rest = s[cut:].strip()
-    if not first:
-        return split_text_batches(rest, max_chars=mc)
-    if not rest:
-        return [first]
-    return [first] + split_text_batches(rest, max_chars=mc)
+    secs_per_char = 1.0 / max(1.0, float(chars_per_second))
+    segments: list[str] = []
+    start = 0
+    budget = mc
+    made_at = 0.0     # when the last segment is synthesised (s)
+    played_at = 0.0   # when the audio made so far has played (s)
+    while start < len(s):
+        first = not segments
+        cut = _choose_cut(
+            s,
+            start,
+            min_len=first_min if first else STREAM_MIN_SEGMENT_CHARS,
+            budget=budget,
+            max_len=mc,
+            earliest=first,
+        )
+        segment = s[start:cut].strip()
+        if segment:
+            segments.append(segment)
+            audio_s = len(segment) * secs_per_char
+            made_at += call_overhead_s + synth_ratio * audio_s
+            played_at = max(played_at, made_at) + audio_s
+            # The next segment must be made before `played_at`, starting now (`made_at`).
+            budget_s = played_at - made_at - call_overhead_s
+            fits = int(budget_s / max(1e-6, synth_ratio * secs_per_char))
+            budget = max(2 * STREAM_MIN_SEGMENT_CHARS, min(mc, fits))
+        start = cut
+        while start < len(s) and s[start].isspace():
+            start += 1
+    return segments
 
 
 @dataclass(frozen=True)
