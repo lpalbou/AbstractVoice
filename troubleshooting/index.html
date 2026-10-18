@@ -962,6 +962,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#streamed-speech-uses-the-wrong-language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streamed speech uses the wrong language
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1582,6 +1593,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#streamed-speech-uses-the-wrong-language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streamed speech uses the wrong language
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1767,11 +1789,19 @@ visible to CTranslate2, CUDA 12 cuBLAS or cuDNN 9 not loadable, a refused
 to the CPU. Install <code>abstractvoice[gpu]</code> (it carries the CUDA 12 cuBLAS, runtime and cuDNN 9 wheels)
 and see <a href="../installation/#nvidia-gpus-linux-and-windows">NVIDIA GPUs</a>.</p>
 <h3 id="streamed-speech-takes-long-to-start">Streamed speech takes long to start<a class="headerlink" href="#streamed-speech-takes-long-to-start" title="Permanent link">&para;</a></h3>
-<p>Streamed delivery synthesizes a short first segment (one sentence or clause, at most 60 characters)
-and plays it while the rest is synthesized. <code>pop_last_tts_metrics()</code> after a streamed synthesis
-reports <code>ttfb_s</code> (time to first audio), the segment sizes and, for Supertonic, the execution
-<code>device</code> with <code>device_reason</code>. Keep the engine loaded between replies: a cold start adds the model
+<p>Streamed delivery synthesizes the first sentence alone and plays it while the rest is synthesized;
+a reply that opens with one long sentence starts once that sentence is ready.
+<code>pop_last_tts_metrics()</code> after a streamed synthesis reports <code>ttfb_s</code> (time to first audio),
+<code>segment_chars</code> (the length of each segment) and, for Supertonic, the execution <code>device</code> with
+<code>device_reason</code>. Keep the engine loaded between replies: a cold start adds the model
 load to the first segment.</p>
+<h3 id="streamed-speech-uses-the-wrong-language">Streamed speech uses the wrong language<a class="headerlink" href="#streamed-speech-uses-the-wrong-language" title="Permanent link">&para;</a></h3>
+<p>Supertonic speaks a streamed reply in one language: the <code>language</code> you pass to
+<code>speak_to_audio_chunks()</code>, else the reply's language identified on the whole text, else the
+configured language (<code>set_language()</code>). A short reply (under 20 characters) or a mix of languages may
+not be identified with confidence; it is then spoken in the configured language. Pass <code>language</code>
+when you know it. <code>pop_last_tts_metrics()</code> reports the <code>language</code> used and its <code>language_source</code>
+(<code>request</code>, <code>reply</code> or <code>configured</code>).</p>
 <h3 id="a-local-engine-loads-weights-when-you-only-wanted-to-browse">A local engine loads weights when you only wanted to browse<a class="headerlink" href="#a-local-engine-loads-weights-when-you-only-wanted-to-browse" title="Permanent link">&para;</a></h3>
 <p>Reach for the discovery calls, which never load an engine: <code>available_providers()</code>,
 <code>list_models(...)</code>, <code>list_tts_voices(provider=...)</code>, and <code>voice_catalog(providers_only=True)</code> or

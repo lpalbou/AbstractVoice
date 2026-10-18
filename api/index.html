@@ -1870,9 +1870,15 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <li>
 <p><strong>Behavior note</strong>: streamed delivery is implemented as a pipeline:</p>
 <ul>
-<li><strong>text</strong> is chunked into short segments (sentence-first): the first segment is one short sentence or
-  clause of at most 60 characters, so the first audio arrives quickly; later segments pack whole sentences
-  up to 240 characters (or the engine's own limit when smaller),</li>
+<li><strong>text</strong> is split into whole sentences: the first segment is the first sentence (merged with the next one
+  when shorter than 30 characters), so the first audio arrives quickly; later segments group whole sentences,
+  each sized to be synthesized before the previous one has played, up to 240 characters (or the engine's own
+  limit when smaller); only a single sentence longer than that is cut, at a clause pause,</li>
+<li>engines that take a language per call (Supertonic) speak the whole reply in one language: the caller's
+  <code>language</code>, else the reply's language identified once on the whole text (kept at 80% confidence or more),
+  else the configured language,</li>
+<li>the silence an engine leaves around each streamed segment is trimmed to 0.05 s before and 0.25 s after,
+  so segments play back to back with a short natural pause,</li>
 <li>then each segment is synthesized and enqueued as soon as possible, so later segments are synthesized
   while the first one plays.</li>
 <li>Engines that can stream audio natively may further reduce TTFB by yielding multiple audio chunks per segment.</li>
@@ -1885,8 +1891,9 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <p>Headless/server‑friendly: returns encoded audio bytes.</p>
 </li>
 <li>
-<p><code>speak_to_audio_chunks(text: str, *, voice: str | None = None, instructions: str | None = None, sanitize_syntax: bool = True) -&gt; Iterator[tuple[np.ndarray, int]]</code></p>
+<p><code>speak_to_audio_chunks(text: str, *, voice: str | None = None, instructions: str | None = None, sanitize_syntax: bool = True, language: str | None = None) -&gt; Iterator[tuple[np.ndarray, int]]</code></p>
 </li>
+<li><code>language</code>: the language of the whole reply for engines that take a language per call (Supertonic); when omitted, the reply's own language is identified once on the whole text.</li>
 <li>Headless/server‑friendly: yields <code>(audio_chunk, sample_rate)</code> tuples for incremental delivery.</li>
 <li>
 <p>Qwen3-TTS 1.7B CustomVoice and VoiceDesign accept per-call <code>instructions</code> without changing session state. Unsupported models and cloned speech reject streaming instructions explicitly.</p>
@@ -2249,8 +2256,9 @@ actionable error instead of silently pretending cloning is standardized.</p>
 <li><code>pop_last_tts_metrics() -&gt; dict | None</code></li>
 <li>Best-effort last-utterance stats used by the REPL verbose mode.</li>
 <li>Streamed synthesis (<code>speak_to_audio_chunks(...)</code>) records <code>engine</code>, <code>ttfb_s</code>, <code>synth_s</code>, <code>audio_s</code>, <code>rtf</code>,
-    <code>chunks</code>, <code>segments</code>, <code>segment_max_chars</code>, <code>first_segment_max_chars</code> and, for engines that report it,
-    <code>device</code> (<code>cpu</code> or <code>coreml</code> for Supertonic) with <code>device_reason</code> when synthesis runs on the CPU.</li>
+    <code>chunks</code>, <code>segments</code>, <code>segment_max_chars</code>, <code>segment_chars</code> (each segment's length), <code>language</code> with
+    <code>language_source</code> (<code>request</code>, <code>reply</code> or <code>configured</code>) and, for engines that report it, <code>device</code> (<code>cpu</code> or
+    <code>coreml</code> for Supertonic) with <code>device_reason</code> when synthesis runs on the CPU.</li>
 </ul>
 <h2 id="callbacks-hooks">Callbacks &amp; hooks<a class="headerlink" href="#callbacks-hooks" title="Permanent link">&para;</a></h2>
 <ul>
