@@ -2526,7 +2526,7 @@ VoiceDesign checkpoint, by contrast, samples a new voice each time.</p>
 <li>The record's <code>meta</code> carries <code>designed: true</code>, the <code>description</code>, <code>language_code</code> and <code>design_model</code>.</li>
 <li>The design run uses the manager's Qwen3-TTS backend and precision settings (<code>qwen3_tts_backend</code>, <code>qwen3_tts_mlx_quantization</code>). Design runs are serialized per process; each loads its own VoiceDesign model and Whisper and unloads them when done.</li>
 <li>Needs <code>abstractvoice[qwen3-tts]</code> and <code>abstractvoice[stt]</code> (faster-whisper <code>base</code> for the alignment), plus the <code>Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign</code> and <code>Qwen/Qwen3-TTS-12Hz-1.7B-Base</code> checkpoints, downloaded on first use when downloads are allowed.</li>
-<li>An empty description, an unsupported language, or a <code>text</code> too long for one generation or too short for a 4-second reference raises <code>ValueError</code>.</li>
+<li>An empty description, an unsupported language, or a <code>text</code> too long for one generation or too short for a 4-second reference raises <code>ValueError</code>. Without the <code>qwen3-tts</code> extra it raises <code>RuntimeError</code> with the install command.</li>
 <li>It runs in two halves you can also call yourself: <code>render_designed_voice(description, language=, text=) -&gt; {wav_bytes, reference_text, meta}</code> renders and stores nothing; <code>store_designed_voice(rendered, name=) -&gt; voice_id</code> clones it.</li>
 </ul>
 <p>State the voice's sex explicitly in the description, in the reference language when it
@@ -2695,6 +2695,7 @@ integration code:
     <code>instructions</code> support on <code>bytes</code> but not <code>playback</code> — so live-playback
     consumers should query <code>surface="playback"</code> explicitly.
 - <code>clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -&gt; voice_id | dict</code>
+  - Creating a voice with a local cloning engine needs only that engine: the configured TTS and STT engines (OpenAI by default) are not built, so no OpenAI key is required.
 - <code>clone_voice(...) -&gt; ...</code> (compatibility alias of <code>clone(...)</code>)
 - Cloned-voice management (the clone registry is shared by every manager of the user):
   - <code>get_cloned_voice(voice_id) -&gt; dict</code> (stored record: <code>voice_id</code>, <code>name</code>, <code>engine</code>, <code>reference_text</code>, <code>reference_files</code>, <code>meta</code>)
