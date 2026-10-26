@@ -546,7 +546,7 @@ VoiceDesign checkpoint, by contrast, samples a new voice each time.
 - The record's `meta` carries `designed: true`, the `description`, `language_code` and `design_model`.
 - The design run uses the manager's Qwen3-TTS backend and precision settings (`qwen3_tts_backend`, `qwen3_tts_mlx_quantization`). Design runs are serialized per process; each loads its own VoiceDesign model and Whisper and unloads them when done.
 - Needs `abstractvoice[qwen3-tts]` and `abstractvoice[stt]` (faster-whisper `base` for the alignment), plus the `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` and `Qwen/Qwen3-TTS-12Hz-1.7B-Base` checkpoints, downloaded on first use when downloads are allowed.
-- An empty description, an unsupported language, or a `text` too long for one generation or too short for a 4-second reference raises `ValueError`.
+- An empty description, an unsupported language, or a `text` too long for one generation or too short for a 4-second reference raises `ValueError`. Without the `qwen3-tts` extra it raises `RuntimeError` with the install command.
 - It runs in two halves you can also call yourself: `render_designed_voice(description, language=, text=) -> {wav_bytes, reference_text, meta}` renders and stores nothing; `store_designed_voice(rendered, name=) -> voice_id` clones it.
 
 State the voice's sex explicitly in the description, in the reference language when it
@@ -713,6 +713,7 @@ integration code:
     `instructions` support on `bytes` but not `playback` — so live-playback
     consumers should query `surface="playback"` explicitly.
 - `clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -> voice_id | dict`
+  - Creating a voice with a local cloning engine needs only that engine: the configured TTS and STT engines (OpenAI by default) are not built, so no OpenAI key is required.
 - `clone_voice(...) -> ...` (compatibility alias of `clone(...)`)
 - Cloned-voice management (the clone registry is shared by every manager of the user):
   - `get_cloned_voice(voice_id) -> dict` (stored record: `voice_id`, `name`, `engine`, `reference_text`, `reference_files`, `meta`)

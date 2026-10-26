@@ -242,13 +242,19 @@ class TtsMixin:
         """
         import io
 
+        from ..engine_runtime import engine_runtime_status
+
+        if not str(description or "").strip():
+            raise ValueError("a voice description is required")
+        runtime = engine_runtime_status("qwen3-tts")
+        if not runtime.installed:
+            raise RuntimeError(f"design_voice needs Qwen3-TTS. {runtime.reason}")
+
         import soundfile as sf
 
         from ..cloning.design import DESIGN_MODEL_ID, WARMUPS, render_designed_reference
         from ..qwen3_tts.runtime import Qwen3TTSSettings
 
-        if not str(description or "").strip():
-            raise ValueError("a voice description is required")
         lang = str(language or getattr(self, "language", None) or "en").strip().lower()
         if language is None and lang not in WARMUPS:
             lang = "en"

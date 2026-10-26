@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.18.1] - 2026-10-26
+
+### Fixed
+
+- AbstractCore plugin: creating a voice with a local cloning engine (`clone(...)` with `provider="qwen3-tts"`, `"omnivoice"`, ...) and `design_voice(...)` no longer build the configured TTS and STT engines. With the default configuration (OpenAI TTS) and no OpenAI key, they failed with "OpenAI audio requires OPENAI_API_KEY" although they never use it.
+- `design_voice` without the `qwen3-tts` extra raises an error naming the install command instead of a missing-module error.
+
 ## [0.18.0] - 2026-10-26
 
 ### Added
