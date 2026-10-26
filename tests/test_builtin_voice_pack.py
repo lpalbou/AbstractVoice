@@ -153,3 +153,19 @@ def test_plugin_catalog_entries_expose_the_profile_in_tags(tmp_path, monkeypatch
     assert tags["builtin"] is True and tags["sex"] == "male" and tags["style"] == "bass"
     assert tags["nationality"] == "American" and tags["language_code"] == "en"
     assert plugin._clone_profile_tags({"meta": None}) == {}
+
+
+def test_cli_voice_prefers_an_exact_clone_id_over_permissive_profiles():
+    from abstractvoice.examples.voice_cli import _apply_tts_voice_profile
+
+    class _VM:
+        def get_cloned_voice(self, voice_id):
+            if voice_id == "fr-female-camille":
+                return {"voice_id": voice_id}
+            raise KeyError(voice_id)
+
+        def set_profile(self, name, kind="tts"):
+            return name != "fr-female-camille" or pytest.fail("a clone id must not be tried as a profile")
+
+    assert _apply_tts_voice_profile(_VM(), "fr-female-camille") == "fr-female-camille"
+    assert _apply_tts_voice_profile(_VM(), "alloy") is None  # a profile name still selects the profile

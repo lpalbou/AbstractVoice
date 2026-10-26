@@ -16,6 +16,10 @@ Older changelog entries may reference historical CLI commands or model choices.
 - `Qwen3TTSRuntime.export_clone_prompt()` / `clone_prompt_from_arrays()`: a voice-clone prompt as plain arrays and back, on either backend.
 - `one_shot=True` on `speak_to_bytes()`, `speak_to_file()`, the AbstractCore plugin's `tts()` and the CLI (`--one-shot`): the whole text is synthesized as ONE generation, with no sentence segmentation and no truncation, so a take keeps one voice from start to end. Available for Qwen3-TTS preset speakers, VoiceDesign and Qwen clones, up to 1000 characters; a longer text or another engine raises `ValueError` rather than cutting. Use it to produce voice references for cloning.
 
+### Fixed
+
+- The CLI's `--voice` selects a cloned voice (including a built-in one) when the name is an exact clone id, before asking the active TTS engine for a profile of that name; with the OpenAI engine, which accepts any name, a clone id was sent to OpenAI as a voice.
+
 ## [0.16.0] - 2026-10-26
 
 ### Added
