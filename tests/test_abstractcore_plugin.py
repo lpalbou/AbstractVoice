@@ -1770,3 +1770,100 @@ def test_voice_manager_default_openai_tts_still_fails_loudly_without_key(monkeyp
     _clear_plugin_env(monkeypatch)
     with pytest.raises(ValueError, match="OPENAI_API_KEY"):
         VoiceManager(stt_engine="faster-whisper")
+
+
+# ---------------------------------------------------------------------------
+# Cloned-voice management surface
+# ---------------------------------------------------------------------------
+
+
+def _management_vm():
+    class _VM:
+        cloning_engine = "omnivoice"
+
+        def __init__(self):
+            self.records = {"v1": {"voice_id": "v1", "name": "Ada", "engine": "omnivoice", "reference_text": "hello"}}
+            self.calls = []
+
+        def get_cloned_voice(self, voice_id):
+            return dict(self.records[voice_id])
+
+        def rename_cloned_voice(self, voice_id, new_name):
+            self.calls.append(("rename", voice_id, new_name))
+            self.records[voice_id]["name"] = new_name
+            return True
+
+        def set_cloned_voice_reference_text(self, voice_id, reference_text):
+            self.calls.append(("reference_text", voice_id, reference_text))
+            self.records[voice_id]["reference_text"] = reference_text
+            return True
+
+        def delete_cloned_voice(self, voice_id):
+            self.calls.append(("delete", voice_id))
+            del self.records[voice_id]
+            return True
+
+    return _VM()
+
+
+def test_voice_capability_manages_cloned_voices_through_the_manager():
+    vm = _management_vm()
+
+    class _Owner:
+        config = {"voice_manager_instance": vm}
+
+    cap = _VoiceCapability(_Owner())
+
+    assert cap.get_cloned_voice("v1")["name"] == "Ada"
+    renamed = cap.rename_cloned_voice("v1", "Grace")
+    assert renamed["ok"] is True and renamed["name"] == "Grace" and renamed["voice_id"] == "v1"
+    updated = cap.set_cloned_voice_reference_text("v1", "good morning")
+    assert updated["reference_text"] == "good morning"
+    deleted = cap.delete_cloned_voice("v1")
+    assert deleted == {"ok": True, "deleted": True, "voice_id": "v1", "name": "Grace", "engine": "omnivoice"}
+    assert vm.calls == [("rename", "v1", "Grace"), ("reference_text", "v1", "good morning"), ("delete", "v1")]
+    assert callable(cap.delete_voice) and callable(cap.rename_voice)
+
+
+def test_voice_capability_management_rejects_unknown_and_empty_ids():
+    vm = _management_vm()
+
+    class _Owner:
+        config = {"voice_manager_instance": vm}
+
+    cap = _VoiceCapability(_Owner())
+
+    with pytest.raises(KeyError):
+        cap.get_cloned_voice("nope")
+    with pytest.raises(KeyError):
+        cap.delete_cloned_voice("nope")
+    with pytest.raises(ValueError):
+        cap.rename_cloned_voice("v1", "   ")
+    with pytest.raises(ValueError):
+        cap.set_cloned_voice_reference_text("v1", "")
+    with pytest.raises(ValueError):
+        cap.delete_cloned_voice("")
+    assert vm.records["v1"]["name"] == "Ada"
+
+
+def test_voice_capability_management_uses_the_store_without_building_a_manager(tmp_path, monkeypatch):
+    from abstractvoice.cloning.store import VoiceCloneStore
+
+    store = VoiceCloneStore(tmp_path / "voices")
+    ref = tmp_path / "ref.wav"
+    ref.write_bytes(b"RIFF....WAVE")
+    voice_id = store.create_voice(name="Ada", reference_paths=[str(ref)], engine="omnivoice", reference_text="hello")
+    monkeypatch.setattr("abstractvoice.cloning.store.VoiceCloneStore", lambda: store)
+    monkeypatch.setattr(_VoiceCapability, "_get_vm", lambda self: pytest.fail("management must not build a VoiceManager"))
+
+    class _Owner:
+        config = {}
+
+    cap = _VoiceCapability(_Owner())
+
+    assert cap.get_cloned_voice(voice_id)["name"] == "Ada"
+    assert cap.rename_cloned_voice(voice_id, "Grace")["name"] == "Grace"
+    assert cap.set_cloned_voice_reference_text(voice_id, "good morning")["reference_text"] == "good morning"
+    assert cap.delete_cloned_voice(voice_id)["deleted"] is True
+    with pytest.raises(KeyError):
+        store.get_voice(voice_id)

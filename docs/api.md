@@ -575,6 +575,12 @@ integration code:
     consumers should query `surface="playback"` explicitly.
 - `clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -> voice_id | dict`
 - `clone_voice(...) -> ...` (compatibility alias of `clone(...)`)
+- Cloned-voice management (the clone registry is shared by every manager of the user):
+  - `get_cloned_voice(voice_id) -> dict` (stored record: `voice_id`, `name`, `engine`, `reference_text`, `reference_files`, `meta`)
+  - `rename_cloned_voice(voice_id, new_name) -> dict` (the id is unchanged; returns the updated record with `ok`)
+  - `set_cloned_voice_reference_text(voice_id, reference_text) -> dict` (a wrong transcript degrades cloned speech; returns the updated record)
+  - `delete_cloned_voice(voice_id) -> {ok, deleted, voice_id, name, engine}` (removes the record and its reference audio)
+  - `delete_voice(...)` / `rename_voice(...)` are aliases. An unknown id raises `KeyError`; an empty id, name or transcript raises `ValueError`. None of these builds a `VoiceManager` or loads an engine.
 - `voice_catalog() -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}`
 - `voice_catalog()` also includes additive capability metadata:
   - `controls`: legacy control map kept backward-compatible for existing clients
@@ -584,6 +590,7 @@ integration code:
 - Residency / warmup (local engines only; remote providers remain “configured”):
   - `load_resident_model(request: dict) -> dict`
     - voice backend: clone engines (`provider="cloned"`) and local base TTS (`provider="piper"|"supertonic"|"omnivoice"|"audiodit"|...`)
+    - `{"task": "tts", "provider": "cloned", "model": "<engine>", "options": {"voice": "<voice_id>"}}` loads the cloning engine and prepares and warms that voice (`details.voice_prepared`, `details.voice_warmed`), so the first `tts(voice=...)` does not pay the engine load. `model` may be omitted when `options.voice` is given; the engine is read from the stored voice.
     - audio backend: local STT (`provider="faster-whisper"|"transformers-asr"|...`)
   - `list_resident_models(filters: dict | None = None) -> list[dict]`
   - `unload_resident_model(request: dict) -> dict`
