@@ -77,6 +77,16 @@ and is needed to avoid `trust_remote_code`.
   - We include a derived implementation under `abstractvoice/qwen3_asr/*` (sourced from the upstream `qwen-asr` package)
     so `Qwen/Qwen3-ASR-1.7B` can run without `trust_remote_code`.
   - License text: `third_party_licenses/qwen_asr_license.txt`.
+- Qwen3-TTS model code (Apache-2.0): https://github.com/QwenLM/Qwen3-TTS
+  - We include a derived PyTorch implementation under `abstractvoice/qwen3_tts/*` (sourced from the upstream `qwen-tts` package).
+  - License text: `third_party_licenses/qwen3_tts_notice.txt`.
+- mlx-audio (MIT) by Prince Canuma and contributors: https://github.com/Blaizzy/mlx-audio
+  - The MLX port of Qwen3-TTS under `abstractvoice/qwen3_tts/mlx/*` (Apple silicon backend, ADR 0008) is derived from
+    its `qwen3_tts` model, together with the Kyutai Mimi codec modules (MIT, https://github.com/kyutai-labs/moshi) and
+    the mlx-lm key/value cache (MIT, Apple Inc., https://github.com/ml-explore/mlx-lm) it redistributes.
+  - License text: `third_party_licenses/mlx_audio_notice.txt`.
+  - Runtime dependency on Apple silicon: MLX (MIT): https://github.com/ml-explore/mlx, and `tokenizers` (Apache-2.0):
+    https://github.com/huggingface/tokenizers for the text tokenizer.
 
 No Supertonic or OmniVoice model weights are vendored in this repository.
 AbstractVoice downloads those optional artifacts into local caches only when

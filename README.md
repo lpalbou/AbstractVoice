@@ -171,19 +171,26 @@ wav = core.voice.tts(
 )
 ```
 
-`core.voice.tts_stream(...)` accepts the same description and returns
-sentence-sized audio segments, not native codec-frame streaming. Qwen clone
+`core.voice.tts_stream(...)` accepts the same description. Qwen clone
 creation accepts `model="Qwen/Qwen3-TTS-12Hz-1.7B-Base"`; the stored voice
 retains that checkpoint for later synthesis. See [the Qwen guide in the API](docs/api.md#qwen3-tts-checkpoints).
 
-Qwen uses an optimized predictor with the standard sampler by default. Opt in to
-exponential sampling, or compare against the original Transformers generation,
-with `--qwen3-tts-sampler exponential` / `--qwen3-tts-predictor reference` (CLI,
-REPL, web example), `VoiceManager(qwen3_tts_sampler=..., qwen3_tts_predictor=...)`
-or the AbstractCore plugin settings `voice_qwen3_tts_sampler` /
-`voice_qwen3_tts_predictor`. See
-[Qwen performance controls](docs/api.md#qwen-performance-controls) for settings,
-reference-mode comparison, and streaming limits.
+On Apple silicon Qwen3-TTS runs on the Apple GPU through MLX (installed by the
+`qwen3-tts`, `apple` and `all-apple` extras): a reply is ONE generation streamed
+as codec frames, so speech starts a fraction of a second in and the voice cannot
+drift between sentences. Elsewhere (CUDA, CPU) it runs on PyTorch and streamed
+delivery synthesizes sentence-sized segments. `runtime_info()["backend"]` says
+which one is active; `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch|mlx` overrides the
+choice. On PyTorch, Qwen uses an optimized predictor with the standard sampler by
+default; opt in to exponential sampling, or compare against the original
+Transformers generation, with `--qwen3-tts-sampler exponential` /
+`--qwen3-tts-predictor reference` (CLI, REPL, web example),
+`VoiceManager(qwen3_tts_sampler=..., qwen3_tts_predictor=...)` or the
+AbstractCore plugin settings `voice_qwen3_tts_sampler` /
+`voice_qwen3_tts_predictor`. Choose the Qwen backend with
+`VoiceManager(qwen3_tts_backend="mlx"|"torch")` or the plugin setting `voice_qwen3_tts_backend`. See
+[Qwen performance controls](docs/api.md#qwen-performance-controls) for the
+backend policy, settings and streaming behaviour.
 
 For a remote-first Gateway/Core deployment, the AbstractCore plugin defaults to
 OpenAI remote TTS/STT and reads `OPENAI_API_KEY`; a host can instead pass the
@@ -271,7 +278,7 @@ pip install "abstractvoice[stt]"               # local faster-whisper STT only
 pip install "abstractvoice[stt-mlx]"           # mlx-whisper: Whisper on the Apple GPU (Apple Silicon)
 pip install "abstractvoice[stt-hf]"            # local Transformers/Hugging Face ASR (e.g. openai/whisper-large-v3, openai/whisper-large-v3-turbo, Qwen/Qwen3-ASR-1.7B)
 pip install "abstractvoice[omnivoice]"         # recommended/default local cloning engine
-pip install "abstractvoice[qwen3-tts]"         # Qwen3-TTS: preset speakers, cloning, voice design (Python 3.10+)
+pip install "abstractvoice[qwen3-tts]"         # Qwen3-TTS: preset speakers, cloning, voice design (Python 3.10+; MLX on Apple silicon, PyTorch elsewhere)
 pip install "abstractvoice[cloning]"           # explicit OpenF5 cloning engine
 ```
 

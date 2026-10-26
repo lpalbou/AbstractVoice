@@ -1431,6 +1431,7 @@ class _BaseVoice:
         # Outside the lenient block above on purpose: a typo in these settings must
         # fail loudly (ValueError), not silently fall back to the defaults.
         qwen3_tts_predictor, qwen3_tts_sampler = self._qwen3_tts_codebook_settings()
+        qwen3_tts_backend, qwen3_tts_mlx_quantization = self._qwen3_tts_backend_settings()
 
         key = (
             str(language),
@@ -1450,6 +1451,8 @@ class _BaseVoice:
             bool(debug_mode),
             qwen3_tts_predictor,
             qwen3_tts_sampler,
+            qwen3_tts_backend,
+            qwen3_tts_mlx_quantization,
             str(openai_api_key or ""),
             str(openai_base_url or ""),
         )
@@ -1475,6 +1478,8 @@ class _BaseVoice:
                     remote_timeout_s=remote_timeout_s,
                     qwen3_tts_predictor=qwen3_tts_predictor,
                     qwen3_tts_sampler=qwen3_tts_sampler,
+                    qwen3_tts_backend=qwen3_tts_backend,
+                    qwen3_tts_mlx_quantization=qwen3_tts_mlx_quantization,
                     openai_api_key=openai_api_key,
                     openai_base_url=openai_base_url,
                 )
@@ -1498,6 +1503,20 @@ class _BaseVoice:
         return (
             normalize_qwen3_tts_predictor(cfg.get("voice_qwen3_tts_predictor")),
             normalize_qwen3_tts_sampler(cfg.get("voice_qwen3_tts_sampler")),
+        )
+
+    def _qwen3_tts_backend_settings(self) -> tuple[str, str]:
+        """The owner's `voice_qwen3_tts_backend` (auto | mlx | torch) and
+        `voice_qwen3_tts_mlx_quantization` (auto | bf16 | 8bit | 4bit) settings, validated:
+        ValueError on a typo. `auto` defers to the package policy (ADR 0008), which
+        also honours ABSTRACTVOICE_QWEN3_TTS_BACKEND / _MLX_QUANTIZATION."""
+        from ..qwen3_tts.backend import normalize_backend, normalize_mlx_quantization
+
+        cfg = getattr(self._owner, "config", None)
+        cfg = cfg if isinstance(cfg, dict) else {}
+        return (
+            normalize_backend(cfg.get("voice_qwen3_tts_backend")),
+            normalize_mlx_quantization(cfg.get("voice_qwen3_tts_mlx_quantization")),
         )
 
     def _iter_known_vms(self):

@@ -194,6 +194,36 @@ on an M5 Max). Select the `mlx-whisper` engine instead: it runs the same models 
 [Whisper on the Apple GPU](installation.md#whisper-on-the-apple-gpu). On the CPU, `large-v3-turbo`
 is the faster model (about 6 s for that clip).
 
+### Qwen3-TTS speaks late or slowly on a Mac
+
+On Apple silicon Qwen3-TTS should report `runtime_info()["backend"] == "mlx"` (the stream metrics
+say `device: metal`): a reply is one generation streamed as codec frames, with the first audio a
+fraction of a second in. If it reports `torch` instead, `mlx` is not installed in that interpreter
+(`pip install "abstractvoice[qwen3-tts]"` installs it on Apple silicon) or
+`ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch` is set; `runtime_info()["backend_selection"]` (before the
+model loads) says which. The PyTorch path on the Apple GPU is kernel-launch bound: a long reply
+synthesizes near real time and streamed speech starts several seconds in. A request for `mlx` on
+another platform fails with a plain error rather than falling back. If the first utterance after
+loading is still slow, check `runtime_info()["prime_seconds"]`: the load runs a short priming
+generation so Metal kernels compile before the first real reply.
+
+Other processes using the Apple GPU (another model server, video work) slow MLX inference
+without raising the CPU load average; compare timings on an idle machine.
+
+### Qwen3-TTS raises "timed out ... waiting for the model"
+
+On the MLX backend one generation owns the model until its chunk iterator from
+`speak_to_audio_chunks()` or `stream_*()` is exhausted or closed. A program that stops reading
+an iterator but keeps a reference to it holds the model; the next synthesis then waits and
+raises this error instead of hanging. Call `.close()` on an iterator you abandon, or let it go
+out of scope.
+
+### Qwen3-TTS refuses an older `mlx`
+
+The MLX backend needs `mlx` 0.31.2 or newer. Upgrade with `pip install -U "mlx>=0.31.2"`, or run
+the PyTorch backend with `VoiceManager(qwen3_tts_backend="torch")` or
+`ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch`.
+
 ### Whisper runs on the CPU on an NVIDIA machine
 
 `FasterWhisperAdapter.execution_device()` (and `get_info()["device_reason"]`) says why: no CUDA GPU

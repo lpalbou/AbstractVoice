@@ -53,6 +53,8 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         openai_base_url: str | None = None,
         qwen3_tts_predictor: str | None = None,
         qwen3_tts_sampler: str | None = None,
+        qwen3_tts_backend: str | None = None,  # auto | mlx | torch (ADR 0008)
+        qwen3_tts_mlx_quantization: str | None = None,  # auto | bf16 | 8bit | 4bit
     ):
         self.debug_mode = debug_mode
         self.speed = 1.0
@@ -86,6 +88,11 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
 
         self.qwen3_tts_predictor = normalize_qwen3_tts_predictor(qwen3_tts_predictor)
         self.qwen3_tts_sampler = normalize_qwen3_tts_sampler(qwen3_tts_sampler)
+        from ..qwen3_tts.backend import normalize_backend, normalize_mlx_quantization
+
+        # Validated before any engine is built: a typo is a ValueError, not a silent default.
+        self.qwen3_tts_backend = normalize_backend(qwen3_tts_backend)
+        self.qwen3_tts_mlx_quantization = normalize_mlx_quantization(qwen3_tts_mlx_quantization)
 
         requested_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
 
@@ -144,6 +151,8 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
                     timeout_s=self.remote_timeout_s,
                     qwen3_tts_predictor=self.qwen3_tts_predictor,
                     qwen3_tts_sampler=self.qwen3_tts_sampler,
+                    qwen3_tts_backend=self.qwen3_tts_backend,
+                    qwen3_tts_mlx_quantization=self.qwen3_tts_mlx_quantization,
                 )
         except ValueError:
             # Preserve caller-facing validation semantics (explicit engine names must be valid).

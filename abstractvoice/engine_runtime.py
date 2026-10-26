@@ -152,6 +152,23 @@ def engine_runtime_status(engine: Any, *, kind: Optional[str] = None) -> EngineR
         raise ValueError(
             f"unknown AbstractVoice engine {engine!r}; known engines: {', '.join(_ENGINES)}"
         )
+    if engine_id == "qwen3-tts":
+        spec, policy_error = _qwen3_tts_requirement(spec)
+        if policy_error is not None:
+            # An explicit backend request the machine cannot honour (ADR 0008): not a missing
+            # package, but the engine cannot run, and the policy's own sentence says why.
+            return EngineRuntimeStatus(
+                engine=engine_id,
+                label=spec.label,
+                kinds=spec.kinds,
+                remote=spec.remote,
+                installed=False,
+                required_modules=tuple(module for group in spec.module_groups for module in group),
+                missing_modules=(),
+                extra=spec.extra,
+                install_command=f'pip install "abstractvoice[{spec.extra}]"' if spec.extra else None,
+                reason=f"{spec.label} cannot run with the requested backend: {policy_error}",
+            )
     if kind is not None and _require_kind(kind) not in spec.kinds:
         raise ValueError(f"engine {engine_id!r} does not serve {kind!r} (it serves {', '.join(spec.kinds)})")
 
@@ -184,6 +201,22 @@ def engine_runtime_status(engine: Any, *, kind: Optional[str] = None) -> EngineR
 def engine_runtime_installed(engine: Any, *, kind: Optional[str] = None) -> bool:
     """Shorthand for ``engine_runtime_status(engine, kind=kind).installed``."""
     return engine_runtime_status(engine, kind=kind).installed
+
+
+def _qwen3_tts_requirement(spec: _EngineRequirement) -> Tuple[_EngineRequirement, Optional[str]]:
+    """Qwen3-TTS runs on MLX on Apple silicon and on PyTorch elsewhere (ADR 0008), so the
+    packages it needs follow that policy (and ``ABSTRACTVOICE_QWEN3_TTS_BACKEND``). The policy
+    module is pure Python: no framework is imported here either. Returns the requirement and,
+    when the requested backend cannot run here, the policy's error message."""
+    from .qwen3_tts.backend import select_backend
+
+    try:
+        backend = select_backend()
+    except Exception as e:  # noqa: BLE001 - surfaced to the caller as the reason
+        return _EngineRequirement(spec.label, spec.kinds, (("mlx",), ("tokenizers",), ("soundfile",)), spec.extra), str(e)
+    if backend != "mlx":
+        return spec, None
+    return _EngineRequirement(spec.label, spec.kinds, (("mlx",), ("tokenizers",), ("soundfile",)), spec.extra), None
 
 
 def _require_kind(kind: str) -> str:

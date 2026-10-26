@@ -55,7 +55,7 @@ pip install "abstractvoice[cloning]"   # explicit OpenF5-based cloning (heavy; P
 pip install "abstractvoice[chroma]"    # Chroma-4B (very heavy; torch/transformers)
 pip install "abstractvoice[audiodit]"  # LongCat-AudioDiT (heavy; torch/transformers)
 pip install "abstractvoice[omnivoice]" # recommended/default local cloning + OmniVoice TTS/design (very heavy; Python 3.10+)
-pip install "abstractvoice[qwen3-tts]" # Qwen3-TTS: preset speakers, cloning, voice design (heavy; Python 3.10+)
+pip install "abstractvoice[qwen3-tts]" # Qwen3-TTS: preset speakers, cloning, voice design (heavy; Python 3.10+; MLX on Apple silicon, PyTorch elsewhere)
 pip install "abstractvoice[openai]"    # Hosted OpenAI intent extra (no extra deps today)
 pip install "abstractvoice[openai-compatible]" # Generic compatible provider intent extra
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
@@ -248,6 +248,18 @@ Measured on an M5 Max, one 17-second English clip, warm model:
 |---|---|---|---|
 | faster-whisper (int8, beam 5) | CPU | about 20 s | about 6 s |
 | mlx-whisper (float16, greedy) | Apple GPU | about 1.4 s | about 0.25 s |
+
+### Qwen3-TTS on the Apple GPU
+
+On Apple silicon the `qwen3-tts`, `apple`, `all-apple`, `gpu` and `all-gpu` extras install `mlx`
+and `tokenizers`, and Qwen3-TTS runs on the Apple GPU through MLX (ADR 0008): the same Qwen
+checkpoints from the same Hugging Face cache, loaded strictly from the original bf16 safetensors
+and quantized to 8-bit as they load (`ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION=bf16|8bit|4bit`
+chooses otherwise). Nothing changes in how you select the engine; `runtime_info()["backend"]`
+reports `mlx`. Elsewhere, or with `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch`, the PyTorch path runs
+as before. Asking for `mlx` on a machine where it cannot run fails with a plain error. Measured
+figures are in [`docs/benchmark.md`](benchmark.md) and
+[Qwen backends](api.md#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere).
 
 ## Troubleshooting
 

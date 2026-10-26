@@ -238,11 +238,16 @@ def test_runtime_settings_select_predictor_and_sampler_at_load(monkeypatch, sett
     # The Transformers floor has its own tests (test_transformers_floor.py); this
     # one is about settings and must not depend on the installed release.
     monkeypatch.setattr("abstractvoice.transformers_floor.require_transformers", lambda *_a, **_kw: None)
-    runtime = Qwen3TTSRuntime(allow_downloads=False, device="cpu", settings=Qwen3TTSSettings(**settings))
+    # The switches wire the PyTorch code predictor: pin that backend (ADR 0008 would pick
+    # MLX on an Apple silicon machine with `mlx` installed).
+    runtime = Qwen3TTSRuntime(
+        allow_downloads=False, device="cpu", settings=Qwen3TTSSettings(backend="torch", **settings)
+    )
     runtime.snapshot_dir = Mock(return_value="/nonexistent-snapshot")
     runtime._ensure_loaded()
     assert (code_predictor._abstractvoice_predictor, code_predictor._abstractvoice_sampler) == expected
     info = runtime.runtime_info()
+    assert info["backend"] == "torch"
     assert info["predictor_mode"] == expected[0]
     assert info["sampler"] == ("multinomial" if expected[0] == "reference" else expected[1])
 

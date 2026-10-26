@@ -52,6 +52,10 @@ pins `numpy<=1.26.4`, which conflicts with NumPy 2 stacks such as AbstractVision
 MLX backends. On 3.10 the profiles install without F5-TTS; add
 `abstractvoice[cloning]` separately if you need it and can stay on NumPy 1.x.
 
+On Apple silicon the platform profiles also install `mlx-whisper` (Whisper on the
+Apple GPU) and `mlx` + `tokenizers` (Qwen3-TTS on the Apple GPU, ADR 0008); the
+environment markers make these no-ops on every other platform.
+
 - **piper-tts**
   - **Why**: local neural TTS backend.
   - **Where**: `abstractvoice/adapters/tts_piper.py`
@@ -156,6 +160,42 @@ Vendored code:
 - Qwen3-ASR Transformers backend
   - **Upstream**: `qwen-asr` (Apache-2.0) and `https://github.com/QwenLM/Qwen3-ASR`
   - **What we ship**: a derived Transformers implementation under `abstractvoice/qwen3_asr/*` so Qwen3-ASR works without `trust_remote_code`.
+
+### `abstractvoice[qwen3-tts]` — Qwen3-TTS (preset speakers, voice design, cloning)
+
+Python 3.10+. Two compute backends behind one runtime (ADR 0008): MLX on Apple
+silicon, PyTorch elsewhere. Both load the original Qwen bf16 safetensors from the
+Hugging Face cache.
+
+- **mlx** (Apple silicon only; environment marker `sys_platform == 'darwin' and platform_machine == 'arm64'`)
+  - **Why**: runs the Qwen3-TTS talker, codec and speaker encoder on the Apple GPU; the talker is quantized to 8-bit on load.
+  - **Where**: `abstractvoice/qwen3_tts/mlx/`, selected by `abstractvoice/qwen3_tts/backend.py`
+  - **Repo**: `https://github.com/ml-explore/mlx`
+  - **License**: `https://github.com/ml-explore/mlx/blob/main/LICENSE` (MIT)
+
+- **tokenizers** (Apple silicon only, same marker)
+  - **Why**: the Qwen2 text tokenizer, built from the snapshot's `vocab.json` / `merges.txt`, so the MLX path needs no Transformers.
+  - **Where**: `abstractvoice/qwen3_tts/mlx/tokenizer.py`
+  - **Repo**: `https://github.com/huggingface/tokenizers`
+  - **License**: `https://github.com/huggingface/tokenizers/blob/main/LICENSE` (Apache-2.0)
+
+- **torch**, **transformers** (>= 5.9, < 6)
+  - **Why**: the PyTorch backend (CUDA, CPU, and Apple silicon when `mlx` is absent or `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch`).
+  - **Where**: `abstractvoice/qwen3_tts/{modeling_qwen3_tts,orchestration,codec,predictor}.py`
+
+- **huggingface_hub**, **safetensors**, **soundfile**, **numpy**: snapshot resolution, weight files, reference-audio I/O (both backends).
+
+Models/weights (Hugging Face): `Qwen/Qwen3-TTS-12Hz-{0.6B,1.7B}-{CustomVoice,Base}`,
+`Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` (Apache-2.0); prefetch with
+`python -m abstractvoice download --qwen3-tts <model-id>`.
+
+Vendored code:
+
+- Qwen3-TTS PyTorch model (`qwen-tts`, Apache-2.0): `abstractvoice/qwen3_tts/*`;
+  notice `third_party_licenses/qwen3_tts_notice.txt`.
+- Qwen3-TTS MLX port derived from mlx-audio (MIT), with the Kyutai Mimi codec modules and the
+  mlx-lm key/value cache it redistributes (MIT): `abstractvoice/qwen3_tts/mlx/*`; notice
+  `third_party_licenses/mlx_audio_notice.txt`.
 
 ### `abstractvoice[omnivoice]`, `[cloning]`, `[chroma]`, `[audiodit]` — model prefetch support
 
