@@ -397,3 +397,18 @@ def test_explicit_mlx_request_that_cannot_run_is_reported_on_every_surface(monke
     status = engine_runtime.engine_runtime_status("qwen3-tts")
     assert status.installed is False
     assert "Apple silicon" in (status.reason or "")
+
+
+def test_a_loaded_runtime_is_available_whatever_the_platform_policy_says(monkeypatch):
+    """CI runs on Linux without torch: a runtime that is already loaded (here a fake MLX one)
+    must not be reported unavailable because the PyTorch packages are absent."""
+    import importlib.util
+
+    from abstractvoice.adapters.tts_qwen3_tts import Qwen3TTSAdapter
+
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name, *a: None if name in ("torch", "transformers", "mlx") else real_find_spec(name, *a)
+    )
+    monkeypatch.setattr(policy, "mlx_supported_platform", lambda **_kw: False)
+    assert Qwen3TTSAdapter(runtime=_NativeRuntime()).is_available() is True

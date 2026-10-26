@@ -120,6 +120,9 @@ class Qwen3TTSAdapter(TTSAdapter):
         # Capability probe: importable runtimes only, never multi-GB loads. The
         # backend policy (ADR 0008) decides which runtime that is.
         try:
+            # A loaded runtime is running on its backend: nothing left to probe.
+            if bool(getattr(self._runtime, "is_loaded", False)):
+                return True
             _backend, error = self._backend_or_error()
             return error is None and not self._missing_runtime_modules()
         except Exception:
