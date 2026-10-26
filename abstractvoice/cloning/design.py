@@ -13,6 +13,7 @@ every call. See docs/voice-pack.md for the same method applied to the built-in v
 """
 from __future__ import annotations
 
+import threading
 from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -47,10 +48,14 @@ TEXTS = {
 }
 
 
+# Design runs are serialized process-wide (each loads its own models).
+_DESIGN_LOCK = threading.Lock()
+
 # Whisper locates the reference; the cut is the silence nearest to it.
 ALIGNMENT_WHISPER_MODEL = "base"
 _MIN_PAUSE_S = 0.1
 _MAX_CUT_DISTANCE_S = 0.6
+_CUT_JITTER_S = 0.15
 _MIN_REFERENCE_S = 4.0
 
 # (text, start seconds) per transcribed word, for 16 kHz mono float32 audio.
@@ -130,11 +135,26 @@ def starts_with_reference(words: Sequence[Tuple[str, float]], *, reference_text:
 
 
 def find_warmup_cut(audio: np.ndarray, sample_rate: int, *, reference_start: float) -> Optional[int]:
-    """Sample index of the silence nearest ``reference_start`` (seconds), or None if none is close."""
+    """Sample index where the warm-up ends, given when the reference starts (seconds).
+
+    The last silence shortly before the reference start (up to 0.6 s before, or
+    0.15 s after for timestamp jitter) -- never a later one, which would cut the
+    reference's first words. When the warm-up runs into the reference without a
+    silence, the quietest instant in the 0.25 s before the start. None for an
+    empty or too-short clip.
+    """
+    a = np.asarray(audio, dtype=np.float32).reshape(-1)
     sr = int(sample_rate)
     target = float(reference_start) * sr
-    pauses = [c for c in find_pauses(audio, sr) if abs(c - target) <= _MAX_CUT_DISTANCE_S * sr]
-    return min(pauses, key=lambda c: abs(c - target)) if pauses else None
+    pauses = [c for c in find_pauses(a, sr) if target - _MAX_CUT_DISTANCE_S * sr <= c <= target + _CUT_JITTER_S * sr]
+    if pauses:
+        return max(pauses)
+    frame, hop = int(0.02 * sr), int(0.005 * sr)
+    lo, hi = max(0, int(target - 0.25 * sr)), min(len(a), int(target))
+    if hi - lo < frame:
+        return None
+    energy = [float(np.mean(a[k:k + frame] ** 2)) for k in range(lo, hi - frame + 1, hop)]
+    return lo + int(np.argmin(energy)) * hop + frame // 2
 
 
 def whisper_transcriber(*, allow_downloads: bool, model: str = ALIGNMENT_WHISPER_MODEL) -> Transcriber:
@@ -179,8 +199,7 @@ def render_designed_reference(
     ``text`` too long for one generation or too short for a reference;
     RuntimeError when no attempt yields a clean cut.
     """
-    from ..adapters.tts_qwen3_tts import _qwen_language
-    from ..qwen3_tts.runtime import ONE_SHOT_MAX_CHARS, Qwen3TTSRuntime, one_shot_max_new_tokens
+    from ..qwen3_tts.runtime import ONE_SHOT_MAX_CHARS
 
     if not str(description or "").strip():
         raise ValueError("a voice description is required")
@@ -195,8 +214,21 @@ def render_designed_reference(
             f"text is too long: with the {len(warmup)}-character warm-up it must fit one generation "
             f"({ONE_SHOT_MAX_CHARS} characters); use at most {ONE_SHOT_MAX_CHARS - len(warmup) - 1}"
         )
-    words_of = transcriber or whisper_transcriber(allow_downloads=bool(allow_downloads))
-    runtime = Qwen3TTSRuntime(model_id=model_id, allow_downloads=bool(allow_downloads), settings=settings)
+    with _DESIGN_LOCK:  # one design at a time: each loads a 1.7B model and Whisper
+        return _render(
+            str(description), lang, warmup, reference_text, full,
+            model_id=model_id, allow_downloads=bool(allow_downloads), attempts=attempts,
+            settings=settings, transcriber=transcriber, custom_text=bool(text and str(text).strip()),
+        )
+
+
+def _render(description, lang, warmup, reference_text, full, *, model_id, allow_downloads, attempts, settings,
+            transcriber, custom_text):
+    from ..adapters.tts_qwen3_tts import _qwen_language
+    from ..qwen3_tts.runtime import Qwen3TTSRuntime, one_shot_max_new_tokens
+
+    words_of = transcriber or whisper_transcriber(allow_downloads=allow_downloads)
+    runtime = Qwen3TTSRuntime(model_id=model_id, allow_downloads=allow_downloads, settings=settings)
     too_short = 0
     try:
         for _ in range(max(1, int(attempts))):
@@ -220,7 +252,7 @@ def render_designed_reference(
             n = int(0.01 * sr)
             ref[:n] *= np.linspace(0.0, 1.0, n, dtype=np.float32)  # 10 ms fade-in at the cut
             return ref, int(sr), reference_text
-        if too_short:
+        if too_short and custom_text:
             raise ValueError(
                 f"text is too short: the reference must last at least {_MIN_REFERENCE_S:.0f} s; use a longer text"
             )

@@ -117,14 +117,25 @@ def test_reference_start_is_where_the_reference_opening_is_heard():
     assert not starts_with_reference([(" we", 0.0), (" go.", 0.2), (" Good", 0.5)], reference_text="Good morning everyone.")
 
 
-def test_warmup_cut_picks_the_pause_nearest_the_reference_start_not_the_longest():
+def test_warmup_cut_takes_the_last_pause_before_the_reference_start():
     from abstractvoice.cloning.design import find_warmup_cut
 
-    # A short true pause at 2.0 s and a longer one at 3.4 s, both plausible by position.
-    audio = np.concatenate([_tone(1.9), _gap(0.2), _tone(1.2), _gap(0.6), _tone(4.0)])
-    cut = find_warmup_cut(audio, SR, reference_start=2.1)
+    # Pauses at ~1.0 s (inside the warm-up), ~2.0 s (the boundary) and ~3.4 s (inside the reference).
+    audio = np.concatenate([_tone(0.9), _gap(0.2), _tone(0.8), _gap(0.2), _tone(1.2), _gap(0.6), _tone(4.0)])
+    cut = find_warmup_cut(audio, SR, reference_start=2.15)
     assert 1.9 * SR <= cut <= 2.1 * SR
-    assert find_warmup_cut(audio, SR, reference_start=0.5) is None  # no pause within reach
+    # A pause well after the heard start would cut the reference's first words: never chosen.
+    cut = find_warmup_cut(audio, SR, reference_start=2.8)
+    assert cut <= 2.8 * SR
+
+
+def test_warmup_cut_without_a_pause_uses_the_quietest_instant_before_the_start():
+    from abstractvoice.cloning.design import find_warmup_cut
+
+    quiet = np.concatenate([_tone(2.0), _tone(0.05, amp=0.01), _tone(3.0)])  # a dip, not a silence
+    cut = find_warmup_cut(quiet, SR, reference_start=2.1)
+    assert 2.0 * SR <= cut <= 2.05 * SR
+    assert find_warmup_cut(_tone(1.0), SR, reference_start=0.0) is None
 
 
 class _FakeRuntime:
@@ -435,3 +446,49 @@ def test_voice_catalog_carries_languages_by_provider(monkeypatch):
     catalog = cap.voice_catalog(provider="piper")
     assert "fr" in catalog["tts_languages_by_provider"]["piper"]
     assert catalog["stt_languages_by_provider"] == {}
+
+
+def test_render_without_custom_text_does_not_blame_the_text(fake_runtime):
+    from abstractvoice.cloning.design import TEXTS, WARMUPS, render_designed_reference
+
+    fake_runtime.audio = np.concatenate([_tone(2.0), _gap(0.3), _tone(2.0)])  # built-in text rendered short
+    hearing = _whisper_hearing(2.3, WARMUPS["en"], TEXTS["en"])
+    with pytest.raises(RuntimeError):
+        render_designed_reference("a calm voice", attempts=1, transcriber=hearing)
+
+
+def test_design_runs_are_serialized(fake_runtime, monkeypatch):
+    import threading
+
+    from abstractvoice.cloning import design
+
+    inside, peak = [0], [0]
+    gate = threading.Event()
+
+    def slow_render(*args, **kwargs):
+        inside[0] += 1
+        peak[0] = max(peak[0], inside[0])
+        gate.wait(0.2)
+        inside[0] -= 1
+        return np.zeros(1), SR, "x"
+
+    monkeypatch.setattr(design, "_render", slow_render)
+    threads = [threading.Thread(target=design.render_designed_reference, args=("a voice",)) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert peak[0] == 1
+
+
+def test_language_filter_also_narrows_the_id_maps_and_keeps_native_speakers():
+    from abstractvoice.integrations.abstractcore_plugin import _navigable_voice_catalog
+
+    raw = _raw_catalog()
+    raw["tts_voices_by_provider"] = {"piper": ["amy", "siwis"], "qwen3-tts": ["aiden", "fr-female-camille"]}
+    # A clone of an en/zh-only engine whose own language is French still speaks French.
+    raw["voices"].append({"voice_id": "c-fr", "kind": "clone", "provider": "audiodit",
+                          "tags": {"source": "abstractvoice_clone_store", "language_code": "fr"}})
+    cat = _navigable_voice_catalog(raw, language="fr")
+    assert cat["tts_voices_by_provider"]["piper"] == ["siwis"]
+    assert "c-fr" in [v["voice_id"] for v in cat["voices"]]

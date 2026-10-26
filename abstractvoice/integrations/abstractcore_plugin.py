@@ -1319,6 +1319,8 @@ def _with_voice_navigation(record: Dict[str, Any], languages_of: Callable[[str],
         native = None
     native = _normalize_language_code(native) or None
     languages = [native] if provider == "piper" and native else list(languages_of(provider))
+    if native and languages and native not in languages:
+        languages.append(native)  # a voice speaks its own language
     out.setdefault("voice_id", voice_id)
     out["kind"] = kind
     out.setdefault("name", out.get("display_name") or out.get("label") or voice_id)
@@ -1378,6 +1380,20 @@ def _navigable_voice_catalog(catalog: Dict[str, Any], *, language: Optional[str]
             updated[provider_id] = entry
         result["tts_catalog_by_provider"] = updated
     if lang:
+        # The id-only maps follow the filtered voice lists.
+        kept: Dict[str, set] = {}
+        for v in result.get("voices") or []:
+            if isinstance(v, dict):
+                kept.setdefault(str(v.get("provider") or ""), set()).update(
+                    str(x) for x in (v.get("voice_id"), v.get("profile_id")) if x
+                )
+        for key in ("tts_voices_by_provider", "tts_profiles_by_provider"):
+            mapping = result.get(key)
+            if isinstance(mapping, dict):
+                result[key] = {
+                    p: [i for i in ids if not isinstance(i, str) or i in kept.get(p, set())] if isinstance(ids, list) else ids
+                    for p, ids in mapping.items()
+                }
         result["language"] = lang
     return result
 
