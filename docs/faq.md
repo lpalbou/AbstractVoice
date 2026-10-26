@@ -106,6 +106,8 @@ Default local state:
 - OpenF5 artifacts: `~/.cache/abstractvoice/openf5`
 - Chroma artifacts and prompt cache: `~/.cache/abstractvoice/chroma`
 - Cloned voices: `appdirs.user_data_dir("abstractvoice")/cloned_voices`
+- Built-in voices: inside the installed package (`abstractvoice/assets/voices/qwen3_tts/`), read-only;
+  rendering them uses the `Qwen/Qwen3-TTS-12Hz-1.7B-Base` checkpoint in the Hugging Face cache
 - OmniVoice persistent prompt profiles: `appdirs.user_data_dir("abstractvoice")/omnivoice_prompt_cache`
 - REPL terminal command history: `appdirs.user_data_dir("abstractvoice")/repl_history`
 - Saved REPL memories: wherever you ran `/save`, with a `.mem` extension
@@ -357,10 +359,15 @@ python -m abstractvoice download --piper fr
   audio (Base, `cloning_engine="qwen3-tts"`), and voices described in natural
   language via the `instructions` selector (VoiceDesign, 1.7B). Style
   instructions are native on the 1.7B checkpoints and ignored by 0.6B — the
-  capability catalog reports this per model. Managed synthesis chunks text at
-  ~200 characters; if you drive the runtime directly with a single un-chunked
-  utterance, a runaway-protection cap (~2048 codec frames ≈ 164s of audio)
-  clamps texts beyond roughly 800 characters — chunk long texts.
+  capability catalog reports this per model. On Apple silicon it runs on the
+  Apple GPU through MLX: a reply up to 800 characters is one generation,
+  streamed as it is produced. On PyTorch, buffered synthesis splits text into
+  ~200-character generations. Pass `one_shot=True` to render a whole text
+  (up to 1000 characters) as one generation, so the voice stays the same from
+  start to end.
+- The 70 built-in voices (American and British English, French, Spanish,
+  German, Italian; women, men and a bass male per language) run on Qwen3-TTS;
+  use them with `voice=<id>`. See [Built-in voices](voice-pack.md).
 - AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine
   in this integration.
 - OmniVoice is the main optional path for omnilingual speech and voice design,
@@ -399,6 +406,16 @@ pip install "abstractvoice[omnivoice]" # OmniVoice, recommended/default
 
 Artifacts are still downloaded explicitly with `python -m abstractvoice download ...`
 or `abstractvoice-prefetch ...`.
+
+### Are there ready-made voices?
+
+Yes: 70 built-in Qwen3-TTS voices in American and British English, French,
+Spanish, German and Italian, including a deep professional bass male voice in
+each language. They need `abstractvoice[qwen3-tts]` and the
+`Qwen/Qwen3-TTS-12Hz-1.7B-Base` checkpoint, then work by id anywhere a cloned
+voice does, for example `vm.speak("Bonjour.", voice="fr-female-camille")` or
+`llm.voice.tts("Hello.", voice="en-us-male-harrison")` through AbstractCore.
+They are read-only. See [Built-in voices](voice-pack.md).
 
 ### How should I prepare reference audio?
 
