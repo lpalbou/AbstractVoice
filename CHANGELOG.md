@@ -10,6 +10,10 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Added
+
+- AbstractCore plugin: cloned-voice management on the voice capability — `get_cloned_voice`, `rename_cloned_voice`, `set_cloned_voice_reference_text` and `delete_cloned_voice` (aliases `rename_voice`, `delete_voice`). They act on the shared clone registry without building a `VoiceManager` or loading an engine, return JSON-safe records, raise `KeyError` for an unknown id and `ValueError` for an empty id, name or transcript. Documented with the existing residency warm-up (`load_resident_model` with `provider="cloned"` and `options.voice`) in `docs/api.md`.
+
 ### Changed
 
 - Qwen3-TTS is warmed in the loading phase like every other local engine: selecting it (`VoiceManager(tts_engine="qwen3-tts")`, the REPL's `--tts-engine qwen3-tts`, the AbstractCore plugin) loads the chosen checkpoint from the local cache at construction, so the first utterance no longer pays the 20–30 s load (REPL, 1.7B on an Apple GPU: first `/speak` 28.6 s → 4.1 s). Construction never downloads: a checkpoint that is not cached is fetched by `abstractvoice-prefetch` or by the first synthesis when downloads are allowed. Discovery paths keep passing `auto_load=False` and never load weights.

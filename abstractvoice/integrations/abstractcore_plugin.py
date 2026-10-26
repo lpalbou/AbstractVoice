@@ -3504,6 +3504,86 @@ class _VoiceCapability(_BaseVoice):
         """Alias for provider/model-filtered TTS voice discovery."""
         return self.list_tts_voices(provider=provider, model=model, include_clones=include_clones)
 
+    # ------------------------------------------------------------------
+    # Cloned-voice management (the registry is the clone store; one per user)
+    # ------------------------------------------------------------------
+
+    def _clone_registry(self):
+        """The object that owns stored clones: this capability's manager, else the store.
+
+        Management must not build a `VoiceManager` (and warm a TTS engine) just to
+        rename or delete a record. The capability's own manager (already built, or
+        injected through `voice_manager_instance`) is used when it exists, because an
+        embedder may have given it a dedicated store; otherwise the shared on-disk
+        registry every manager reads is edited directly. Managers cached for other
+        configurations are deliberately not consulted.
+        """
+        vm = self._vm
+        if vm is None:
+            cfg = getattr(self._owner, "config", None)
+            if isinstance(cfg, dict):
+                vm = cfg.get("voice_manager_instance")
+        if vm is not None and all(
+            hasattr(vm, name)
+            for name in ("get_cloned_voice", "rename_cloned_voice", "set_cloned_voice_reference_text", "delete_cloned_voice")
+        ):
+            return vm
+        from ..cloning import store as _store_module
+
+        return _store_module.VoiceCloneStore()
+
+    @staticmethod
+    def _voice_id_or_raise(voice_id: Any) -> str:
+        text = str(voice_id or "").strip()
+        if not text:
+            raise ValueError("voice_id is required")
+        return text
+
+    def get_cloned_voice(self, voice_id: str) -> Dict[str, Any]:
+        """The stored record of one cloned voice (JSON-safe); KeyError when unknown."""
+        vid = self._voice_id_or_raise(voice_id)
+        registry = self._clone_registry()
+        getter = getattr(registry, "get_cloned_voice", None) or getattr(registry, "get_voice_dict")
+        record = getter(vid)
+        out = dict(record) if isinstance(record, dict) else {"voice_id": vid}
+        out.setdefault("voice_id", vid)
+        return _json_safe(out)
+
+    def rename_cloned_voice(self, voice_id: str, new_name: str) -> Dict[str, Any]:
+        """Rename a cloned voice; the id is unchanged. Returns the updated record."""
+        vid = self._voice_id_or_raise(voice_id)
+        name = str(new_name or "").strip()
+        if not name:
+            raise ValueError("new_name is required")
+        registry = self._clone_registry()
+        renamer = getattr(registry, "rename_cloned_voice", None) or getattr(registry, "rename_voice")
+        renamer(vid, name)
+        return {"ok": True, **self.get_cloned_voice(vid)}
+
+    def set_cloned_voice_reference_text(self, voice_id: str, reference_text: str) -> Dict[str, Any]:
+        """Replace a cloned voice's reference transcript (a wrong one degrades output). Returns the updated record."""
+        vid = self._voice_id_or_raise(voice_id)
+        text = str(reference_text or "").strip()
+        if not text:
+            raise ValueError("reference_text is required")
+        registry = self._clone_registry()
+        setter = getattr(registry, "set_cloned_voice_reference_text", None) or getattr(registry, "set_reference_text")
+        setter(vid, text)
+        return {"ok": True, **self.get_cloned_voice(vid)}
+
+    def delete_cloned_voice(self, voice_id: str) -> Dict[str, Any]:
+        """Delete a cloned voice and its reference audio from the registry; KeyError when unknown."""
+        vid = self._voice_id_or_raise(voice_id)
+        registry = self._clone_registry()
+        record = self.get_cloned_voice(vid)
+        deleter = getattr(registry, "delete_cloned_voice", None) or getattr(registry, "delete_voice")
+        deleter(vid)
+        return {"ok": True, "deleted": True, "voice_id": vid, "name": record.get("name"), "engine": record.get("engine")}
+
+    # Aliases for duck-typed callers that use the shorter verbs.
+    delete_voice = delete_cloned_voice
+    rename_voice = rename_cloned_voice
+
     def get_capability_support(
         self,
         *,
