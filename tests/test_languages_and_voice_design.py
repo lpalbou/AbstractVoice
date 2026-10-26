@@ -274,6 +274,8 @@ def test_design_voice_renders_then_clones_with_the_base_model(monkeypatch, manag
         return _tone(5.0), SR, "the reference text"
 
     monkeypatch.setattr("abstractvoice.cloning.design.render_designed_reference", fake_render)
+    # The Qwen3-TTS runtime is stubbed out here, so its install check is too.
+    monkeypatch.setattr("abstractvoice.engine_runtime.engine_runtime_status", lambda engine: type("S", (), {"installed": True})())
     vm = _designer(manager_language, qwen3_tts_backend="torch", qwen3_tts_mlx_quantization="4bit")
     assert vm.design_voice("  a deep calm voice ", name=" Bass ", language=asked) == "voice-123"
     assert seen["language"] == expected and seen["allow_downloads"] is False
