@@ -1,0 +1,1859 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/voice-pack/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Built-in voices - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#built-in-voices" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Built-in voices
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use them
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-voices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The voices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The voices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#american-english-united-states" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        American (English (United States))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#british-english-united-kingdom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        British (English (United Kingdom))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#french-french" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        French (French)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spanish-spanish-spain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spanish (Spanish (Spain))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#german-german" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        German (German)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#italian-italian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Italian (Italian)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-they-were-made" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How they were made
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="built-in-voices">Built-in voices<a class="headerlink" href="#built-in-voices" title="Permanent link">&para;</a></h1>
+<p>AbstractVoice ships 70 ready-made voices for Qwen3-TTS: women and men in American and
+British English, French, Spanish, German and Italian, including a deep, professional bass male voice in
+every language. They behave like voices you cloned yourself (same ids, same calls, same listings), are
+available offline once the model is cached, and are read-only.</p>
+<p>This page covers what you need to use them, the full list, and how they were made. For cloning your own
+voices see <a href="../api/#voice-cloning-optional-heavy">API: voice cloning</a>; for licensing see
+<a href="../voices-and-licenses/#built-in-voices">Voices and licenses</a>.</p>
+<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>pip install "abstractvoice[qwen3-tts]"</code> (Python 3.10+; on Apple silicon it runs on the Apple GPU through
+  MLX, elsewhere on PyTorch).</li>
+<li>The <code>Qwen/Qwen3-TTS-12Hz-1.7B-Base</code> checkpoint, which renders every built-in voice:
+  <code>python -m abstractvoice download --qwen3-tts Qwen/Qwen3-TTS-12Hz-1.7B-Base</code>
+  (or allow downloads and let the first use fetch it).</li>
+</ul>
+<p>The package itself only carries each voice's clone prompt (its reference codec codes and speaker
+embedding, about 12 KB per voice); no reference audio is shipped.</p>
+<h2 id="use-them">Use them<a class="headerlink" href="#use-them" title="Permanent link">&para;</a></h2>
+<p>The voice id is all you need. Any voice can read any of the ten Qwen3-TTS languages; it sounds most
+natural in its own.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">cloning_engine</span><span class="o">=</span><span class="s2">"qwen3-tts"</span><span class="p">)</span>
+<span class="n">wav</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_bytes</span><span class="p">(</span><span class="s2">"Bonjour et bienvenue."</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="s2">"fr-female-camille"</span><span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak_to_file</span><span class="p">(</span><span class="s2">"Good evening."</span><span class="p">,</span> <span class="s2">"news.wav"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="s2">"en-gb-male-oliver"</span><span class="p">,</span> <span class="n">one_shot</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">chunk</span><span class="p">,</span> <span class="n">sr</span> <span class="ow">in</span> <span class="n">vm</span><span class="o">.</span><span class="n">speak_to_audio_chunks</span><span class="p">(</span><span class="s2">"A longer reply, streamed as it is generated."</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="s2">"en-us-male-harrison"</span><span class="p">):</span>
+    <span class="o">...</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak</span><span class="p">(</span><span class="s2">"Hallo zusammen!"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="s2">"de-female-anna"</span><span class="p">)</span>
+<span class="p">[</span><span class="n">v</span><span class="p">[</span><span class="s2">"voice_id"</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vm</span><span class="o">.</span><span class="n">list_cloned_voices</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="p">[</span><span class="s2">"meta"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"builtin"</span><span class="p">)]</span>
+</code></pre></div>
+<p><code>one_shot=True</code> renders a whole text as one generation, so a take keeps one voice from start to end
+(see <a href="../api/#tts-text--audio">API: TTS</a>).</p>
+<p>Command line and REPL:</p>
+<div class="highlight"><pre><span></span><code>abstractvoice<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"Bonjour et bienvenue."</span><span class="w"> </span>--voice<span class="w"> </span>fr-female-camille<span class="w"> </span>--output<span class="w"> </span>camille.wav<span class="w"> </span>--one-shot
+abstractvoice<span class="w">                 </span><span class="c1"># then: /voices clones   and   /voices clone fr-female-camille</span>
+</code></pre></div>
+<p>AbstractCore (the voice capability plugin) lists them with your own clones and speaks with them by id:</p>
+<div class="highlight"><pre><span></span><code><span class="n">llm</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">voice_catalog</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="s2">"qwen3-tts"</span><span class="p">)[</span><span class="s2">"cloned_voices"</span><span class="p">]</span>  <span class="c1"># built-in voices: tags["builtin"] is True</span>
+<span class="n">llm</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">tts</span><span class="p">(</span><span class="s2">"Gracias por esperar."</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="s2">"es-female-lucia"</span><span class="p">,</span> <span class="n">one_shot</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">llm</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">load_resident_model</span><span class="p">({</span><span class="s2">"task"</span><span class="p">:</span> <span class="s2">"tts"</span><span class="p">,</span> <span class="s2">"provider"</span><span class="p">:</span> <span class="s2">"cloned"</span><span class="p">,</span> <span class="s2">"model"</span><span class="p">:</span> <span class="s2">"qwen3-tts"</span><span class="p">,</span>
+                               <span class="s2">"options"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"voice"</span><span class="p">:</span> <span class="s2">"it-male-vittorio"</span><span class="p">}})</span>   <span class="c1"># warm it at load</span>
+</code></pre></div>
+<p>Over HTTP, AbstractCore Server lists them in <code>GET /v1/audio/voices</code> and accepts the id as <code>voice</code> in
+<code>POST /v1/audio/speech</code>.</p>
+<p>Each voice carries its profile: <code>builtin</code>, <code>nationality</code>, <code>language</code>, <code>language_code</code>, <code>sex</code>, <code>style</code>
+(<code>standard</code> or <code>bass</code>), <code>description</code> and <code>model_id</code>. <code>VoiceManager.list_cloned_voices()</code> returns them
+under <code>meta</code>; the AbstractCore plugin's catalog entries (<code>voice_catalog()</code>, <code>list_cloned_voices()</code>,
+<code>GET /v1/audio/voices</code>) also expose them in <code>tags</code>, so clients can filter by language, sex or style.</p>
+<p>Built-in voices are read-only: renaming, editing the transcript, exporting or deleting one raises
+<code>ValueError</code>. A clone of your own with the same id takes precedence over the built-in voice.</p>
+<h2 id="the-voices">The voices<a class="headerlink" href="#the-voices" title="Permanent link">&para;</a></h2>
+<h3 id="american-english-united-states">American (English (United States))<a class="headerlink" href="#american-english-united-states" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Voice id</th>
+<th>Name</th>
+<th>Sex</th>
+<th>Style</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>en-us-female-emily</code></td>
+<td>Emily</td>
+<td>female</td>
+<td>standard</td>
+<td>A friendly American woman in her thirties with a clear General American accent, warm and upbeat, natural conversational pace.</td>
+</tr>
+<tr>
+<td><code>en-us-female-grace</code></td>
+<td>Grace</td>
+<td>female</td>
+<td>standard</td>
+<td>A poised American woman in her forties with a crisp, professional voice, clear diction, like a documentary narrator.</td>
+</tr>
+<tr>
+<td><code>en-us-female-linda</code></td>
+<td>Linda</td>
+<td>female</td>
+<td>standard</td>
+<td>A calm, mature American woman in her fifties with a smooth, reassuring voice, like a public radio host.</td>
+</tr>
+<tr>
+<td><code>en-us-female-madison</code></td>
+<td>Madison</td>
+<td>female</td>
+<td>standard</td>
+<td>A bright, energetic American woman in her early twenties, cheerful and expressive, slightly fast-paced, Californian accent.</td>
+</tr>
+<tr>
+<td><code>en-us-female-ruth</code></td>
+<td>Ruth</td>
+<td>female</td>
+<td>standard</td>
+<td>A gentle elderly American woman in her seventies, kind and soft-spoken, like a loving grandmother reading a bedtime story.</td>
+</tr>
+<tr>
+<td><code>en-us-male-grant</code></td>
+<td>Grant</td>
+<td>male</td>
+<td>bass</td>
+<td>A very low, rich bass American male voice, strong and commanding, like a movie trailer narrator. Deep chest resonance, measured pace.</td>
+</tr>
+<tr>
+<td><code>en-us-male-harrison</code></td>
+<td>Harrison</td>
+<td>male</td>
+<td>bass</td>
+<td>A deep, powerful American male voice with a resonant bass tone, solid and authoritative, like a professional broadcast announcer. Low pitch, slow and confident.</td>
+</tr>
+<tr>
+<td><code>en-us-male-wade</code></td>
+<td>Wade</td>
+<td>male</td>
+<td>bass</td>
+<td>A warm, deep bass American male voice in his fifties, steady and trustworthy, like a corporate presentation voice-over. Low and smooth.</td>
+</tr>
+<tr>
+<td><code>en-us-male-jake</code></td>
+<td>Jake</td>
+<td>male</td>
+<td>standard</td>
+<td>A relaxed, friendly American man in his thirties with a General American accent, casual and approachable.</td>
+</tr>
+<tr>
+<td><code>en-us-male-marcus</code></td>
+<td>Marcus</td>
+<td>male</td>
+<td>standard</td>
+<td>An enthusiastic young American man in his twenties with a clearly masculine, mid-low voice, upbeat and dynamic, like a podcast host.</td>
+</tr>
+<tr>
+<td><code>en-us-male-michael</code></td>
+<td>Michael</td>
+<td>male</td>
+<td>standard</td>
+<td>A confident American man in his forties with a rich baritone voice, articulate and steady, like a television news anchor.</td>
+</tr>
+<tr>
+<td><code>en-us-male-walter</code></td>
+<td>Walter</td>
+<td>male</td>
+<td>standard</td>
+<td>An older American man in his sixties with a deep, slightly gravelly voice, slow and thoughtful, like a storyteller by a campfire.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="british-english-united-kingdom">British (English (United Kingdom))<a class="headerlink" href="#british-english-united-kingdom" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Voice id</th>
+<th>Name</th>
+<th>Sex</th>
+<th>Style</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>en-gb-female-charlotte</code></td>
+<td>Charlotte</td>
+<td>female</td>
+<td>standard</td>
+<td>A British woman in her thirties with an elegant Received Pronunciation accent, warm, composed and articulate.</td>
+</tr>
+<tr>
+<td><code>en-gb-female-eleanor</code></td>
+<td>Eleanor</td>
+<td>female</td>
+<td>standard</td>
+<td>A British woman in her forties with a calm, authoritative Received Pronunciation accent, like an audiobook narrator.</td>
+</tr>
+<tr>
+<td><code>en-gb-female-isla</code></td>
+<td>Isla</td>
+<td>female</td>
+<td>standard</td>
+<td>A Scottish woman in her thirties from Edinburgh with a soft, melodic Scottish accent, warm and friendly.</td>
+</tr>
+<tr>
+<td><code>en-gb-female-margaret</code></td>
+<td>Margaret</td>
+<td>female</td>
+<td>standard</td>
+<td>A refined elderly British woman in her seventies with a gentle, cultured Received Pronunciation accent.</td>
+</tr>
+<tr>
+<td><code>en-gb-female-olivia</code></td>
+<td>Olivia</td>
+<td>female</td>
+<td>standard</td>
+<td>A young British woman in her twenties from London, lively and friendly, with a modern southern English accent.</td>
+</tr>
+<tr>
+<td><code>en-gb-male-alistair</code></td>
+<td>Alistair</td>
+<td>male</td>
+<td>bass</td>
+<td>A deep, powerful British male voice with a resonant bass tone and a refined Received Pronunciation accent, authoritative, like a professional broadcast announcer. Low pitch, slow and confident.</td>
+</tr>
+<tr>
+<td><code>en-gb-male-graham</code></td>
+<td>Graham</td>
+<td>male</td>
+<td>bass</td>
+<td>A very low, rich bass British male voice, strong and commanding, like a film trailer narrator, Received Pronunciation. Deep chest resonance.</td>
+</tr>
+<tr>
+<td><code>en-gb-male-rupert</code></td>
+<td>Rupert</td>
+<td>male</td>
+<td>bass</td>
+<td>A warm, deep bass British male voice in his fifties, steady and trustworthy, like a documentary voice-over. Low and smooth.</td>
+</tr>
+<tr>
+<td><code>en-gb-male-edward</code></td>
+<td>Edward</td>
+<td>male</td>
+<td>standard</td>
+<td>An older British man in his sixties with a deep, rich voice and a Received Pronunciation accent, like a nature documentary narrator.</td>
+</tr>
+<tr>
+<td><code>en-gb-male-harry</code></td>
+<td>Harry</td>
+<td>male</td>
+<td>standard</td>
+<td>A young British man in his twenties from London, relaxed and cheerful, with a casual southern English accent.</td>
+</tr>
+<tr>
+<td><code>en-gb-male-liam</code></td>
+<td>Liam</td>
+<td>male</td>
+<td>standard</td>
+<td>A Northern English man in his thirties from Manchester, down-to-earth and friendly, with a clear Mancunian accent.</td>
+</tr>
+<tr>
+<td><code>en-gb-male-oliver</code></td>
+<td>Oliver</td>
+<td>male</td>
+<td>standard</td>
+<td>A middle-aged British man with a refined Received Pronunciation accent, polite and measured, like a BBC presenter.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="french-french">French (French)<a class="headerlink" href="#french-french" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Voice id</th>
+<th>Name</th>
+<th>Sex</th>
+<th>Style</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fr-female-camille</code></td>
+<td>Camille</td>
+<td>female</td>
+<td>standard</td>
+<td>Une femme française d'une trentaine d'années, voix douce, claire et naturelle, accent parisien.</td>
+</tr>
+<tr>
+<td><code>fr-female-elise</code></td>
+<td>Élise</td>
+<td>female</td>
+<td>standard</td>
+<td>Une femme française d'une quarantaine d'années, voix féminine douce, posée et élégante, comme une présentatrice de radio.</td>
+</tr>
+<tr>
+<td><code>fr-female-juliette</code></td>
+<td>Juliette</td>
+<td>female</td>
+<td>standard</td>
+<td>Une femme française d'une trentaine d'années, voix féminine claire et mélodieuse, chaleureuse, accent parisien.</td>
+</tr>
+<tr>
+<td><code>fr-female-lea</code></td>
+<td>Léa</td>
+<td>female</td>
+<td>standard</td>
+<td>Une jeune femme française d'une vingtaine d'années, voix pétillante et enjouée, débit un peu rapide.</td>
+</tr>
+<tr>
+<td><code>fr-female-margaux</code></td>
+<td>Margaux</td>
+<td>female</td>
+<td>standard</td>
+<td>Une femme française d'une quarantaine d'années, voix calme et précise, comme une narratrice de documentaire.</td>
+</tr>
+<tr>
+<td><code>fr-male-bernard</code></td>
+<td>Bernard</td>
+<td>male</td>
+<td>bass</td>
+<td>Une voix d'homme française de basse, profonde, riche et imposante, comme la voix d'une bande-annonce de cinéma.</td>
+</tr>
+<tr>
+<td><code>fr-male-rene</code></td>
+<td>René</td>
+<td>male</td>
+<td>bass</td>
+<td>Une voix d'homme française grave et chaleureuse, la cinquantaine, posée et rassurante, comme une voix off professionnelle.</td>
+</tr>
+<tr>
+<td><code>fr-male-antoine</code></td>
+<td>Antoine</td>
+<td>male</td>
+<td>standard</td>
+<td>Un homme français d'une quarantaine d'années, voix de baryton posée et élégante, comme un présentateur de journal télévisé.</td>
+</tr>
+<tr>
+<td><code>fr-male-jean-pierre</code></td>
+<td>Jean-Pierre</td>
+<td>male</td>
+<td>standard</td>
+<td>Un homme français d'une soixantaine d'années, voix grave et profonde, débit lent, comme un conteur.</td>
+</tr>
+<tr>
+<td><code>fr-male-julien</code></td>
+<td>Julien</td>
+<td>male</td>
+<td>standard</td>
+<td>Un homme français d'une trentaine d'années, voix chaleureuse et détendue, accent parisien.</td>
+</tr>
+<tr>
+<td><code>fr-male-thomas</code></td>
+<td>Thomas</td>
+<td>male</td>
+<td>standard</td>
+<td>Un jeune homme français d'une vingtaine d'années, voix dynamique et sympathique.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="spanish-spanish-spain">Spanish (Spanish (Spain))<a class="headerlink" href="#spanish-spanish-spain" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Voice id</th>
+<th>Name</th>
+<th>Sex</th>
+<th>Style</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>es-female-carmen</code></td>
+<td>Carmen</td>
+<td>female</td>
+<td>standard</td>
+<td>Una mujer española de unos sesenta años, voz serena, cariñosa y tranquilizadora.</td>
+</tr>
+<tr>
+<td><code>es-female-elena</code></td>
+<td>Elena</td>
+<td>female</td>
+<td>standard</td>
+<td>Una locutora de radio española de unos cuarenta años, voz profesional, nítida y segura.</td>
+</tr>
+<tr>
+<td><code>es-female-isabel</code></td>
+<td>Isabel</td>
+<td>female</td>
+<td>standard</td>
+<td>Una mujer española de Andalucía, de unos treinta años, voz alegre y melodiosa con acento andaluz suave.</td>
+</tr>
+<tr>
+<td><code>es-female-lucia</code></td>
+<td>Lucía</td>
+<td>female</td>
+<td>standard</td>
+<td>Una mujer española de Madrid, de unos treinta años, voz cálida, clara y natural.</td>
+</tr>
+<tr>
+<td><code>es-female-sofia</code></td>
+<td>Sofía</td>
+<td>female</td>
+<td>standard</td>
+<td>Una joven española de unos veinte años, voz alegre y enérgica, ritmo algo rápido.</td>
+</tr>
+<tr>
+<td><code>es-male-alfonso</code></td>
+<td>Alfonso</td>
+<td>male</td>
+<td>bass</td>
+<td>Una voz masculina española muy grave y potente, timbre de bajo resonante, sólida y autoritaria, como un locutor profesional. Ritmo lento y seguro.</td>
+</tr>
+<tr>
+<td><code>es-male-fernando</code></td>
+<td>Fernando</td>
+<td>male</td>
+<td>bass</td>
+<td>Un hombre español de unos cincuenta años, voz masculina muy grave y cálida, de bajo, serena y de confianza, como una voz en off profesional.</td>
+</tr>
+<tr>
+<td><code>es-male-ramon</code></td>
+<td>Ramón</td>
+<td>male</td>
+<td>bass</td>
+<td>Una voz masculina española de bajo, profunda, rica e imponente, como la voz de un tráiler de cine.</td>
+</tr>
+<tr>
+<td><code>es-male-antonio</code></td>
+<td>Antonio</td>
+<td>male</td>
+<td>standard</td>
+<td>Un hombre español de unos sesenta años, voz grave y profunda, ritmo pausado, como un narrador de cuentos.</td>
+</tr>
+<tr>
+<td><code>es-male-diego</code></td>
+<td>Diego</td>
+<td>male</td>
+<td>standard</td>
+<td>Un hombre español de unos cuarenta años, voz de barítono firme y elegante, como un presentador de noticias.</td>
+</tr>
+<tr>
+<td><code>es-male-javier</code></td>
+<td>Javier</td>
+<td>male</td>
+<td>standard</td>
+<td>Un hombre español de Madrid, de unos treinta y cinco años, voz cálida y cercana.</td>
+</tr>
+<tr>
+<td><code>es-male-pablo</code></td>
+<td>Pablo</td>
+<td>male</td>
+<td>standard</td>
+<td>Un joven español de unos veinticinco años, voz masculina, dinámica y simpática.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="german-german">German (German)<a class="headerlink" href="#german-german" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Voice id</th>
+<th>Name</th>
+<th>Sex</th>
+<th>Style</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>de-female-anna</code></td>
+<td>Anna</td>
+<td>female</td>
+<td>standard</td>
+<td>Eine deutsche Frau Anfang dreißig mit heller, weiblicher Stimme, warm, klar und natürlich, hochdeutsche Aussprache.</td>
+</tr>
+<tr>
+<td><code>de-female-greta</code></td>
+<td>Greta</td>
+<td>female</td>
+<td>standard</td>
+<td>Eine deutsche Frau um die vierzig mit ruhiger, weiblicher Stimme, präzise und angenehm, wie eine Dokumentarfilm-Erzählerin.</td>
+</tr>
+<tr>
+<td><code>de-female-lena</code></td>
+<td>Lena</td>
+<td>female</td>
+<td>standard</td>
+<td>Eine junge deutsche Frau Mitte zwanzig, fröhliche und lebhafte Stimme, etwas schnelles Sprechtempo.</td>
+</tr>
+<tr>
+<td><code>de-female-sophie</code></td>
+<td>Sophie</td>
+<td>female</td>
+<td>standard</td>
+<td>A cheerful German woman in her thirties with a bright, energetic, clearly feminine voice, like a radio host, speaking German.</td>
+</tr>
+<tr>
+<td><code>de-female-ursula</code></td>
+<td>Ursula</td>
+<td>female</td>
+<td>standard</td>
+<td>Eine deutsche Frau um die sechzig, ruhige, freundliche und vertrauensvolle Stimme.</td>
+</tr>
+<tr>
+<td><code>de-male-dieter</code></td>
+<td>Dieter</td>
+<td>male</td>
+<td>bass</td>
+<td>Eine tiefe, volle deutsche Bassstimme, stark und eindrucksvoll, wie die Stimme eines Kinotrailers.</td>
+</tr>
+<tr>
+<td><code>de-male-horst</code></td>
+<td>Horst</td>
+<td>male</td>
+<td>bass</td>
+<td>Eine warme, tiefe deutsche Männerstimme Mitte fünfzig, ruhig und vertrauenswürdig, wie ein professioneller Off-Sprecher.</td>
+</tr>
+<tr>
+<td><code>de-male-wolfgang</code></td>
+<td>Wolfgang</td>
+<td>male</td>
+<td>bass</td>
+<td>Eine sehr tiefe, kraftvolle deutsche Männerstimme mit resonantem Bass, solide und souverän, wie ein professioneller Sprecher. Langsames, sicheres Tempo.</td>
+</tr>
+<tr>
+<td><code>de-male-jonas</code></td>
+<td>Jonas</td>
+<td>male</td>
+<td>standard</td>
+<td>Ein junger deutscher Mann Mitte zwanzig, dynamische und sympathische Stimme.</td>
+</tr>
+<tr>
+<td><code>de-male-klaus</code></td>
+<td>Klaus</td>
+<td>male</td>
+<td>standard</td>
+<td>Ein deutscher Mann um die sechzig, tiefe und sonore Stimme, langsames Sprechtempo, wie ein Erzähler.</td>
+</tr>
+<tr>
+<td><code>de-male-lukas</code></td>
+<td>Lukas</td>
+<td>male</td>
+<td>standard</td>
+<td>Ein deutscher Mann Mitte dreißig, warme und entspannte Stimme, klares Hochdeutsch.</td>
+</tr>
+<tr>
+<td><code>de-male-maximilian</code></td>
+<td>Maximilian</td>
+<td>male</td>
+<td>standard</td>
+<td>Ein deutscher Mann um die vierzig, souveräne Baritonstimme, wie ein Nachrichtensprecher.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="italian-italian">Italian (Italian)<a class="headerlink" href="#italian-italian" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Voice id</th>
+<th>Name</th>
+<th>Sex</th>
+<th>Style</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>it-female-chiara</code></td>
+<td>Chiara</td>
+<td>female</td>
+<td>standard</td>
+<td>Una giovane donna italiana sui vent'anni, voce allegra e vivace, ritmo un po' veloce.</td>
+</tr>
+<tr>
+<td><code>it-female-francesca</code></td>
+<td>Francesca</td>
+<td>female</td>
+<td>standard</td>
+<td>Una conduttrice radiofonica italiana sui quarant'anni, voce professionale, nitida e sorridente.</td>
+</tr>
+<tr>
+<td><code>it-female-giulia</code></td>
+<td>Giulia</td>
+<td>female</td>
+<td>standard</td>
+<td>Una donna italiana sui trent'anni, voce calda, chiara e naturale, accento neutro.</td>
+</tr>
+<tr>
+<td><code>it-female-lucia</code></td>
+<td>Lucia</td>
+<td>female</td>
+<td>standard</td>
+<td>Una donna italiana sui sessant'anni, voce calma, affettuosa e rassicurante.</td>
+</tr>
+<tr>
+<td><code>it-female-rosa</code></td>
+<td>Rosa</td>
+<td>female</td>
+<td>standard</td>
+<td>Una donna italiana di Napoli sui trent'anni, voce solare e melodiosa con un leggero accento napoletano.</td>
+</tr>
+<tr>
+<td><code>it-male-enzo</code></td>
+<td>Enzo</td>
+<td>male</td>
+<td>bass</td>
+<td>Una voce maschile italiana grave e calda, sulla cinquantina, pacata e rassicurante, come una voce fuori campo professionale.</td>
+</tr>
+<tr>
+<td><code>it-male-massimo</code></td>
+<td>Massimo</td>
+<td>male</td>
+<td>bass</td>
+<td>Una voce maschile italiana di basso, profonda, ricca e imponente, come la voce di un trailer cinematografico.</td>
+</tr>
+<tr>
+<td><code>it-male-vittorio</code></td>
+<td>Vittorio</td>
+<td>male</td>
+<td>bass</td>
+<td>Una voce maschile italiana molto grave e potente, timbro di basso risonante, solida e autorevole, come un annunciatore professionista. Ritmo lento e sicuro.</td>
+</tr>
+<tr>
+<td><code>it-male-alessandro</code></td>
+<td>Alessandro</td>
+<td>male</td>
+<td>standard</td>
+<td>Un uomo italiano sui quarant'anni, voce baritonale elegante e sicura, come un conduttore di telegiornale.</td>
+</tr>
+<tr>
+<td><code>it-male-giuseppe</code></td>
+<td>Giuseppe</td>
+<td>male</td>
+<td>standard</td>
+<td>Un uomo italiano sui sessant'anni, voce profonda e grave, ritmo lento, come un narratore di storie.</td>
+</tr>
+<tr>
+<td><code>it-male-luca</code></td>
+<td>Luca</td>
+<td>male</td>
+<td>standard</td>
+<td>Un giovane uomo italiano sui vent'anni, voce dinamica e simpatica.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-they-were-made">How they were made<a class="headerlink" href="#how-they-were-made" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Designed.</strong> Each voice was described in words to the Qwen3-TTS 1.7B VoiceDesign model (the
+   descriptions above), in the target language, stating the voice's gender explicitly.</li>
+<li><strong>One generation, settled.</strong> Each reference was rendered with <code>one_shot=True</code> as a short warm-up
+   sentence followed by the reference text. VoiceDesign settles into its voice over the first seconds
+   of a generation, so the warm-up was cut off at the pause before the reference text, located with
+   Whisper word timestamps.</li>
+<li><strong>Checked.</strong> Of three takes, only those transcribed in the right language with at most 9 % word
+   errors were kept, and the steadiest one (speaker-embedding similarity of every 2.5 s window to the
+   clip's average voice) was chosen. Gender was cross-checked by pitch and a speaker-embedding vote.</li>
+<li><strong>Listened to.</strong> Every voice was accepted by ear before it was cloned.</li>
+<li><strong>Cloned.</strong> <code>tools/voice_pack/build.py</code> encoded each reference once with the 1.7B Base checkpoint
+   (PyTorch reference implementation) and stored the clone prompt in
+   <code>abstractvoice/assets/voices/qwen3_tts/</code> (<code>voices.json</code> and <code>prompts/&lt;voice-id&gt;.npz</code>).</li>
+<li><strong>Verified.</strong> Every voice then spoke a new sentence in its language through the AbstractCore plugin,
+   loaded from the pack alone, and was checked for words, language and likeness to its reference.</li>
+</ol>
+<p>To add or rebuild voices, put validated references and a <code>profiles.json</code> (id, file, name, nationality,
+language, language_code, sex, style, description, reference_text) in a folder and run
+<code>python tools/voice_pack/build.py &lt;folder&gt;</code> from a repository checkout.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1907,8 +1907,9 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 </ul>
 </li>
 <li>
-<p><code>speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -&gt; bytes</code></p>
+<p><code>speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True, one_shot: bool = False) -&gt; bytes</code></p>
 </li>
+<li><code>one_shot=True</code> synthesizes the whole text as <strong>one generation</strong>: no sentence segmentation, no truncation, so one voice from the first word to the last. Use it for voice references, designed voices and any take that must sound like one person throughout. Available for <code>qwen3-tts</code> (preset speakers, VoiceDesign and Qwen clones) up to 1000 characters; a longer text, or another engine, raises <code>ValueError</code> instead of being cut. The default (<code>one_shot=False</code>) splits long text at sentence boundaries (200 characters per generation on the PyTorch backend, 800 on MLX), and each generation samples the voice afresh.</li>
 <li>
 <p>Headless/server‑friendly: returns encoded audio bytes.</p>
 </li>
@@ -1928,8 +1929,9 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <p>Returned object supports: <code>.push(delta)</code>, <code>.close()</code>, <code>.cancel()</code>, <code>.join(timeout=...)</code>.</p>
 </li>
 <li>
-<p><code>speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -&gt; str</code></p>
+<p><code>speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True, one_shot: bool = False) -&gt; str</code></p>
 </li>
+<li><code>one_shot</code> as for <code>speak_to_bytes</code>. CLI: <code>abstractvoice --prompt "..." --output out.wav --one-shot</code>.</li>
 <li>Writes an audio file and returns the path.</li>
 </ul>
 <h3 id="qwen3-tts-checkpoints">Qwen3-TTS checkpoints<a class="headerlink" href="#qwen3-tts-checkpoints" title="Permanent link">&para;</a></h3>
@@ -2309,6 +2311,16 @@ unavailable reason. Prefetch with <code>abstractvoice-prefetch --stt-hf Qwen/Qwe
 <li>Playback audio chunks are fed to the recognizer via <code>abstractvoice/vm/core.py</code> → <code>VoiceRecognizer.feed_far_end_audio()</code> in <code>abstractvoice/recognition.py</code>.</li>
 </ul>
 <h2 id="voice-cloning-optional-heavy">Voice cloning (optional; heavy)<a class="headerlink" href="#voice-cloning-optional-heavy" title="Permanent link">&para;</a></h2>
+<p>Built-in voices: the clone store also lists 70 read-only Qwen3-TTS voices shipped with the package
+(ids such as <code>fr-female-camille</code>, <code>en-gb-male-oliver</code>; <code>meta.builtin</code> is <code>True</code>). Use them with
+<code>voice=&lt;id&gt;</code> anywhere a cloned voice is accepted; they need <code>abstractvoice[qwen3-tts]</code> and the
+<code>Qwen/Qwen3-TTS-12Hz-1.7B-Base</code> checkpoint. Renaming, editing, exporting or deleting one raises
+<code>ValueError</code>. <code>VoiceCloneStore(base_dir=None)</code> (the user store) lists them after your own voices; a store
+at an explicit directory lists them only with <code>builtin_voices=True</code>. See <a href="../voice-pack/">Built-in voices</a>.</p>
+<p><code>Qwen3TTSRuntime.export_clone_prompt(prompt)</code> returns a clone prompt as plain arrays (<code>ref_codes</code> int16
+<code>(frames, 16)</code>, <code>speaker_embedding</code> float32, <code>x_vector_only</code>, <code>ref_text</code>), and
+<code>Qwen3TTSRuntime.clone_prompt_from_arrays(...)</code> rebuilds it on either backend; the embedding must come
+from the same Base checkpoint (its size is checked).</p>
 <p>Requires installing at least one cloning backend extra (and explicit artifact
 downloads; see <code>docs/installation.md</code>). The recommended/default local backend
 is OmniVoice:</p>
@@ -2475,6 +2487,7 @@ integration code:
   - <code>list_resident_models(filters: dict | None = None) -&gt; list[dict]</code>
   - <code>unload_resident_model(request: dict) -&gt; dict</code>
 - <code>tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -&gt; bytes | artifact_ref</code>
+  - <code>one_shot=True</code> is forwarded to <code>speak_to_bytes(one_shot=True)</code>: the whole text as one generation (qwen3-tts presets, designs and clones).
 - <code>stt(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code>
 - <code>transcribe(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code></p>
 <p>These methods delegate to the active <code>VoiceManager</code> and keep voice/profile/model
