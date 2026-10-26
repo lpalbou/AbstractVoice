@@ -30,6 +30,16 @@ requires_qwen_runtime = pytest.mark.skipif(
 )
 
 
+@pytest.fixture(autouse=True)
+def no_cached_qwen_weights(monkeypatch):
+    """`VoiceManager(tts_engine="qwen3-tts")` warms a cached checkpoint at construction.
+
+    These tests swap in fake runtimes right after; make the real adapter see an
+    empty cache so no multi-gigabyte load runs on a developer machine.
+    """
+    monkeypatch.setattr("abstractvoice.adapters.tts_qwen3_tts.hf_cached_snapshot_dir", lambda _model_id: None)
+
+
 class Runtime:
     def __init__(self, model_id=CUSTOM):
         self.model_id = model_id
@@ -356,3 +366,52 @@ def test_qwen_extra_requires_torch_compatible_with_transformers_five():
     # The vendored model calls masking_utils without cache_position (removed in 5.9).
     transformers = next(item for item in requirements if item.name == "transformers")
     assert "5.9.0" in transformers.specifier and "5.8.1" not in transformers.specifier
+
+
+def test_adapter_warms_a_cached_checkpoint_at_construction(monkeypatch):
+    monkeypatch.setattr(
+        "abstractvoice.adapters.tts_qwen3_tts.hf_cached_snapshot_dir", lambda _model_id: "/cache/snapshot"
+    )
+    runtime = Runtime()
+    runtime.is_loaded = False
+
+    Qwen3TTSAdapter(runtime=runtime)
+
+    assert runtime.is_loaded is True
+
+
+def test_adapter_never_downloads_at_construction(monkeypatch):
+    monkeypatch.setattr("abstractvoice.adapters.tts_qwen3_tts.hf_cached_snapshot_dir", lambda _model_id: None)
+    runtime = Runtime()
+    runtime.is_loaded = False
+
+    Qwen3TTSAdapter(runtime=runtime, allow_downloads=True)
+
+    assert runtime.is_loaded is False
+
+
+def test_discovery_can_opt_out_of_warming(monkeypatch):
+    monkeypatch.setattr(
+        "abstractvoice.adapters.tts_qwen3_tts.hf_cached_snapshot_dir", lambda _model_id: "/cache/snapshot"
+    )
+    runtime = Runtime()
+    runtime.is_loaded = False
+
+    Qwen3TTSAdapter(runtime=runtime, auto_load=False)
+
+    assert runtime.is_loaded is False
+
+
+def test_manager_warms_every_engine_including_qwen(monkeypatch):
+    from abstractvoice.vm import manager
+
+    seen = {}
+
+    def fake_create(**kwargs):
+        seen.update(kwargs)
+        return Qwen3TTSAdapter(runtime=Runtime(), auto_load=False), "qwen3-tts"
+
+    monkeypatch.setattr(manager, "create_tts_adapter", fake_create)
+    manager.VoiceManager(tts_engine="qwen3-tts", stt_engine="none", allow_downloads=False)
+
+    assert seen["auto_load"] is True

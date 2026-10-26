@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 
+from ..local_models import hf_cached_snapshot_dir
 from ..voice_profiles import VoiceProfile
 from .base import TTSAdapter
 
@@ -49,7 +50,7 @@ class Qwen3TTSAdapter(TTSAdapter):
         language: str = "en",
         *,
         allow_downloads: bool = True,
-        auto_load: bool = False,
+        auto_load: bool = True,
         debug_mode: bool = False,
         model_id: str | None = None,
         revision: str | None = None,
@@ -81,8 +82,12 @@ class Qwen3TTSAdapter(TTSAdapter):
         # 0.6B checkpoint ignoring `instructions`) from `adapter.model_id`.
         self.model_id = str(getattr(runtime, "model_id", "") or "")
 
-        if bool(auto_load):
-            # Surface load failures early when the engine was selected explicitly.
+        # Warm the model in the loading phase, like every other local engine, so the
+        # first synthesis does not pay the multi-gigabyte load. Only from the local
+        # cache: construction never downloads (prefetch or the first synthesis does),
+        # and discovery paths pass auto_load=False. A failing cached load surfaces
+        # here, where the engine was selected explicitly.
+        if bool(auto_load) and self.is_cached_locally():
             self._runtime._ensure_loaded()
 
     # ------------------------------------------------------------- introspection
@@ -98,6 +103,10 @@ class Qwen3TTSAdapter(TTSAdapter):
             )
         except Exception:
             return False
+
+    def is_cached_locally(self) -> bool:
+        """True when the selected checkpoint's weights are in the local cache (no network)."""
+        return hf_cached_snapshot_dir(self.model_id) is not None
 
     def is_engine_loaded(self) -> bool:
         """Residency probe used by preload/unload bookkeeping."""

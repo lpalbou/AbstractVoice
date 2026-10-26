@@ -137,7 +137,7 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
                     engine=str(tts_engine or "openai"),
                     language=language,
                     allow_downloads=bool(self.allow_downloads),
-                    auto_load=requested_engine != "qwen3-tts",
+                    auto_load=True,
                     debug_mode=bool(debug_mode),
                     model_id=tts_model,
                     **remote_endpoint_kwargs(self, tts_engine),
