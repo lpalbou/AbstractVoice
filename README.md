@@ -18,11 +18,12 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 - **Remote audio (base install)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
 - **Platform local stacks (`abstractvoice[apple]`, `abstractvoice[gpu]`)**: Piper, Supertonic 3, faster-whisper (CUDA on NVIDIA GPUs), mlx-whisper (Apple GPU, Apple Silicon), microphone/playback, AEC, and local cloning/TTS engines
 - **Hardware profile aliases**: `abstractvoice[apple]` and `abstractvoice[gpu]` install the local stack; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` add the lightweight web example dependencies.
-- **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[supertonic]`, `abstractvoice[stt]`, `abstractvoice[stt-hf]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[qwen3-tts]`, `abstractvoice[chroma]`
+- **Granular local extras**: `abstractvoice[piper]`, `abstractvoice[supertonic]`, `abstractvoice[stt]`, `abstractvoice[stt-mlx]`, `abstractvoice[stt-hf]`, `abstractvoice[audio-io]`, `abstractvoice[cloning]`, `abstractvoice[audiodit]`, `abstractvoice[omnivoice]`, `abstractvoice[qwen3-tts]`, `abstractvoice[chroma]`
 - **Headless/server-friendly**: `speak_to_bytes()`, `speak_to_file()`, `transcribe_*`
 - **Streaming TTS**: `speak_to_audio_chunks()` and `open_tts_text_stream()` speak whole sentences: the first
   sentence alone so audio starts quickly, then groups of sentences that are ready before the previous one ends,
   in one language for the whole reply, with the silence between segments trimmed
+  (Qwen3-TTS on Apple silicon streams a reply up to 800 characters as ONE generation, in codec frames)
 - **Voice cloning / heavier TTS (optional)**: OmniVoice is the recommended/default local cloning backend; OpenF5, Chroma, and AudioDiT remain explicit alternatives. Supertonic is fixed-profile TTS, not cloning.
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
@@ -80,17 +81,40 @@ the concrete voice implementation.
 
 ```mermaid
 flowchart LR
-  App["Your app / REPL"] --> VM["abstractvoice.VoiceManager"]
-  VM --> Remote["OpenAI-compatible audio"]
-  VM --> TTS["Piper TTS (local extra)"]
-  VM --> Supertonic["Supertonic TTS (local extra)"]
-  VM --> STT["faster-whisper STT (local extra)"]
-  VM --> IO["sounddevice / PortAudio (local extra)"]
+  App["Your app / CLI / REPL"] --> VM["abstractvoice.VoiceManager"]
 
-  subgraph AbstractFramework
-    AC["AbstractCore"] -. "capability plugin" .-> VM
-    AR["AbstractRuntime"] -. "optional ArtifactStore" .-> VM
+  subgraph TTS["Text to speech"]
+    RemoteTTS["OpenAI / OpenAI-compatible audio"]
+    Supertonic["Supertonic 3 (ONNX)"]
+    Piper["Piper"]
+    Qwen["Qwen3-TTS: preset speakers, VoiceDesign<br/>MLX on Apple silicon, PyTorch elsewhere"]
+    Omni["OmniVoice"]
+    DiT["AudioDiT"]
   end
+
+  subgraph Cloning["Voice cloning"]
+    Cloner["VoiceCloner"] --> Store["Clone store:<br/>your voices + 70 built-in voices"]
+    Cloner --> Engines["Clone engines: OmniVoice, Qwen3-TTS,<br/>OpenF5, Chroma, AudioDiT, remote"]
+  end
+
+  subgraph STT["Speech to text"]
+    FW["faster-whisper (CUDA or CPU)"]
+    MW["mlx-whisper (Apple GPU)"]
+    TA["transformers-asr:<br/>Whisper, Qwen3-ASR, Cohere"]
+    RemoteSTT["OpenAI / OpenAI-compatible audio"]
+  end
+
+  VM --> TTS
+  VM --> Cloning
+  VM --> STT
+  VM --> IO["Audio I/O: sounddevice, VAD,<br/>optional echo cancellation"]
+
+  subgraph Framework["AbstractFramework"]
+    AC["AbstractCore"]
+    AR["AbstractRuntime"]
+  end
+  AC -. "capability plugin" .-> VM
+  AR -. "optional ArtifactStore" .-> VM
 ```
 
 The shipped AbstractCore integration is via the capability plugin above. The `abstractvoice` REPL is a **demonstrator/smoke-test harness** (see `docs/repl_guide.md`) and includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for convenience.

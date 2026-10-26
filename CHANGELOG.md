@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.17.1] - 2026-10-26
+
+### Documentation
+
+- The overview diagram in `README.md` and the component diagram in `docs/architecture.md` show the current package: Qwen3-TTS with its MLX and PyTorch backends, OmniVoice, AudioDiT, the cloning path with the built-in voice pack, and the mlx-whisper and `transformers-asr` speech-to-text engines.
+- The documentation site renders Mermaid diagrams, and its navigation lists the Built-in Voices page and ADRs 0006-0008.
+- `docs/getting-started.md` covers Qwen3-TTS, the built-in voices and mlx-whisper on Apple silicon; `docs/faq.md` answers "Are there ready-made voices?", lists where built-in voices live, and describes Qwen3-TTS segmentation and `one_shot`.
+
 ## [0.17.0] - 2026-10-26
 
 ### Added

@@ -84,6 +84,32 @@ abstractvoice-prefetch --piper en
 abstractvoice --tts-engine piper --stt-engine faster_whisper --verbose
 ```
 
+On a Mac with Apple silicon, transcribe on the Apple GPU with `--stt-engine mlx-whisper`
+(installed by `abstractvoice[apple]` or `abstractvoice[stt-mlx]`).
+
+### Natural voices with Qwen3-TTS
+
+Qwen3-TTS gives more natural, expressive speech in ten languages, voice design from a written
+description, and the 70 built-in voices. On Apple silicon it runs on the Apple GPU through MLX and
+starts speaking in about a tenth of a second; elsewhere it runs on PyTorch (CUDA or CPU).
+
+```bash
+pip install "abstractvoice[qwen3-tts]"
+python -m abstractvoice download --qwen3-tts Qwen/Qwen3-TTS-12Hz-1.7B-Base   # renders the built-in voices
+
+# One file in a built-in voice, as one generation:
+abstractvoice --voice fr-female-camille --prompt "Bonjour et bienvenue." --output camille.wav --one-shot
+
+# In the REPL: list them, pick one, speak
+abstractvoice --tts-engine supertonic
+#   /voices clones
+#   /voices clone en-gb-male-oliver
+#   /speak Good evening.
+```
+
+The voice ids, their profiles and how they were made are in [Built-in voices](voice-pack.md). For
+Qwen's preset speakers and voice design see [Qwen3-TTS checkpoints](api.md#qwen3-tts-checkpoints).
+
 ## Optional Browser Example
 
 The local web UI is a small FastAPI example around `VoiceManager`: discussion

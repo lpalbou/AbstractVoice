@@ -14,36 +14,48 @@ For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 - `abstractvoice.VoiceManager` is the orchestration façade (`abstractvoice/vm/*`).
 - **TTS (default)**: TTS adapter registry resolves `openai` / `auto` to `OpenAICompatibleTTSAdapter`; local opt-in engines include Piper and Supertonic 3; playback uses `AdapterTTSEngine` -> `NonBlockingAudioPlayer` when local audio output is requested.
 - **STT (default)**: `openai` / `auto` routes `transcribe_*()` and `listen()` recognition to `OpenAICompatibleSTTAdapter`. Local microphone capture still uses `VoiceRecognizer` → `VoiceDetector` and can pass captured audio to the selected STT adapter.
-- **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible`); new local clones default to OmniVoice.
+- **STT (local)**: `faster_whisper` (CTranslate2, CUDA or CPU), `mlx-whisper` (Apple GPU) and `transformers-asr` (Whisper, Qwen3-ASR, Cohere Transcribe) implement the same `STTAdapter` contract as the remote adapter.
+- **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible`); new local clones default to OmniVoice. The clone store also exposes the read-only built-in voice pack (70 Qwen3-TTS voices stored as clone prompts in `abstractvoice/assets/voices/qwen3_tts/`; see [Built-in voices](voice-pack.md)).
 - Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (`abstractvoice/vm/core.py`).
 
 ## Component diagram
 
 ```mermaid
 flowchart LR
-  App[Your app / REPL] <--> VM[VoiceManager]
+  App["Your app / CLI / REPL"] <--> VM["VoiceManager"]
 
-  VM -->|speak()*| TTSEngine[AdapterTTSEngine]
-  TTSEngine -->|synthesize| TTSAdapter[TTSAdapter]
-  TTSAdapter --> Piper[PiperTTSAdapter]
-  TTSAdapter --> Supertonic[SupertonicTTSAdapter]
-  TTSAdapter --> RemoteTTS[OpenAICompatibleTTSAdapter]
-  TTSAdapter --> AudioDiT[AudioDiTTTSAdapter]
-  TTSAdapter --> OmniVoice[OmniVoiceTTSAdapter]
-  TTSAdapter --> Qwen3[Qwen3TTSAdapter]
-  Qwen3 --> Qwen3RT[Qwen3TTSRuntime: backend policy ADR 0008]
-  Qwen3RT -->|Apple silicon| Qwen3MLX[MLX port: one generation per reply, codec-frame streaming]
-  Qwen3RT -->|CUDA / CPU| Qwen3Torch[PyTorch model, ADR 0005 device policy]
-  TTSEngine --> Player[NonBlockingAudioPlayer]
-  Player --> Out[(sounddevice OutputStream)]
+  VM -->|"speak() / speak_to_*()"| TTSEngine["AdapterTTSEngine"]
+  TTSEngine -->|"synthesize"| TTSAdapter["TTSAdapter"]
+  TTSAdapter --> Piper["PiperTTSAdapter"]
+  TTSAdapter --> Supertonic["SupertonicTTSAdapter"]
+  TTSAdapter --> RemoteTTS["OpenAICompatibleTTSAdapter"]
+  TTSAdapter --> AudioDiT["AudioDiTTTSAdapter"]
+  TTSAdapter --> OmniVoice["OmniVoiceTTSAdapter"]
+  TTSAdapter --> Qwen3["Qwen3TTSAdapter"]
+  Qwen3 --> Qwen3RT["Qwen3TTSRuntime: backend policy, ADR 0008"]
+  Qwen3RT -->|"Apple silicon"| Qwen3MLX["MLX port: one generation per reply, codec-frame streaming"]
+  Qwen3RT -->|"CUDA / CPU"| Qwen3Torch["PyTorch model, ADR 0005 device policy"]
+  TTSEngine --> Player["NonBlockingAudioPlayer"]
+  Player --> Out[("sounddevice OutputStream")]
 
-  VM -->|listen()*| Rec[VoiceRecognizer]
-  Rec --> In[(sounddevice InputStream)]
-  Rec --> VAD[VoiceDetector (webrtcvad)]
-  Rec --> STT[FasterWhisperAdapter]
-  Rec --> RemoteSTT[OpenAICompatibleSTTAdapter]
+  VM -->|"speak(voice=id)"| Cloner["VoiceCloner"]
+  Cloner --> Store["VoiceCloneStore"]
+  Store --> UserVoices[("your clones, user data dir")]
+  Store --> Builtin[("built-in voice pack, read-only clone prompts")]
+  Cloner --> CloneEngines["Clone engines: OmniVoice, OpenF5, Chroma, AudioDiT, remote"]
+  Cloner --> QwenClone["Qwen3TTSVoiceCloningEngine"]
+  QwenClone --> Qwen3RT
 
-  Player -. on_audio_chunk (optional AEC) .-> Rec
+  VM -->|"listen() / transcribe_*()"| Rec["VoiceRecognizer"]
+  Rec --> In[("sounddevice InputStream")]
+  Rec --> VAD["VoiceDetector, webrtcvad"]
+  Rec --> STTAdapter["STTAdapter"]
+  STTAdapter --> FW["FasterWhisperAdapter: CUDA / CPU"]
+  STTAdapter --> MW["MLXWhisperAdapter: Apple GPU"]
+  STTAdapter --> TA["TransformersASRAdapter: Whisper, Qwen3-ASR, Cohere"]
+  STTAdapter --> RemoteSTT["OpenAICompatibleSTTAdapter"]
+
+  Player -. "on_audio_chunk, optional AEC" .-> Rec
 ```
 
 ## Code map (evidence)
