@@ -541,6 +541,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../voice-pack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Voices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../voices-and-licenses/" class="md-nav__link">
         
   
@@ -965,6 +993,90 @@
     
   
     ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0006_voice_overlays_are_package_owned_not_generic_adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0006 - Voice Overlays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0007_directed_speech_requests_and_planning_are_package_owned/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0007 - Directed Speech Requests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adr/0008_qwen3_tts_backend_selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0008 - Qwen3-TTS Backend Selection
   
 
     
@@ -1768,7 +1880,7 @@
 - <strong>Amazon Polly</strong> provides text-to-speech returning audio streams; recent updates announce a bidirectional streaming API for generative voices. citeturn10search12turn10search10
 - <strong>Amazon Lex</strong> is a managed service that combines ASR + NLU for voice/text bots and integrates natively with Lambda for business logic—useful for tightly scoped dialog flows, especially when you <strong>don’t</strong> want an open-domain LLM loop for everything. citeturn1search0turn7search23</p>
 <h3 id="mermaid-diagram-cloud-native-realtime-voice-agent-on-aws">Mermaid diagram: cloud-native realtime voice agent on AWS<a class="headerlink" href="#mermaid-diagram-cloud-native-realtime-voice-agent-on-aws" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>flowchart LR
+<pre class="mermaid"><code>flowchart LR
   U[User device\n(mic + speaker)] --&gt;|WebRTC audio| RTC[WebRTC Transport\n(Chime SDK or Kinesis Video Streams WebRTC)]
   RTC --&gt;|PCM/Opus frames| VAD[VAD + Turn detection\n(edge or server)]
 
@@ -1785,12 +1897,11 @@
   RTC --&gt;|audio| U
 
   U &lt;--&gt; IOT[AWS IoT Core\n(MQTT/WSS control plane)]
-  ORCH --&gt; OBS[CloudWatch + OpenTelemetry\n(AgentCore Observability)]
-</code></pre></div>
+  ORCH --&gt; OBS[CloudWatch + OpenTelemetry\n(AgentCore Observability)]</code></pre>
 <p>This diagram captures the operational separation that tends to make voice agents robust: streaming audio transport → specialised STT/TTS services → an agent runtime that owns session state/tools/memory. AgentCore explicitly supports this separation: Runtime for isolated sessions and long workloads, Gateway for tool conversion/discovery, Policy for boundary enforcement, and Memory for context across turns/sessions. citeturn13view3turn13view1turn13view2turn13view0</p>
 <h3 id="mermaid-diagram-agentcore-webrtc-voice-agent-with-bedrock-speech-to-speech">Mermaid diagram: AgentCore WebRTC voice agent with Bedrock speech-to-speech<a class="headerlink" href="#mermaid-diagram-agentcore-webrtc-voice-agent-with-bedrock-speech-to-speech" title="Permanent link">&para;</a></h3>
 <p>AWS also documents a pattern where a browser establishes a WebRTC voice connection directly to an agent running on AgentCore Runtime, using Kinesis Video Streams managed TURN for relaying, and the agent streams audio to/from an Amazon Bedrock foundation model for speech-to-speech conversation. citeturn12view1</p>
-<div class="highlight"><pre><span></span><code>flowchart LR
+<pre class="mermaid"><code>flowchart LR
   B[Browser client] --&gt;|WebRTC offer/ICE| AG[AgentCore Runtime\n(agent endpoint)]
   AG --&gt;|GetIceServerConfig| KVS[Kinesis Video Streams TURN]
   B &lt;--&gt; KVS
@@ -1799,8 +1910,7 @@
   B --&gt;|mic audio| AG
   AG --&gt;|audio stream| FM[Amazon Bedrock\nspeech-to-speech FM]
   FM --&gt;|spoken response stream| AG
-  AG --&gt;|agent audio| B
-</code></pre></div>
+  AG --&gt;|agent audio| B</code></pre>
 <p>This pattern can reduce pipeline complexity (no explicit STT/TTS), but <em>latency and controllability</em> still must be benchmarked against cascaded STT→LLM→TTS approaches, which remain standard for sub‑second conversational UX. citeturn12view1turn14academia38</p>
 <h2 id="recommended-stacks-by-scenario">Recommended stacks by scenario<a class="headerlink" href="#recommended-stacks-by-scenario" title="Permanent link">&para;</a></h2>
 <h3 id="realtime-consumer-device-assistant">Realtime consumer device assistant<a class="headerlink" href="#realtime-consumer-device-assistant" title="Permanent link">&para;</a></h3>

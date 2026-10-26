@@ -341,6 +341,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="60-second smoke test (no mic required)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#natural-voices-with-qwen3-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Natural voices with Qwen3-TTS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -682,6 +699,34 @@
     
   
     Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice-pack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Voices
   
 
     
@@ -1139,6 +1184,90 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0006_voice_overlays_are_package_owned_not_generic_adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0006 - Voice Overlays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0007_directed_speech_requests_and_planning_are_package_owned/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0007 - Directed Speech Requests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0008_qwen3_tts_backend_selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0008 - Qwen3-TTS Backend Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1202,6 +1331,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="60-second smoke test (no mic required)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#natural-voices-with-qwen3-tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Natural voices with Qwen3-TTS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1363,6 +1509,26 @@ abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>superto
 abstractvoice-prefetch<span class="w"> </span>--piper<span class="w"> </span>en
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>piper<span class="w"> </span>--stt-engine<span class="w"> </span>faster_whisper<span class="w"> </span>--verbose
 </code></pre></div>
+<p>On a Mac with Apple silicon, transcribe on the Apple GPU with <code>--stt-engine mlx-whisper</code>
+(installed by <code>abstractvoice[apple]</code> or <code>abstractvoice[stt-mlx]</code>).</p>
+<h3 id="natural-voices-with-qwen3-tts">Natural voices with Qwen3-TTS<a class="headerlink" href="#natural-voices-with-qwen3-tts" title="Permanent link">&para;</a></h3>
+<p>Qwen3-TTS gives more natural, expressive speech in ten languages, voice design from a written
+description, and the 70 built-in voices. On Apple silicon it runs on the Apple GPU through MLX and
+starts speaking in about a tenth of a second; elsewhere it runs on PyTorch (CUDA or CPU).</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[qwen3-tts]"</span>
+python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--qwen3-tts<span class="w"> </span>Qwen/Qwen3-TTS-12Hz-1.7B-Base<span class="w">   </span><span class="c1"># renders the built-in voices</span>
+
+<span class="c1"># One file in a built-in voice, as one generation:</span>
+abstractvoice<span class="w"> </span>--voice<span class="w"> </span>fr-female-camille<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"Bonjour et bienvenue."</span><span class="w"> </span>--output<span class="w"> </span>camille.wav<span class="w"> </span>--one-shot
+
+<span class="c1"># In the REPL: list them, pick one, speak</span>
+abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>supertonic
+<span class="c1">#   /voices clones</span>
+<span class="c1">#   /voices clone en-gb-male-oliver</span>
+<span class="c1">#   /speak Good evening.</span>
+</code></pre></div>
+<p>The voice ids, their profiles and how they were made are in <a href="../voice-pack/">Built-in voices</a>. For
+Qwen's preset speakers and voice design see <a href="../api/#qwen3-tts-checkpoints">Qwen3-TTS checkpoints</a>.</p>
 <h2 id="optional-browser-example">Optional Browser Example<a class="headerlink" href="#optional-browser-example" title="Permanent link">&para;</a></h2>
 <p>The local web UI is a small FastAPI example around <code>VoiceManager</code>: discussion
 read-through with separate assistant/user voices, text to WAV, audio-file

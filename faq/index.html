@@ -545,6 +545,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../voice-pack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Voices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../voices-and-licenses/" class="md-nav__link">
         
   
@@ -1045,6 +1073,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#are-there-ready-made-voices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Are there ready-made voices?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#how-should-i-prepare-reference-audio" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1503,6 +1542,90 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0006_voice_overlays_are_package_owned_not_generic_adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0006 - Voice Overlays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0007_directed_speech_requests_and_planning_are_package_owned/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0007 - Directed Speech Requests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0008_qwen3_tts_backend_selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0008 - Qwen3-TTS Backend Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1893,6 +2016,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#are-there-ready-made-voices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Are there ready-made voices?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#how-should-i-prepare-reference-audio" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2102,6 +2236,8 @@ small readline history file so the up/down arrows work across sessions.</p>
 <li>OpenF5 artifacts: <code>~/.cache/abstractvoice/openf5</code></li>
 <li>Chroma artifacts and prompt cache: <code>~/.cache/abstractvoice/chroma</code></li>
 <li>Cloned voices: <code>appdirs.user_data_dir("abstractvoice")/cloned_voices</code></li>
+<li>Built-in voices: inside the installed package (<code>abstractvoice/assets/voices/qwen3_tts/</code>), read-only;
+  rendering them uses the <code>Qwen/Qwen3-TTS-12Hz-1.7B-Base</code> checkpoint in the Hugging Face cache</li>
 <li>OmniVoice persistent prompt profiles: <code>appdirs.user_data_dir("abstractvoice")/omnivoice_prompt_cache</code></li>
 <li>REPL terminal command history: <code>appdirs.user_data_dir("abstractvoice")/repl_history</code></li>
 <li>Saved REPL memories: wherever you ran <code>/save</code>, with a <code>.mem</code> extension</li>
@@ -2276,10 +2412,15 @@ OpenAI-compatible audio endpoints such as:</p>
   audio (Base, <code>cloning_engine="qwen3-tts"</code>), and voices described in natural
   language via the <code>instructions</code> selector (VoiceDesign, 1.7B). Style
   instructions are native on the 1.7B checkpoints and ignored by 0.6B — the
-  capability catalog reports this per model. Managed synthesis chunks text at
-  ~200 characters; if you drive the runtime directly with a single un-chunked
-  utterance, a runaway-protection cap (~2048 codec frames ≈ 164s of audio)
-  clamps texts beyond roughly 800 characters — chunk long texts.</li>
+  capability catalog reports this per model. On Apple silicon it runs on the
+  Apple GPU through MLX: a reply up to 800 characters is one generation,
+  streamed as it is produced. On PyTorch, buffered synthesis splits text into
+  ~200-character generations. Pass <code>one_shot=True</code> to render a whole text
+  (up to 1000 characters) as one generation, so the voice stays the same from
+  start to end.</li>
+<li>The 70 built-in voices (American and British English, French, Spanish,
+  German, Italian; women, men and a bass male per language) run on Qwen3-TTS;
+  use them with <code>voice=&lt;id&gt;</code>. See <a href="../voice-pack/">Built-in voices</a>.</li>
 <li>AudioDiT is best treated as an EN/ZH-focused experimental TTS/cloning engine
   in this integration.</li>
 <li>OmniVoice is the main optional path for omnilingual speech and voice design,
@@ -2305,6 +2446,14 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abst
 </code></pre></div>
 <p>Artifacts are still downloaded explicitly with <code>python -m abstractvoice download ...</code>
 or <code>abstractvoice-prefetch ...</code>.</p>
+<h3 id="are-there-ready-made-voices">Are there ready-made voices?<a class="headerlink" href="#are-there-ready-made-voices" title="Permanent link">&para;</a></h3>
+<p>Yes: 70 built-in Qwen3-TTS voices in American and British English, French,
+Spanish, German and Italian, including a deep professional bass male voice in
+each language. They need <code>abstractvoice[qwen3-tts]</code> and the
+<code>Qwen/Qwen3-TTS-12Hz-1.7B-Base</code> checkpoint, then work by id anywhere a cloned
+voice does, for example <code>vm.speak("Bonjour.", voice="fr-female-camille")</code> or
+<code>llm.voice.tts("Hello.", voice="en-us-male-harrison")</code> through AbstractCore.
+They are read-only. See <a href="../voice-pack/">Built-in voices</a>.</p>
 <h3 id="how-should-i-prepare-reference-audio">How should I prepare reference audio?<a class="headerlink" href="#how-should-i-prepare-reference-audio" title="Permanent link">&para;</a></h3>
 <p>Good reference audio matters more than most generation knobs:</p>
 <ul>
