@@ -1,0 +1,1490 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/completed/0061_qwen3_tts_mlx_backend/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>0061 qwen3 tts mlx backend - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#task-0061-qwen3-tts-on-mlx-apple-silicon-backend-with-native-frame-streaming" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              0061 qwen3 tts mlx backend
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#task-0061-qwen3-tts-on-mlx-apple-silicon-backend-with-native-frame-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 0061: Qwen3-TTS on MLX (Apple silicon backend with native frame streaming)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main goal(s)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secondary-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secondary goal(s)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context / problem statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research &amp; references
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Report">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#files-touched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files touched
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#follow-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Follow-ups
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>0061 qwen3 tts mlx backend</h1>
+
+<h2 id="task-0061-qwen3-tts-on-mlx-apple-silicon-backend-with-native-frame-streaming">Task 0061: Qwen3-TTS on MLX (Apple silicon backend with native frame streaming)<a class="headerlink" href="#task-0061-qwen3-tts-on-mlx-apple-silicon-backend-with-native-frame-streaming" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-10-26
+<strong>Status</strong>: Completed
+<strong>Priority</strong>: P0
+<strong>Completed</strong>: 2026-10-26</p>
+<hr />
+<h2 id="main-goals">Main goal(s)<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Run the three Qwen3-TTS modes (CustomVoice, VoiceDesign, Base cloning) on the Apple GPU through
+  MLX, behind the existing public surfaces, fast enough for conversation: 1.7B CustomVoice at a
+  real-time factor of 0.7 or better with first streamed audio within 1.5 s; 0.6B at 0.4 / 0.6 s.</li>
+<li>Stream codec frames of ONE generation per reply, so streamed speech starts early and the voice
+  does not drift between sentences.</li>
+</ul>
+<h2 id="secondary-goals">Secondary goal(s)<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Keep the PyTorch path (CUDA, CPU) behaviourally unchanged.</li>
+<li>Load the original Qwen bf16 safetensors from the snapshot already in the Hugging Face cache; no
+  second download, no third-party conversion repository.</li>
+<li>Low-level runtime dependencies only (<code>mlx</code>, <code>tokenizers</code>); no <code>torch</code>/<code>transformers</code> import on
+  the MLX path.</li>
+</ul>
+<h2 id="context-problem-statement">Context / problem statement<a class="headerlink" href="#context-problem-statement" title="Permanent link">&para;</a></h2>
+<p>On Apple silicon the vendored PyTorch Qwen3-TTS is kernel-launch bound: eager MPS pays a fixed
+cost per kernel and each 80 ms frame needs one talker step plus fifteen code-predictor steps.
+Measured on the owner's laptop (REPORT 2026-10-26, section 7): warm RTF 0.9-1.2 on a 63-word
+reply, first streamed audio 9 s, the 0.6B no faster than the 1.7B. Streamed delivery also
+synthesized sentence-sized segments as independent samples (temperature 0.9, top-k 50), so the
+voice drifted between sentences. mlx-audio's MLX port of the same checkpoints ran the 1.7B at RTF
+0.61 with first audio in 1.55 s on the same machine.</p>
+<h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Public API of <code>Qwen3TTSRuntime</code>, <code>Qwen3TTSAdapter</code>, <code>Qwen3TTSVoiceCloningEngine</code>, CLI/REPL
+  flags, plugin settings and the web example unchanged for callers; <code>runtime_info()["backend"]</code>
+  added.</li>
+<li>The PyTorch-specific <code>predictor</code> / <code>sampler</code> switches must be accepted and reported.</li>
+<li>The package must still import on Python 3.9 (<code>from __future__ import annotations</code>, no
+  runtime-evaluated <code>X | None</code>); everything MLX-specific must skip cleanly on Linux CI.</li>
+<li>Vendored model code with licence notices; permissive licences only.</li>
+</ul>
+<h2 id="research-references">Research &amp; references<a class="headerlink" href="#research-references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>mlx-audio 0.6.1 <code>qwen3_tts</code> (MIT): the starting point for the port. Findings that changed the
+  port: its ICL prompt layout differs from upstream's default (<code>non_streaming_mode=False</code> for
+  clones), its repetition penalty uses a 64-token window where Hugging Face's generation stack
+  penalizes the whole generated history, it skips <code>min_new_tokens=2</code>, its codec decoder attends
+  over the full history where upstream uses a 72-frame sliding window, and its talker MRoPE
+  angles come from an fp32 matmul that drifts at long positions (the three position streams are
+  identical for TTS, so plain <code>mx.fast.rope</code> is exact).</li>
+<li>Vendored PyTorch model (<code>modeling_qwen3_tts.generate</code>, <code>generate_icl_prompt</code>,
+  <code>orchestration.py</code>) as the contract: prompt layouts, sampling order, speaker/dialect rules.</li>
+<li>Hugging Face <code>Qwen2Converter</code>: the fast-tokenizer recipe reproduced with <code>tokenizers</code> from the
+  snapshot's <code>vocab.json</code>/<code>merges.txt</code> (the snapshots ship no <code>tokenizer.json</code>).</li>
+<li>Hugging Face <code>MimiModel</code> (encoder layout, sliding window 250, exact GELU) for the codec encoder.</li>
+<li>Benchmark/parity harness and optimisation study by the parallel worker (per-frame breakdown:
+  the code predictor's 15 sequential steps dominate; fused projections and a compiled predictor
+  loop gain ~20%, pipelining is noise-level on a loaded machine).</li>
+</ul>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Two backends behind one runtime, chosen by a framework-free policy (ADR 0008): <code>mlx</code> on
+  macOS/arm64 with <code>mlx</code> importable, else <code>torch</code>; <code>ABSTRACTVOICE_QWEN3_TTS_BACKEND</code> and
+  <code>Qwen3TTSSettings(backend=...)</code> override; an impossible <code>mlx</code> request is a plain error.</li>
+<li>Vendor and re-align mlx-audio's port on the PyTorch contract rather than depend on <code>mlx-audio</code>
+  (it pulls <code>scipy</code>, <code>sentencepiece</code>, <code>sounddevice</code>, pins <code>mlx==</code>, and its Qwen3-TTS diverges from
+  upstream in the points above).</li>
+<li>Strict named weight loading from the original safetensors (every tensor must land on a
+  same-shape parameter; key drift is a hard error), 8-bit talker quantization on load (bf16/4-bit
+  selectable). No converted-weight cache: load is well under the priming time.</li>
+<li>Frame-level streaming from one stateful codec decode; a 6-frame first chunk then 12-frame
+  chunks; fades only at utterance edges (the runtime withholds the last 5 ms of each chunk so the
+  final fade-out needs no look-ahead). The adapter exposes <code>native_frame_streaming</code>; the mixin and
+  the cloning engine pass a whole reply (up to 800 characters) as one segment and skip per-chunk
+  silence trimming for native streams.</li>
+<li>Priming generation at load (greedy, a few frames, plus a reference encode on Base checkpoints).</li>
+</ul>
+<h2 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h2>
+<ul>
+<li>ADR 0005 (device/dtype inside the PyTorch backend), ADR 0008 (this backend policy).</li>
+<li>Backlog 0950 (predictor/sampler surfaces) for the switches the MLX backend reports as not applied.</li>
+</ul>
+<h2 id="implementation-plan">Implementation plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Vendored MLX package <code>abstractvoice/qwen3_tts/mlx/</code> (config, cache, talker, codec, speaker
+   encoder, tokenizer, weights, model).</li>
+<li>Backend policy module and runtime dispatch; <code>stream_*</code> generators; priming; <code>runtime_info</code>.</li>
+<li>Adapter / mixin / cloning-engine seams for native frame streaming; <code>engine_runtime</code> follows
+   the policy.</li>
+<li>Packaging (<code>mlx</code>, <code>tokenizers</code> with darwin/arm64 markers), licence notice, acknowledgments.</li>
+<li>Tests: policy + seams (torch/mlx-free), tokenizer identity, gated real-weights e2e.</li>
+<li>Docs: README, api, installation, dependencies, troubleshooting, architecture, CHANGELOG,
+   llms, ADR 0008, this item.</li>
+</ol>
+<h2 id="success-criteria">Success criteria<a class="headerlink" href="#success-criteria" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Acceptance numbers above on the owner's machine; parity (WER) comparable with PyTorch;
+  VoiceDesign and clone work; speaker presets identical; multi-sentence reply is one generation
+  with contiguous chunks; default suite green; MLX-specific tests skip on Linux.</li>
+</ul>
+<h2 id="test-plan">Test plan<a class="headerlink" href="#test-plan" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>python -m pytest -q</code> (default suite).</li>
+<li><code>python -m pytest -q tests/test_qwen3_tts_backend_selection.py tests/test_qwen3_tts_mlx_tokenizer.py</code>.</li>
+<li><code>ABSTRACTVOICE_RUN_QWEN3_TTS_MLX_TESTS=1 python -m pytest -q -m model_download tests/test_qwen3_tts_mlx_e2e_optional.py</code>.</li>
+<li>Parity probes against the PyTorch model (prompt embeddings, prefill logits, decoder waveform,
+  speaker embedding, reference codes) and Whisper transcription of both backends' output.</li>
+</ul>
+<hr />
+<h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
+<h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Shipped the MLX backend behind the existing surfaces; the PyTorch path is unchanged.</li>
+<li>Measured on the owner's Apple silicon laptop (18 cores, macOS, MLX 0.31.2, Python 3.12) on
+  2026-10-26 with the parallel worker's harness (<code>bench_qwen3_mlx.py</code>, standard 63-word text,
+  speaker <code>ryan</code>, English, upstream sampling 0.9/50/1.0/1.05, 3 warm runs, 8-bit talker, first
+  chunk 6 frames then 12). <strong>Other work was running throughout</strong> (1-minute load average between
+  30 and 320 on 18 cores), so these are upper bounds, not quiet-machine figures:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Checkpoint</th>
+<th>Long reply RTF (min / median)</th>
+<th>First streamed audio</th>
+<th>Chunks / stalls</th>
+<th>Load incl. prime</th>
+<th>Peak RSS / MLX peak</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.7B CustomVoice, 8-bit</td>
+<td>0.52 / 0.54 (target 0.7)</td>
+<td>0.26-0.32 s (target 1.5 s)</td>
+<td>29 x 0.96 s, 0 stalls</td>
+<td>2.1 s (0.36 s load + 0.12 s prime when the file pages are cached)</td>
+<td>4.4 GB / 4.0 GB</td>
+</tr>
+<tr>
+<td>0.6B CustomVoice, 8-bit</td>
+<td>0.25 / 0.29 (target 0.4)</td>
+<td>0.15 s (target 0.6 s)</td>
+<td>29 x 0.96 s, 0 stalls</td>
+<td>1.3 s (0.23 s + 0.11 s)</td>
+<td>2.4 GB / 2.8 GB</td>
+</tr>
+<tr>
+<td>1.7B CustomVoice, bf16 (for reference)</td>
+<td>0.92</td>
+<td>0.48 s</td>
+<td>-</td>
+<td>0.9 s</td>
+<td>4.4 GB / 6.3 GB</td>
+</tr>
+</tbody>
+</table>
+<p>Remeasured on an idle machine after the review fixes, through <code>VoiceManager</code> (construction
+  loads, quantizes and primes): 1.7B 8-bit construction 0.6 s, RTF 0.17-0.22 buffered and
+  0.22-0.24 streamed, first audio 0.10-0.14 s; 0.6B 8-bit construction 0.4 s, RTF 0.19-0.23,
+  first audio 0.09-0.12 s. <code>mx.get_peak_memory()</code> after load: 7.9 GB (1.7B) and 3.6 GB (0.6B),
+  a load-time transient from reading bf16 weights before quantizing the talker, which the
+  "Peak RSS" column above does not capture. GPU use by other processes does not show in the CPU
+  load average and slowed the 1.7B about tenfold in one contended run.</p>
+<p>For comparison, the PyTorch path on the same machine the same night: 1.7B RTF 1.7-1.9 (load
+  59 s), and in the quieter earlier measurement RTF 0.9-1.2 with first streamed audio at 9.1 s.
+- Priming at load: the first utterance after a primed load starts in 0.10 s (1.7B) versus 0.19 s
+  unprimed, and completes 0.4 s sooner; the very first process on a machine pays 2-3 s of Metal
+  compilation in the prime (0.1 s once the OS shader cache holds the kernels).
+- Parity with the PyTorch model (0.6B CustomVoice, MLX bf16 vs torch fp32): identical prompt
+  layout (31 embeddings, max |diff| 0.007 = bf16 rounding), identical prefill argmax and top-5
+  (cosine 0.99996), codec decoder SNR 49 dB, speaker embedding identical (cosine 1.0), reference
+  codes 98.5% identical (first three codebooks 100%). Whisper (<code>large-v3-turbo</code>) WER on the
+  63-word text, 1.7B, 3 samples each: PyTorch 0.17 mean, MLX 0.14 mean (floor ~0.11 from Whisper's
+  own number/name normalisations). The tokenizer is token-identical to Transformers on every probe.
+- No style drift: a multi-sentence reply is ONE generation; chunk sizes are whole codec frames
+  (6 x 1920 - 120 samples, then 12 x 1920, then a 120-sample tail) with fades only at the edges.
+- The 8-bit default stands: bf16 is memory-bound (RTF 0.92 for the 1.7B). No converted-weight cache:
+  loading plus quantization is under 0.4 s with warm file pages and a few seconds cold.</p>
+<h3 id="files-touched">Files touched<a class="headerlink" href="#files-touched" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>abstractvoice/qwen3_tts/mlx/{__init__,_cache,config,talker,codec,speaker_encoder,tokenizer,weights,model}.py</code> (new)</li>
+<li><code>abstractvoice/qwen3_tts/backend.py</code> (new), <code>abstractvoice/qwen3_tts/runtime.py</code></li>
+<li><code>abstractvoice/adapters/tts_qwen3_tts.py</code>, <code>abstractvoice/vm/tts_mixin.py</code>,
+  <code>abstractvoice/cloning/engine_qwen3_tts.py</code>, <code>abstractvoice/engine_runtime.py</code></li>
+<li><code>pyproject.toml</code>, <code>third_party_licenses/mlx_audio_notice.txt</code>, <code>ACKNOWLEDGMENTS.md</code></li>
+<li><code>tests/test_qwen3_tts_backend_selection.py</code>, <code>tests/test_qwen3_tts_mlx_tokenizer.py</code>,
+  <code>tests/test_qwen3_tts_mlx_e2e_optional.py</code> (new); <code>tests/test_qwen3_tts_predictor.py</code>,
+  <code>tests/test_transformers_floor.py</code>, <code>tests/test_engine_runtime.py</code> (pinned to the PyTorch path /
+  hide <code>mlx</code>)</li>
+<li><code>README.md</code>, <code>docs/api.md</code>, <code>docs/installation.md</code>, <code>docs/dependencies.md</code>,
+  <code>docs/troubleshooting.md</code>, <code>docs/architecture.md</code>, <code>docs/benchmark.md</code>, <code>CHANGELOG.md</code>,
+  <code>llms.txt</code>, <code>llms-full.txt</code>, <code>docs/adr/0008_qwen3_tts_backend_selection.md</code>, <code>docs/adr/README.md</code></li>
+</ul>
+<h3 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>python -m pytest -q</code> -&gt; 688 passed, 4 skipped, 66 deselected (default markers).</li>
+<li><code>python -m pytest -q tests/test_qwen3_tts_backend_selection.py tests/test_qwen3_tts_mlx_tokenizer.py</code> -&gt; 16 passed.</li>
+<li><code>ABSTRACTVOICE_RUN_QWEN3_TTS_MLX_TESTS=1 python -m pytest -q -m model_download tests/test_qwen3_tts_mlx_e2e_optional.py</code> -&gt; 5 passed (CustomVoice load/prime/stream/WER, VoiceDesign, Base clone from a 3 s reference + x-vector mode).</li>
+<li>PyTorch-path tests (<code>tests/test_qwen3_tts_predictor.py</code>, <code>tests/test_transformers_floor.py</code>) pass with the backend pinned to <code>torch</code>.</li>
+</ul>
+<h3 id="follow-ups">Follow-ups<a class="headerlink" href="#follow-ups" title="Permanent link">&para;</a></h3>
+<ul>
+<li>LLM-delta streaming (<code>open_tts_text_stream</code>) still synthesizes per text segment as text arrives;
+  the model's streaming text mode could feed later segments into the same generation.</li>
+<li>Fused QKV / gate-up projections are adopted. Compiling the code-predictor loop as one graph
+  measured a further gain in the optimisation study (together with the fused projections, 15-25%
+  per frame); not adopted yet.</li>
+<li>A shorter first chunk (2, then 4, then 8 frames) measured first audio at 0.07-0.10 s (1.7B) in the
+  optimisation study without hurting throughput; the shipped cadence is 6 then 12.</li>
+<li>The codec encoder's deeper residual codebooks differ from PyTorch on ~1-3% of frames (fp32
+  argmin ties); audibly irrelevant, noted for parity work.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

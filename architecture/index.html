@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -1341,6 +1341,9 @@ caveats.</p>
   TTSAdapter --&gt; AudioDiT[AudioDiTTTSAdapter]
   TTSAdapter --&gt; OmniVoice[OmniVoiceTTSAdapter]
   TTSAdapter --&gt; Qwen3[Qwen3TTSAdapter]
+  Qwen3 --&gt; Qwen3RT[Qwen3TTSRuntime: backend policy ADR 0008]
+  Qwen3RT --&gt;|Apple silicon| Qwen3MLX[MLX port: one generation per reply, codec-frame streaming]
+  Qwen3RT --&gt;|CUDA / CPU| Qwen3Torch[PyTorch model, ADR 0005 device policy]
   TTSEngine --&gt; Player[NonBlockingAudioPlayer]
   Player --&gt; Out[(sounddevice OutputStream)]
 
@@ -1371,7 +1374,7 @@ caveats.</p>
 <li>Engine runtime status (<code>find_spec</code> only, no engine imports): <code>abstractvoice/engine_runtime.py</code></li>
 <li>AudioDiT adapter/runtime: <code>abstractvoice/adapters/tts_audiodit.py</code>, <code>abstractvoice/audiodit/runtime.py</code></li>
 <li>OmniVoice adapter/runtime: <code>abstractvoice/adapters/tts_omnivoice.py</code>, <code>abstractvoice/omnivoice/runtime.py</code></li>
-<li>Qwen3-TTS adapter/runtime: <code>abstractvoice/adapters/tts_qwen3_tts.py</code>, <code>abstractvoice/qwen3_tts/</code> (vendored 12Hz model core + codec + runtime; see <code>abstractvoice/_hf_compat.py</code> for the transformers-version seams shared with <code>qwen3_asr</code>)</li>
+<li>Qwen3-TTS adapter/runtime: <code>abstractvoice/adapters/tts_qwen3_tts.py</code>, <code>abstractvoice/qwen3_tts/</code> (vendored 12Hz model core + codec + runtime; see <code>abstractvoice/_hf_compat.py</code> for the transformers-version seams shared with <code>qwen3_asr</code>). Backend selection (ADR 0008): <code>abstractvoice/qwen3_tts/backend.py</code> picks <code>mlx</code> on Apple silicon when <code>mlx</code> is importable, else <code>torch</code>; the MLX port lives in <code>abstractvoice/qwen3_tts/mlx/</code> (talker, codec with a streaming decoder, speaker encoder, <code>tokenizers</code>-based text tokenizer, strict weight loading + on-load quantization) and streams codec frames of one generation per reply through the runtime's <code>stream_*</code> methods; the adapter exposes that as <code>native_frame_streaming</code>, which <code>vm/tts_mixin.py</code> and <code>cloning/engine_qwen3_tts.py</code> honour by passing a whole reply as one segment.</li>
 <li>TTS engine wrapper (back-compat contract): <code>abstractvoice/tts/adapter_tts_engine.py</code></li>
 <li>Low-latency audio player: <code>abstractvoice/tts/tts_engine.py</code></li>
 </ul>
@@ -1554,10 +1557,10 @@ endpoints such as <code>POST /v1/audio/speech</code> and <code>POST /v1/audio/tr
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

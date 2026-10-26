@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -628,6 +628,17 @@
     <span class="md-ellipsis">
       
         abstractvoice[stt-hf] — local Transformers ASR (Hugging Face)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstractvoiceqwen3-tts-qwen3-tts-preset-speakers-voice-design-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[qwen3-tts] — Qwen3-TTS (preset speakers, voice design, cloning)
       
     </span>
   </a>
@@ -1303,6 +1314,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#abstractvoiceqwen3-tts-qwen3-tts-preset-speakers-voice-design-cloning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstractvoice[qwen3-tts] — Qwen3-TTS (preset speakers, voice design, cloning)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1498,6 +1520,9 @@ OpenF5/F5-TTS engine only on Python 3.11+: on Python 3.10 every <code>f5-tts</co
 pins <code>numpy&lt;=1.26.4</code>, which conflicts with NumPy 2 stacks such as AbstractVision's
 MLX backends. On 3.10 the profiles install without F5-TTS; add
 <code>abstractvoice[cloning]</code> separately if you need it and can stay on NumPy 1.x.</p>
+<p>On Apple silicon the platform profiles also install <code>mlx-whisper</code> (Whisper on the
+Apple GPU) and <code>mlx</code> + <code>tokenizers</code> (Qwen3-TTS on the Apple GPU, ADR 0008); the
+environment markers make these no-ops on every other platform.</p>
 <ul>
 <li><strong>piper-tts</strong></li>
 <li><strong>Why</strong>: local neural TTS backend.</li>
@@ -1623,6 +1648,49 @@ external <code>supertonic</code> Python SDK.</p>
 <li>Qwen3-ASR Transformers backend</li>
 <li><strong>Upstream</strong>: <code>qwen-asr</code> (Apache-2.0) and <code>https://github.com/QwenLM/Qwen3-ASR</code></li>
 <li><strong>What we ship</strong>: a derived Transformers implementation under <code>abstractvoice/qwen3_asr/*</code> so Qwen3-ASR works without <code>trust_remote_code</code>.</li>
+</ul>
+<h3 id="abstractvoiceqwen3-tts-qwen3-tts-preset-speakers-voice-design-cloning"><code>abstractvoice[qwen3-tts]</code> — Qwen3-TTS (preset speakers, voice design, cloning)<a class="headerlink" href="#abstractvoiceqwen3-tts-qwen3-tts-preset-speakers-voice-design-cloning" title="Permanent link">&para;</a></h3>
+<p>Python 3.10+. Two compute backends behind one runtime (ADR 0008): MLX on Apple
+silicon, PyTorch elsewhere. Both load the original Qwen bf16 safetensors from the
+Hugging Face cache.</p>
+<ul>
+<li><strong>mlx</strong> (Apple silicon only; environment marker <code>sys_platform == 'darwin' and platform_machine == 'arm64'</code>)</li>
+<li><strong>Why</strong>: runs the Qwen3-TTS talker, codec and speaker encoder on the Apple GPU; the talker is quantized to 8-bit on load.</li>
+<li><strong>Where</strong>: <code>abstractvoice/qwen3_tts/mlx/</code>, selected by <code>abstractvoice/qwen3_tts/backend.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/ml-explore/mlx</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/ml-explore/mlx/blob/main/LICENSE</code> (MIT)</p>
+</li>
+<li>
+<p><strong>tokenizers</strong> (Apple silicon only, same marker)</p>
+</li>
+<li><strong>Why</strong>: the Qwen2 text tokenizer, built from the snapshot's <code>vocab.json</code> / <code>merges.txt</code>, so the MLX path needs no Transformers.</li>
+<li><strong>Where</strong>: <code>abstractvoice/qwen3_tts/mlx/tokenizer.py</code></li>
+<li><strong>Repo</strong>: <code>https://github.com/huggingface/tokenizers</code></li>
+<li>
+<p><strong>License</strong>: <code>https://github.com/huggingface/tokenizers/blob/main/LICENSE</code> (Apache-2.0)</p>
+</li>
+<li>
+<p><strong>torch</strong>, <strong>transformers</strong> (&gt;= 5.9, &lt; 6)</p>
+</li>
+<li><strong>Why</strong>: the PyTorch backend (CUDA, CPU, and Apple silicon when <code>mlx</code> is absent or <code>ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch</code>).</li>
+<li>
+<p><strong>Where</strong>: <code>abstractvoice/qwen3_tts/{modeling_qwen3_tts,orchestration,codec,predictor}.py</code></p>
+</li>
+<li>
+<p><strong>huggingface_hub</strong>, <strong>safetensors</strong>, <strong>soundfile</strong>, <strong>numpy</strong>: snapshot resolution, weight files, reference-audio I/O (both backends).</p>
+</li>
+</ul>
+<p>Models/weights (Hugging Face): <code>Qwen/Qwen3-TTS-12Hz-{0.6B,1.7B}-{CustomVoice,Base}</code>,
+<code>Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign</code> (Apache-2.0); prefetch with
+<code>python -m abstractvoice download --qwen3-tts &lt;model-id&gt;</code>.</p>
+<p>Vendored code:</p>
+<ul>
+<li>Qwen3-TTS PyTorch model (<code>qwen-tts</code>, Apache-2.0): <code>abstractvoice/qwen3_tts/*</code>;
+  notice <code>third_party_licenses/qwen3_tts_notice.txt</code>.</li>
+<li>Qwen3-TTS MLX port derived from mlx-audio (MIT), with the Kyutai Mimi codec modules and the
+  mlx-lm key/value cache it redistributes (MIT): <code>abstractvoice/qwen3_tts/mlx/*</code>; notice
+  <code>third_party_licenses/mlx_audio_notice.txt</code>.</li>
 </ul>
 <h3 id="abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support"><code>abstractvoice[omnivoice]</code>, <code>[cloning]</code>, <code>[chroma]</code>, <code>[audiodit]</code> — model prefetch support<a class="headerlink" href="#abstractvoiceomnivoice-cloning-chroma-audiodit-model-prefetch-support" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1947,10 +2015,10 @@ smaller installs.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

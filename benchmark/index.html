@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -999,6 +999,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#qwen3-tts-on-apple-silicon-mlx-versus-pytorch-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS on Apple silicon: MLX versus PyTorch (2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subjective-note-voice-cloning" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1364,6 +1375,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#qwen3-tts-on-apple-silicon-mlx-versus-pytorch-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS on Apple silicon: MLX versus PyTorch (2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subjective-note-voice-cloning" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1607,6 +1629,74 @@
 - Torch engines are slower on MPS for short prompts, but scale differently with longer prompts:
   - AudioDiT shows lower RTF for longer text in this run.
   - OmniVoice is competitive and has strong multilingual coverage.</p>
+<h2 id="qwen3-tts-on-apple-silicon-mlx-versus-pytorch-2026-10-26">Qwen3-TTS on Apple silicon: MLX versus PyTorch (2026-10-26)<a class="headerlink" href="#qwen3-tts-on-apple-silicon-mlx-versus-pytorch-2026-10-26" title="Permanent link">&para;</a></h2>
+<p>Qwen3-TTS has two backends (ADR 0008). Measured on an 18-core Apple silicon laptop, the standard
+63-word English reply (about 25 s of speech), speaker <code>ryan</code>, upstream sampling (temperature 0.9,
+top-k 50), warm model. The MLX rows use the default 8-bit talker and the default chunk cadence
+(6 codec frames, then 12), measured through <code>VoiceManager</code> on an otherwise idle machine
+(<code>speak_to_bytes</code> for buffered, <code>speak_to_audio_chunks</code> for streamed, 2-3 runs each). "Load incl.
+warm-up" is <code>VoiceManager(tts_engine="qwen3-tts")</code> construction with the weights in the page
+cache: load, 8-bit quantization and a short priming generation. "MLX peak at load" is
+<code>mx.get_peak_memory()</code> after that load: the bf16 weights are read before the talker is quantized,
+so this transient is higher than the memory held while speaking. The PyTorch rows were measured
+earlier the same day under other load.</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Checkpoint</th>
+<th style="text-align: right;">RTF buffered / streamed</th>
+<th style="text-align: right;">First streamed audio</th>
+<th style="text-align: right;">Load incl. warm-up</th>
+<th style="text-align: right;">MLX peak at load</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MLX, 8-bit</td>
+<td>1.7B CustomVoice</td>
+<td style="text-align: right;">0.17-0.22 / 0.22-0.24</td>
+<td style="text-align: right;">0.10-0.14 s</td>
+<td style="text-align: right;">0.6 s</td>
+<td style="text-align: right;">7.9 GB</td>
+</tr>
+<tr>
+<td>MLX, 8-bit</td>
+<td>0.6B CustomVoice</td>
+<td style="text-align: right;">0.19-0.20 / 0.19-0.23</td>
+<td style="text-align: right;">0.09-0.12 s</td>
+<td style="text-align: right;">0.4 s</td>
+<td style="text-align: right;">3.6 GB</td>
+</tr>
+<tr>
+<td>PyTorch (MPS, bf16)</td>
+<td>1.7B CustomVoice</td>
+<td style="text-align: right;">0.9-1.9</td>
+<td style="text-align: right;">9.1 s (3 sentence segments)</td>
+<td style="text-align: right;">20-60 s</td>
+<td style="text-align: right;">-</td>
+</tr>
+<tr>
+<td>PyTorch (MPS, bf16)</td>
+<td>0.6B CustomVoice</td>
+<td style="text-align: right;">1.1-2.1</td>
+<td style="text-align: right;">9.6 s</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">-</td>
+</tr>
+</tbody>
+</table>
+<p>Other processes using the Apple GPU slow MLX inference without raising the CPU load average;
+compare figures only from an idle machine.</p>
+<p>Interpretation:
+- The PyTorch path on the Apple GPU is kernel-launch bound (sixteen codebook steps per 80 ms
+  frame), so the 0.6B is no faster than the 1.7B; MLX removes most of that overhead.
+- On MLX a reply is one generation streamed as 0.96 s chunks with no playback stalls; the first
+  chunk arrives after six frames. The voice cannot drift between sentences because nothing is
+  re-sampled per sentence.
+- 8-bit is the right default: bf16 weights make the 1.7B memory-bound (RTF 0.92).
+- Transcription parity (Whisper <code>large-v3-turbo</code>, 1.7B, 3 samples each): WER 0.17 on PyTorch,
+  0.14 on MLX, both close to Whisper's own normalisation floor on this text.</p>
 <h2 id="subjective-note-voice-cloning">Subjective note (voice cloning)<a class="headerlink" href="#subjective-note-voice-cloning" title="Permanent link">&para;</a></h2>
 <p>This benchmark does <strong>not</strong> measure voice cloning.</p>
 <p>Maintainer note (subjective): for <strong>voice cloning</strong>, OmniVoice tends to produce <strong>impressively high quality</strong> in practice and is often the best choice when cloning is the priority.</p>
@@ -1665,10 +1755,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

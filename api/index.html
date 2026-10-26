@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -409,6 +409,17 @@
   
     <nav class="md-nav" aria-label="Qwen3-TTS checkpoints">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen backends: MLX on Apple silicon, PyTorch elsewhere
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#qwen-performance-controls" class="md-nav__link">
@@ -1425,6 +1436,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen backends: MLX on Apple silicon, PyTorch elsewhere
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#qwen-performance-controls" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1913,9 +1935,15 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <h3 id="qwen3-tts-checkpoints">Qwen3-TTS checkpoints<a class="headerlink" href="#qwen3-tts-checkpoints" title="Permanent link">&para;</a></h3>
 <p>Install <code>abstractvoice[qwen3-tts]</code> (Python 3.10+) and explicitly download each
 checkpoint you intend to use. Discovery lists cached checkpoints without
-loading their weights; synthesis loads the selected checkpoint on demand.
-It runs on Transformers 5.9 or newer (the extra's floor); with an older
-Transformers, loading refuses with a plain error before any download or weight load.</p>
+loading their weights. Selecting the engine loads the chosen checkpoint from the
+local cache right away, like every other local engine, so the first synthesis
+does not pay the load (on MLX this includes the priming generation); a
+checkpoint that is not cached yet is downloaded by <code>abstractvoice-prefetch</code> or
+by the first synthesis when downloads are allowed. On Apple silicon the
+checkpoints run on the Apple GPU through MLX; elsewhere they run on PyTorch and
+Transformers 5.9 or newer (the extra's floor): with an older Transformers,
+loading refuses with a plain error before any download or weight load. See
+<a href="#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere">Qwen backends</a>.</p>
 <table>
 <thead>
 <tr>
@@ -1946,8 +1974,10 @@ Transformers, loading refuses with a plain error before any download or weight l
 <code>Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice</code>, cloning to the corresponding <code>Base</code>.
 Supported language codes are <code>en</code>, <code>zh</code>, <code>ja</code>, <code>ko</code>, <code>de</code>, <code>fr</code>, <code>ru</code>, <code>pt</code>,
 <code>es</code>, and <code>it</code>. Long input is split into bounded segments in both buffered
-and streamed delivery, including text without spaces. Streamed output is
-sentence-segmented, not native codec-frame streaming.</p>
+and streamed delivery, including text without spaces. On the MLX backend a
+reply up to 800 characters is one generation streamed as codec frames; on the
+PyTorch backend streamed output is sentence-segmented (one generation per
+segment).</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--qwen3-tts<span class="w"> </span>Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
 abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>qwen3-tts<span class="w"> </span>--tts-model<span class="w"> </span>Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--instructions<span class="w"> </span><span class="s2">"A warm, clear narrator."</span><span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"Hello from Qwen."</span><span class="w"> </span>--output<span class="w"> </span>hello.wav
@@ -1968,11 +1998,81 @@ profiles and stored clones by checkpoint. Plugin defaults can be configured
 with the <code>voice_cloning_model</code> setting, separately from <code>voice_tts_model</code>, and
 the codebook predictor/sampler with <code>voice_qwen3_tts_predictor</code> /
 <code>voice_qwen3_tts_sampler</code> (see below).</p>
+<h4 id="qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere">Qwen backends: MLX on Apple silicon, PyTorch elsewhere<a class="headerlink" href="#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere" title="Permanent link">&para;</a></h4>
+<p>Qwen3-TTS has two compute backends behind the same runtime, adapter, cloning
+engine and settings (ADR 0008). The policy is small and explicit:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Backend</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS on Apple silicon with <code>mlx</code> importable (the <code>qwen3-tts</code>, <code>apple</code>, <code>all-apple</code>, <code>gpu</code> and <code>all-gpu</code> extras install it there)</td>
+<td><code>mlx</code></td>
+</tr>
+<tr>
+<td>anything else (CUDA, CPU, Intel Mac, <code>mlx</code> not installed)</td>
+<td><code>torch</code> (the shared ADR 0005 device/dtype policy)</td>
+</tr>
+<tr>
+<td><code>VoiceManager(qwen3_tts_backend="torch" \| "mlx")</code>, the AbstractCore plugin setting <code>voice_qwen3_tts_backend</code>, <code>ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch\|mlx</code>, or <code>Qwen3TTSSettings(backend=...)</code> / <code>Qwen3TTSRuntime(backend=...)</code></td>
+<td>that backend (an explicit setting wins over the environment variable; <code>auto</code> defers to the policy); asking for <code>mlx</code> where it cannot run is a plain error, not a fallback, and <code>is_available()</code> is <code>False</code> with that sentence as <code>get_unavailable_reason()</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>runtime_info()["backend"]</code> (also under <code>get_info()["runtime"]</code> and the stream
+metrics' <code>device</code>, <code>metal</code> for MLX) says which backend is active. Both backends
+load the ORIGINAL Qwen bf16 safetensors from the same Hugging Face snapshot;
+nothing else is downloaded.</p>
+<p>The MLX backend:</p>
+<ul>
+<li>quantizes the talker to 8-bit when it loads (the codec and speaker encoder
+  stay float32). <code>VoiceManager(qwen3_tts_mlx_quantization="bf16" | "8bit" | "4bit")</code>,
+  the AbstractCore plugin setting <code>voice_qwen3_tts_mlx_quantization</code>,
+  <code>Qwen3TTSSettings(mlx_quantization=...)</code> or
+  <code>ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION</code> choose otherwise; the environment
+  variable is read only when the MLX backend loads, and the choice is reported as
+  <code>runtime_info()["mlx_quantization"]</code> (with per-component weight sizes under
+  <code>runtime_info()["mlx_weight_bytes"]</code>). 8-bit is the recommended default: bf16
+  is slower at the same transcription accuracy, and a 4-bit talker can run away
+  into long babble;</li>
+<li>needs <code>mlx</code> 0.31.2 or newer; an older <code>mlx</code> (for example one left by another
+  package) is refused at load with a plain error naming the upgrade command;</li>
+<li>holds the model for the whole of one generation, because the codec decoder keeps
+  streaming state: a streamed reply owns it until its chunk iterator is exhausted
+  or closed. Another synthesis waits for it (up to 600 s) and <code>unload()</code> up to 10 s,
+  then raises an error saying a stream holds the model. Call <code>.close()</code> on a chunk
+  iterator you stop reading;</li>
+<li>streams <strong>codec frames of one generation per reply</strong>: <code>stream_custom_voice</code>,
+  <code>stream_voice_design</code> and <code>stream_clone</code> yield contiguous 24 kHz chunks (the
+  first after <code>stream_first_chunk_frames</code> 80 ms frames, default 6, then every
+  <code>stream_chunk_frames</code>, default 12), faded only at the utterance edges. The
+  adapter's <code>native_frame_streaming</code> is <code>True</code>, <code>speak_to_audio_chunks</code> and the
+  streamed <code>speak()</code> pass the whole reply (up to 800 characters, then sentence
+  boundaries) as one segment, and the stream metrics carry
+  <code>"streaming_unit": "frames"</code>. <code>synthesize_*</code> is the same single generation
+  collected. Text that arrives incrementally (<code>open_tts_text_stream</code>, an LLM
+  reply) is still synthesized per text segment as it arrives;</li>
+<li>runs a short priming generation at load so Metal kernels are compiled in the
+  loading phase; <code>runtime_info()</code> reports <code>load_seconds</code> and <code>prime_seconds</code>;</li>
+<li>accepts the PyTorch-only <code>predictor</code> / <code>sampler</code> switches and reports them as
+  not applied: <code>runtime_info()["pytorch_switches"] == {"predictor": ...,
+  "sampler": ..., "applied": False, "note": ...}</code>. MLX runs its own
+  fixed-depth codebook loop with categorical (multinomial) sampling.</li>
+</ul>
+<p>Sampling semantics are the same on both backends (temperature, top-k, top-p,
+repetition penalty over the generated frames, the quality presets), so a voice,
+language or instruction behaves the same; exact samples differ, as they do
+between any two devices.</p>
 <h4 id="qwen-performance-controls">Qwen performance controls<a class="headerlink" href="#qwen-performance-controls" title="Permanent link">&para;</a></h4>
-<p>Qwen uses the shared automatic GPU/device policy and a specialized codebook
-predictor by default, retaining PyTorch's multinomial sampler. No additional
-vendor SDK is required. Unsupported generation settings use the original
-Transformers path with a <code>#FALLBACK</code> warning.</p>
+<p>On the PyTorch backend Qwen uses the shared automatic GPU/device policy and a
+specialized codebook predictor by default, retaining PyTorch's multinomial
+sampler. No additional vendor SDK is required. Unsupported generation settings
+use the original Transformers path with a <code>#FALLBACK</code> warning. The MLX backend
+accepts these two settings and ignores them (see above).</p>
 <p>Every surface can choose both settings; the runtime reads them when it loads the
 model:</p>
 <table>
@@ -2053,10 +2153,11 @@ with Torch 2.12.0 / Transformers 5.8.1 were substantially faster than Torch 2.8.
 / Transformers 5.8.0. Compare warm generation time against audio duration in
 the Python environment running your CLI or plugin; an optimized sampler alone
 does not guarantee realtime throughput.</p>
-<p>Faster inference does not imply native audio streaming: <code>/tts delivery
-buffered</code> waits for complete synthesis, while <code>streamed</code> delivers independently
-synthesized text segments progressively. Neither setting enables native Qwen
-codec-frame streaming.</p>
+<p>Faster inference on PyTorch does not imply native audio streaming there:
+<code>/tts delivery buffered</code> waits for complete synthesis, while <code>streamed</code>
+delivers independently synthesized text segments progressively. Native
+codec-frame streaming of one generation per reply is the MLX backend's
+behaviour (Apple silicon), whatever the delivery mode.</p>
 <h3 id="language-voice-selection">Language &amp; voice selection<a class="headerlink" href="#language-voice-selection" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>set_language(language: str) -&gt; bool</code></li>
@@ -2354,6 +2455,12 @@ integration code:
     consumers should query <code>surface="playback"</code> explicitly.
 - <code>clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -&gt; voice_id | dict</code>
 - <code>clone_voice(...) -&gt; ...</code> (compatibility alias of <code>clone(...)</code>)
+- Cloned-voice management (the clone registry is shared by every manager of the user):
+  - <code>get_cloned_voice(voice_id) -&gt; dict</code> (stored record: <code>voice_id</code>, <code>name</code>, <code>engine</code>, <code>reference_text</code>, <code>reference_files</code>, <code>meta</code>)
+  - <code>rename_cloned_voice(voice_id, new_name) -&gt; dict</code> (the id is unchanged; returns the updated record with <code>ok</code>)
+  - <code>set_cloned_voice_reference_text(voice_id, reference_text) -&gt; dict</code> (a wrong transcript degrades cloned speech; returns the updated record)
+  - <code>delete_cloned_voice(voice_id) -&gt; {ok, deleted, voice_id, name, engine}</code> (removes the record and its reference audio)
+  - <code>delete_voice(...)</code> / <code>rename_voice(...)</code> are aliases. An unknown id raises <code>KeyError</code>; an empty id, name or transcript raises <code>ValueError</code>. None of these builds a <code>VoiceManager</code> or loads an engine.
 - <code>voice_catalog() -&gt; {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}</code>
 - <code>voice_catalog()</code> also includes additive capability metadata:
   - <code>controls</code>: legacy control map kept backward-compatible for existing clients
@@ -2363,6 +2470,7 @@ integration code:
 - Residency / warmup (local engines only; remote providers remain “configured”):
   - <code>load_resident_model(request: dict) -&gt; dict</code>
     - voice backend: clone engines (<code>provider="cloned"</code>) and local base TTS (<code>provider="piper"|"supertonic"|"omnivoice"|"audiodit"|...</code>)
+    - <code>{"task": "tts", "provider": "cloned", "model": "&lt;engine&gt;", "options": {"voice": "&lt;voice_id&gt;"}}</code> loads the cloning engine and prepares and warms that voice (<code>details.voice_prepared</code>, <code>details.voice_warmed</code>), so the first <code>tts(voice=...)</code> does not pay the engine load. <code>model</code> may be omitted when <code>options.voice</code> is given; the engine is read from the stored voice.
     - audio backend: local STT (<code>provider="faster-whisper"|"transformers-asr"|...</code>)
   - <code>list_resident_models(filters: dict | None = None) -&gt; list[dict]</code>
   - <code>unload_resident_model(request: dict) -&gt; dict</code>
@@ -2582,6 +2690,10 @@ different provider:
   used for this key, because it names the OpenAI-compatible server)
 - <code>voice_qwen3_tts_predictor</code> / <code>voice_qwen3_tts_sampler</code>: Qwen3-TTS codebook
   predictor and sampler (see <a href="#qwen-performance-controls">Qwen performance controls</a>)
+- <code>voice_qwen3_tts_backend</code>: <code>auto</code> (default) | <code>mlx</code> | <code>torch</code> — Qwen3-TTS backend
+  (see <a href="#qwen3-tts-checkpoints">Qwen3-TTS checkpoints</a>); a typo is a <code>ValueError</code>
+- <code>voice_qwen3_tts_mlx_quantization</code>: <code>auto</code> (default, 8-bit) | <code>bf16</code> | <code>8bit</code> | <code>4bit</code> —
+  talker precision on the MLX backend
 - <code>voice_whisper_model</code>: faster-whisper model size (e.g. <code>"base"</code>, <code>"small"</code>)
 - <code>voice_cloning_engine</code>: default cloning provider (<code>"omnivoice"</code> by default; also <code>"f5_tts"|"chroma"|"audiodit"|"openai"|"openai-compatible"</code>)
 - <code>voice_cloned_tts_streaming</code>: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when <code>voice_tts_delivery_mode</code> is unset.
@@ -2813,10 +2925,10 @@ compatibility remains the capability/plugin contract: clients may pass a
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

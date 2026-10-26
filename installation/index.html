@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -431,6 +431,17 @@
     <span class="md-ellipsis">
       
         Whisper on the Apple GPU
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qwen3-tts-on-the-apple-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS on the Apple GPU
       
     </span>
   </a>
@@ -1278,6 +1289,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#qwen3-tts-on-the-apple-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS on the Apple GPU
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1358,7 +1380,7 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abst
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[chroma]"</span><span class="w">    </span><span class="c1"># Chroma-4B (very heavy; torch/transformers)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audiodit]"</span><span class="w">  </span><span class="c1"># LongCat-AudioDiT (heavy; torch/transformers)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[omnivoice]"</span><span class="w"> </span><span class="c1"># recommended/default local cloning + OmniVoice TTS/design (very heavy; Python 3.10+)</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[qwen3-tts]"</span><span class="w"> </span><span class="c1"># Qwen3-TTS: preset speakers, cloning, voice design (heavy; Python 3.10+)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[qwen3-tts]"</span><span class="w"> </span><span class="c1"># Qwen3-TTS: preset speakers, cloning, voice design (heavy; Python 3.10+; MLX on Apple silicon, PyTorch elsewhere)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[openai]"</span><span class="w">    </span><span class="c1"># Hosted OpenAI intent extra (no extra deps today)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[openai-compatible]"</span><span class="w"> </span><span class="c1"># Generic compatible provider intent extra</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[aec]"</span><span class="w">       </span><span class="c1"># Optional echo cancellation (true barge-in)</span>
@@ -1536,6 +1558,16 @@ it with <code>VoiceManager(stt_engine="mlx-whisper", whisper_model="large-v3")</
 </tr>
 </tbody>
 </table>
+<h3 id="qwen3-tts-on-the-apple-gpu">Qwen3-TTS on the Apple GPU<a class="headerlink" href="#qwen3-tts-on-the-apple-gpu" title="Permanent link">&para;</a></h3>
+<p>On Apple silicon the <code>qwen3-tts</code>, <code>apple</code>, <code>all-apple</code>, <code>gpu</code> and <code>all-gpu</code> extras install <code>mlx</code>
+and <code>tokenizers</code>, and Qwen3-TTS runs on the Apple GPU through MLX (ADR 0008): the same Qwen
+checkpoints from the same Hugging Face cache, loaded strictly from the original bf16 safetensors
+and quantized to 8-bit as they load (<code>ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION=bf16|8bit|4bit</code>
+chooses otherwise). Nothing changes in how you select the engine; <code>runtime_info()["backend"]</code>
+reports <code>mlx</code>. Elsewhere, or with <code>ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch</code>, the PyTorch path runs
+as before. Asking for <code>mlx</code> on a machine where it cannot run fails with a plain error. Measured
+figures are in <a href="../benchmark/"><code>docs/benchmark.md</code></a> and
+<a href="../api/#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere">Qwen backends</a>.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Piper model not available locally</strong>: run <code>python -m abstractvoice download --piper &lt;lang&gt;</code>.</li>
@@ -1600,10 +1632,10 @@ it with <code>VoiceManager(stt_engine="mlx-whisper", whisper_model="large-v3")</
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

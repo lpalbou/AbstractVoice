@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -940,6 +940,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#qwen3-tts-speaks-late-or-slowly-on-a-mac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS speaks late or slowly on a Mac
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qwen3-tts-raises-timed-out-waiting-for-the-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS raises "timed out ... waiting for the model"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qwen3-tts-refuses-an-older-mlx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS refuses an older mlx
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#whisper-runs-on-the-cpu-on-an-nvidia-machine" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1571,6 +1604,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#qwen3-tts-speaks-late-or-slowly-on-a-mac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS speaks late or slowly on a Mac
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qwen3-tts-raises-timed-out-waiting-for-the-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS raises "timed out ... waiting for the model"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qwen3-tts-refuses-an-older-mlx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Qwen3-TTS refuses an older mlx
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#whisper-runs-on-the-cpu-on-an-nvidia-machine" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1772,8 +1838,12 @@ device, and microphone permission not yet granted on macOS.</p>
 coordination section of <code>docs/architecture.md</code>.</p>
 <h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
 <h3 id="first-synthesis-is-much-slower-than-later-ones">First synthesis is much slower than later ones<a class="headerlink" href="#first-synthesis-is-much-slower-than-later-ones" title="Permanent link">&para;</a></h3>
-<p>The first call loads the model and opens the audio device. Prefetch weights ahead of time, and
-<code>AdapterTTSEngine.warmup_audio_output()</code> opens the playback stream before the first utterance.</p>
+<p>Local engines load their model when the engine is selected (<code>VoiceManager(...)</code>, <code>/tts engine</code>),
+so the load is paid at startup, not on the first utterance, as long as the weights are cached.
+Prefetch weights ahead of time (<code>abstractvoice-prefetch</code>); a checkpoint that is not cached is
+downloaded by the first synthesis when downloads are allowed. <code>AdapterTTSEngine.warmup_audio_output()</code>
+opens the playback stream before the first utterance. On a GPU, the first utterance after a load
+can still take a second or two longer than later ones while the kernels are compiled.</p>
 <h3 id="local-transcription-is-slow-on-a-mac">Local transcription is slow on a Mac<a class="headerlink" href="#local-transcription-is-slow-on-a-mac" title="Permanent link">&para;</a></h3>
 <p>faster-whisper runs on CTranslate2, which has no Apple GPU backend, so on macOS it transcribes on the
 CPU and <code>get_info()</code> carries a <code>device_reason</code> saying so (large-v3: about 20 s for a 17-second clip
@@ -1782,6 +1852,29 @@ on an M5 Max). Select the <code>mlx-whisper</code> engine instead: it runs the s
 <code>abstractvoice[apple]</code> and <code>abstractvoice[stt-mlx]</code>; see
 <a href="../installation/#whisper-on-the-apple-gpu">Whisper on the Apple GPU</a>. On the CPU, <code>large-v3-turbo</code>
 is the faster model (about 6 s for that clip).</p>
+<h3 id="qwen3-tts-speaks-late-or-slowly-on-a-mac">Qwen3-TTS speaks late or slowly on a Mac<a class="headerlink" href="#qwen3-tts-speaks-late-or-slowly-on-a-mac" title="Permanent link">&para;</a></h3>
+<p>On Apple silicon Qwen3-TTS should report <code>runtime_info()["backend"] == "mlx"</code> (the stream metrics
+say <code>device: metal</code>): a reply is one generation streamed as codec frames, with the first audio a
+fraction of a second in. If it reports <code>torch</code> instead, <code>mlx</code> is not installed in that interpreter
+(<code>pip install "abstractvoice[qwen3-tts]"</code> installs it on Apple silicon) or
+<code>ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch</code> is set; <code>runtime_info()["backend_selection"]</code> (before the
+model loads) says which. The PyTorch path on the Apple GPU is kernel-launch bound: a long reply
+synthesizes near real time and streamed speech starts several seconds in. A request for <code>mlx</code> on
+another platform fails with a plain error rather than falling back. If the first utterance after
+loading is still slow, check <code>runtime_info()["prime_seconds"]</code>: the load runs a short priming
+generation so Metal kernels compile before the first real reply.</p>
+<p>Other processes using the Apple GPU (another model server, video work) slow MLX inference
+without raising the CPU load average; compare timings on an idle machine.</p>
+<h3 id="qwen3-tts-raises-timed-out-waiting-for-the-model">Qwen3-TTS raises "timed out ... waiting for the model"<a class="headerlink" href="#qwen3-tts-raises-timed-out-waiting-for-the-model" title="Permanent link">&para;</a></h3>
+<p>On the MLX backend one generation owns the model until its chunk iterator from
+<code>speak_to_audio_chunks()</code> or <code>stream_*()</code> is exhausted or closed. A program that stops reading
+an iterator but keeps a reference to it holds the model; the next synthesis then waits and
+raises this error instead of hanging. Call <code>.close()</code> on an iterator you abandon, or let it go
+out of scope.</p>
+<h3 id="qwen3-tts-refuses-an-older-mlx">Qwen3-TTS refuses an older <code>mlx</code><a class="headerlink" href="#qwen3-tts-refuses-an-older-mlx" title="Permanent link">&para;</a></h3>
+<p>The MLX backend needs <code>mlx</code> 0.31.2 or newer. Upgrade with <code>pip install -U "mlx&gt;=0.31.2"</code>, or run
+the PyTorch backend with <code>VoiceManager(qwen3_tts_backend="torch")</code> or
+<code>ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch</code>.</p>
 <h3 id="whisper-runs-on-the-cpu-on-an-nvidia-machine">Whisper runs on the CPU on an NVIDIA machine<a class="headerlink" href="#whisper-runs-on-the-cpu-on-an-nvidia-machine" title="Permanent link">&para;</a></h3>
 <p><code>FasterWhisperAdapter.execution_device()</code> (and <code>get_info()["device_reason"]</code>) says why: no CUDA GPU
 visible to CTranslate2, CUDA 12 cuBLAS or cuDNN 9 not loadable, a refused
@@ -1866,10 +1959,10 @@ traceback: <code>.github/ISSUE_TEMPLATE/bug_report.yml</code>. For security repo
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>
