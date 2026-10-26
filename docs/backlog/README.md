@@ -5,7 +5,7 @@ This folder is the **single source of truth** for planned and completed work in 
 ## Current snapshot
 
 - Updated: 2026-10-26
-- Planned: 15
+- Planned: 16
 - Proposed: 11
 - Completed: 35
 - Recurrent: 1
@@ -73,6 +73,12 @@ Rationale:
 - capture reusable abstractions even if DramaBox never ships;
 - keep the runtime spike separate from later engine-surface work;
 - keep Apple validation explicitly last instead of silently assumed.
+
+## Other current planned items
+
+- `docs/backlog/planned/0062_speed_ignored_in_bytes_synthesis_for_supertonic_and_piper.md`: the
+  speed reaches live playback but not `speak_to_bytes()` / `speak_to_file()` for Supertonic and
+  Piper (and so not the AbstractCore plugin or `/v1/audio/speech`); deferred to the package rebuild.
 
 ## Other current proposed items
 
