@@ -12,9 +12,14 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ### Added
 
-- `VoiceManager.design_voice(description, *, name=None, language=None, text=None)` creates a reusable voice from a written description, with no recording. Qwen3-TTS 1.7B VoiceDesign renders a reference in one generation, the warm-up it needs to settle into the voice is cut off, and Qwen3-TTS 1.7B Base clones the rest, so the voice keeps one identity on every call. The voice is stored as a Qwen3-TTS clone and used with `voice="<voice_id>"`. Reference languages: en, fr, es, de, it, pt, ru, zh, ja, ko. Needs `abstractvoice[qwen3-tts]` and both 1.7B checkpoints.
+- `VoiceManager.design_voice(description, *, name=None, language=None, text=None)` creates a reusable voice from a written description, with no recording. Qwen3-TTS 1.7B VoiceDesign renders a reference in one generation, the warm-up it needs to settle into the voice is cut off where Whisper hears the reference text begin, and Qwen3-TTS 1.7B Base clones the rest, so the voice keeps one identity on every call. The voice is stored as a Qwen3-TTS clone and used with `voice="<voice_id>"`. Reference languages: en, fr, es, de, it, pt, ru, zh, ja, ko. Uses the manager's Qwen3-TTS backend settings; `render_designed_voice()` and `store_designed_voice()` are its two halves. Needs `abstractvoice[qwen3-tts]`, `abstractvoice[stt]` and both 1.7B checkpoints.
 - `abstractvoice.languages.language_catalog(kind=None, provider=None)`: the languages of every TTS, STT and cloning engine, read without loading a model or importing torch. Remote providers are reported as `open`.
-- AbstractCore plugin: `list_languages(kind=None, provider=None)` and `design_voice(description, ...)`, which returns the stored record. `voice_catalog()` adds `tts_languages_by_provider` and `stt_languages_by_provider`, and catalog entries of designed voices carry `tags.designed` and the `description`.
+- AbstractCore plugin: `list_languages(kind=None, provider=None)` and `design_voice(description, ...)`, which returns the stored record and renders outside the manager lock.
+- AbstractCore plugin voice navigation: every voice record, profile or clone, carries `voice_id` (the value for `tts(voice=...)`), `name`, `kind`, `provider`, `model`, `languages` and the native `language` when known. `list_tts_voices`, `list_cloned_voices` and `voice_catalog` accept `language=`: the voices that can speak it, native speakers first.
+
+### Changed
+
+- The AbstractCore plugin's `tts_stream()` raises `ValueError` for `one_shot=True` instead of ignoring it; use `tts(..., one_shot=True)`. `voice_catalog()` adds `tts_languages_by_provider` and `stt_languages_by_provider`, and catalog entries of designed voices carry `tags.designed` and the `description`.
 
 ## [0.17.2] - 2026-10-26
 

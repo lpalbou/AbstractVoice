@@ -1,7 +1,7 @@
 """Real-weights check of voice design through the AbstractCore plugin.
 
 A voice is designed from a description, listed with the cloned voices, spoken, and
-deleted. Needs the qwen3-tts extra plus Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign and
+deleted. Needs the qwen3-tts and stt extras plus Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign and
 Qwen/Qwen3-TTS-12Hz-1.7B-Base in the Hugging Face cache. Marked ``model_download``;
 enable with ``ABSTRACTVOICE_RUN_VOICE_DESIGN_TESTS=1``.
 """

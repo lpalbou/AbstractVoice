@@ -133,6 +133,10 @@ AbstractCore discovers AbstractVoice through the
   - `get_capability_support(...)` / `find_compatible_models(...)`
   - `list_languages(kind="tts"|"stt"|"cloning", provider=...)` for each engine's
     languages, read without loading any model
+  - `language="fr"` on `list_tts_voices`, `list_cloned_voices` and `voice_catalog`
+    for the voices that speak a language, native speakers first; every voice
+    record carries `voice_id`, `name`, `kind`, `provider`, `model`, `languages` and
+    `language`
   - `voice_catalog()`
 - first-class clone creation through:
   - `clone(audio, provider=..., model=..., name=..., reference_text=..., artifact_store=...)`
@@ -195,7 +199,8 @@ Italian). Use them by id like any cloned voice, for example
 
 You can design your own voice the same way. `design_voice` renders a reference
 from your description with the 1.7B VoiceDesign checkpoint and clones it with
-the 1.7B Base checkpoint, so the voice keeps one identity on every call:
+the 1.7B Base checkpoint, so the voice keeps one identity on every call (it needs
+the `qwen3-tts` and `stt` extras):
 
 ```python
 voice_id = vm.design_voice(

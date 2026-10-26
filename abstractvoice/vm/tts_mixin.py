@@ -214,43 +214,80 @@ class TtsMixin:
         """Create a reusable voice from a written description; returns its cloned voice id.
 
         Qwen3-TTS VoiceDesign (1.7B) renders a reference in one generation, the
-        warm-up it needs to settle is cut off, and the reference is cloned with the
-        Qwen3-TTS 1.7B Base checkpoint, so the voice keeps one identity from then on
-        (a description passed as ``instructions`` samples a new voice on every call).
+        warm-up it needs to settle is cut off where Whisper hears the reference
+        text begin, and the reference is cloned with the Qwen3-TTS 1.7B Base
+        checkpoint, so the voice keeps one identity from then on (a description
+        passed as ``instructions`` samples a new voice on every call).
         ``language`` defaults to the manager's language when Qwen3-TTS supports it,
         else English; ``text`` overrides the built-in reference text for that language.
-        Needs ``abstractvoice[qwen3-tts]``; the two checkpoints download on first use
-        when downloads are allowed. Raises ValueError for an empty description or an
-        unsupported language.
+        Uses this manager's Qwen3-TTS backend and precision settings. Needs
+        ``abstractvoice[qwen3-tts]`` and ``abstractvoice[stt]``; the checkpoints
+        download on first use when downloads are allowed. Raises ValueError for an
+        empty description, an unsupported language, or a text that is too long or too short.
+        """
+        return self.store_designed_voice(self.render_designed_voice(description, language=language, text=text), name=name)
+
+    def render_designed_voice(
+        self,
+        description: str,
+        *,
+        language: str | None = None,
+        text: str | None = None,
+    ) -> dict[str, Any]:
+        """First half of ``design_voice``: render the reference; nothing is stored.
+
+        Returns ``{"wav_bytes", "reference_text", "meta"}`` for ``store_designed_voice``.
+        Loads its own VoiceDesign model and unloads it before returning, so it does
+        not touch the engines this manager already holds.
         """
         import io
 
         import soundfile as sf
 
-        from ..cloning.design import CLONING_MODEL_ID, DESIGN_MODEL_ID, WARMUPS, render_designed_reference
+        from ..cloning.design import DESIGN_MODEL_ID, WARMUPS, render_designed_reference
+        from ..qwen3_tts.runtime import Qwen3TTSSettings
 
+        if not str(description or "").strip():
+            raise ValueError("a voice description is required")
         lang = str(language or getattr(self, "language", None) or "en").strip().lower()
         if language is None and lang not in WARMUPS:
             lang = "en"
+        settings = Qwen3TTSSettings(
+            predictor=getattr(self, "qwen3_tts_predictor", None) or "auto",
+            sampler=getattr(self, "qwen3_tts_sampler", None) or "multinomial",
+            backend=getattr(self, "qwen3_tts_backend", None) or "auto",
+            mlx_quantization=getattr(self, "qwen3_tts_mlx_quantization", None) or "auto",
+        )
         audio, sr, reference_text = render_designed_reference(
             str(description),
             language=lang,
             text=text,
             allow_downloads=bool(getattr(self, "allow_downloads", True)),
+            settings=settings,
         )
         buf = io.BytesIO()
         sf.write(buf, audio, int(sr), format="WAV", subtype="PCM_16")
-        return self.clone_voice_from_wav_bytes(
-            buf.getvalue(),
-            name=(str(name).strip() if name and str(name).strip() else None),
-            reference_text=reference_text,
-            engine="qwen3-tts",
-            meta={
+        return {
+            "wav_bytes": buf.getvalue(),
+            "reference_text": reference_text,
+            "meta": {
                 "designed": True,
                 "description": str(description).strip(),
                 "language_code": lang,
                 "design_model": DESIGN_MODEL_ID,
             },
+        }
+
+    def store_designed_voice(self, rendered: dict[str, Any], *, name: str | None = None) -> str:
+        """Second half of ``design_voice``: clone a rendered reference with Qwen3-TTS 1.7B Base; returns the voice id."""
+        from ..cloning.design import CLONING_MODEL_ID
+
+        return self.clone_voice_from_wav_bytes(
+            rendered["wav_bytes"],
+            name=(str(name).strip() if name and str(name).strip() else None),
+            reference_text=rendered["reference_text"],
+            engine="qwen3-tts",
+            meta=dict(rendered["meta"]),
             model=CLONING_MODEL_ID,
         )
 

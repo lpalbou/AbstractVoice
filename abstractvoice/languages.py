@@ -125,20 +125,33 @@ def language_entry(kind: str, provider: str) -> Dict[str, Any]:
 
 
 def language_catalog(kind: Optional[str] = None, provider: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
-    """``{kind: {provider: entry}}`` for every known engine, optionally narrowed to one kind and/or provider."""
-    kinds = [str(kind).strip().lower()] if kind else list(KINDS)
-    out: Dict[str, Dict[str, Any]] = {}
-    for k in kinds:
+    """``{kind: {provider: entry}}`` for every known engine, optionally narrowed.
+
+    With ``provider`` alone, only the kinds that engine serves are returned (Piper:
+    ``tts``; Qwen3-TTS: ``tts`` and ``cloning``). An engine no requested kind knows
+    raises KeyError naming the known ones; an unknown kind raises ValueError.
+    """
+    if kind:
+        k = str(kind).strip().lower()
         if k not in KINDS:
             raise ValueError(f"kind must be one of {', '.join(KINDS)} (got {kind!r})")
-        names = [_norm(provider)] if provider else list(_PROVIDERS[k])
-        out[k] = {}
-        for p in names:
+        kinds = [k]
+    else:
+        kinds = list(KINDS)
+    out: Dict[str, Dict[str, Any]] = {}
+    for k in kinds:
+        entries: Dict[str, Any] = {}
+        for p in [_norm(provider)] if provider else list(_PROVIDERS[k]):
             try:
-                out[k][p] = language_entry(k, p)
+                entries[p] = language_entry(k, p)
             except KeyError:
-                if provider:
-                    raise KeyError(f"unknown {k} provider {provider!r}; known: {', '.join(_PROVIDERS[k])}") from None
+                continue
+        if entries or not provider:
+            out[k] = entries
+    if provider and not out:
+        known = sorted({p for k in kinds for p in _PROVIDERS[k]})
+        scope = f"{kinds[0]} " if len(kinds) == 1 else ""
+        raise KeyError(f"unknown {scope}provider {provider!r}; known: {', '.join(known)}")
     return out
 
 
@@ -156,3 +169,31 @@ def languages_by_provider(kind: str, providers: Any) -> Dict[str, List[str]]:
             continue
         out[str(provider)] = entry["languages"]
     return out
+
+
+# Native language of each Qwen3-TTS preset speaker (Qwen3-TTS model card). Every
+# preset speaks all ten Qwen3-TTS languages; this is the one it was voiced in.
+QWEN3_TTS_PRESET_LANGUAGES = {
+    "vivian": "zh",
+    "serena": "zh",
+    "uncle_fu": "zh",
+    "dylan": "zh",
+    "eric": "zh",
+    "ryan": "en",
+    "aiden": "en",
+    "ono_anna": "ja",
+    "sohee": "ko",
+}
+
+
+def speakable_languages(provider: str) -> List[str]:
+    """Languages a voice of this engine can speak: its TTS list, else its cloning list.
+
+    Empty when the engine does not restrict them (remote providers) or is unknown here.
+    """
+    for kind in ("tts", "cloning"):
+        try:
+            return language_entry(kind, provider)["languages"]
+        except KeyError:
+            continue
+    return []

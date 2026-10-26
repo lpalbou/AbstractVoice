@@ -1284,6 +1284,104 @@ def _voice_matches_tts_selection(voice: Any, *, provider: Any = None, model: Any
     return voice_model.strip().lower() == model_text.lower()
 
 
+def _normalize_language_code(value: Any) -> str:
+    return str(value or "").strip().lower().replace("_", "-").split("-")[0]
+
+
+def _with_voice_navigation(record: Dict[str, Any], languages_of: Callable[[str], list]) -> Dict[str, Any]:
+    """One record shape for every voice, profile or clone.
+
+    Adds ``voice_id`` (the value to pass as ``tts(voice=...)``), ``name``, ``kind``
+    (``profile`` | ``clone``), ``provider``, ``model`` (the checkpoint it belongs to,
+    when the engine has several), ``languages`` (what the voice can speak;
+    empty when the provider does not restrict them) and ``language`` (the voice's
+    native language when known, else None). Existing fields are kept.
+    """
+    from ..languages import QWEN3_TTS_PRESET_LANGUAGES
+
+    out = dict(record)
+    tags = out.get("tags") if isinstance(out.get("tags"), dict) else {}
+    params = out.get("params") if isinstance(out.get("params"), dict) else {}
+    meta = params.get("meta") if isinstance(params.get("meta"), dict) else {}
+    provider = _profile_provider_id(out)
+    is_clone = str(out.get("kind") or tags.get("kind") or "").strip().lower() == "clone" or (
+        tags.get("source") == "abstractvoice_clone_store"
+    )
+    kind = "clone" if is_clone else "profile"
+    voice_id = str(out.get("voice_id") or "") if is_clone else _profile_id(out)
+    if is_clone:
+        native = tags.get("language_code") or meta.get("language_code")
+    elif provider == "piper":
+        native = params.get("language")
+    elif provider == "qwen3-tts":
+        native = QWEN3_TTS_PRESET_LANGUAGES.get(str(voice_id).lower())
+    else:
+        native = None
+    native = _normalize_language_code(native) or None
+    languages = [native] if provider == "piper" and native else list(languages_of(provider))
+    out.setdefault("voice_id", voice_id)
+    out["kind"] = kind
+    out.setdefault("name", out.get("display_name") or out.get("label") or voice_id)
+    out.setdefault("provider", provider)
+    # A preset speaker is listed once per installed checkpoint; `model` tells them apart.
+    out.setdefault("model", _profile_model_id(out) or None)
+    out["language"] = native
+    out["languages"] = languages
+    return out
+
+
+def _voice_speaks(voice: Dict[str, Any], language: str) -> bool:
+    languages = voice.get("languages") or []
+    return not languages or language in languages
+
+
+def _navigable_voice_catalog(catalog: Dict[str, Any], *, language: Optional[str] = None) -> Dict[str, Any]:
+    """Apply the uniform voice record to every voice list of a catalog, then the language filter.
+
+    With ``language``, voices that cannot speak it are dropped and native speakers come first.
+    """
+    from ..languages import speakable_languages
+
+    cache: Dict[str, list] = {}
+
+    def languages_of(provider: str) -> list:
+        if provider not in cache:
+            cache[provider] = speakable_languages(provider) if provider else []
+        return cache[provider]
+
+    lang = _normalize_language_code(language) or None
+
+    def voices(items: Any) -> Any:
+        if not isinstance(items, list):
+            return items
+        out = [_with_voice_navigation(v, languages_of) if isinstance(v, dict) else v for v in items]
+        if lang:
+            out = [v for v in out if not isinstance(v, dict) or _voice_speaks(v, lang)]
+            out.sort(key=lambda v: not (isinstance(v, dict) and v.get("language") == lang))
+        return out
+
+    result = dict(catalog)
+    for key in ("voices", "profiles", "cloned_voices"):
+        if key in result:
+            result[key] = voices(result[key])
+    by_provider = result.get("tts_catalog_by_provider")
+    if isinstance(by_provider, dict):
+        updated = {}
+        for provider_id, entry in by_provider.items():
+            if isinstance(entry, dict):
+                entry = dict(entry)
+                for key in ("voices", "profiles", "cloned_voices"):
+                    if key in entry:
+                        entry[key] = voices(entry[key])
+                if isinstance(entry.get("voices_by_model"), dict):
+                    entry["voices_by_model"] = {m: voices(v) for m, v in entry["voices_by_model"].items()}
+            updated[provider_id] = entry
+        result["tts_catalog_by_provider"] = updated
+    if lang:
+        result["language"] = lang
+    return result
+
+
 def _dedupe_voice_records(values: Any) -> list[Dict[str, Any]]:
     out: list[Dict[str, Any]] = []
     seen: set[tuple[str, str, str, str]] = set()
@@ -3490,8 +3588,12 @@ class _VoiceCapability(_BaseVoice):
         provider: Optional[str] = None,
         model: Optional[str] = None,
         include_clones: bool = True,
+        language: Optional[str] = None,
     ) -> list[Dict[str, Any]]:
-        """List provider/model-filtered TTS voices and cloned voices.
+        """List provider/model/language-filtered TTS voices and cloned voices.
+
+        Records have the uniform shape described in `voice_catalog`; with
+        ``language``, native speakers of it come first.
 
         As with `list_tts_models`, a list cannot say "unknown": an unreachable remote
         provider reads as one with no voices. `voice_catalog()` carries the
@@ -3501,7 +3603,7 @@ class _VoiceCapability(_BaseVoice):
         # Forward the filter: `voice_catalog` routes a local provider to the light
         # path, and asking for the unfiltered catalog instead would build the active
         # engine -- 8s and a torch import to produce the identical voice list.
-        catalog = self.voice_catalog(provider=provider_id or None)
+        catalog = self.voice_catalog(provider=provider_id or None, language=language)
         if provider_id:
             entry = catalog.get("tts_catalog_by_provider", {}).get(provider_id, {})
             voices = list(entry.get("voices") or [])
@@ -3517,6 +3619,7 @@ class _VoiceCapability(_BaseVoice):
         *,
         provider: Optional[str] = None,
         model: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> list[Dict[str, Any]]:
         """List provider/model-filtered cloned TTS voices.
 
@@ -3530,8 +3633,8 @@ class _VoiceCapability(_BaseVoice):
         """
         return [
             voice
-            for voice in self.list_tts_voices(provider=provider, model=model, include_clones=True)
-            if str(voice.get("kind") or "").strip().lower() == "clone"
+            for voice in self.list_tts_voices(provider=provider, model=model, include_clones=True, language=language)
+            if voice.get("kind") == "clone"
         ]
 
     def list_voices(
@@ -3540,9 +3643,10 @@ class _VoiceCapability(_BaseVoice):
         provider: Optional[str] = None,
         model: Optional[str] = None,
         include_clones: bool = True,
+        language: Optional[str] = None,
     ) -> list[Dict[str, Any]]:
-        """Alias for provider/model-filtered TTS voice discovery."""
-        return self.list_tts_voices(provider=provider, model=model, include_clones=include_clones)
+        """Alias for `list_tts_voices`."""
+        return self.list_tts_voices(provider=provider, model=model, include_clones=include_clones, language=language)
 
     def list_languages(self, *, kind: Optional[str] = None, provider: Optional[str] = None) -> Dict[str, Any]:
         """Languages each engine accepts: ``{kind: {provider: {languages, open, declared}}}``.
@@ -3562,28 +3666,26 @@ class _VoiceCapability(_BaseVoice):
         name: Optional[str] = None,
         language: Optional[str] = None,
         text: Optional[str] = None,
-        **_kwargs: Any,
     ) -> Dict[str, Any]:
-        """Create a reusable voice from a written description (Qwen3-TTS); returns its record.
+        """Create a reusable voice from a written description (Qwen3-TTS); returns its stored record.
 
         The voice is stored as a Qwen3-TTS clone, so it is listed with the cloned
-        voices and used with ``tts(voice=<voice_id>)``.
+        voices and used with ``tts(voice=<voice_id>)``. The reference is rendered
+        outside the manager lock (it loads its own model); only storing it is
+        serialized with this manager's other calls.
         """
         if not str(description or "").strip():
             raise ValueError("description is required")
         vm = self._get_vm_for_clone_request(provider="qwen3-tts", model="Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+        rendered = vm.render_designed_voice(str(description), language=language, text=text)
         with self._vm_lock(vm):
-            voice_id = vm.design_voice(str(description), name=name, language=language, text=text)
+            voice_id = vm.store_designed_voice(rendered, name=name)
             # Read back from the manager that stored it: a clone-request manager may
             # own a different store than this capability's registry.
             record = vm.get_cloned_voice(voice_id)
         out = dict(record) if isinstance(record, dict) else {"voice_id": voice_id}
         out.setdefault("voice_id", voice_id)
         return {"ok": True, **_json_safe(out)}
-
-    # ------------------------------------------------------------------
-    # Cloned-voice management (the registry is the clone store; one per user)
-    # ------------------------------------------------------------------
 
     def _clone_registry(self):
         """The object that owns stored clones: this capability's manager, else the store.
@@ -3887,8 +3989,27 @@ class _VoiceCapability(_BaseVoice):
         provider: Optional[str] = None,
         model: Optional[str] = None,
         providers_only: bool = False,
+        language: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Return JSON-safe profile/model discovery data for Core/Gateway.
+
+        Every voice record, profile or clone, carries ``voice_id`` (pass it as
+        ``tts(voice=...)``), ``name``, ``kind``, ``provider``, ``languages`` and
+        ``language`` (native language, when known). ``language`` keeps the voices
+        that can speak it, native speakers first.
+        """
+        return _navigable_voice_catalog(
+            self._voice_catalog(provider=provider, model=model, providers_only=providers_only),
+            language=language,
+        )
+
+    def _voice_catalog(
+        self,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        providers_only: bool = False,
+    ) -> Dict[str, Any]:
+        """The catalog before the uniform voice record is applied (see `voice_catalog`).
 
         `providers_only` and a local provider filter take the light path and touch no
         engine. Everything else reports the ACTIVE engine's live state -- its profiles,
@@ -4590,6 +4711,9 @@ class _VoiceCapability(_BaseVoice):
             fmt = "wav"
         if fmt != "wav":
             raise ValueError("AbstractVoice TTS streaming currently emits wav segment chunks only")
+        if _coerce_bool(_kwargs.get("one_shot"), False):
+            # A stream is delivered in parts; one_shot is a buffered guarantee.
+            raise ValueError("one_shot applies to buffered synthesis; use tts(..., one_shot=True)")
         instructions_value = str(instructions or _kwargs.get("instructions") or "").strip()
 
         provider_id, requested_model = _resolve_tts_provider_request(provider, model)

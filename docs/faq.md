@@ -352,6 +352,14 @@ language_catalog(kind="stt", provider="faster-whisper")
 Remote OpenAI and OpenAI-compatible providers are reported as `open`: the remote
 service decides which languages it accepts.
 
+### How do I find the voices for a language or an engine?
+
+Through AbstractCore, `llm.voice.list_voices(provider="piper", language="fr")`, or
+`voice_catalog(language="fr")` on the plugin. Every record carries `voice_id` (pass it
+as `voice=`), `kind`, `provider`, `model`, `languages` and, when known, the native `language`;
+native speakers of the requested language come first. Cloned, designed and built-in
+voices are listed alongside the engine voices with `kind: "clone"`.
+
 ### Which TTS engine should I use?
 
 - Remote OpenAI-compatible engines are the lightest path for server and plugin
@@ -436,7 +444,7 @@ They are read-only. See [Built-in voices](voice-pack.md).
 
 Yes. `vm.design_voice("A calm, warm female voice in her thirties.", name="Mira")`
 returns a voice id you can use like any cloned voice; through AbstractCore, call
-`llm.voice.design_voice(...)`. Qwen3-TTS 1.7B VoiceDesign renders a reference from
+`llm.voice.design_voice(...)`. It needs the `qwen3-tts` and `stt` extras. Qwen3-TTS 1.7B VoiceDesign renders a reference from
 the description and Qwen3-TTS 1.7B Base clones it, so the voice keeps one identity.
 State the sex explicitly, in the reference language when it is not English. See
 [Designing a voice from a description](api.md#designing-a-voice-from-a-description).
