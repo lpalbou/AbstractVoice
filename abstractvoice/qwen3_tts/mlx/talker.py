@@ -11,7 +11,10 @@
 #      attention_mask / left-padding support (AbstractVoice synthesizes one utterance at a time).
 #   3. ``KVCache`` comes from ``._cache``; ``sanitize`` is replaced by ``weights.py``.
 #   4. Module attribute names mirror the PyTorch state dict (``talker.*`` keys with the
-#      ``talker.`` prefix removed) so weights load by name, strictly.
+#      ``talker.`` prefix removed) so weights load by name, strictly -- with two fusions:
+#      ``self_attn.{q,k,v}_proj`` -> ``self_attn.qkv_proj`` and ``mlp.{gate,up}_proj`` ->
+#      ``mlp.gate_up_proj`` (weights concatenated at load). The per-frame decode loop is
+#      kernel-launch-bound; two matmuls per layer fewer is ~15-20% per frame.
 """Talker (first codebook) and code predictor (residual codebooks) of Qwen3-TTS."""
 
 from __future__ import annotations
@@ -45,18 +48,22 @@ class _Attention(nn.Module):
         self.head_dim = int(head_dim)
         self.scale = self.head_dim**-0.5
         self.rope_theta = float(rope_theta)
-        self.q_proj = nn.Linear(hidden_size, self.num_heads * self.head_dim, bias=bias)
-        self.k_proj = nn.Linear(hidden_size, self.num_kv_heads * self.head_dim, bias=bias)
-        self.v_proj = nn.Linear(hidden_size, self.num_kv_heads * self.head_dim, bias=bias)
-        self.o_proj = nn.Linear(self.num_heads * self.head_dim, hidden_size, bias=bias)
+        # One matmul for q, k and v (the checkpoint's three projections are concatenated at
+        # load, see weights.py): the decode loop is launch-bound, not FLOP-bound.
+        q_out = self.num_heads * self.head_dim
+        kv_out = self.num_kv_heads * self.head_dim
+        self._splits = [q_out, q_out + kv_out]
+        self.qkv_proj = nn.Linear(hidden_size, q_out + 2 * kv_out, bias=bias)
+        self.o_proj = nn.Linear(q_out, hidden_size, bias=bias)
         self.q_norm = nn.RMSNorm(self.head_dim, eps=rms_norm_eps)
         self.k_norm = nn.RMSNorm(self.head_dim, eps=rms_norm_eps)
 
     def __call__(self, x: mx.array, cache: Optional[KVCache], mask) -> mx.array:
         B, T, _ = x.shape
-        q = self.q_norm(self.q_proj(x).reshape(B, T, self.num_heads, self.head_dim)).transpose(0, 2, 1, 3)
-        k = self.k_norm(self.k_proj(x).reshape(B, T, self.num_kv_heads, self.head_dim)).transpose(0, 2, 1, 3)
-        v = self.v_proj(x).reshape(B, T, self.num_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+        q, k, v = mx.split(self.qkv_proj(x), self._splits, axis=-1)
+        q = self.q_norm(q.reshape(B, T, self.num_heads, self.head_dim)).transpose(0, 2, 1, 3)
+        k = self.k_norm(k.reshape(B, T, self.num_kv_heads, self.head_dim)).transpose(0, 2, 1, 3)
+        v = v.reshape(B, T, self.num_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
         offset = cache.offset if cache is not None else 0
         q = mx.fast.rope(q, self.head_dim, traditional=False, base=self.rope_theta, scale=1.0, offset=offset)
         k = mx.fast.rope(k, self.head_dim, traditional=False, base=self.rope_theta, scale=1.0, offset=offset)
@@ -69,12 +76,13 @@ class _Attention(nn.Module):
 class _MLP(nn.Module):
     def __init__(self, hidden_size: int, intermediate_size: int) -> None:
         super().__init__()
-        self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
-        self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
+        # gate and up in one matmul (concatenated at load, see weights.py).
+        self.gate_up_proj = nn.Linear(hidden_size, 2 * intermediate_size, bias=False)
         self.down_proj = nn.Linear(intermediate_size, hidden_size, bias=False)
 
     def __call__(self, x: mx.array) -> mx.array:
-        return self.down_proj(nn.silu(self.gate_proj(x)) * self.up_proj(x))
+        gate, up = mx.split(self.gate_up_proj(x), 2, axis=-1)
+        return self.down_proj(nn.silu(gate) * up)
 
 
 class _DecoderLayer(nn.Module):

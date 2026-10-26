@@ -47,6 +47,32 @@ def load_safetensors(path: str) -> Dict[str, mx.array]:
     return dict(mx.load(path))
 
 
+_FUSED_PROJECTIONS = (
+    # (fused name, parts in concatenation order) -- see talker._Attention / talker._MLP.
+    ("self_attn.qkv_proj", ("self_attn.q_proj", "self_attn.k_proj", "self_attn.v_proj")),
+    ("mlp.gate_up_proj", ("mlp.gate_proj", "mlp.up_proj")),
+)
+
+
+def fuse_projections(weights: Dict[str, mx.array]) -> Dict[str, mx.array]:
+    """Concatenate ``q/k/v`` and ``gate/up`` projection weights (and biases, when present) of every
+    decoder layer into the fused layers the MLX talker uses. Every part must be present: a
+    partial set is key drift and raises."""
+    out = dict(weights)
+    layer_prefixes = sorted({k.rsplit(".self_attn.", 1)[0] for k in weights if ".self_attn.q_proj.weight" in k})
+    for prefix in layer_prefixes:
+        for fused, parts in _FUSED_PROJECTIONS:
+            for suffix in ("weight", "bias"):
+                keys = [f"{prefix}.{part}.{suffix}" for part in parts]
+                present = [k for k in keys if k in out]
+                if not present:
+                    continue
+                if len(present) != len(keys):
+                    raise RuntimeError(f"Qwen3-TTS MLX talker: cannot fuse {prefix}.{fused}.{suffix}: missing {sorted(set(keys) - set(present))}")
+                out[f"{prefix}.{fused}.{suffix}"] = mx.concatenate([out.pop(k) for k in keys], axis=0)
+    return out
+
+
 def split_talker_checkpoint(raw: Dict[str, mx.array]) -> Tuple[Dict[str, mx.array], Dict[str, mx.array]]:
     """``model.safetensors`` -> (talker weights, speaker-encoder weights), both prefix-free."""
     talker: Dict[str, mx.array] = {}
@@ -61,7 +87,7 @@ def split_talker_checkpoint(raw: Dict[str, mx.array]) -> Tuple[Dict[str, mx.arra
             speaker[name] = value.astype(mx.float32)
         else:
             raise ValueError(f"unexpected tensor {key!r} in the Qwen3-TTS checkpoint (neither talker nor speaker encoder)")
-    return talker, speaker
+    return fuse_projections(talker), speaker
 
 
 def map_codec_checkpoint(raw: Dict[str, mx.array], *, with_encoder: bool) -> Dict[str, mx.array]:

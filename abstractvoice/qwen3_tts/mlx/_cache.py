@@ -2,7 +2,9 @@
 # Apple Inc.), file mlx_lm/models/cache.py, as redistributed by mlx-audio 0.6.1
 # (mlx_audio/lm/models/cache.py). Local modifications, listed exhaustively:
 #   1. Only ``KVCache`` is kept (no rotating/batched caches, no state (de)serialisation).
-#   2. ``reset()`` added: generation reuses one cache allocation per utterance.
+#   2. ``reset()`` added: it rewinds ``offset`` and KEEPS the buffers, so the code predictor's
+#      cache (reset once per frame, never longer than 17 positions) is allocated once per
+#      utterance instead of zero-filled ten times per frame.
 """Growable key/value cache for one attention layer."""
 
 from __future__ import annotations
@@ -21,8 +23,7 @@ class KVCache:
         self.offset = 0
 
     def reset(self) -> None:
-        self.keys = None
-        self.values = None
+        """Start over, keeping the allocation (stale slots are never read: fetch slices ``[:offset]``)."""
         self.offset = 0
 
     def update_and_fetch(self, keys: mx.array, values: mx.array):
