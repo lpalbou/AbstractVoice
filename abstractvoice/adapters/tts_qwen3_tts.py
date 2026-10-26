@@ -44,6 +44,8 @@ class Qwen3TTSAdapter(TTSAdapter):
     """TTS adapter over :class:`abstractvoice.qwen3_tts.runtime.Qwen3TTSRuntime`."""
 
     engine_id = "qwen3-tts"
+    # `one_shot=True`: the whole text as ONE generation (no segmentation, no truncation).
+    supports_one_shot = True
 
     def __init__(
         self,
@@ -412,8 +414,14 @@ class Qwen3TTSAdapter(TTSAdapter):
         return np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.float32)
 
     def _synthesize_chunk(
-        self, text: str, *, speaker: Optional[str], instructions: Optional[str]
+        self,
+        text: str,
+        *,
+        speaker: Optional[str],
+        instructions: Optional[str],
+        max_new_tokens: Optional[int] = None,
     ) -> np.ndarray:
+        overrides = {"max_new_tokens": int(max_new_tokens)} if max_new_tokens else {}
         model_type = self._model_type_or_raise()
         language = _qwen_language(self._language)
 
@@ -426,13 +434,13 @@ class Qwen3TTSAdapter(TTSAdapter):
                     "speaker list can be read."
                 )
             audio, sr = self._runtime.synthesize_custom_voice(
-                str(text), speaker=str(speaker), language=language, instruct=instructions
+                str(text), speaker=str(speaker), language=language, instruct=instructions, **overrides
             )
         elif model_type == "voice_design":
             # Instructions are REQUIRED here; the runtime raises the explicit
             # error (ADR 0007: refuse rather than silently produce an arbitrary voice).
             audio, sr = self._runtime.synthesize_voice_design(
-                str(text), instruct=str(instructions or ""), language=language
+                str(text), instruct=str(instructions or ""), language=language, **overrides
             )
         else:
             raise RuntimeError(
@@ -475,9 +483,14 @@ class Qwen3TTSAdapter(TTSAdapter):
         voice: str | None = None,
         speed: Any = None,
         instructions: str | None = None,
+        one_shot: bool = False,
         **_kwargs: Any,
     ) -> bytes:
-        """Voice/instructions-aware synthesis used by the VoiceManager mixin."""
+        """Voice/instructions-aware synthesis used by the VoiceManager mixin.
+
+        ``one_shot=True`` synthesizes the whole text as one generation (ValueError
+        beyond ``ONE_SHOT_MAX_CHARS``) instead of sentence-bounded segments.
+        """
         _ = speed  # Speed is reported unsupported in the capability catalog.
         if str(format or "wav").strip().lower() != "wav":
             raise ValueError("Qwen3-TTS adapter currently supports WAV output only.")
@@ -493,7 +506,17 @@ class Qwen3TTSAdapter(TTSAdapter):
         )
         import soundfile as sf
 
-        audio = self._synthesize_array(str(text), speaker=speaker, instructions=effective_instructions)
+        if one_shot:
+            from ..qwen3_tts.runtime import one_shot_max_new_tokens
+
+            audio = self._synthesize_chunk(
+                str(text),
+                speaker=speaker,
+                instructions=effective_instructions,
+                max_new_tokens=one_shot_max_new_tokens(str(text)),
+            )
+        else:
+            audio = self._synthesize_array(str(text), speaker=speaker, instructions=effective_instructions)
         buf = io.BytesIO()
         sf.write(buf, audio, int(self.get_sample_rate()), format="WAV", subtype="PCM_16")
         return buf.getvalue()

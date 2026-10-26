@@ -83,6 +83,26 @@ def _finish_utterance(audio: np.ndarray, sample_rate: int) -> tuple[np.ndarray, 
     return apply_edge_fades(audio, sample_rate=sr, fade_ms=_EDGE_FADE_MS), sr
 
 
+# One-shot synthesis (`one_shot=True` on the speak/clone surfaces): the whole text
+# is ONE generation, never segmented, so the voice cannot be re-sampled between
+# sentences. The bound keeps one generation inside a budget the model handles;
+# the runaway cap is raised so that even the slowest preset voice (4 chars/s,
+# with the usual 1.5x headroom) is never cut short within that bound.
+ONE_SHOT_MAX_CHARS = 1000
+ONE_SHOT_MAX_NEW_TOKENS = 4800
+
+
+def one_shot_max_new_tokens(text: str) -> int:
+    """The runaway cap for a one-shot generation; raises when the text is too long for one."""
+    n = len(str(text or "").strip())
+    if n > ONE_SHOT_MAX_CHARS:
+        raise ValueError(
+            f"one_shot synthesis takes at most {ONE_SHOT_MAX_CHARS} characters in a single generation "
+            f"(got {n}). Split the text yourself, or omit one_shot to let it be segmented."
+        )
+    return estimate_max_new_tokens(text, ceiling=ONE_SHOT_MAX_NEW_TOKENS)
+
+
 def estimate_max_new_tokens(text: str, *, floor: int = 96, ceiling: int = 2048) -> int:
     """RUNAWAY cap for one utterance's codec tokens, derived from its length.
 
@@ -876,6 +896,8 @@ __all__ = [
     "KNOWN_MODEL_IDS",
     "MLX_QUANTIZATION_ENV",
     "NATIVE_STREAM_MAX_CHARS",
+    "ONE_SHOT_MAX_CHARS",
+    "one_shot_max_new_tokens",
     "QWEN3_TTS_PREDICTORS",
     "QWEN3_TTS_SAMPLERS",
     "Qwen3TTSRuntime",

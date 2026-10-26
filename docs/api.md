@@ -161,7 +161,8 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
       while the first one plays.
     - Engines that can stream audio natively may further reduce TTFB by yielding multiple audio chunks per segment.
 
-- `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -> bytes`
+- `speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True, one_shot: bool = False) -> bytes`
+  - `one_shot=True` synthesizes the whole text as **one generation**: no sentence segmentation, no truncation, so one voice from the first word to the last. Use it for voice references, designed voices and any take that must sound like one person throughout. Available for `qwen3-tts` (preset speakers, VoiceDesign and Qwen clones) up to 1000 characters; a longer text, or another engine, raises `ValueError` instead of being cut. The default (`one_shot=False`) splits long text at sentence boundaries (200 characters per generation on the PyTorch backend, 800 on MLX), and each generation samples the voice afresh.
   - Headless/server‑friendly: returns encoded audio bytes.
 
 - `speak_to_audio_chunks(text: str, *, voice: str | None = None, instructions: str | None = None, sanitize_syntax: bool = True, language: str | None = None) -> Iterator[tuple[np.ndarray, int]]`
@@ -173,7 +174,8 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
   - Push-based streaming bridge for **LLM streaming → TTS streaming** pipelining.
   - Returned object supports: `.push(delta)`, `.close()`, `.cancel()`, `.join(timeout=...)`.
 
-- `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True) -> str`
+- `speak_to_file(text: str, output_path: str, format: str | None = None, voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True, one_shot: bool = False) -> str`
+  - `one_shot` as for `speak_to_bytes`. CLI: `abstractvoice --prompt "..." --output out.wav --one-shot`.
   - Writes an audio file and returns the path.
 
 ### Qwen3-TTS checkpoints
@@ -659,6 +661,7 @@ integration code:
   - `list_resident_models(filters: dict | None = None) -> list[dict]`
   - `unload_resident_model(request: dict) -> dict`
 - `tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -> bytes | artifact_ref`
+  - `one_shot=True` is forwarded to `speak_to_bytes(one_shot=True)`: the whole text as one generation (qwen3-tts presets, designs and clones).
 - `stt(audio, *, provider=None, model=None, language=None, ...) -> str`
 - `transcribe(audio, *, provider=None, model=None, language=None, ...) -> str`
 

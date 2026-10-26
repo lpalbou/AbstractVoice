@@ -171,7 +171,11 @@ wav = core.voice.tts(
 )
 ```
 
-`core.voice.tts_stream(...)` accepts the same description. Qwen clone
+`core.voice.tts_stream(...)` accepts the same description. Add `one_shot=True`
+to synthesize the whole text as one generation, never segmented, so the take
+keeps one voice from start to end: the right setting for a reference you will
+clone (`vm.speak_to_file(text, "ref.wav", instructions=..., one_shot=True)`, CLI
+`--one-shot`). Qwen clone
 creation accepts `model="Qwen/Qwen3-TTS-12Hz-1.7B-Base"`; the stored voice
 retains that checkpoint for later synthesis. See [the Qwen guide in the API](docs/api.md#qwen3-tts-checkpoints).
 

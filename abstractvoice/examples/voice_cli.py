@@ -139,6 +139,11 @@ def parse_args(argv: list[str] | None = None):
     # Voice mode arguments
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--instructions", default=None, help="One-shot TTS speaking style; required for Qwen3 VoiceDesign.")
+    parser.add_argument(
+        "--one-shot",
+        action="store_true",
+        help="Synthesize the whole --prompt as ONE generation (no segmentation): one consistent voice. Qwen3-TTS only.",
+    )
     parser.add_argument("--verbose", action="store_true", help="Show per-turn performance stats")
     parser.add_argument(
         "--provider",
@@ -325,6 +330,7 @@ def _run_one_shot_tts(args, *, voice_manager_factory=None) -> str:
             format=args.output_format,
             voice=voice_for_call,
             **({"instructions": args.instructions} if args.instructions else {}),
+            **({"one_shot": True} if getattr(args, "one_shot", False) else {}),
         )
         print(f"Wrote {out_path}")
         return str(out_path)
