@@ -177,8 +177,12 @@ coordination section of `docs/architecture.md`.
 
 ### First synthesis is much slower than later ones
 
-The first call loads the model and opens the audio device. Prefetch weights ahead of time, and
-`AdapterTTSEngine.warmup_audio_output()` opens the playback stream before the first utterance.
+Local engines load their model when the engine is selected (`VoiceManager(...)`, `/tts engine`),
+so the load is paid at startup, not on the first utterance, as long as the weights are cached.
+Prefetch weights ahead of time (`abstractvoice-prefetch`); a checkpoint that is not cached is
+downloaded by the first synthesis when downloads are allowed. `AdapterTTSEngine.warmup_audio_output()`
+opens the playback stream before the first utterance. On a GPU, the first utterance after a load
+can still take a second or two longer than later ones while the kernels are compiled.
 
 ### Local transcription is slow on a Mac
 

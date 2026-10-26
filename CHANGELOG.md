@@ -10,6 +10,10 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Changed
+
+- Qwen3-TTS is warmed in the loading phase like every other local engine: selecting it (`VoiceManager(tts_engine="qwen3-tts")`, the REPL's `--tts-engine qwen3-tts`, the AbstractCore plugin) loads the chosen checkpoint from the local cache at construction, so the first utterance no longer pays the 20–30 s load (REPL, 1.7B on an Apple GPU: first `/speak` 28.6 s → 4.1 s). Construction never downloads: a checkpoint that is not cached is fetched by `abstractvoice-prefetch` or by the first synthesis when downloads are allowed. Discovery paths keep passing `auto_load=False` and never load weights.
+
 ### Fixed
 
 - `stt_engine="transformers-asr"` with Whisper and the other models the Transformers speech-recognition pipeline supports (`openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`, wav2vec2 CTC models, ...) loads again. On Transformers 5.x the load failed with `TypeError: ... got multiple values for keyword argument 'local_files_only'`, and on Transformers 4.55 (Python 3.9) with `TypeError: _sanitize_parameters() got an unexpected keyword argument 'dtype'`; with downloads disabled both were reported as a missing download. The adapter now loads the config, model, tokenizer and feature extractor itself, with `local_files_only` on every call, chooses the model class the way the pipeline does, and hands the objects to the pipeline. Qwen3-ASR and Cohere Transcribe were not affected.
