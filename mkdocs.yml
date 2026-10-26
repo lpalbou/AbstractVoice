@@ -44,6 +44,7 @@ nav:
       - Voice Cloning: voice_cloning_2026.md
       - Multilingual Support: multilingual.md
       - Dependencies: dependencies.md
+      - Built-in Voices: voice-pack.md
       - Voices and Licenses: voices-and-licenses.md
   - Support:
       - FAQ: faq.md
@@ -58,3 +59,6 @@ nav:
       - ADR 0003 - Reference Text Fallback: adr/0003_cloning_reference_text_fallback.md
       - ADR 0004 - Cloned TTS Streaming: adr/0004_streaming_and_cancellation_for_cloned_tts.md
       - ADR 0005 - Torch Device and Dtype: adr/0005_torch_device_and_dtype_policy.md
+      - ADR 0006 - Voice Overlays: adr/0006_voice_overlays_are_package_owned_not_generic_adapters.md
+      - ADR 0007 - Directed Speech Requests: adr/0007_directed_speech_requests_and_planning_are_package_owned.md
+      - ADR 0008 - Qwen3-TTS Backend Selection: adr/0008_qwen3_tts_backend_selection.md
