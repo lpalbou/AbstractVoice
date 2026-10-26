@@ -181,6 +181,8 @@ class TtsMixin:
                 remote_tts_model=getattr(self, "tts_model", None),
                 qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
                 qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
+                qwen3_tts_backend=getattr(self, "qwen3_tts_backend", None),
+                qwen3_tts_mlx_quantization=getattr(self, "qwen3_tts_mlx_quantization", None),
             )
         return self._voice_cloner
 
@@ -1257,6 +1259,8 @@ class TtsMixin:
             timeout_s=getattr(self, "remote_timeout_s", None),
             qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
             qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
+            qwen3_tts_backend=getattr(self, "qwen3_tts_backend", None),
+            qwen3_tts_mlx_quantization=getattr(self, "qwen3_tts_mlx_quantization", None),
         )
         if adapter is None:
             raise RuntimeError(f"TTS engine '{requested}' is not available in this environment.")
@@ -2493,6 +2497,8 @@ class TtsMixin:
                     timeout_s=getattr(self, "remote_timeout_s", None),
                     qwen3_tts_predictor=getattr(self, "qwen3_tts_predictor", None),
                     qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
+                    qwen3_tts_backend=getattr(self, "qwen3_tts_backend", None),
+                    qwen3_tts_mlx_quantization=getattr(self, "qwen3_tts_mlx_quantization", None),
                 )
                 if self.tts_adapter is None:
                     return False

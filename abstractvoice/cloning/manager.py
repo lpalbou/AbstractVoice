@@ -46,6 +46,8 @@ class VoiceCloner:
         remote_session: Any = None,
         qwen3_tts_predictor: str | None = None,
         qwen3_tts_sampler: str | None = None,
+        qwen3_tts_backend: str | None = None,
+        qwen3_tts_mlx_quantization: str | None = None,
         openai_base_url: str | None = None,
         openai_api_key: str | None = None,
     ):
@@ -65,6 +67,8 @@ class VoiceCloner:
         self._openai_api_key = str(openai_api_key).strip() if openai_api_key else None
         self._qwen3_tts_predictor = qwen3_tts_predictor
         self._qwen3_tts_sampler = qwen3_tts_sampler
+        self._qwen3_tts_backend = qwen3_tts_backend
+        self._qwen3_tts_mlx_quantization = qwen3_tts_mlx_quantization
         self._engines: Dict[str, Any] = {}
         self._quality_preset = "standard"
 
@@ -142,6 +146,8 @@ class VoiceCloner:
                 model_id=model_id,
                 predictor=self._qwen3_tts_predictor,
                 sampler=self._qwen3_tts_sampler,
+                backend=self._qwen3_tts_backend,
+                mlx_quantization=self._qwen3_tts_mlx_quantization,
             )
         elif name in _REMOTE_CLONING_ENGINES:
             from .engine_remote import RemoteVoiceCloningEngine

@@ -10,12 +10,18 @@ Sources of truth:
 
 Qwen backends (ADR 0008): Qwen3-TTS runs on MLX on Apple silicon (macOS/arm64 with
 `mlx` importable; the `qwen3-tts`, `apple`, `all-apple`, `gpu`, `all-gpu` extras install
-`mlx` + `tokenizers` there) and on PyTorch everywhere else. `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch|mlx`,
-`Qwen3TTSSettings(backend=...)` or `Qwen3TTSRuntime(backend=...)` override `auto`; asking for
-`mlx` where it cannot run is a plain error. `runtime_info()["backend"]` reports the active one.
+`mlx` + `tokenizers` there) and on PyTorch everywhere else. `VoiceManager(qwen3_tts_backend=...)`,
+the AbstractCore plugin setting `voice_qwen3_tts_backend`, `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch|mlx`,
+`Qwen3TTSSettings(backend=...)` or `Qwen3TTSRuntime(backend=...)` override `auto` (an explicit
+setting wins over the environment); asking for `mlx` where it cannot run is a plain error, also
+reported by `is_available()` / `get_unavailable_reason()` and `engine_runtime_status("qwen3-tts")`.
+`runtime_info()["backend"]` reports the active one. MLX needs `mlx` 0.31.2 or newer (refused at
+load otherwise). One generation owns the model until its chunk iterator is exhausted or closed;
+another synthesis waits up to 600 s (`unload()` 10 s) and then raises a clear error.
 The MLX backend loads the ORIGINAL Qwen bf16 safetensors strictly from the same Hugging Face
-snapshot, quantizes the talker to 8-bit on load (`mlx_quantization="bf16"|"8bit"|"4bit"`,
-`ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION`), runs a priming generation at load
+snapshot, quantizes the talker to 8-bit on load (`VoiceManager(qwen3_tts_mlx_quantization=...)`,
+plugin setting `voice_qwen3_tts_mlx_quantization`, `mlx_quantization="bf16"|"8bit"|"4bit"`, or
+`ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION`, read only when MLX loads), runs a priming generation at load
 (`runtime_info()["prime_seconds"]`), and streams codec frames of ONE generation per reply:
 `stream_custom_voice` / `stream_voice_design` / `stream_clone` yield contiguous chunks (first after
 6 frames, then every 12; `stream_first_chunk_frames`, `stream_chunk_frames`), faded only at the

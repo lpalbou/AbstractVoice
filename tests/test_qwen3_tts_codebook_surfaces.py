@@ -271,3 +271,67 @@ def test_web_endpoint_rejects_a_typo_with_400():
     bad = client.post("/api/qwen3-tts/codebook", json={"predictor": "fast"})
     assert bad.status_code == 400
     assert client.get("/api/status").json()["qwen3_tts"]["sampler"] == "exponential"
+
+
+# --- backend / MLX quantization settings (ADR 0008) --------------------------
+
+
+def test_voice_manager_forwards_the_backend_choice_to_the_adapter_factory(monkeypatch):
+    import abstractvoice.vm.manager as manager
+
+    seen = {}
+
+    def fake_create(**kwargs):
+        seen.update(kwargs)
+        return None, kwargs["engine"]
+
+    monkeypatch.setattr(manager, "create_tts_adapter", fake_create)
+    vm = manager.VoiceManager(
+        tts_engine="qwen3-tts", stt_engine="openai", qwen3_tts_backend="TORCH", qwen3_tts_mlx_quantization="4"
+    )
+    assert (seen["qwen3_tts_backend"], seen["qwen3_tts_mlx_quantization"]) == ("torch", "4bit")
+    assert (vm.qwen3_tts_backend, vm.qwen3_tts_mlx_quantization) == ("torch", "4bit")
+
+
+def test_voice_manager_rejects_a_backend_typo_before_building_anything(monkeypatch):
+    import abstractvoice.vm.manager as manager
+
+    monkeypatch.setattr(manager, "create_tts_adapter", lambda **_k: pytest.fail("must validate first"))
+    with pytest.raises(ValueError, match="backend"):
+        manager.VoiceManager(tts_engine="qwen3-tts", qwen3_tts_backend="cuda")
+    with pytest.raises(ValueError, match="quantization"):
+        manager.VoiceManager(tts_engine="qwen3-tts", qwen3_tts_mlx_quantization="fp8")
+
+
+def test_registry_and_cloner_build_with_the_backend_choice():
+    from abstractvoice.adapters.tts_registry import create_tts_adapter
+    from abstractvoice.cloning.manager import VoiceCloner
+
+    adapter, _resolved = create_tts_adapter(
+        engine="qwen3-tts",
+        language="en",
+        allow_downloads=False,
+        auto_load=False,
+        qwen3_tts_backend="torch",
+        qwen3_tts_mlx_quantization="bf16",
+    )
+    assert (adapter._runtime.settings.backend, adapter._runtime.settings.mlx_quantization) == ("torch", "bf16")
+    engine = VoiceCloner(allow_downloads=False, qwen3_tts_backend="torch")._get_engine("qwen3-tts")
+    assert engine._settings.backend == "torch"
+
+
+def test_plugin_backend_settings_reach_the_voice_manager(monkeypatch):
+    plugin, built = _recording_voice_manager(monkeypatch)
+    cap = plugin._VoiceCapability(
+        _Owner({"voice_qwen3_tts_backend": "torch", "voice_qwen3_tts_mlx_quantization": "8bit"})
+    )
+    cap._get_vm()
+    assert (built[0]["qwen3_tts_backend"], built[0]["qwen3_tts_mlx_quantization"]) == ("torch", "8bit")
+
+
+def test_plugin_backend_setting_typo_fails_loudly(monkeypatch):
+    plugin, built = _recording_voice_manager(monkeypatch)
+    cap = plugin._VoiceCapability(_Owner({"voice_qwen3_tts_backend": "metal"}))
+    with pytest.raises(ValueError, match="backend"):
+        cap._get_vm()
+    assert built == []

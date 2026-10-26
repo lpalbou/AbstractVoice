@@ -207,6 +207,23 @@ another platform fails with a plain error rather than falling back. If the first
 loading is still slow, check `runtime_info()["prime_seconds"]`: the load runs a short priming
 generation so Metal kernels compile before the first real reply.
 
+Other processes using the Apple GPU (another model server, video work) slow MLX inference
+without raising the CPU load average; compare timings on an idle machine.
+
+### Qwen3-TTS raises "timed out ... waiting for the model"
+
+On the MLX backend one generation owns the model until its chunk iterator from
+`speak_to_audio_chunks()` or `stream_*()` is exhausted or closed. A program that stops reading
+an iterator but keeps a reference to it holds the model; the next synthesis then waits and
+raises this error instead of hanging. Call `.close()` on an iterator you abandon, or let it go
+out of scope.
+
+### Qwen3-TTS refuses an older `mlx`
+
+The MLX backend needs `mlx` 0.31.2 or newer. Upgrade with `pip install -U "mlx>=0.31.2"`, or run
+the PyTorch backend with `VoiceManager(qwen3_tts_backend="torch")` or
+`ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch`.
+
 ### Whisper runs on the CPU on an NVIDIA machine
 
 `FasterWhisperAdapter.execution_device()` (and `get_info()["device_reason"]`) says why: no CUDA GPU

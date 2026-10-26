@@ -14,6 +14,8 @@ Everything policy-facing lives here.
 
 from __future__ import annotations
 
+import contextlib
+import copy
 import os
 import threading
 from dataclasses import dataclass, field
@@ -29,6 +31,8 @@ from .backend import (
     describe_backend_selection,
     normalize_backend,
     normalize_mlx_quantization,
+    require_mlx_version,
+    resolve_mlx_quantization,
     select_backend,
 )
 
@@ -255,7 +259,8 @@ class Qwen3TTSRuntime:
         self.revision = revision
         self.allow_downloads = bool(allow_downloads)
         self.debug = bool(debug)
-        self.settings = settings or Qwen3TTSSettings()
+        # A private copy: `backend=` below must not change a settings object the caller shares.
+        self.settings = copy.copy(settings) if settings is not None else Qwen3TTSSettings()
         if backend is not None:
             # Validated now (a typo fails before any weights load).
             self.settings.backend = normalize_backend(backend)
@@ -275,6 +280,29 @@ class Qwen3TTSRuntime:
         self._predictor_mode: Optional[str] = None
         self._sampler: Optional[str] = None
         self._lock = threading.Lock()
+
+    # One generation owns the model at a time: the MLX codec decoder keeps its
+    # streaming buffers on shared layers, so two generations must never
+    # interleave, and an MLX stream holds the lock until it is exhausted or
+    # closed. Waiting is therefore bounded: a call that cannot get the model in
+    # that time is told why, instead of hanging behind a stream that a consumer
+    # stopped reading without closing.
+    LOCK_TIMEOUT_S = 600.0
+    UNLOAD_LOCK_TIMEOUT_S = 10.0
+
+    @contextlib.contextmanager
+    def _owned(self, *, timeout: Optional[float] = None, action: str = "synthesis"):
+        wait = self.LOCK_TIMEOUT_S if timeout is None else float(timeout)
+        if not self._lock.acquire(timeout=wait):
+            raise RuntimeError(
+                f"Qwen3-TTS {action} timed out after {wait:.0f} s waiting for the model: another generation "
+                "holds it. A streamed reply keeps the model until its chunk iterator is exhausted or closed "
+                "(call .close() on an iterator you stop reading)."
+            )
+        try:
+            yield
+        finally:
+            self._lock.release()
 
     # ------------------------------------------------------------------ backend
 
@@ -356,7 +384,7 @@ class Qwen3TTSRuntime:
     def _ensure_loaded(self) -> None:
         if self.is_loaded:
             return
-        with self._lock:
+        with self._owned():
             if self.is_loaded:
                 return
             # The policy decides once, before any import of torch or mlx.
@@ -402,7 +430,10 @@ class Qwen3TTSRuntime:
         # Validated here too: the fields may have been reassigned after construction.
         normalize_qwen3_tts_predictor(self.settings.predictor)
         normalize_qwen3_tts_sampler(self.settings.sampler)
-        quantization = normalize_mlx_quantization(self.settings.mlx_quantization)
+        # The environment is read here, when the MLX backend actually loads, so a
+        # stray quantization variable never affects the PyTorch backend.
+        quantization = resolve_mlx_quantization(self.settings.mlx_quantization)
+        require_mlx_version()
 
         from .mlx.model import Qwen3TTSMLXModel
 
@@ -441,7 +472,7 @@ class Qwen3TTSRuntime:
         return model
 
     def unload(self) -> None:
-        with self._lock:
+        with self._owned(timeout=self.UNLOAD_LOCK_TIMEOUT_S, action="unload"):
             self._model = None
             mlx_model, self._mlx = self._mlx, None
             self._backend = None
@@ -545,7 +576,16 @@ class Qwen3TTSRuntime:
             report = self._mlx.report if self._mlx is not None else None
             info.update(
                 {
-                    "mlx_quantization": report.quantization if report is not None else normalize_mlx_quantization(self.settings.mlx_quantization),
+                    "mlx_quantization": report.quantization if report is not None else self.settings.mlx_quantization,
+                    "mlx_weight_bytes": (
+                        {
+                            "talker": int(getattr(report, "talker_bytes", 0)),
+                            "codec": int(getattr(report, "codec_bytes", 0)),
+                            "speaker_encoder": int(getattr(report, "speaker_encoder_bytes", 0)),
+                        }
+                        if report is not None
+                        else None
+                    ),
                     "native_streaming": True,
                     "stream_first_chunk_frames": int(self.settings.stream_first_chunk_frames),
                     "stream_chunk_frames": int(self.settings.stream_chunk_frames),
@@ -582,7 +622,7 @@ class Qwen3TTSRuntime:
         """
         max_new_tokens = int(overrides.get("max_new_tokens") or estimate_max_new_tokens(text))
         sampling = self._sampling_params(overrides)
-        with self._lock:
+        with self._owned():
             model = self._mlx_or_raise()
             prompt = build_prompt(model)
             fader = _EdgeFader(sample_rate=int(model.sample_rate))
@@ -629,7 +669,7 @@ class Qwen3TTSRuntime:
         kwargs = self.settings.generate_kwargs()
         kwargs["max_new_tokens"] = estimate_max_new_tokens(text)
         kwargs.update(overrides)
-        with self._lock:
+        with self._owned():
             wavs, sr = self._model_or_raise().generate_custom_voice(
                 text=str(text),
                 speaker=str(speaker),
@@ -686,7 +726,7 @@ class Qwen3TTSRuntime:
         kwargs = self.settings.generate_kwargs()
         kwargs["max_new_tokens"] = estimate_max_new_tokens(text)
         kwargs.update(overrides)
-        with self._lock:
+        with self._owned():
             wavs, sr = self._model_or_raise().generate_voice_design(
                 text=str(text),
                 instruct=str(instruct),
@@ -735,7 +775,7 @@ class Qwen3TTSRuntime:
         ``synthesize_clone`` / ``stream_clone`` on the same runtime.
         """
         self._ensure_loaded()
-        with self._lock:
+        with self._owned():
             if self._backend == "mlx":
                 audio, sr = _load_reference_audio(ref_audio)
                 return self._mlx_or_raise().build_clone_prompt(audio, sr, ref_text=ref_text, x_vector_only=bool(x_vector_only))
@@ -760,7 +800,7 @@ class Qwen3TTSRuntime:
         kwargs = self.settings.generate_kwargs()
         kwargs["max_new_tokens"] = estimate_max_new_tokens(text)
         kwargs.update(overrides)
-        with self._lock:
+        with self._owned():
             wavs, sr = self._model_or_raise().generate_voice_clone(
                 text=str(text),
                 language=language or "Auto",

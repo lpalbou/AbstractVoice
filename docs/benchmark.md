@@ -144,17 +144,24 @@ Interpretation:
 
 Qwen3-TTS has two backends (ADR 0008). Measured on an 18-core Apple silicon laptop, the standard
 63-word English reply (about 25 s of speech), speaker `ryan`, upstream sampling (temperature 0.9,
-top-k 50), warm model, 3 runs; the MLX figures come from the project's streaming harness with the
-default 8-bit talker and the default chunk cadence (6 codec frames, then 12). Other work was
-running on the machine (1-minute load average 30-320), so treat the MLX numbers as upper bounds.
+top-k 50), warm model. The MLX rows use the default 8-bit talker and the default chunk cadence
+(6 codec frames, then 12), measured through `VoiceManager` on an otherwise idle machine
+(`speak_to_bytes` for buffered, `speak_to_audio_chunks` for streamed, 2-3 runs each). "Load incl.
+warm-up" is `VoiceManager(tts_engine="qwen3-tts")` construction with the weights in the page
+cache: load, 8-bit quantization and a short priming generation. "MLX peak at load" is
+`mx.get_peak_memory()` after that load: the bf16 weights are read before the talker is quantized,
+so this transient is higher than the memory held while speaking. The PyTorch rows were measured
+earlier the same day under other load.
 
-| Backend | Checkpoint | RTF (warm) | First streamed audio | Load incl. warm-up | Peak RSS |
+| Backend | Checkpoint | RTF buffered / streamed | First streamed audio | Load incl. warm-up | MLX peak at load |
 |---|---|---:|---:|---:|---:|
-| MLX, 8-bit | 1.7B CustomVoice | 0.52-0.54 | 0.26-0.32 s | 2.1 s | 4.4 GB |
-| MLX, 8-bit | 0.6B CustomVoice | 0.25-0.31 | 0.15 s | 1.3 s | 2.4 GB |
-| MLX, bf16 | 1.7B CustomVoice | 0.92 | 0.48 s | 0.9 s | 4.4 GB |
+| MLX, 8-bit | 1.7B CustomVoice | 0.17-0.22 / 0.22-0.24 | 0.10-0.14 s | 0.6 s | 7.9 GB |
+| MLX, 8-bit | 0.6B CustomVoice | 0.19-0.20 / 0.19-0.23 | 0.09-0.12 s | 0.4 s | 3.6 GB |
 | PyTorch (MPS, bf16) | 1.7B CustomVoice | 0.9-1.9 | 9.1 s (3 sentence segments) | 20-60 s | - |
 | PyTorch (MPS, bf16) | 0.6B CustomVoice | 1.1-2.1 | 9.6 s | - | - |
+
+Other processes using the Apple GPU slow MLX inference without raising the CPU load average;
+compare figures only from an idle machine.
 
 Interpretation:
 - The PyTorch path on the Apple GPU is kernel-launch bound (sixteen codebook steps per 80 ms

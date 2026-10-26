@@ -216,6 +216,8 @@ def _qwen3_tts_factory(
         device=kwargs.get("device", "auto"),
         predictor=kwargs.get("qwen3_tts_predictor"),
         sampler=kwargs.get("qwen3_tts_sampler"),
+        backend=kwargs.get("qwen3_tts_backend"),
+        mlx_quantization=kwargs.get("qwen3_tts_mlx_quantization"),
     )
 
 

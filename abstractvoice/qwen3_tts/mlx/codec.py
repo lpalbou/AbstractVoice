@@ -13,9 +13,10 @@
 #      (flat ``layers`` list with parameter-free ELUs, exact GELU, LayerNorm with bias,
 #      sliding-window 250 attention) instead of Kyutai's Seanet/ProjectedTransformer classes, so no
 #      key remapping is needed; only the first ``encoder_valid_num_quantizers`` codebooks are used.
-#   4. Streaming decode is the ONLY decode path (``Qwen3TTSCodecDecoder.step``): it is the exact
-#      causal computation, fed either one chunk at a time (streamed speech) or all frames at once
-#      (buffered speech). mlx-audio's ``chunked_decode`` (300-frame windows with 25 frames of
+#   4. Streaming decode is the ONLY decode path (``Qwen3TTSCodecDecoder.step``): the causal
+#      computation, fed either one chunk at a time (streamed speech) or all frames at once
+#      (buffered speech); the two agree within fp32 kernel noise (max sample difference ~5e-4,
+#      68 dB). mlx-audio's ``chunked_decode`` (300-frame windows with 25 frames of
 #      context, an approximation) is not kept.
 """Qwen3-TTS 12Hz speech codec: streaming decoder (codes -> waveform) and encoder (waveform -> codes)."""
 
@@ -459,14 +460,6 @@ class Qwen3TTSCodecDecoder(nn.Module):
         x = self.decoder[-2](x)
         x = self.decoder[-1].step(x)
         return mx.clip(x[:, :, 0], -1.0, 1.0)
-
-    def decode_all(self, codes: mx.array) -> mx.array:
-        """Decode a whole utterance (B, Q, T) in one pass, from a fresh state."""
-        self.reset_state()
-        try:
-            return self.step(codes)
-        finally:
-            self.reset_state()
 
 
 # ============================================================================ encoder (HF Mimi layout)

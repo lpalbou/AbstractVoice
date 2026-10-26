@@ -129,6 +129,14 @@ voice drifted between sentences. mlx-audio's MLX port of the same checkpoints ra
   | 0.6B CustomVoice, 8-bit | 0.25 / 0.29 (target 0.4) | 0.15 s (target 0.6 s) | 29 x 0.96 s, 0 stalls | 1.3 s (0.23 s + 0.11 s) | 2.4 GB / 2.8 GB |
   | 1.7B CustomVoice, bf16 (for reference) | 0.92 | 0.48 s | - | 0.9 s | 4.4 GB / 6.3 GB |
 
+  Remeasured on an idle machine after the review fixes, through `VoiceManager` (construction
+  loads, quantizes and primes): 1.7B 8-bit construction 0.6 s, RTF 0.17-0.22 buffered and
+  0.22-0.24 streamed, first audio 0.10-0.14 s; 0.6B 8-bit construction 0.4 s, RTF 0.19-0.23,
+  first audio 0.09-0.12 s. `mx.get_peak_memory()` after load: 7.9 GB (1.7B) and 3.6 GB (0.6B),
+  a load-time transient from reading bf16 weights before quantizing the talker, which the
+  "Peak RSS" column above does not capture. GPU use by other processes does not show in the CPU
+  load average and slowed the 1.7B about tenfold in one contended run.
+
   For comparison, the PyTorch path on the same machine the same night: 1.7B RTF 1.7-1.9 (load
   59 s), and in the quieter earlier measurement RTF 0.9-1.2 with first streamed audio at 9.1 s.
 - Priming at load: the first utterance after a primed load starts in 0.10 s (1.7B) versus 0.19 s
@@ -171,7 +179,10 @@ voice drifted between sentences. mlx-audio's MLX port of the same checkpoints ra
 
 - LLM-delta streaming (`open_tts_text_stream`) still synthesizes per text segment as text arrives;
   the model's streaming text mode could feed later segments into the same generation.
-- Fused QKV / gate-up projections and a compiled code-predictor loop measured ~20% faster per
-  frame in the optimisation study; worth adopting if a tighter real-time factor is needed.
+- Fused QKV / gate-up projections are adopted. Compiling the code-predictor loop as one graph
+  measured a further gain in the optimisation study (together with the fused projections, 15-25%
+  per frame); not adopted yet.
+- A shorter first chunk (2, then 4, then 8 frames) measured first audio at 0.07-0.10 s (1.7B) in the
+  optimisation study without hurting throughput; the shipped cadence is 6 then 12.
 - The codec encoder's deeper residual codebooks differ from PyTorch on ~1-3% of frames (fp32
   argmin ties); audibly irrelevant, noted for parity work.

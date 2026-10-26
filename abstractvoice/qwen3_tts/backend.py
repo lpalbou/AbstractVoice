@@ -46,17 +46,71 @@ def normalize_backend(value: Any) -> str:
     return text
 
 
-def normalize_mlx_quantization(value: Any, *, env: Optional[Mapping[str, str]] = None) -> str:
-    """``"bf16"`` | ``"8bit"`` | ``"4bit"``. ``auto``/None/empty read ``ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION``,
-    else the default (8-bit). Anything else raises."""
-    text = str(value if value is not None else "").strip().lower()
-    if text in ("", "auto"):
-        environment = os.environ if env is None else env
-        text = str(environment.get(MLX_QUANTIZATION_ENV) or "").strip().lower()
-    text = _MLX_QUANTIZATION_ALIASES.get(text, text)
-    if text not in MLX_QUANTIZATIONS:
-        raise ValueError(f"Qwen3-TTS MLX quantization must be one of {', '.join(MLX_QUANTIZATIONS)} (got {value!r})")
+def normalize_mlx_quantization(value: Any) -> str:
+    """``"auto"`` (default, also for None/empty), ``"bf16"``, ``"8bit"`` or ``"4bit"``; anything else raises.
+
+    Validates the SETTING only; the environment is consulted by :func:`resolve_mlx_quantization`
+    when -- and only when -- the MLX backend loads, so a stray
+    ``ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION`` cannot break the PyTorch backend.
+    """
+    text = str(value if value is not None else "").strip().lower() or "auto"
+    text = _MLX_QUANTIZATION_ALIASES.get(text, text) if text != "auto" else "auto"
+    if text != "auto" and text not in MLX_QUANTIZATIONS:
+        raise ValueError(f"Qwen3-TTS MLX quantization must be one of auto, {', '.join(MLX_QUANTIZATIONS)} (got {value!r})")
     return text
+
+
+def resolve_mlx_quantization(value: Any, *, env: Optional[Mapping[str, str]] = None) -> str:
+    """The quantization the MLX backend loads with: the explicit setting, else
+    ``ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION``, else the default (8-bit). An invalid environment
+    value is an error that names the variable and its value."""
+    setting = normalize_mlx_quantization(value)
+    if setting != "auto":
+        return setting
+    environment = os.environ if env is None else env
+    raw = environment.get(MLX_QUANTIZATION_ENV)
+    if raw is None or not str(raw).strip():
+        return MLX_DEFAULT_QUANTIZATION
+    try:
+        resolved = normalize_mlx_quantization(raw)
+    except ValueError:
+        raise ValueError(
+            f"{MLX_QUANTIZATION_ENV}={raw!r} is not a valid Qwen3-TTS MLX quantization; "
+            f"use one of {', '.join(MLX_QUANTIZATIONS)} (or unset it for the default, {MLX_DEFAULT_QUANTIZATION})"
+        ) from None
+    return MLX_DEFAULT_QUANTIZATION if resolved == "auto" else resolved
+
+
+# The oldest MLX the vendored port is known to run on (the pyproject floor; checked at load because
+# the policy selects `mlx` whenever the package is importable, whatever version another extra left).
+MLX_MIN_VERSION = "0.31.2"
+
+
+def _version_tuple(text: str) -> tuple:
+    parts = []
+    for piece in str(text).split("+")[0].split("."):
+        digits = ""
+        for ch in piece:
+            if ch.isdigit():
+                digits += ch
+            else:
+                break
+        parts.append(int(digits or 0))
+    return tuple(parts)
+
+
+def require_mlx_version(*, installed: Optional[str] = None) -> str:
+    """Return the installed ``mlx`` version, or raise a plain error when it is below the floor."""
+    if installed is None:
+        import mlx.core as mx  # the caller has already decided to use MLX
+
+        installed = str(getattr(mx, "__version__", "0"))
+    if _version_tuple(installed) < _version_tuple(MLX_MIN_VERSION):
+        raise RuntimeError(
+            f"Qwen3-TTS needs mlx {MLX_MIN_VERSION} or newer on the MLX backend (found {installed}). "
+            f'Upgrade with: pip install -U "mlx>={MLX_MIN_VERSION}", or set {BACKEND_ENV}=torch.'
+        )
+    return installed
 
 
 def mlx_supported_platform(*, system: Optional[str] = None, machine: Optional[str] = None) -> bool:

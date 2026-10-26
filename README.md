@@ -187,7 +187,8 @@ Transformers generation, with `--qwen3-tts-sampler exponential` /
 `--qwen3-tts-predictor reference` (CLI, REPL, web example),
 `VoiceManager(qwen3_tts_sampler=..., qwen3_tts_predictor=...)` or the
 AbstractCore plugin settings `voice_qwen3_tts_sampler` /
-`voice_qwen3_tts_predictor`. See
+`voice_qwen3_tts_predictor`. Choose the Qwen backend with
+`VoiceManager(qwen3_tts_backend="mlx"|"torch")` or the plugin setting `voice_qwen3_tts_backend`. See
 [Qwen performance controls](docs/api.md#qwen-performance-controls) for the
 backend policy, settings and streaming behaviour.
 

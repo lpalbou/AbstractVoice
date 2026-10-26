@@ -238,7 +238,7 @@ engine and settings (ADR 0008). The policy is small and explicit:
 | --- | --- |
 | macOS on Apple silicon with `mlx` importable (the `qwen3-tts`, `apple`, `all-apple`, `gpu` and `all-gpu` extras install it there) | `mlx` |
 | anything else (CUDA, CPU, Intel Mac, `mlx` not installed) | `torch` (the shared ADR 0005 device/dtype policy) |
-| `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch` or `mlx`, or `Qwen3TTSSettings(backend=...)` / `Qwen3TTSRuntime(backend=...)` | that backend; asking for `mlx` where it cannot run is a plain error, not a fallback |
+| `VoiceManager(qwen3_tts_backend="torch" \| "mlx")`, the AbstractCore plugin setting `voice_qwen3_tts_backend`, `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch\|mlx`, or `Qwen3TTSSettings(backend=...)` / `Qwen3TTSRuntime(backend=...)` | that backend (an explicit setting wins over the environment variable; `auto` defers to the policy); asking for `mlx` where it cannot run is a plain error, not a fallback, and `is_available()` is `False` with that sentence as `get_unavailable_reason()` |
 
 `runtime_info()["backend"]` (also under `get_info()["runtime"]` and the stream
 metrics' `device`, `metal` for MLX) says which backend is active. Both backends
@@ -248,9 +248,22 @@ nothing else is downloaded.
 The MLX backend:
 
 - quantizes the talker to 8-bit when it loads (the codec and speaker encoder
-  stay float32). `Qwen3TTSSettings(mlx_quantization="bf16" | "8bit" | "4bit")`
-  or `ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION` choose otherwise; the choice is
-  reported as `runtime_info()["mlx_quantization"]`;
+  stay float32). `VoiceManager(qwen3_tts_mlx_quantization="bf16" | "8bit" | "4bit")`,
+  the AbstractCore plugin setting `voice_qwen3_tts_mlx_quantization`,
+  `Qwen3TTSSettings(mlx_quantization=...)` or
+  `ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION` choose otherwise; the environment
+  variable is read only when the MLX backend loads, and the choice is reported as
+  `runtime_info()["mlx_quantization"]` (with per-component weight sizes under
+  `runtime_info()["mlx_weight_bytes"]`). 8-bit is the recommended default: bf16
+  is slower at the same transcription accuracy, and a 4-bit talker can run away
+  into long babble;
+- needs `mlx` 0.31.2 or newer; an older `mlx` (for example one left by another
+  package) is refused at load with a plain error naming the upgrade command;
+- holds the model for the whole of one generation, because the codec decoder keeps
+  streaming state: a streamed reply owns it until its chunk iterator is exhausted
+  or closed. Another synthesis waits for it (up to 600 s) and `unload()` up to 10 s,
+  then raises an error saying a stream holds the model. Call `.close()` on a chunk
+  iterator you stop reading;
 - streams **codec frames of one generation per reply**: `stream_custom_voice`,
   `stream_voice_design` and `stream_clone` yield contiguous 24 kHz chunks (the
   first after `stream_first_chunk_frames` 80 ms frames, default 6, then every
@@ -866,6 +879,10 @@ different provider:
   used for this key, because it names the OpenAI-compatible server)
 - `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`: Qwen3-TTS codebook
   predictor and sampler (see [Qwen performance controls](#qwen-performance-controls))
+- `voice_qwen3_tts_backend`: `auto` (default) | `mlx` | `torch` — Qwen3-TTS backend
+  (see [Qwen3-TTS checkpoints](#qwen3-tts-checkpoints)); a typo is a `ValueError`
+- `voice_qwen3_tts_mlx_quantization`: `auto` (default, 8-bit) | `bf16` | `8bit` | `4bit` —
+  talker precision on the MLX backend
 - `voice_whisper_model`: faster-whisper model size (e.g. `"base"`, `"small"`)
 - `voice_cloning_engine`: default cloning provider (`"omnivoice"` by default; also `"f5_tts"|"chroma"|"audiodit"|"openai"|"openai-compatible"`)
 - `voice_cloned_tts_streaming`: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when `voice_tts_delivery_mode` is unset.

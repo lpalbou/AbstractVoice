@@ -26,7 +26,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, List, Optional
 
 import mlx.core as mx
-import mlx.nn as nn
 import numpy as np
 
 from .codec import Qwen3TTSCodec
@@ -34,7 +33,7 @@ from .config import Qwen3TTSModelConfig
 from .speaker_encoder import Qwen3TTSSpeakerEncoder, mel_spectrogram
 from .talker import Qwen3TTSTalkerForConditionalGeneration
 from .tokenizer import Qwen3TTSTextTokenizer
-from ..backend import normalize_mlx_quantization
+from ..backend import resolve_mlx_quantization
 from .weights import (
     load_safetensors,
     load_weights_strict,
@@ -160,7 +159,7 @@ class Qwen3TTSMLXModel:
 
     @classmethod
     def from_snapshot(cls, snapshot_dir: str, *, quantization: str = "8bit") -> "Qwen3TTSMLXModel":
-        quantization = normalize_mlx_quantization(quantization)
+        quantization = resolve_mlx_quantization(quantization)
         bits = quantization_bits(quantization)
         report = LoadReport(snapshot_dir=str(snapshot_dir), quantization=quantization)
         t_start = time.perf_counter()

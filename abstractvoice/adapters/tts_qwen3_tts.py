@@ -57,6 +57,8 @@ class Qwen3TTSAdapter(TTSAdapter):
         device: str = "auto",
         predictor: str | None = None,
         sampler: str | None = None,
+        backend: str | None = None,
+        mlx_quantization: str | None = None,
         runtime: Any | None = None,
     ):
         self._language = str(language or "en").strip().lower()
@@ -75,7 +77,9 @@ class Qwen3TTSAdapter(TTSAdapter):
                 allow_downloads=bool(allow_downloads),
                 debug=bool(debug_mode),
                 # Validated here, before any weights load (ValueError on a typo).
-                settings=Qwen3TTSSettings(predictor=predictor, sampler=sampler),
+                settings=Qwen3TTSSettings(
+                    predictor=predictor, sampler=sampler, backend=backend, mlx_quantization=mlx_quantization
+                ),
             )
         self._runtime = runtime
         # The VoiceManager mixin resolves per-model capability entries (e.g. the
@@ -92,27 +96,51 @@ class Qwen3TTSAdapter(TTSAdapter):
 
     # ------------------------------------------------------------- introspection
 
+    def _backend_or_error(self):
+        """``(backend, None)`` per the policy (ADR 0008), or ``(None, message)`` when the requested
+        backend cannot run here -- that message must reach the user, never a bare "not available"."""
+        from ..qwen3_tts.backend import select_backend
+
+        settings = getattr(self._runtime, "settings", None)
+        try:
+            return select_backend(getattr(settings, "backend", None)), None
+        except Exception as e:  # noqa: BLE001 - the policy's own plain error is the reason
+            return None, str(e)
+
+    def _missing_runtime_modules(self) -> list[str]:
+        import importlib.util
+
+        backend, error = self._backend_or_error()
+        if error:
+            return []
+        required = ("mlx", "tokenizers") if backend == "mlx" else ("torch", "transformers")
+        return [name for name in required if importlib.util.find_spec(name) is None]
+
     def is_available(self) -> bool:
         # Capability probe: importable runtimes only, never multi-GB loads. The
         # backend policy (ADR 0008) decides which runtime that is.
         try:
-            import importlib.util
-
-            from ..qwen3_tts.backend import select_backend
-
-            settings = getattr(self._runtime, "settings", None)
-            backend = select_backend(getattr(settings, "backend", None))
-            if backend == "mlx":
-                return (
-                    importlib.util.find_spec("mlx") is not None
-                    and importlib.util.find_spec("tokenizers") is not None
-                )
-            return (
-                importlib.util.find_spec("torch") is not None
-                and importlib.util.find_spec("transformers") is not None
-            )
+            _backend, error = self._backend_or_error()
+            return error is None and not self._missing_runtime_modules()
         except Exception:
             return False
+
+    def get_unavailable_reason(self) -> Optional[str]:
+        """Why ``is_available()`` is False: the backend policy's error (an explicit ``mlx`` request
+        where MLX cannot run) or the missing runtime packages."""
+        try:
+            _backend, error = self._backend_or_error()
+            if error:
+                return error
+            missing = self._missing_runtime_modules()
+            if missing:
+                return (
+                    f"Qwen3-TTS runtime packages are missing: {', '.join(missing)}. "
+                    'Install with: pip install "abstractvoice[qwen3-tts]"'
+                )
+        except Exception as e:  # noqa: BLE001
+            return f"Qwen3-TTS availability check failed: {e}"
+        return None
 
     def is_cached_locally(self) -> bool:
         """True when the selected checkpoint's weights are in the local cache (no network)."""
@@ -282,7 +310,8 @@ class Qwen3TTSAdapter(TTSAdapter):
         if (settings.predictor, settings.sampler) == (chosen.predictor, chosen.sampler):
             return
         settings.predictor, settings.sampler = chosen.predictor, chosen.sampler
-        if self.is_engine_loaded():
+        # PyTorch-only switches: an MLX model is unaffected, so it stays resident.
+        if self.is_engine_loaded() and getattr(self._runtime, "_backend", None) != "mlx":
             self._runtime.unload()
 
     # ----------------------------------------------------------- quality preset

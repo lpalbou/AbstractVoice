@@ -18,7 +18,7 @@ limited to what MLX's layouts require:
 from __future__ import annotations
 
 import os
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -154,7 +154,3 @@ def parameter_bytes(module: nn.Module) -> int:
     return int(sum(v.nbytes for _, v in tree_flatten(module.parameters())))
 
 
-def iter_arrays(modules: Iterable[nn.Module]):
-    for module in modules:
-        for _, value in tree_flatten(module.parameters()):
-            yield value

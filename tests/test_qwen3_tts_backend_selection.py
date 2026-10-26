@@ -20,6 +20,12 @@ from abstractvoice.qwen3_tts.runtime import (
     _EdgeFader,
 )
 
+@pytest.fixture(autouse=True)
+def no_cached_qwen_weights(monkeypatch):
+    """The adapter warms a cached checkpoint at construction; these tests use fake runtimes."""
+    monkeypatch.setattr("abstractvoice.adapters.tts_qwen3_tts.hf_cached_snapshot_dir", lambda _model_id: None)
+
+
 DARWIN_ARM = dict(system="darwin", machine="arm64")
 LINUX_X86 = dict(system="linux", machine="x86_64")
 
@@ -63,16 +69,13 @@ def test_describe_backend_selection_never_raises():
 
 
 def test_settings_normalize_backend_and_quantization(monkeypatch):
-    monkeypatch.delenv(MLX_QUANTIZATION_ENV, raising=False)
+    monkeypatch.setenv(MLX_QUANTIZATION_ENV, "4bit")  # the setting never reads the environment
     s = Qwen3TTSSettings()
-    assert (s.backend, s.mlx_quantization) == ("auto", "8bit")
+    assert (s.backend, s.mlx_quantization) == ("auto", "auto")
     assert Qwen3TTSSettings(backend=" MLX ", mlx_quantization="bf16").backend == "mlx"
     assert Qwen3TTSSettings(mlx_quantization="4").mlx_quantization == "4bit"
     assert Qwen3TTSSettings(mlx_quantization="none").mlx_quantization == "bf16"
-    monkeypatch.setenv(MLX_QUANTIZATION_ENV, "4bit")
-    assert Qwen3TTSSettings().mlx_quantization == "4bit"
-    assert Qwen3TTSSettings(mlx_quantization="8bit").mlx_quantization == "8bit"  # explicit beats env
-    with pytest.raises(ValueError, match="one of bf16, 8bit, 4bit"):
+    with pytest.raises(ValueError, match="one of auto, bf16, 8bit, 4bit"):
         Qwen3TTSSettings(mlx_quantization="fp8")
     with pytest.raises(ValueError, match="one of auto, torch, mlx"):
         Qwen3TTSSettings(backend="cuda")
@@ -318,3 +321,79 @@ def test_engine_runtime_status_follows_the_backend_policy(monkeypatch):
     monkeypatch.setattr(policy, "select_backend", lambda *a, **k: "torch")
     status = engine_runtime.engine_runtime_status("qwen3-tts")
     assert status.required_modules == ("torch", "transformers", "soundfile")
+
+
+
+# --- review fixes ---------------------------------------------------------------
+
+
+def test_mlx_quantization_environment_is_read_only_when_mlx_loads():
+    assert policy.resolve_mlx_quantization("auto", env={}) == "8bit"
+    assert policy.resolve_mlx_quantization("auto", env={MLX_QUANTIZATION_ENV: "4bit"}) == "4bit"
+    assert policy.resolve_mlx_quantization("bf16", env={MLX_QUANTIZATION_ENV: "4bit"}) == "bf16"  # explicit wins
+    with pytest.raises(ValueError, match="ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION='fp8'"):
+        policy.resolve_mlx_quantization("auto", env={MLX_QUANTIZATION_ENV: "fp8"})
+
+
+def test_a_stray_mlx_quantization_variable_never_breaks_the_torch_backend(monkeypatch):
+    monkeypatch.setenv(MLX_QUANTIZATION_ENV, "fp8")
+    runtime = Qwen3TTSRuntime(allow_downloads=False, backend="torch")
+    assert runtime.settings.mlx_quantization == "auto"
+
+
+def test_runtime_backend_argument_does_not_mutate_the_callers_settings():
+    shared = Qwen3TTSSettings()
+    Qwen3TTSRuntime(allow_downloads=False, settings=shared, backend="torch")
+    assert shared.backend == "auto"
+
+
+def test_mlx_version_floor_is_a_plain_error():
+    assert policy.require_mlx_version(installed=policy.MLX_MIN_VERSION) == policy.MLX_MIN_VERSION
+    assert policy.require_mlx_version(installed="0.32.4") == "0.32.4"
+    with pytest.raises(RuntimeError, match=r"mlx 0\.31\.2 or newer.*found 0\.26\.1"):
+        policy.require_mlx_version(installed="0.26.1")
+
+
+def test_a_suspended_stream_makes_other_calls_fail_clearly_instead_of_hanging():
+    import threading
+
+    runtime = Qwen3TTSRuntime(allow_downloads=False, backend="torch")
+    runtime.LOCK_TIMEOUT_S = 0.2
+    runtime.UNLOAD_LOCK_TIMEOUT_S = 0.2
+    holder_started, release = threading.Event(), threading.Event()
+
+    def hold():
+        with runtime._owned():
+            holder_started.set()
+            release.wait(5)
+
+    thread = threading.Thread(target=hold)
+    thread.start()
+    holder_started.wait(5)
+    try:
+        with pytest.raises(RuntimeError, match=r"close\(\)"):
+            with runtime._owned():
+                pass
+        with pytest.raises(RuntimeError, match="unload timed out"):
+            runtime.unload()
+    finally:
+        release.set()
+        thread.join(5)
+    with runtime._owned():  # free again once the holder is done
+        pass
+
+
+def test_explicit_mlx_request_that_cannot_run_is_reported_on_every_surface(monkeypatch):
+    from abstractvoice import engine_runtime
+    from abstractvoice.adapters.tts_qwen3_tts import Qwen3TTSAdapter
+
+    monkeypatch.setenv(BACKEND_ENV, "mlx")
+    monkeypatch.setattr(policy, "mlx_supported_platform", lambda **_kw: False)
+
+    adapter = Qwen3TTSAdapter(allow_downloads=False, auto_load=False)
+    assert adapter.is_available() is False
+    assert "Apple silicon" in (adapter.get_unavailable_reason() or "")
+
+    status = engine_runtime.engine_runtime_status("qwen3-tts")
+    assert status.installed is False
+    assert "Apple silicon" in (status.reason or "")
