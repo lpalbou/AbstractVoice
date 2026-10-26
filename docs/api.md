@@ -182,10 +182,13 @@ Install `abstractvoice[qwen3-tts]` (Python 3.10+) and explicitly download each
 checkpoint you intend to use. Discovery lists cached checkpoints without
 loading their weights. Selecting the engine loads the chosen checkpoint from the
 local cache right away, like every other local engine, so the first synthesis
-does not pay the load; a checkpoint that is not cached yet is downloaded by
-`abstractvoice-prefetch` or by the first synthesis when downloads are allowed.
-It runs on Transformers 5.9 or newer (the extra's floor); with an older
-Transformers, loading refuses with a plain error before any download or weight load.
+does not pay the load (on MLX this includes the priming generation); a
+checkpoint that is not cached yet is downloaded by `abstractvoice-prefetch` or
+by the first synthesis when downloads are allowed. On Apple silicon the
+checkpoints run on the Apple GPU through MLX; elsewhere they run on PyTorch and
+Transformers 5.9 or newer (the extra's floor): with an older Transformers,
+loading refuses with a plain error before any download or weight load. See
+[Qwen backends](#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere).
 
 | Checkpoint suffix | Sizes | Selection |
 | --- | --- | --- |
@@ -197,8 +200,10 @@ Full ids follow `Qwen/Qwen3-TTS-12Hz-<size>-<suffix>`. TTS defaults to
 `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice`, cloning to the corresponding `Base`.
 Supported language codes are `en`, `zh`, `ja`, `ko`, `de`, `fr`, `ru`, `pt`,
 `es`, and `it`. Long input is split into bounded segments in both buffered
-and streamed delivery, including text without spaces. Streamed output is
-sentence-segmented, not native codec-frame streaming.
+and streamed delivery, including text without spaces. On the MLX backend a
+reply up to 800 characters is one generation streamed as codec frames; on the
+PyTorch backend streamed output is sentence-segmented (one generation per
+segment).
 
 ```bash
 python -m abstractvoice download --qwen3-tts Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
@@ -224,12 +229,57 @@ with the `voice_cloning_model` setting, separately from `voice_tts_model`, and
 the codebook predictor/sampler with `voice_qwen3_tts_predictor` /
 `voice_qwen3_tts_sampler` (see below).
 
+#### Qwen backends: MLX on Apple silicon, PyTorch elsewhere
+
+Qwen3-TTS has two compute backends behind the same runtime, adapter, cloning
+engine and settings (ADR 0008). The policy is small and explicit:
+
+| Situation | Backend |
+| --- | --- |
+| macOS on Apple silicon with `mlx` importable (the `qwen3-tts`, `apple`, `all-apple`, `gpu` and `all-gpu` extras install it there) | `mlx` |
+| anything else (CUDA, CPU, Intel Mac, `mlx` not installed) | `torch` (the shared ADR 0005 device/dtype policy) |
+| `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch` or `mlx`, or `Qwen3TTSSettings(backend=...)` / `Qwen3TTSRuntime(backend=...)` | that backend; asking for `mlx` where it cannot run is a plain error, not a fallback |
+
+`runtime_info()["backend"]` (also under `get_info()["runtime"]` and the stream
+metrics' `device`, `metal` for MLX) says which backend is active. Both backends
+load the ORIGINAL Qwen bf16 safetensors from the same Hugging Face snapshot;
+nothing else is downloaded.
+
+The MLX backend:
+
+- quantizes the talker to 8-bit when it loads (the codec and speaker encoder
+  stay float32). `Qwen3TTSSettings(mlx_quantization="bf16" | "8bit" | "4bit")`
+  or `ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION` choose otherwise; the choice is
+  reported as `runtime_info()["mlx_quantization"]`;
+- streams **codec frames of one generation per reply**: `stream_custom_voice`,
+  `stream_voice_design` and `stream_clone` yield contiguous 24 kHz chunks (the
+  first after `stream_first_chunk_frames` 80 ms frames, default 6, then every
+  `stream_chunk_frames`, default 12), faded only at the utterance edges. The
+  adapter's `native_frame_streaming` is `True`, `speak_to_audio_chunks` and the
+  streamed `speak()` pass the whole reply (up to 800 characters, then sentence
+  boundaries) as one segment, and the stream metrics carry
+  `"streaming_unit": "frames"`. `synthesize_*` is the same single generation
+  collected. Text that arrives incrementally (`open_tts_text_stream`, an LLM
+  reply) is still synthesized per text segment as it arrives;
+- runs a short priming generation at load so Metal kernels are compiled in the
+  loading phase; `runtime_info()` reports `load_seconds` and `prime_seconds`;
+- accepts the PyTorch-only `predictor` / `sampler` switches and reports them as
+  not applied: `runtime_info()["pytorch_switches"] == {"predictor": ...,
+  "sampler": ..., "applied": False, "note": ...}`. MLX runs its own
+  fixed-depth codebook loop with categorical (multinomial) sampling.
+
+Sampling semantics are the same on both backends (temperature, top-k, top-p,
+repetition penalty over the generated frames, the quality presets), so a voice,
+language or instruction behaves the same; exact samples differ, as they do
+between any two devices.
+
 #### Qwen performance controls
 
-Qwen uses the shared automatic GPU/device policy and a specialized codebook
-predictor by default, retaining PyTorch's multinomial sampler. No additional
-vendor SDK is required. Unsupported generation settings use the original
-Transformers path with a `#FALLBACK` warning.
+On the PyTorch backend Qwen uses the shared automatic GPU/device policy and a
+specialized codebook predictor by default, retaining PyTorch's multinomial
+sampler. No additional vendor SDK is required. Unsupported generation settings
+use the original Transformers path with a `#FALLBACK` warning. The MLX backend
+accepts these two settings and ignores them (see above).
 
 Every surface can choose both settings; the runtime reads them when it loads the
 model:
@@ -280,10 +330,11 @@ with Torch 2.12.0 / Transformers 5.8.1 were substantially faster than Torch 2.8.
 the Python environment running your CLI or plugin; an optimized sampler alone
 does not guarantee realtime throughput.
 
-Faster inference does not imply native audio streaming: `/tts delivery
-buffered` waits for complete synthesis, while `streamed` delivers independently
-synthesized text segments progressively. Neither setting enables native Qwen
-codec-frame streaming.
+Faster inference on PyTorch does not imply native audio streaming there:
+`/tts delivery buffered` waits for complete synthesis, while `streamed`
+delivers independently synthesized text segments progressively. Native
+codec-frame streaming of one generation per reply is the MLX backend's
+behaviour (Apple silicon), whatever the delivery mode.
 
 ### Language & voice selection
 

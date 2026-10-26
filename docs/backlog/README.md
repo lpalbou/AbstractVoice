@@ -4,10 +4,10 @@ This folder is the **single source of truth** for planned and completed work in 
 
 ## Current snapshot
 
-- Updated: 2026-05-23
+- Updated: 2026-10-26
 - Planned: 15
 - Proposed: 11
-- Completed: 34
+- Completed: 35
 - Recurrent: 1
 
 ### Principles

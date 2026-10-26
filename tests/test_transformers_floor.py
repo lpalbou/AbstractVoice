@@ -61,7 +61,9 @@ def test_qwen3_tts_refuses_before_downloading_or_loading(monkeypatch):
     fake_tf.__version__ = "4.57.6"
     monkeypatch.setitem(sys.modules, "transformers", fake_tf)
 
-    runtime = Qwen3TTSRuntime(allow_downloads=False)
+    # The Transformers floor guards the PyTorch backend; pin it (ADR 0008 picks MLX on an Apple
+    # silicon machine with `mlx` installed, and that path never imports Transformers).
+    runtime = Qwen3TTSRuntime(allow_downloads=False, backend="torch")
     monkeypatch.setattr(runtime, "snapshot_dir", lambda **_: pytest.fail("reached the snapshot / download step"))
 
     with pytest.raises(RuntimeError, match=r"^Qwen3-TTS needs Transformers 5\.9\.0 or newer"):

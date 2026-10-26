@@ -8,7 +8,23 @@ Sources of truth:
 - Supported integrator contract: `docs/api.md`
 - Internal map + diagrams: `docs/architecture.md`
 
-Qwen performance: a guarded specialized codebook predictor with stock
+Qwen backends (ADR 0008): Qwen3-TTS runs on MLX on Apple silicon (macOS/arm64 with
+`mlx` importable; the `qwen3-tts`, `apple`, `all-apple`, `gpu`, `all-gpu` extras install
+`mlx` + `tokenizers` there) and on PyTorch everywhere else. `ABSTRACTVOICE_QWEN3_TTS_BACKEND=torch|mlx`,
+`Qwen3TTSSettings(backend=...)` or `Qwen3TTSRuntime(backend=...)` override `auto`; asking for
+`mlx` where it cannot run is a plain error. `runtime_info()["backend"]` reports the active one.
+The MLX backend loads the ORIGINAL Qwen bf16 safetensors strictly from the same Hugging Face
+snapshot, quantizes the talker to 8-bit on load (`mlx_quantization="bf16"|"8bit"|"4bit"`,
+`ABSTRACTVOICE_QWEN3_TTS_MLX_QUANTIZATION`), runs a priming generation at load
+(`runtime_info()["prime_seconds"]`), and streams codec frames of ONE generation per reply:
+`stream_custom_voice` / `stream_voice_design` / `stream_clone` yield contiguous chunks (first after
+6 frames, then every 12; `stream_first_chunk_frames`, `stream_chunk_frames`), faded only at the
+utterance edges; the adapter reports `native_frame_streaming`, `speak_to_audio_chunks` and streamed
+`speak()` pass a whole reply (up to 800 chars) as one segment, metrics say `streaming_unit: frames`
+and `device: metal`. Text arriving incrementally (`open_tts_text_stream`) is still synthesized per
+segment. See [Qwen backends](docs/api.md#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere).
+
+Qwen performance (PyTorch backend): a guarded specialized codebook predictor with stock
 multinomial sampling is enabled by default. Opt in to the exponential-race
 sampler with `--qwen3-tts-sampler exponential`, or use the original Transformers
 path (which overrides sampler selection) with `--qwen3-tts-predictor reference`
@@ -16,12 +32,13 @@ path (which overrides sampler selection) with `--qwen3-tts-predictor reference`
 qwen3_tts_predictor=...)` / `set_qwen3_tts_codebook_generation(...)`, the AbstractCore
 plugin settings `voice_qwen3_tts_sampler` / `voice_qwen3_tts_predictor`, the web
 example's selects (`POST /api/qwen3-tts/codebook`), or `Qwen3TTSSettings`; all are
-read at model load and invalid values are rejected before weights load.
+read at model load and invalid values are rejected before weights load. The MLX backend
+accepts both and reports them as not applied (`runtime_info()["pytorch_switches"]`).
 Unsupported generation settings also fall back with a `#FALLBACK`
 warning. Exponential sampling
 validates a complete frame before returning codes; invalid probabilities raise,
 and failed requests can consume additional RNG. No cross-hardware/version
-reproducibility guarantee. Keep models resident for warm inference; buffered
+reproducibility guarantee. Keep models resident for warm inference; on PyTorch, buffered
 delivery waits for complete synthesis and streamed delivery uses text segments,
 not native Qwen codec frames. See [Qwen performance controls](docs/api.md#qwen-performance-controls).
 Apple MPS throughput also depends on runtime versions: measured M5 Max inference
@@ -200,8 +217,9 @@ Optional dependency groups (see `pyproject.toml`):
 
 ### Qwen3-TTS
 
-Install `abstractvoice[qwen3-tts]` on Python 3.10+ (Torch 2.4+) and explicitly prefetch each
-checkpoint with `python -m abstractvoice download --qwen3-tts <model-id>`.
+Install `abstractvoice[qwen3-tts]` on Python 3.10+ (MLX on Apple silicon, Torch 2.4+ elsewhere;
+ADR 0008) and explicitly prefetch each checkpoint with
+`python -m abstractvoice download --qwen3-tts <model-id>`.
 Full ids use `Qwen/Qwen3-TTS-12Hz-<size>-<suffix>`:
 
 - CustomVoice (0.6B/1.7B): `tts_engine="qwen3-tts"`, select `tts_model` and
@@ -223,8 +241,9 @@ model-filtered voices. Configure plugin clone defaults with the
 1.7B CustomVoice/VoiceDesign support per-call instructions in chunked output;
 unsupported models and cloned speech reject streaming instructions explicitly.
 Long text is bounded in both buffered and streamed output, including continuous
-Chinese/Japanese text. Delivery is sentence-segmented, not native codec-frame
-streaming. Switching providers resets a foreign model id to the target default.
+Chinese/Japanese text. On the MLX backend a reply up to 800 characters is one generation
+streamed as codec frames; on the PyTorch backend delivery is sentence-segmented.
+Switching providers resets a foreign model id to the target default.
 See [the complete Qwen API guide](docs/api.md#qwen3-tts-checkpoints).
 - [Adapters base types](abstractvoice/adapters/base.py)
 - [Piper TTS adapter](abstractvoice/adapters/tts_piper.py): voice selection + caching + synthesis
@@ -232,7 +251,7 @@ See [the complete Qwen API guide](docs/api.md#qwen3-tts-checkpoints).
 - [Supertonic runtime](abstractvoice/supertonic/runtime.py): internal ONNX loader + explicit `--supertonic` prefetch; no external Supertonic SDK dependency
 - [AudioDiT TTS adapter (optional)](abstractvoice/adapters/tts_audiodit.py)
 - [AudioDiT runtime + vendored model](abstractvoice/audiodit/): LongCat-AudioDiT implementation (MIT)
-- [Qwen3-TTS adapter + vendored core (optional)](abstractvoice/adapters/tts_qwen3_tts.py): preset speakers/voice design; model core in `abstractvoice/qwen3_tts/`
+- [Qwen3-TTS adapter + vendored core (optional)](abstractvoice/adapters/tts_qwen3_tts.py): preset speakers/voice design; model core in `abstractvoice/qwen3_tts/`; backend policy in `abstractvoice/qwen3_tts/backend.py` (MLX on Apple silicon, PyTorch elsewhere) and the MLX port in `abstractvoice/qwen3_tts/mlx/` (one generation per reply, codec-frame streaming, `native_frame_streaming`)
 - [OmniVoice TTS adapter (optional)](abstractvoice/adapters/tts_omnivoice.py)
 - [OmniVoice runtime wrapper (optional)](abstractvoice/omnivoice/runtime.py)
 - [OmniVoice cloning engine (optional)](abstractvoice/cloning/engine_omnivoice.py)

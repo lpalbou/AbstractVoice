@@ -31,6 +31,9 @@ flowchart LR
   TTSAdapter --> AudioDiT[AudioDiTTTSAdapter]
   TTSAdapter --> OmniVoice[OmniVoiceTTSAdapter]
   TTSAdapter --> Qwen3[Qwen3TTSAdapter]
+  Qwen3 --> Qwen3RT[Qwen3TTSRuntime: backend policy ADR 0008]
+  Qwen3RT -->|Apple silicon| Qwen3MLX[MLX port: one generation per reply, codec-frame streaming]
+  Qwen3RT -->|CUDA / CPU| Qwen3Torch[PyTorch model, ADR 0005 device policy]
   TTSEngine --> Player[NonBlockingAudioPlayer]
   Player --> Out[(sounddevice OutputStream)]
 
@@ -63,7 +66,7 @@ TTS implementation:
 - Engine runtime status (`find_spec` only, no engine imports): `abstractvoice/engine_runtime.py`
 - AudioDiT adapter/runtime: `abstractvoice/adapters/tts_audiodit.py`, `abstractvoice/audiodit/runtime.py`
 - OmniVoice adapter/runtime: `abstractvoice/adapters/tts_omnivoice.py`, `abstractvoice/omnivoice/runtime.py`
-- Qwen3-TTS adapter/runtime: `abstractvoice/adapters/tts_qwen3_tts.py`, `abstractvoice/qwen3_tts/` (vendored 12Hz model core + codec + runtime; see `abstractvoice/_hf_compat.py` for the transformers-version seams shared with `qwen3_asr`)
+- Qwen3-TTS adapter/runtime: `abstractvoice/adapters/tts_qwen3_tts.py`, `abstractvoice/qwen3_tts/` (vendored 12Hz model core + codec + runtime; see `abstractvoice/_hf_compat.py` for the transformers-version seams shared with `qwen3_asr`). Backend selection (ADR 0008): `abstractvoice/qwen3_tts/backend.py` picks `mlx` on Apple silicon when `mlx` is importable, else `torch`; the MLX port lives in `abstractvoice/qwen3_tts/mlx/` (talker, codec with a streaming decoder, speaker encoder, `tokenizers`-based text tokenizer, strict weight loading + on-load quantization) and streams codec frames of one generation per reply through the runtime's `stream_*` methods; the adapter exposes that as `native_frame_streaming`, which `vm/tts_mixin.py` and `cloning/engine_qwen3_tts.py` honour by passing a whole reply as one segment.
 - TTS engine wrapper (back-compat contract): `abstractvoice/tts/adapter_tts_engine.py`
 - Low-latency audio player: `abstractvoice/tts/tts_engine.py`
 

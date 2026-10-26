@@ -26,6 +26,10 @@ the policy changes.
 - [ADR 0007](./0007_directed_speech_requests_and_planning_are_package_owned.md) — Accepted.
   Defines the package-owned directed speech contract, explicit capability
   degradation, and the planning boundary that stays inside AbstractVoice.
+- [ADR 0008](./0008_qwen3_tts_backend_selection.md) — Accepted.
+  Runs Qwen3-TTS on MLX on Apple silicon and on PyTorch elsewhere, behind one
+  runtime: explicit backend policy, strict loading of the original weights,
+  frame-level streaming of one generation per reply.
 
 ## Working rules
 
