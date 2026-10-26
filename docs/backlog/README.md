@@ -5,7 +5,7 @@ This folder is the **single source of truth** for planned and completed work in 
 ## Current snapshot
 
 - Updated: 2026-10-26
-- Planned: 16
+- Planned: 17
 - Proposed: 11
 - Completed: 35
 - Recurrent: 1
@@ -79,6 +79,9 @@ Rationale:
 - `docs/backlog/planned/0062_speed_ignored_in_bytes_synthesis_for_supertonic_and_piper.md`: the
   speed reaches live playback but not `speak_to_bytes()` / `speak_to_file()` for Supertonic and
   Piper (and so not the AbstractCore plugin or `/v1/audio/speech`); deferred to the package rebuild.
+- `docs/backlog/planned/0063_cloned_voices_record_no_language.md`: a voice cloned from a recording
+  stores no language, so voice navigation cannot rank it among native speakers; includes the exact
+  reproduction.
 
 ## Other current proposed items
 
