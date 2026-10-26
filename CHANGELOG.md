@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.17.2] - 2026-10-26
+
+### Documentation
+
+- Diagrams laid out to be readable at normal width on GitHub and on the documentation site: the `README.md` overview is top-to-bottom with one box per capability, and `docs/architecture.md` replaces its single large diagram with four small ones (components, speaking with a base engine, speaking with a cloned voice, listening).
+
 ## [0.17.1] - 2026-10-26
 
 ### Documentation

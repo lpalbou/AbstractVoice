@@ -56,7 +56,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 - [AbstractRuntime](https://github.com/lpalbou/abstractruntime): runtime + ArtifactStore
 
 ## Architecture & decisions
-- [Architecture](docs/architecture.md): implementation map + component diagram (TTS adapters, Qwen3-TTS MLX/PyTorch backends, cloning with the built-in voice pack, STT adapters)
+- [Architecture](docs/architecture.md): implementation map + four component diagrams (components; speaking with a base engine incl. the Qwen3-TTS MLX/PyTorch backends; speaking with a cloned voice incl. the built-in voice pack; listening with the STT adapters)
 - [Development](docs/development.md): local tests, CI, release checklist
 - [Known issues](docs/known-issues.md): current bug tracker mirror for release-facing caveats
 - [CI workflow](.github/workflows/ci.yml): Python 3.9-3.12 tests + build check

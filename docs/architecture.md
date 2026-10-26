@@ -18,44 +18,70 @@ For acronyms used here (TTS/STT/VAD/VM/MM), see `docs/acronyms.md`.
 - **Voice cloning (optional)**: `VoiceCloner` + clone store + engine backends (`omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible`); new local clones default to OmniVoice. The clone store also exposes the read-only built-in voice pack (70 Qwen3-TTS voices stored as clone prompts in `abstractvoice/assets/voices/qwen3_tts/`; see [Built-in voices](voice-pack.md)).
 - Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (`abstractvoice/vm/core.py`).
 
-## Component diagram
+## Component diagrams
+
+Four small diagrams, from the whole down to each path. Names are the classes in the code map below.
+
+### Components
+
+`VoiceManager` routes speech to the TTS engine or, for a cloned voice id, to the cloner; listening and
+transcription go through the recognizer. Playback can feed the recognizer for echo cancellation.
 
 ```mermaid
-flowchart LR
-  App["Your app / CLI / REPL"] <--> VM["VoiceManager"]
-
-  VM -->|"speak() / speak_to_*()"| TTSEngine["AdapterTTSEngine"]
-  TTSEngine -->|"synthesize"| TTSAdapter["TTSAdapter"]
-  TTSAdapter --> Piper["PiperTTSAdapter"]
-  TTSAdapter --> Supertonic["SupertonicTTSAdapter"]
-  TTSAdapter --> RemoteTTS["OpenAICompatibleTTSAdapter"]
-  TTSAdapter --> AudioDiT["AudioDiTTTSAdapter"]
-  TTSAdapter --> OmniVoice["OmniVoiceTTSAdapter"]
-  TTSAdapter --> Qwen3["Qwen3TTSAdapter"]
-  Qwen3 --> Qwen3RT["Qwen3TTSRuntime: backend policy, ADR 0008"]
-  Qwen3RT -->|"Apple silicon"| Qwen3MLX["MLX port: one generation per reply, codec-frame streaming"]
-  Qwen3RT -->|"CUDA / CPU"| Qwen3Torch["PyTorch model, ADR 0005 device policy"]
-  TTSEngine --> Player["NonBlockingAudioPlayer"]
-  Player --> Out[("sounddevice OutputStream")]
-
+flowchart TB
+  App["Your app · CLI · REPL"] <--> VM["VoiceManager<br/>vm/manager.py + mixins"]
+  VM -->|"speak() · speak_to_*()"| TTSEngine["AdapterTTSEngine"]
   VM -->|"speak(voice=id)"| Cloner["VoiceCloner"]
+  VM -->|"listen() · transcribe_*()"| Rec["VoiceRecognizer"]
+  TTSEngine --> TTSAdapter["TTSAdapter<br/>one per engine"]
+  TTSEngine --> Player["NonBlockingAudioPlayer"]
   Cloner --> Store["VoiceCloneStore"]
-  Store --> UserVoices[("your clones, user data dir")]
-  Store --> Builtin[("built-in voice pack, read-only clone prompts")]
-  Cloner --> CloneEngines["Clone engines: OmniVoice, OpenF5, Chroma, AudioDiT, remote"]
-  Cloner --> QwenClone["Qwen3TTSVoiceCloningEngine"]
-  QwenClone --> Qwen3RT
-
-  VM -->|"listen() / transcribe_*()"| Rec["VoiceRecognizer"]
-  Rec --> In[("sounddevice InputStream")]
-  Rec --> VAD["VoiceDetector, webrtcvad"]
-  Rec --> STTAdapter["STTAdapter"]
-  STTAdapter --> FW["FasterWhisperAdapter: CUDA / CPU"]
-  STTAdapter --> MW["MLXWhisperAdapter: Apple GPU"]
-  STTAdapter --> TA["TransformersASRAdapter: Whisper, Qwen3-ASR, Cohere"]
-  STTAdapter --> RemoteSTT["OpenAICompatibleSTTAdapter"]
-
+  Cloner --> CloneEngine["Clone engine<br/>one per voice"]
+  Rec --> STTAdapter["STTAdapter<br/>one per engine"]
   Player -. "on_audio_chunk, optional AEC" .-> Rec
+```
+
+### Speaking with a base engine
+
+Every engine implements `TTSAdapter`. Qwen3-TTS picks its backend at load (ADR 0008).
+
+```mermaid
+flowchart TB
+  TTSAdapter["TTSAdapter"] --> Simple["Piper · Supertonic 3 · OmniVoice<br/>AudioDiT · OpenAI-compatible"]
+  TTSAdapter --> Qwen3["Qwen3TTSAdapter"]
+  Qwen3 --> Runtime["Qwen3TTSRuntime<br/>backend policy, ADR 0008"]
+  Runtime -->|"Apple silicon"| MLX["MLX port<br/>one generation per reply,<br/>codec-frame streaming"]
+  Runtime -->|"CUDA · CPU"| Torch["PyTorch model<br/>ADR 0005 device policy"]
+```
+
+### Speaking with a cloned voice
+
+The store holds your clones and the read-only built-in voice pack; each voice names the engine that renders it.
+
+```mermaid
+flowchart TB
+  Cloner["VoiceCloner"] --> Store["VoiceCloneStore"]
+  Store --> UserVoices[("your clones<br/>user data dir")]
+  Store --> Builtin[("built-in voice pack<br/>read-only clone prompts")]
+  Cloner --> OtherClone["OmniVoice · OpenF5 · Chroma<br/>AudioDiT · remote"]
+  Cloner --> QwenClone["Qwen3 clone engine"]
+  QwenClone --> Runtime["Qwen3TTSRuntime<br/>MLX or PyTorch"]
+```
+
+### Listening
+
+Every speech-to-text engine implements `STTAdapter`; the recognizer adds the microphone and voice activity detection.
+
+```mermaid
+flowchart TB
+  Rec["VoiceRecognizer"] --> In[("sounddevice<br/>InputStream")]
+  Rec --> VAD["VoiceDetector<br/>webrtcvad"]
+  Rec --> STTAdapter["STTAdapter"]
+  STTAdapter --> FW["FasterWhisperAdapter<br/>CUDA · CPU"]
+  STTAdapter --> MW["MLXWhisperAdapter<br/>Apple GPU"]
+  STTAdapter --> TA["TransformersASRAdapter<br/>Whisper · Qwen3-ASR · Cohere"]
+  STTAdapter --> RemoteSTT["OpenAICompatibleSTTAdapter"]
+  Player["NonBlockingAudioPlayer"] -. "on_audio_chunk, optional AEC" .-> Rec
 ```
 
 ## Code map (evidence)
