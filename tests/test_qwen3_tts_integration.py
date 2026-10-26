@@ -433,11 +433,15 @@ def test_weight_free_profiles_read_the_snapshot_config(fake_qwen_snapshot):
 
 
 @needs_torch
-def test_plugin_lists_qwen3_provider_models_and_voices(fake_qwen_snapshot, monkeypatch):
+def test_plugin_lists_qwen3_provider_models_and_voices(fake_qwen_snapshot, monkeypatch, tmp_path):
     import abstractvoice.integrations.abstractcore_plugin as plugin
+    from abstractvoice.cloning.store import VoiceCloneStore
 
     for key in ("ABSTRACTVOICE_TTS_ENGINE", "ABSTRACTVOICE_TTS_MODEL"):
         monkeypatch.delenv(key, raising=False)
+    # The listing includes stored clones: use an empty store, not the machine's own.
+    store = VoiceCloneStore(tmp_path / "voices")
+    monkeypatch.setattr("abstractvoice.cloning.store.VoiceCloneStore", lambda: store)
 
     class _Owner:
         config: dict = {}
