@@ -403,13 +403,63 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#component-diagram" class="md-nav__link">
+  <a href="#component-diagrams" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component diagram
+        Component diagrams
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Component diagrams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speaking-with-a-base-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speaking with a base engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speaking-with-a-cloned-voice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speaking with a cloned voice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Listening
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1302,13 +1352,63 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#component-diagram" class="md-nav__link">
+  <a href="#component-diagrams" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component diagram
+        Component diagrams
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Component diagrams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speaking-with-a-base-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speaking with a base engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speaking-with-a-cloned-voice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speaking with a cloned voice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Listening
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1442,42 +1542,50 @@ caveats.</p>
 <li><strong>Voice cloning (optional)</strong>: <code>VoiceCloner</code> + clone store + engine backends (<code>omnivoice|f5_tts|chroma|audiodit|qwen3-tts|openai|openai-compatible</code>); new local clones default to OmniVoice. The clone store also exposes the read-only built-in voice pack (70 Qwen3-TTS voices stored as clone prompts in <code>abstractvoice/assets/voices/qwen3_tts/</code>; see <a href="../voice-pack/">Built-in voices</a>).</li>
 <li>Voice modes are implemented by wiring TTS playback callbacks to recognizer controls (<code>abstractvoice/vm/core.py</code>).</li>
 </ul>
-<h2 id="component-diagram">Component diagram<a class="headerlink" href="#component-diagram" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>flowchart LR
-  App["Your app / CLI / REPL"] &lt;--&gt; VM["VoiceManager"]
-
-  VM --&gt;|"speak() / speak_to_*()"| TTSEngine["AdapterTTSEngine"]
-  TTSEngine --&gt;|"synthesize"| TTSAdapter["TTSAdapter"]
-  TTSAdapter --&gt; Piper["PiperTTSAdapter"]
-  TTSAdapter --&gt; Supertonic["SupertonicTTSAdapter"]
-  TTSAdapter --&gt; RemoteTTS["OpenAICompatibleTTSAdapter"]
-  TTSAdapter --&gt; AudioDiT["AudioDiTTTSAdapter"]
-  TTSAdapter --&gt; OmniVoice["OmniVoiceTTSAdapter"]
-  TTSAdapter --&gt; Qwen3["Qwen3TTSAdapter"]
-  Qwen3 --&gt; Qwen3RT["Qwen3TTSRuntime: backend policy, ADR 0008"]
-  Qwen3RT --&gt;|"Apple silicon"| Qwen3MLX["MLX port: one generation per reply, codec-frame streaming"]
-  Qwen3RT --&gt;|"CUDA / CPU"| Qwen3Torch["PyTorch model, ADR 0005 device policy"]
-  TTSEngine --&gt; Player["NonBlockingAudioPlayer"]
-  Player --&gt; Out[("sounddevice OutputStream")]
-
+<h2 id="component-diagrams">Component diagrams<a class="headerlink" href="#component-diagrams" title="Permanent link">&para;</a></h2>
+<p>Four small diagrams, from the whole down to each path. Names are the classes in the code map below.</p>
+<h3 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h3>
+<p><code>VoiceManager</code> routes speech to the TTS engine or, for a cloned voice id, to the cloner; listening and
+transcription go through the recognizer. Playback can feed the recognizer for echo cancellation.</p>
+<pre class="mermaid"><code>flowchart TB
+  App["Your app · CLI · REPL"] &lt;--&gt; VM["VoiceManager&lt;br/&gt;vm/manager.py + mixins"]
+  VM --&gt;|"speak() · speak_to_*()"| TTSEngine["AdapterTTSEngine"]
   VM --&gt;|"speak(voice=id)"| Cloner["VoiceCloner"]
+  VM --&gt;|"listen() · transcribe_*()"| Rec["VoiceRecognizer"]
+  TTSEngine --&gt; TTSAdapter["TTSAdapter&lt;br/&gt;one per engine"]
+  TTSEngine --&gt; Player["NonBlockingAudioPlayer"]
   Cloner --&gt; Store["VoiceCloneStore"]
-  Store --&gt; UserVoices[("your clones, user data dir")]
-  Store --&gt; Builtin[("built-in voice pack, read-only clone prompts")]
-  Cloner --&gt; CloneEngines["Clone engines: OmniVoice, OpenF5, Chroma, AudioDiT, remote"]
-  Cloner --&gt; QwenClone["Qwen3TTSVoiceCloningEngine"]
-  QwenClone --&gt; Qwen3RT
-
-  VM --&gt;|"listen() / transcribe_*()"| Rec["VoiceRecognizer"]
-  Rec --&gt; In[("sounddevice InputStream")]
-  Rec --&gt; VAD["VoiceDetector, webrtcvad"]
-  Rec --&gt; STTAdapter["STTAdapter"]
-  STTAdapter --&gt; FW["FasterWhisperAdapter: CUDA / CPU"]
-  STTAdapter --&gt; MW["MLXWhisperAdapter: Apple GPU"]
-  STTAdapter --&gt; TA["TransformersASRAdapter: Whisper, Qwen3-ASR, Cohere"]
-  STTAdapter --&gt; RemoteSTT["OpenAICompatibleSTTAdapter"]
-
+  Cloner --&gt; CloneEngine["Clone engine&lt;br/&gt;one per voice"]
+  Rec --&gt; STTAdapter["STTAdapter&lt;br/&gt;one per engine"]
   Player -. "on_audio_chunk, optional AEC" .-&gt; Rec</code></pre>
+<h3 id="speaking-with-a-base-engine">Speaking with a base engine<a class="headerlink" href="#speaking-with-a-base-engine" title="Permanent link">&para;</a></h3>
+<p>Every engine implements <code>TTSAdapter</code>. Qwen3-TTS picks its backend at load (ADR 0008).</p>
+<pre class="mermaid"><code>flowchart TB
+  TTSAdapter["TTSAdapter"] --&gt; Simple["Piper · Supertonic 3 · OmniVoice&lt;br/&gt;AudioDiT · OpenAI-compatible"]
+  TTSAdapter --&gt; Qwen3["Qwen3TTSAdapter"]
+  Qwen3 --&gt; Runtime["Qwen3TTSRuntime&lt;br/&gt;backend policy, ADR 0008"]
+  Runtime --&gt;|"Apple silicon"| MLX["MLX port&lt;br/&gt;one generation per reply,&lt;br/&gt;codec-frame streaming"]
+  Runtime --&gt;|"CUDA · CPU"| Torch["PyTorch model&lt;br/&gt;ADR 0005 device policy"]</code></pre>
+<h3 id="speaking-with-a-cloned-voice">Speaking with a cloned voice<a class="headerlink" href="#speaking-with-a-cloned-voice" title="Permanent link">&para;</a></h3>
+<p>The store holds your clones and the read-only built-in voice pack; each voice names the engine that renders it.</p>
+<pre class="mermaid"><code>flowchart TB
+  Cloner["VoiceCloner"] --&gt; Store["VoiceCloneStore"]
+  Store --&gt; UserVoices[("your clones&lt;br/&gt;user data dir")]
+  Store --&gt; Builtin[("built-in voice pack&lt;br/&gt;read-only clone prompts")]
+  Cloner --&gt; OtherClone["OmniVoice · OpenF5 · Chroma&lt;br/&gt;AudioDiT · remote"]
+  Cloner --&gt; QwenClone["Qwen3 clone engine"]
+  QwenClone --&gt; Runtime["Qwen3TTSRuntime&lt;br/&gt;MLX or PyTorch"]</code></pre>
+<h3 id="listening">Listening<a class="headerlink" href="#listening" title="Permanent link">&para;</a></h3>
+<p>Every speech-to-text engine implements <code>STTAdapter</code>; the recognizer adds the microphone and voice activity detection.</p>
+<pre class="mermaid"><code>flowchart TB
+  Rec["VoiceRecognizer"] --&gt; In[("sounddevice&lt;br/&gt;InputStream")]
+  Rec --&gt; VAD["VoiceDetector&lt;br/&gt;webrtcvad"]
+  Rec --&gt; STTAdapter["STTAdapter"]
+  STTAdapter --&gt; FW["FasterWhisperAdapter&lt;br/&gt;CUDA · CPU"]
+  STTAdapter --&gt; MW["MLXWhisperAdapter&lt;br/&gt;Apple GPU"]
+  STTAdapter --&gt; TA["TransformersASRAdapter&lt;br/&gt;Whisper · Qwen3-ASR · Cohere"]
+  STTAdapter --&gt; RemoteSTT["OpenAICompatibleSTTAdapter"]
+  Player["NonBlockingAudioPlayer"] -. "on_audio_chunk, optional AEC" .-&gt; Rec</code></pre>
 <h2 id="code-map-evidence">Code map (evidence)<a class="headerlink" href="#code-map-evidence" title="Permanent link">&para;</a></h2>
 <p>Start points (in call order):</p>
 <ul>
