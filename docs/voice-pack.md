@@ -187,6 +187,11 @@ Built-in voices are read-only: renaming, editing the transcript, exporting or de
 6. **Verified.** Every voice then spoke a new sentence in its language through the AbstractCore plugin,
    loaded from the pack alone, and was checked for words, language and likeness to its reference.
 
+To design a voice of your own the same way, without building a pack, call
+`VoiceManager.design_voice(description, name=..., language=...)`: it renders a reference with
+VoiceDesign, cuts the warm-up off and stores the result as a Qwen3-TTS clone in your own store. See
+[Designing a voice from a description](api.md#designing-a-voice-from-a-description).
+
 To add or rebuild voices, put validated references and a `profiles.json` (id, file, name, nationality,
 language, language_code, sex, style, description, reference_text) in a folder and run
 `python tools/voice_pack/build.py <folder>` from a repository checkout.
