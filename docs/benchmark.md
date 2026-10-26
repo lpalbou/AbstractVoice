@@ -140,6 +140,32 @@ Interpretation:
   - AudioDiT shows lower RTF for longer text in this run.
   - OmniVoice is competitive and has strong multilingual coverage.
 
+## Qwen3-TTS on Apple silicon: MLX versus PyTorch (2026-10-26)
+
+Qwen3-TTS has two backends (ADR 0008). Measured on an 18-core Apple silicon laptop, the standard
+63-word English reply (about 25 s of speech), speaker `ryan`, upstream sampling (temperature 0.9,
+top-k 50), warm model, 3 runs; the MLX figures come from the project's streaming harness with the
+default 8-bit talker and the default chunk cadence (6 codec frames, then 12). Other work was
+running on the machine (1-minute load average 30-320), so treat the MLX numbers as upper bounds.
+
+| Backend | Checkpoint | RTF (warm) | First streamed audio | Load incl. warm-up | Peak RSS |
+|---|---|---:|---:|---:|---:|
+| MLX, 8-bit | 1.7B CustomVoice | 0.52-0.54 | 0.26-0.32 s | 2.1 s | 4.4 GB |
+| MLX, 8-bit | 0.6B CustomVoice | 0.25-0.31 | 0.15 s | 1.3 s | 2.4 GB |
+| MLX, bf16 | 1.7B CustomVoice | 0.92 | 0.48 s | 0.9 s | 4.4 GB |
+| PyTorch (MPS, bf16) | 1.7B CustomVoice | 0.9-1.9 | 9.1 s (3 sentence segments) | 20-60 s | - |
+| PyTorch (MPS, bf16) | 0.6B CustomVoice | 1.1-2.1 | 9.6 s | - | - |
+
+Interpretation:
+- The PyTorch path on the Apple GPU is kernel-launch bound (sixteen codebook steps per 80 ms
+  frame), so the 0.6B is no faster than the 1.7B; MLX removes most of that overhead.
+- On MLX a reply is one generation streamed as 0.96 s chunks with no playback stalls; the first
+  chunk arrives after six frames. The voice cannot drift between sentences because nothing is
+  re-sampled per sentence.
+- 8-bit is the right default: bf16 weights make the 1.7B memory-bound (RTF 0.92).
+- Transcription parity (Whisper `large-v3-turbo`, 1.7B, 3 samples each): WER 0.17 on PyTorch,
+  0.14 on MLX, both close to Whisper's own normalisation floor on this text.
+
 ## Subjective note (voice cloning)
 
 This benchmark does **not** measure voice cloning.

@@ -116,7 +116,34 @@ voice drifted between sentences. mlx-audio's MLX port of the same checkpoints ra
 
 ### Summary
 
-MEASURED_SUMMARY_PLACEHOLDER
+- Shipped the MLX backend behind the existing surfaces; the PyTorch path is unchanged.
+- Measured on the owner's Apple silicon laptop (18 cores, macOS, MLX 0.31.2, Python 3.12) on
+  2026-10-26 with the parallel worker's harness (`bench_qwen3_mlx.py`, standard 63-word text,
+  speaker `ryan`, English, upstream sampling 0.9/50/1.0/1.05, 3 warm runs, 8-bit talker, first
+  chunk 6 frames then 12). **Other work was running throughout** (1-minute load average between
+  30 and 320 on 18 cores), so these are upper bounds, not quiet-machine figures:
+
+  | Checkpoint | Long reply RTF (min / median) | First streamed audio | Chunks / stalls | Load incl. prime | Peak RSS / MLX peak |
+  |---|---|---|---|---|---|
+  | 1.7B CustomVoice, 8-bit | 0.52 / 0.54 (target 0.7) | 0.26-0.32 s (target 1.5 s) | 29 x 0.96 s, 0 stalls | 2.1 s (0.36 s load + 0.12 s prime when the file pages are cached) | 4.4 GB / 4.0 GB |
+  | 0.6B CustomVoice, 8-bit | 0.25 / 0.29 (target 0.4) | 0.15 s (target 0.6 s) | 29 x 0.96 s, 0 stalls | 1.3 s (0.23 s + 0.11 s) | 2.4 GB / 2.8 GB |
+  | 1.7B CustomVoice, bf16 (for reference) | 0.92 | 0.48 s | - | 0.9 s | 4.4 GB / 6.3 GB |
+
+  For comparison, the PyTorch path on the same machine the same night: 1.7B RTF 1.7-1.9 (load
+  59 s), and in the quieter earlier measurement RTF 0.9-1.2 with first streamed audio at 9.1 s.
+- Priming at load: the first utterance after a primed load starts in 0.10 s (1.7B) versus 0.19 s
+  unprimed, and completes 0.4 s sooner; the very first process on a machine pays 2-3 s of Metal
+  compilation in the prime (0.1 s once the OS shader cache holds the kernels).
+- Parity with the PyTorch model (0.6B CustomVoice, MLX bf16 vs torch fp32): identical prompt
+  layout (31 embeddings, max |diff| 0.007 = bf16 rounding), identical prefill argmax and top-5
+  (cosine 0.99996), codec decoder SNR 49 dB, speaker embedding identical (cosine 1.0), reference
+  codes 98.5% identical (first three codebooks 100%). Whisper (`large-v3-turbo`) WER on the
+  63-word text, 1.7B, 3 samples each: PyTorch 0.17 mean, MLX 0.14 mean (floor ~0.11 from Whisper's
+  own number/name normalisations). The tokenizer is token-identical to Transformers on every probe.
+- No style drift: a multi-sentence reply is ONE generation; chunk sizes are whole codec frames
+  (6 x 1920 - 120 samples, then 12 x 1920, then a 120-sample tail) with fades only at the edges.
+- The 8-bit default stands: bf16 is memory-bound (RTF 0.92 for the 1.7B). No converted-weight cache:
+  loading plus quantization is under 0.4 s with warm file pages and a few seconds cold.
 
 ### Files touched
 
@@ -135,7 +162,10 @@ MEASURED_SUMMARY_PLACEHOLDER
 
 ### Validation
 
-MEASURED_VALIDATION_PLACEHOLDER
+- `python -m pytest -q` -> 688 passed, 4 skipped, 66 deselected (default markers).
+- `python -m pytest -q tests/test_qwen3_tts_backend_selection.py tests/test_qwen3_tts_mlx_tokenizer.py` -> 16 passed.
+- `ABSTRACTVOICE_RUN_QWEN3_TTS_MLX_TESTS=1 python -m pytest -q -m model_download tests/test_qwen3_tts_mlx_e2e_optional.py` -> 5 passed (CustomVoice load/prime/stream/WER, VoiceDesign, Base clone from a 3 s reference + x-vector mode).
+- PyTorch-path tests (`tests/test_qwen3_tts_predictor.py`, `tests/test_transformers_floor.py`) pass with the backend pinned to `torch`.
 
 ### Follow-ups
 
