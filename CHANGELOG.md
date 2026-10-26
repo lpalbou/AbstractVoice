@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [Unreleased]
+
+### Added
+
+- `one_shot=True` on `speak_to_bytes()`, `speak_to_file()`, the AbstractCore plugin's `tts()` and the CLI (`--one-shot`): the whole text is synthesized as ONE generation, with no sentence segmentation and no truncation, so a take keeps one voice from start to end. Available for Qwen3-TTS preset speakers, VoiceDesign and Qwen clones, up to 1000 characters; a longer text or another engine raises `ValueError` rather than cutting. Use it to produce voice references for cloning.
+
 ## [0.16.0] - 2026-10-26
 
 ### Added

@@ -1981,6 +1981,7 @@ class TtsMixin:
         instructions: str | None = None,
         sanitize_syntax: bool = True,
         saninitze_syntax: bool | None = None,
+        one_shot: bool = False,
     ) -> bytes:
         """Synthesize to bytes.
 
@@ -2041,16 +2042,19 @@ class TtsMixin:
                 voice_id=str(voice),
                 surface="speak_bytes",
             )
+            clone_kwargs = {"one_shot": True} if one_shot else {}
             out = cloner.speak_to_bytes(
                 speak_text,
                 voice_id=str(request.voice or voice),
                 format=fmt,
                 speed=clone_speed,
                 language=str(getattr(self, "language", None) or "en"),
+                **clone_kwargs,
             )
             synth_s = float(time.monotonic() - t0)
 
             metrics = {
+                "one_shot": bool(one_shot),
                 "engine": "clone",
                 "clone_engine": clone_engine_name,
                 "voice_id": str(request.voice or voice),
@@ -2112,7 +2116,12 @@ class TtsMixin:
                 feature="speed",
             ) == "unsupported":
                 effective_speed = None
-            use_voice_aware_bytes = bool(
+            if one_shot and not getattr(self.tts_adapter, "supports_one_shot", False):
+                raise ValueError(
+                    f"one_shot synthesis is not supported by the {provider_name or 'active'!r} TTS engine; "
+                    "it is available for qwen3-tts (preset, designed and cloned voices)."
+                )
+            use_voice_aware_bytes = bool(one_shot) or bool(
                 hasattr(self.tts_adapter, "synthesize_to_bytes_with_voice")
                 and (
                     effective_instructions
@@ -2130,6 +2139,7 @@ class TtsMixin:
                     voice=effective_voice,
                     speed=effective_speed,
                     instructions=effective_instructions,
+                    **({"one_shot": True} if one_shot else {}),
                 )
             else:
                 out = self.tts_adapter.synthesize_to_bytes(speak_text, format=fmt)
@@ -2176,6 +2186,7 @@ class TtsMixin:
         instructions: str | None = None,
         sanitize_syntax: bool = True,
         saninitze_syntax: bool | None = None,
+        one_shot: bool = False,
     ) -> str:
         # Clear prior metrics for this new utterance.
         self._set_last_tts_metrics(None)
@@ -2190,12 +2201,19 @@ class TtsMixin:
             speed=float(getattr(self, "speed", 1.0) or 1.0),
         )
         speak_text = str(request.text)
-        if voice or instructions:
+        if voice or instructions or one_shot:
             from pathlib import Path
 
             # For cloned voices, we only have a bytes API; write it out here.
             fmt = str(format or Path(output_path).suffix.lstrip(".") or "wav").strip().lower() or "wav"
-            data = self.speak_to_bytes(speak_text, format=fmt, voice=voice, instructions=instructions, sanitize_syntax=False)
+            data = self.speak_to_bytes(
+                speak_text,
+                format=fmt,
+                voice=voice,
+                instructions=instructions,
+                sanitize_syntax=False,
+                **({"one_shot": True} if one_shot else {}),
+            )
             out = Path(output_path)
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(bytes(data))

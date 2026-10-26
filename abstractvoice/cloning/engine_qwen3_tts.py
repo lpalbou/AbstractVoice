@@ -118,6 +118,28 @@ class Qwen3TTSVoiceCloningEngine:
         self._prompt_cache_value = prompt
         return prompt
 
+    def _one_shot(self, *, text: str, reference_paths: Iterable[str], reference_text: str, language: str | None):
+        """The whole text as ONE clone generation (no segmentation, no truncation)."""
+        from ..adapters.tts_qwen3_tts import _qwen_language
+        from ..qwen3_tts.runtime import one_shot_max_new_tokens
+
+        max_new_tokens = one_shot_max_new_tokens(str(text))
+        if not reference_text or not str(reference_text).strip():
+            raise RuntimeError("Missing reference_text for Qwen3-TTS cloning.")
+        ref_paths = list(reference_paths or [])
+        if len(ref_paths) != 1:
+            raise RuntimeError("Qwen3-TTS cloning currently supports exactly one reference audio file.")
+        runtime = self._get_runtime()
+        prompt = self._clone_prompt(str(ref_paths[0]), str(reference_text))
+        qwen_language = _qwen_language(language)
+        audio, sr = runtime.synthesize_clone(
+            str(text),
+            clone_prompt=prompt,
+            language=qwen_language if qwen_language != "Auto" else None,
+            max_new_tokens=max_new_tokens,
+        )
+        yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
+
     def infer_to_audio_chunks(
         self,
         *,
@@ -177,6 +199,9 @@ class Qwen3TTSVoiceCloningEngine:
             )
             yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
 
+    # `one_shot=True` on infer_to_wav_bytes: the whole text as ONE generation.
+    supports_one_shot = True
+
     def infer_to_wav_bytes(
         self,
         *,
@@ -185,16 +210,23 @@ class Qwen3TTSVoiceCloningEngine:
         reference_text: str,
         speed: Optional[float] = None,
         language: str | None = None,
+        one_shot: bool = False,
     ) -> bytes:
         chunks = []
         sr_out = 24000
-        for chunk, sr in self.infer_to_audio_chunks(
-            text=text,
-            reference_paths=reference_paths,
-            reference_text=reference_text,
-            speed=speed,
-            language=language,
-        ):
+        if one_shot:
+            source = self._one_shot(
+                text=text, reference_paths=reference_paths, reference_text=reference_text, language=language
+            )
+        else:
+            source = self.infer_to_audio_chunks(
+                text=text,
+                reference_paths=reference_paths,
+                reference_text=reference_text,
+                speed=speed,
+                language=language,
+            )
+        for chunk, sr in source:
             chunks.append(np.asarray(chunk, dtype=np.float32).reshape(-1))
             sr_out = int(sr)
         audio = np.concatenate(chunks) if chunks else np.zeros((0,), dtype=np.float32)

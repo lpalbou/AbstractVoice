@@ -675,11 +675,28 @@ class VoiceCloner:
         format: str = "wav",
         speed: Optional[float] = None,
         language: Optional[str] = None,
+        one_shot: bool = False,
     ) -> bytes:
         if format.lower() != "wav":
             raise ValueError("Voice cloning currently supports WAV output only.")
 
         voice = self.store.get_voice(voice_id)
+        if one_shot:
+            eng = self._get_engine_for_voice(voice)
+            if not getattr(eng, "supports_one_shot", False):
+                raise ValueError(
+                    f"one_shot synthesis is not supported by the {getattr(voice, 'engine', 'unknown')!r} cloning "
+                    "engine; it is available for qwen3-tts clones."
+                )
+            self.store.normalize_reference_audio(voice_id)
+            return eng.infer_to_wav_bytes(
+                text=text,
+                reference_paths=self.store.resolve_reference_paths(voice_id),
+                reference_text=self._ensure_reference_text(voice_id),
+                speed=speed,
+                language=language,
+                one_shot=True,
+            )
         # Voices created before engine-bound metadata used OpenF5 semantics.
         # Keep that legacy fallback for old stores; new clones default to OmniVoice.
         engine_name = _normalize_cloning_engine(getattr(voice, "engine", None) or "f5_tts")

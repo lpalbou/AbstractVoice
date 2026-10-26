@@ -4419,6 +4419,10 @@ class _VoiceCapability(_BaseVoice):
                     "format": str(format),
                     "voice": None if applied_profile or piper_voice_is_profile else voice_name,
                 }
+                # `one_shot=True`: the whole text as ONE generation (qwen3-tts presets,
+                # designs and clones); other engines refuse it with a ValueError.
+                if _coerce_bool(_kwargs.get("one_shot"), False):
+                    speak_kwargs["one_shot"] = True
                 if instructions_value:
                     try:
                         audio = vm.speak_to_bytes(
