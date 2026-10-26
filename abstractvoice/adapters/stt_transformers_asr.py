@@ -320,14 +320,10 @@ class TransformersASRAdapter(STTAdapter):
         except Exception:
             pass
 
+        # Offline behaviour is enforced by `local_files_only=` on every from_pretrained
+        # call in the loaders below. HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE are read once
+        # when huggingface_hub is imported, so setting them here would change nothing.
         local_only = not bool(self._allow_downloads)
-        old_hf_offline = os.environ.get("HF_HUB_OFFLINE")
-        old_tf_offline = os.environ.get("TRANSFORMERS_OFFLINE")
-        old_disable_pb = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
-        if local_only:
-            os.environ["HF_HUB_OFFLINE"] = "1"
-            os.environ["TRANSFORMERS_OFFLINE"] = "1"
-            os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 
         self._available = False
         try:
@@ -387,33 +383,21 @@ class TransformersASRAdapter(STTAdapter):
                 except Exception:
                     pass
 
-            if local_only:
+            # Only a missing-file / connection error (OSError from the Hub loaders) means
+            # "not cached". Anything else is a code or environment problem and must
+            # surface as itself instead of posing as a missing download.
+            if local_only and isinstance(e, OSError):
                 self._load_error = (
                     "Transformers ASR model is not available locally and downloads are disabled.\n"
                     "Fix options:\n"
                     "  - Enable downloads: VoiceManager(..., allow_downloads=True)\n"
                     "  - Or prefetch explicitly: abstractvoice-prefetch --stt-hf <model_id>\n"
-                    f"Model: {self._model_id}"
+                    f"Model: {self._model_id}\n"
+                    f"Underlying error: {type(e).__name__}: {e}"
                 )
-                raise RuntimeError(
-                    self._load_error
-                ) from e
+                raise RuntimeError(self._load_error) from e
             self._load_error = str(e)
             raise
-        finally:
-            if local_only:
-                if old_hf_offline is None:
-                    os.environ.pop("HF_HUB_OFFLINE", None)
-                else:
-                    os.environ["HF_HUB_OFFLINE"] = old_hf_offline
-                if old_tf_offline is None:
-                    os.environ.pop("TRANSFORMERS_OFFLINE", None)
-                else:
-                    os.environ["TRANSFORMERS_OFFLINE"] = old_tf_offline
-                if old_disable_pb is None:
-                    os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
-                else:
-                    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = old_disable_pb
 
         self._load_error = None
         if self._pipeline is not None:
@@ -447,26 +431,61 @@ class TransformersASRAdapter(STTAdapter):
             )
             return
 
+        # Whisper and every other model the Transformers speech-recognition pipeline
+        # supports. Load config, model, tokenizer and feature extractor here, with
+        # `local_files_only` and `trust_remote_code` on each call, and hand the objects
+        # to the pipeline: `pipeline(model="<id>", ...)` has no working way to pass
+        # `local_files_only` (it collides with the pipeline's own hub kwargs on
+        # Transformers 5.x and leaks into generate() as a top-level kwarg), and the
+        # offline environment variables are only read when huggingface_hub is imported.
+        import transformers
+        from transformers import AutoConfig, AutoFeatureExtractor, AutoTokenizer
+        from transformers.pipelines import SUPPORTED_TASKS
+
+        hub_kwargs: dict[str, Any] = {
+            "local_files_only": bool(local_only),
+            "trust_remote_code": bool(self._trust_remote_code),
+        }
         # Avoid noisy HF Hub token warnings when operating in local-only mode.
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore",
-                message=r"^Warning: You are sending unauthenticated requests to the HF Hub\\..*",
+                message=r"^Warning: You are sending unauthenticated requests to the HF Hub\..*",
             )
             warnings.filterwarnings(
                 "ignore",
-                message=r"^You are sending unauthenticated requests to the HF Hub\\..*",
+                message=r"^You are sending unauthenticated requests to the HF Hub\..*",
             )
+            config = AutoConfig.from_pretrained(self._model_id, **hub_kwargs)
+            # The same dispatch pipeline(model="<id>") performs: the first Auto class of
+            # the task whose mapping knows this config type (CTC, TDT or seq2seq).
+            candidates = SUPPORTED_TASKS["automatic-speech-recognition"]["pt"]
+            model_cls = next((cls for cls in candidates if type(config) in cls._model_mapping), None)
+            if model_cls is None:
+                raise RuntimeError(
+                    f"{self._model_id!r} (model_type {getattr(config, 'model_type', '?')!r}) is not a model "
+                    "the Transformers speech-recognition pipeline supports."
+                )
+            model_kwargs: dict[str, Any] = dict(hub_kwargs)
+            # `dtype` from Transformers 4.56; `torch_dtype` before (Python 3.9 installs).
+            dtype_key = (
+                "dtype"
+                if _version_triplet(getattr(transformers, "__version__", "0")) >= (4, 56, 0)
+                else "torch_dtype"
+            )
+            model_kwargs[dtype_key] = torch_dtype if torch_dtype is not None else "auto"
+            model = model_cls.from_pretrained(self._model_id, config=config, **model_kwargs)
+            tokenizer = AutoTokenizer.from_pretrained(self._model_id, **hub_kwargs)
+            feature_extractor = AutoFeatureExtractor.from_pretrained(self._model_id, **hub_kwargs)
             pipe = pipeline(
                 "automatic-speech-recognition",
-                model=self._model_id,
+                model=model,
+                tokenizer=tokenizer,
+                feature_extractor=feature_extractor,
                 device=torch_device,
-                dtype=torch_dtype if torch_dtype is not None else "auto",
-                trust_remote_code=bool(self._trust_remote_code),
-                model_kwargs={"local_files_only": bool(local_only)},
             )
         self._pipeline = pipe
-        self._capture_model_runtime(getattr(pipe, "model", None))
+        self._capture_model_runtime(model)
 
     def _ensure_loaded_cohere_asr(self, *, torch_device: Any, torch_dtype: Any, local_only: bool) -> None:
         try:

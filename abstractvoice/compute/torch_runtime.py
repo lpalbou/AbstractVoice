@@ -6,6 +6,7 @@ explicit fallback behavior instead of quietly moving to CPU.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -128,6 +129,25 @@ class TorchRuntimeResolution:
         }
 
 
+def guard_metal_weight_loading(device: Any) -> bool:
+    """Make Transformers load weights sequentially when the target device is MPS.
+
+    Transformers 5.10+ materializes checkpoint tensors from a thread pool; copying
+    them to the Apple GPU from several threads segfaults the process (observed with
+    OmniVoice, Transformers 5.13 through 5.20, torch 2.13 and 2.14; 5.9 is fine).
+    ``HF_DEACTIVATE_ASYNC_LOAD`` is read at load time, so setting it here, before
+    the engines call ``from_pretrained(device_map="mps")``, is enough. Sequential
+    loading measured no slower on Apple Silicon. An explicit value already in the
+    environment is respected. Returns True when the variable was set by this call.
+    """
+    if _device_base(device) != "mps":
+        return False
+    if "HF_DEACTIVATE_ASYNC_LOAD" in os.environ:
+        return False
+    os.environ["HF_DEACTIVATE_ASYNC_LOAD"] = "1"
+    return True
+
+
 def resolve_torch_runtime(
     *,
     device: str = "auto",
@@ -167,6 +187,8 @@ def resolve_torch_runtime(
     except Exception:
         resolved_dtype = None
         resolved_dtype_name = requested_dtype or "auto"
+
+    guard_metal_weight_loading(resolved)
 
     return TorchRuntimeResolution(
         requested_device=requested,

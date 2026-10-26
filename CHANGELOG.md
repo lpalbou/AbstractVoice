@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [Unreleased]
+
+### Fixed
+
+- `stt_engine="transformers-asr"` with Whisper and the other models the Transformers speech-recognition pipeline supports (`openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`, wav2vec2 CTC models, ...) loads again. On Transformers 5.x the load failed with `TypeError: ... got multiple values for keyword argument 'local_files_only'`, and on Transformers 4.55 (Python 3.9) with `TypeError: _sanitize_parameters() got an unexpected keyword argument 'dtype'`; with downloads disabled both were reported as a missing download. The adapter now loads the config, model, tokenizer and feature extractor itself, with `local_files_only` on every call, chooses the model class the way the pipeline does, and hands the objects to the pipeline. Qwen3-ASR and Cohere Transcribe were not affected.
+- With `allow_downloads=False`, only a missing-file error is reported as "not available locally"; the message now names the underlying error, and any other load error surfaces as itself.
+- Apple Silicon: loading a model straight onto the Apple GPU no longer crashes the process on Transformers 5.10 and newer (OmniVoice, the default cloning engine, segfaulted at load on 5.13 through 5.20). Every local engine resolves its torch device through `resolve_torch_runtime()`, which now asks Transformers to load weights sequentially when that device is `mps` (`HF_DEACTIVATE_ASYNC_LOAD=1`, respected if you set it yourself). Load time is unchanged.
+
 ## [0.15.2] - 2026-10-18
 
 ### Changed
