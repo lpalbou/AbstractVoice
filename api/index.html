@@ -562,6 +562,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Voice cloning (optional; heavy)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#designing-a-voice-from-a-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designing a voice from a description
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1699,6 +1716,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Voice cloning (optional; heavy)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#designing-a-voice-from-a-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designing a voice from a description
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2289,8 +2323,21 @@ behaviour (Apple silicon), whatever the delivery mode.</p>
 <p><code>get_supported_languages() -&gt; list[str]</code></p>
 </li>
 <li>
-<p><code>list_available_models(language: str | None = None) -&gt; dict</code></p>
+<p>Languages of every engine, without loading any model or framework:
+  <code>abstractvoice.languages.language_catalog(kind=None, provider=None) -&gt; {kind: {provider: entry}}</code></p>
 </li>
+<li><code>kind</code> is <code>tts</code>, <code>stt</code> or <code>cloning</code>; each entry is <code>{provider, languages, open, declared}</code>.</li>
+<li><code>open=True</code> for <code>openai</code> and <code>openai-compatible</code>: the remote service decides, and <code>languages</code> is empty.</li>
+<li><code>declared=False</code> when the engine publishes no language list (Chroma cloning).</li>
+<li>An unknown provider raises <code>KeyError</code> naming the known ones; an unknown kind raises <code>ValueError</code>.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.languages</span><span class="w"> </span><span class="kn">import</span> <span class="n">language_catalog</span>
+
+<span class="n">language_catalog</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s2">"tts"</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="s2">"qwen3-tts"</span><span class="p">)[</span><span class="s2">"tts"</span><span class="p">][</span><span class="s2">"qwen3-tts"</span><span class="p">][</span><span class="s2">"languages"</span><span class="p">]</span>
+<span class="c1"># ['en', 'zh', 'ja', 'ko', 'de', 'fr', 'ru', 'pt', 'es', 'it']</span>
+</code></pre></div>
+<ul>
+<li><code>list_available_models(language: str | None = None) -&gt; dict</code></li>
 <li>Lists voice/model catalog entries for CLI/web display (see <code>abstractvoice/vm/tts_mixin.py</code>).</li>
 <li>Piper returns local voice cache status by language.</li>
 <li>Supertonic returns the 10 fixed styles for the active language plus shared cache status.</li>
@@ -2460,9 +2507,38 @@ actionable error instead of silently pretending cloning is standardized.</p>
 <ul>
 <li><code>clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None) -&gt; str</code></li>
 <li><code>clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None) -&gt; str</code></li>
+<li><code>design_voice(description: str, *, name: str | None = None, language: str | None = None, text: str | None = None) -&gt; str</code> (see below)</li>
 <li><code>speak(..., voice="&lt;voice_id&gt;")</code> / <code>speak_to_bytes(..., voice="&lt;voice_id&gt;")</code> / <code>speak_to_file(..., voice="&lt;voice_id&gt;")</code></li>
 <li><code>list_cloned_voices()</code>, <code>get_cloned_voice(voice_id: str) -&gt; dict</code></li>
 </ul>
+<h3 id="designing-a-voice-from-a-description">Designing a voice from a description<a class="headerlink" href="#designing-a-voice-from-a-description" title="Permanent link">&para;</a></h3>
+<p><code>design_voice(...)</code> creates a reusable voice from words alone, with no reference
+recording. Qwen3-TTS 1.7B VoiceDesign renders a reference from the description in one
+generation. The warm-up it needs to settle into the voice is cut off at the silence
+where Whisper hears the reference text begin, so the stored transcript matches the
+stored audio, and the reference is cloned with Qwen3-TTS 1.7B Base. The result is a stored Qwen3-TTS clone:
+it is listed with the cloned voices, keeps one identity on every call, and is used
+with <code>voice="&lt;voice_id&gt;"</code>. A description passed as per-call <code>instructions</code> to the
+VoiceDesign checkpoint, by contrast, samples a new voice each time.</p>
+<ul>
+<li><code>language</code> is the language the reference is read in: <code>en</code>, <code>fr</code>, <code>es</code>, <code>de</code>, <code>it</code>, <code>pt</code>, <code>ru</code>, <code>zh</code>, <code>ja</code> or <code>ko</code>. It defaults to the manager's language when it is one of these, else <code>en</code>.</li>
+<li><code>text</code> replaces the built-in reference text for that language.</li>
+<li>The record's <code>meta</code> carries <code>designed: true</code>, the <code>description</code>, <code>language_code</code> and <code>design_model</code>.</li>
+<li>The design run uses the manager's Qwen3-TTS backend and precision settings (<code>qwen3_tts_backend</code>, <code>qwen3_tts_mlx_quantization</code>). Design runs are serialized per process; each loads its own VoiceDesign model and Whisper and unloads them when done.</li>
+<li>Needs <code>abstractvoice[qwen3-tts]</code> and <code>abstractvoice[stt]</code> (faster-whisper <code>base</code> for the alignment), plus the <code>Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign</code> and <code>Qwen/Qwen3-TTS-12Hz-1.7B-Base</code> checkpoints, downloaded on first use when downloads are allowed.</li>
+<li>An empty description, an unsupported language, or a <code>text</code> too long for one generation or too short for a 4-second reference raises <code>ValueError</code>.</li>
+<li>It runs in two halves you can also call yourself: <code>render_designed_voice(description, language=, text=) -&gt; {wav_bytes, reference_text, meta}</code> renders and stores nothing; <code>store_designed_voice(rendered, name=) -&gt; voice_id</code> clones it.</li>
+</ul>
+<p>State the voice's sex explicitly in the description, in the reference language when it
+is not English ("une voix féminine", "eine weibliche Stimme"): without it, VoiceDesign
+may pick the other one.</p>
+<div class="highlight"><pre><span></span><code><span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">"fr"</span><span class="p">)</span>
+<span class="n">voice_id</span> <span class="o">=</span> <span class="n">vm</span><span class="o">.</span><span class="n">design_voice</span><span class="p">(</span>
+    <span class="s2">"Une voix féminine, chaleureuse et posée, d'une femme d'une quarantaine d'années."</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"Claire"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">vm</span><span class="o">.</span><span class="n">speak_to_file</span><span class="p">(</span><span class="s2">"Bonjour et bienvenue."</span><span class="p">,</span> <span class="s2">"bonjour.wav"</span><span class="p">,</span> <span class="n">voice</span><span class="o">=</span><span class="n">voice_id</span><span class="p">)</span>
+</code></pre></div>
 <p>Clone management helpers:</p>
 <ul>
 <li><code>set_cloned_voice_reference_text(voice_id: str, reference_text: str) -&gt; bool</code></li>
@@ -2565,9 +2641,50 @@ integration code:
 - <code>list_tts_models(provider: str | None = None) -&gt; list[str]</code>
 - <code>list_stt_models(provider: str | None = None) -&gt; list[str]</code>
 - <code>list_cloning_models(provider: str | None = None) -&gt; list[str]</code>
-- <code>list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True) -&gt; list[dict]</code>
-- <code>list_cloned_voices(provider: str | None = None, model: str | None = None) -&gt; list[dict]</code>
+- <code>list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True, language: str | None = None) -&gt; list[dict]</code>
+- <code>list_cloned_voices(provider: str | None = None, model: str | None = None, language: str | None = None) -&gt; list[dict]</code>
+- Every voice record, profile or clone, has the same navigation fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>voice_id</code></td>
+<td>The value to pass as <code>tts(voice=...)</code></td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>Display name</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>profile</code> (an engine voice) or <code>clone</code> (stored: yours, designed or built-in)</td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>The engine that speaks it</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>The checkpoint it belongs to; a Qwen3-TTS preset is listed once per installed checkpoint</td>
+</tr>
+<tr>
+<td><code>languages</code></td>
+<td>Languages the voice can speak; empty when the provider does not restrict them (remote)</td>
+</tr>
+<tr>
+<td><code>language</code></td>
+<td>The voice's native language when known (Piper voices, Qwen3-TTS presets, built-in and designed voices), else <code>null</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>language="fr"</code> keeps the voices that can speak French and lists native French voices first.
 - <code>list_voices(...) -&gt; list[dict]</code> (alias of <code>list_tts_voices(...)</code>)
+- <code>list_languages(kind=None, provider=None) -&gt; {kind: {provider: {provider, languages, open, declared}}}</code> (static per-engine language lists for <code>tts</code>, <code>stt</code> and <code>cloning</code>; no engine is built; see "Language &amp; voice selection" above)
 - <code>available_providers() -&gt; {tts, stt, cloning, providers, details, unavailable}</code>
 - <code>compatibility_catalog() -&gt; {version, providers}</code>
 - <code>get_capability_support(kind, feature, provider, model=None, surface="default") -&gt; dict | None</code>
@@ -2585,7 +2702,9 @@ integration code:
   - <code>set_cloned_voice_reference_text(voice_id, reference_text) -&gt; dict</code> (a wrong transcript degrades cloned speech; returns the updated record)
   - <code>delete_cloned_voice(voice_id) -&gt; {ok, deleted, voice_id, name, engine}</code> (removes the record and its reference audio)
   - <code>delete_voice(...)</code> / <code>rename_voice(...)</code> are aliases. An unknown id raises <code>KeyError</code>; an empty id, name or transcript raises <code>ValueError</code>. None of these builds a <code>VoiceManager</code> or loads an engine.
-- <code>voice_catalog() -&gt; {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, available_providers, catalog}</code>
+- <code>design_voice(description, *, name=None, language=None, text=None) -&gt; dict</code>: creates a voice from a written description (see <a href="#designing-a-voice-from-a-description">Designing a voice from a description</a>) and returns its stored record with <code>ok</code>. Catalog entries of designed voices carry <code>tags.designed = true</code> and the <code>description</code>.
+- <code>voice_catalog(provider=None, model=None, providers_only=False, language=None) -&gt; {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, tts_languages_by_provider, stt_languages_by_provider, available_providers, catalog}</code>
+  - <code>tts_languages_by_provider</code> / <code>stt_languages_by_provider</code> map each listed provider to its language codes (empty for remote providers, which decide their own); a third-party provider without a known list is left out.
 - <code>voice_catalog()</code> also includes additive capability metadata:
   - <code>controls</code>: legacy control map kept backward-compatible for existing clients
   - <code>tts_capabilities</code>: richer per-field support truth (<code>native|emulated|conditional|unsupported</code>) for newer clients
@@ -2600,6 +2719,7 @@ integration code:
   - <code>unload_resident_model(request: dict) -&gt; dict</code>
 - <code>tts(text, *, provider=None, model=None, voice=None, format="wav", ...) -&gt; bytes | artifact_ref</code>
   - <code>one_shot=True</code> is forwarded to <code>speak_to_bytes(one_shot=True)</code>: the whole text as one generation (qwen3-tts presets, designs and clones).
+  - <code>tts_stream(...)</code> raises <code>ValueError</code> for <code>one_shot=True</code>: a stream is delivered in parts.
 - <code>stt(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code>
 - <code>transcribe(audio, *, provider=None, model=None, language=None, ...) -&gt; str</code></p>
 <p>These methods delegate to the active <code>VoiceManager</code> and keep voice/profile/model

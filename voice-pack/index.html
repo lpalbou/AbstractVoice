@@ -2072,6 +2072,10 @@ under <code>meta</code>; the AbstractCore plugin's catalog entries (<code>voice_
 <li><strong>Verified.</strong> Every voice then spoke a new sentence in its language through the AbstractCore plugin,
    loaded from the pack alone, and was checked for words, language and likeness to its reference.</li>
 </ol>
+<p>To design a voice of your own the same way, without building a pack, call
+<code>VoiceManager.design_voice(description, name=..., language=...)</code>: it renders a reference with
+VoiceDesign, cuts the warm-up off and stores the result as a Qwen3-TTS clone in your own store. See
+<a href="../api/#designing-a-voice-from-a-description">Designing a voice from a description</a>.</p>
 <p>To add or rebuild voices, put validated references and a <code>profiles.json</code> (id, file, name, nationality,
 language, language_code, sex, style, description, reference_text) in a folder and run
 <code>python tools/voice_pack/build.py &lt;folder&gt;</code> from a repository checkout.</p>

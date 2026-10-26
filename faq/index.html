@@ -1023,6 +1023,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#which-languages-does-each-engine-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which languages does each engine support?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-find-the-voices-for-a-language-or-an-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I find the voices for a language or an engine?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#which-tts-engine-should-i-use" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1077,6 +1099,17 @@
     <span class="md-ellipsis">
       
         Are there ready-made voices?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-i-create-a-voice-from-a-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I create a voice from a description?
       
     </span>
   </a>
@@ -1966,6 +1999,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#which-languages-does-each-engine-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which languages does each engine support?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-find-the-voices-for-a-language-or-an-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I find the voices for a language or an engine?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#which-tts-engine-should-i-use" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2020,6 +2075,17 @@
     <span class="md-ellipsis">
       
         Are there ready-made voices?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-i-create-a-voice-from-a-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I create a voice from a description?
       
     </span>
   </a>
@@ -2390,6 +2456,22 @@ OpenAI-compatible audio endpoints such as:</p>
 <p>For Piper, each language needs a cached voice:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class="w"> </span>download<span class="w"> </span>--piper<span class="w"> </span>fr
 </code></pre></div>
+<h3 id="which-languages-does-each-engine-support">Which languages does each engine support?<a class="headerlink" href="#which-languages-does-each-engine-support" title="Permanent link">&para;</a></h3>
+<p><code>abstractvoice.languages.language_catalog()</code> lists them for every TTS, STT and
+cloning engine without loading a model, and the AbstractCore plugin exposes the
+same lists as <code>list_languages(kind=..., provider=...)</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.languages</span><span class="w"> </span><span class="kn">import</span> <span class="n">language_catalog</span>
+
+<span class="n">language_catalog</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s2">"stt"</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="s2">"faster-whisper"</span><span class="p">)</span>
+</code></pre></div>
+<p>Remote OpenAI and OpenAI-compatible providers are reported as <code>open</code>: the remote
+service decides which languages it accepts.</p>
+<h3 id="how-do-i-find-the-voices-for-a-language-or-an-engine">How do I find the voices for a language or an engine?<a class="headerlink" href="#how-do-i-find-the-voices-for-a-language-or-an-engine" title="Permanent link">&para;</a></h3>
+<p>Through AbstractCore, <code>llm.voice.list_voices(provider="piper", language="fr")</code>, or
+<code>voice_catalog(language="fr")</code> on the plugin. Every record carries <code>voice_id</code> (pass it
+as <code>voice=</code>), <code>kind</code>, <code>provider</code>, <code>model</code>, <code>languages</code> and, when known, the native <code>language</code>;
+native speakers of the requested language come first. Cloned, designed and built-in
+voices are listed alongside the engine voices with <code>kind: "clone"</code>.</p>
 <h3 id="which-tts-engine-should-i-use">Which TTS engine should I use?<a class="headerlink" href="#which-tts-engine-should-i-use" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Remote OpenAI-compatible engines are the lightest path for server and plugin
@@ -2454,6 +2536,13 @@ each language. They need <code>abstractvoice[qwen3-tts]</code> and the
 voice does, for example <code>vm.speak("Bonjour.", voice="fr-female-camille")</code> or
 <code>llm.voice.tts("Hello.", voice="en-us-male-harrison")</code> through AbstractCore.
 They are read-only. See <a href="../voice-pack/">Built-in voices</a>.</p>
+<h3 id="can-i-create-a-voice-from-a-description">Can I create a voice from a description?<a class="headerlink" href="#can-i-create-a-voice-from-a-description" title="Permanent link">&para;</a></h3>
+<p>Yes. <code>vm.design_voice("A calm, warm female voice in her thirties.", name="Mira")</code>
+returns a voice id you can use like any cloned voice; through AbstractCore, call
+<code>llm.voice.design_voice(...)</code>. It needs the <code>qwen3-tts</code> and <code>stt</code> extras. Qwen3-TTS 1.7B VoiceDesign renders a reference from
+the description and Qwen3-TTS 1.7B Base clones it, so the voice keeps one identity.
+State the sex explicitly, in the reference language when it is not English. See
+<a href="../api/#designing-a-voice-from-a-description">Designing a voice from a description</a>.</p>
 <h3 id="how-should-i-prepare-reference-audio">How should I prepare reference audio?<a class="headerlink" href="#how-should-i-prepare-reference-audio" title="Permanent link">&para;</a></h3>
 <p>Good reference audio matters more than most generation knobs:</p>
 <ul>
