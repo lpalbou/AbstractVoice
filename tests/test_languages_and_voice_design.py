@@ -330,7 +330,9 @@ class _DesignVM:
         return dict(self.records[voice_id])
 
 
-def test_plugin_design_voice_renders_outside_the_lock_and_returns_the_record():
+def test_plugin_design_voice_renders_outside_the_lock_and_returns_the_record(monkeypatch):
+    # Wiring test with a fake manager: the engine runtime counts as installed.
+    monkeypatch.setattr("abstractvoice.engine_runtime.engine_runtime_status", lambda engine: type("S", (), {"installed": True})())
     vm = _DesignVM()
     cap = _cap(vm)
     lock = cap._vm_lock(vm)
@@ -520,6 +522,7 @@ def test_local_clone_requests_build_no_tts_or_stt_engine(monkeypatch):
 
     plugin._VM_CACHE.clear()
     monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+    monkeypatch.setattr("abstractvoice.engine_runtime.engine_runtime_status", lambda engine: type("S", (), {"installed": True})())
 
     class _Owner:
         # The configured TTS engine is unusable here (no key); a clone must not need it.
@@ -529,3 +532,24 @@ def test_local_clone_requests_build_no_tts_or_stt_engine(monkeypatch):
     assert vm.cloning_engine == "qwen3-tts"
     assert built[-1]["tts_engine"] == "none" and built[-1]["stt_engine"] == "none"
     plugin._VM_CACHE.clear()
+
+
+def test_clone_for_an_engine_this_install_cannot_run_is_refused(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    class _Missing:
+        installed = False
+        label = "Qwen3-TTS"
+        reason = 'Qwen3-TTS is not installed. Install it with: pip install "abstractvoice[qwen3-tts]"'
+
+    monkeypatch.setattr("abstractvoice.engine_runtime.engine_runtime_status", lambda engine: _Missing())
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", lambda **kw: pytest.fail("no manager may be built"))
+
+    class _Owner:
+        config = {}
+
+    cap = plugin._VoiceCapability(_Owner())
+    with pytest.raises(RuntimeError, match=r"abstractvoice\[qwen3-tts\]"):
+        cap.clone(b"RIFF", provider="qwen3-tts", reference_text="hello")
+    with pytest.raises(RuntimeError, match="Qwen3-TTS"):
+        cap.design_voice("a calm voice")

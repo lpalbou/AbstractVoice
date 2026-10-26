@@ -779,7 +779,9 @@ def test_voice_capability_cloning_query_helpers_fallback_to_catalog(monkeypatch)
     assert "omnivoice" not in providers
 
 
-def test_voice_capability_clone_exposes_first_class_plugin_surface(tmp_path):
+def test_voice_capability_clone_exposes_first_class_plugin_surface(tmp_path, monkeypatch):
+    # Wiring test with a fake manager: the engine runtime counts as installed.
+    monkeypatch.setattr("abstractvoice.engine_runtime.engine_runtime_status", lambda engine: type("S", (), {"installed": True})())
     seen = {"path": None, "kwargs": None}
     ref = tmp_path / "reference.wav"
     ref.write_bytes(b"RIFF....WAVE")
@@ -852,6 +854,8 @@ def test_voice_capability_clone_routes_remote_provider_model_to_vm(monkeypatch):
 
 
 def test_voice_capability_clone_does_not_force_local_cloning_model_into_tts(monkeypatch):
+    # Wiring test with a fake manager: the engine runtime counts as installed.
+    monkeypatch.setattr("abstractvoice.engine_runtime.engine_runtime_status", lambda engine: type("S", (), {"installed": True})())
     import abstractvoice.integrations.abstractcore_plugin as plugin
 
     _clear_plugin_env(monkeypatch)
