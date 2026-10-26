@@ -195,7 +195,8 @@ def test_available_provider_has_no_reason(monkeypatch):
 
 def test_unfiltered_empty_listing_leads_with_configured_provider(monkeypatch):
     _clear_voice_env(monkeypatch)
-    _hide_modules(monkeypatch, "onnxruntime", "piper", "piper_phonemize", "torch", "omnivoice")
+    # `mlx` too: on Apple silicon Qwen3-TTS runs without torch (ADR 0008).
+    _hide_modules(monkeypatch, "onnxruntime", "piper", "piper_phonemize", "torch", "omnivoice", "mlx")
     cap = plugin._VoiceCapability(_Owner({"voice_tts_engine": "supertonic"}))
     catalog = cap.voice_catalog(providers_only=True)
     assert catalog["tts_providers"] == []

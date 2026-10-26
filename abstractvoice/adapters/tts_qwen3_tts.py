@@ -93,10 +93,20 @@ class Qwen3TTSAdapter(TTSAdapter):
     # ------------------------------------------------------------- introspection
 
     def is_available(self) -> bool:
-        # Capability probe: importable runtimes only, never multi-GB loads.
+        # Capability probe: importable runtimes only, never multi-GB loads. The
+        # backend policy (ADR 0008) decides which runtime that is.
         try:
             import importlib.util
 
+            from ..qwen3_tts.backend import select_backend
+
+            settings = getattr(self._runtime, "settings", None)
+            backend = select_backend(getattr(settings, "backend", None))
+            if backend == "mlx":
+                return (
+                    importlib.util.find_spec("mlx") is not None
+                    and importlib.util.find_spec("tokenizers") is not None
+                )
             return (
                 importlib.util.find_spec("torch") is not None
                 and importlib.util.find_spec("transformers") is not None
@@ -107,6 +117,26 @@ class Qwen3TTSAdapter(TTSAdapter):
     def is_cached_locally(self) -> bool:
         """True when the selected checkpoint's weights are in the local cache (no network)."""
         return hf_cached_snapshot_dir(self.model_id) is not None
+
+    @property
+    def native_frame_streaming(self) -> bool:
+        """True when ``synthesize_to_audio_chunks*`` streams codec frames of ONE generation
+        per reply (MLX backend, ADR 0008) instead of one buffered chunk per text segment."""
+        return bool(getattr(self._runtime, "supports_native_streaming", False))
+
+    def execution_device(self) -> Dict[str, Any]:
+        """Where synthesis runs (`device`, `reason`) -- stamped on stream metrics."""
+        try:
+            backend = getattr(self._runtime, "backend", None) or self._runtime.resolve_backend()
+        except Exception as e:  # noqa: BLE001 - metadata must never break synthesis
+            return {"device": "unknown", "reason": f"backend selection failed: {e}"}
+        if backend == "mlx":
+            return {"device": "metal", "reason": "Apple GPU (MLX)"}
+        try:
+            device = self._runtime.runtime_info().get("device")
+        except Exception:  # noqa: BLE001
+            device = None
+        return {"device": str(device or "auto"), "reason": "PyTorch (ADR 0005 device policy)"}
 
     def is_engine_loaded(self) -> bool:
         """Residency probe used by preload/unload bookkeeping."""
@@ -141,9 +171,18 @@ class Qwen3TTSAdapter(TTSAdapter):
         return int(self._sample_rate or 24000)
 
     def get_max_chars(self) -> int:
-        # Chunk size bounds time-to-first-audio (ADR 0004). The slowest preset
-        # renders ~4.8 chars/s, so 200 chars is ~40s of audio worst case and
-        # ~13s for typical voices -- 400 meant over a minute per chunk.
+        # With native frame streaming (MLX backend) first audio does not depend on
+        # the segment length, so a reply is ONE generation up to this bound: the
+        # voice cannot drift between sentences. Longer texts are cut at sentence
+        # boundaries into independent generations.
+        if self.native_frame_streaming:
+            from ..qwen3_tts.runtime import NATIVE_STREAM_MAX_CHARS
+
+            return NATIVE_STREAM_MAX_CHARS
+        # PyTorch backend: each segment is a buffered generation, so the chunk
+        # size bounds time-to-first-audio (ADR 0004). The slowest preset renders
+        # ~4.8 chars/s, so 200 chars is ~40s of audio worst case and ~13s for
+        # typical voices -- 400 meant over a minute per chunk.
         return 200
 
     # ----------------------------------------------------------------- language
@@ -274,13 +313,55 @@ class Qwen3TTSAdapter(TTSAdapter):
     def synthesize(self, text: str) -> np.ndarray:
         return self._synthesize_array(text, speaker=self._active_speaker(), instructions=self._instructions)
 
+    def synthesize_to_audio_chunks(self, text: str):
+        """Streamed delivery: codec-frame chunks of one generation (MLX), else one buffered chunk."""
+        if self.native_frame_streaming:
+            yield from self._stream_chunks(text, speaker=self._active_speaker(), instructions=self._instructions)
+            return
+        yield from super().synthesize_to_audio_chunks(text)
+
     def synthesize_to_audio_chunks_with_instructions(self, text: str, *, instructions: str):
+        if self.native_frame_streaming:
+            yield from self._stream_chunks(text, speaker=self._active_speaker(), instructions=instructions)
+            return
         from ..tts.text_chunking import split_text_batches
 
         for chunk in split_text_batches(str(text), max_chars=self.get_max_chars()):
             if chunk.strip():
                 audio = self._synthesize_chunk(chunk, speaker=self._active_speaker(), instructions=instructions)
                 yield audio, self.get_sample_rate()
+
+    def _stream_chunks(self, text: str, *, speaker: Optional[str], instructions: Optional[str]):
+        """Frame-level chunks from the runtime: ONE generation per bounded segment, no re-sampling
+        between sentences, contiguous audio (fades only at the utterance edges)."""
+        from ..tts.text_chunking import split_text_batches
+
+        model_type = self._model_type_or_raise()
+        language = _qwen_language(self._language)
+        for segment in split_text_batches(str(text), max_chars=self.get_max_chars()):
+            if not segment.strip():
+                continue
+            if model_type == "custom_voice":
+                speaker = speaker or self._active_speaker()
+                if not speaker:
+                    raise RuntimeError(
+                        "Qwen3-TTS CustomVoice needs a speaker profile; none are visible. "
+                        "Prefetch the model (abstractvoice-prefetch --qwen3-tts) so its "
+                        "speaker list can be read."
+                    )
+                chunks = self._runtime.stream_custom_voice(
+                    segment, speaker=str(speaker), language=language, instruct=instructions
+                )
+            elif model_type == "voice_design":
+                chunks = self._runtime.stream_voice_design(segment, instruct=str(instructions or ""), language=language)
+            else:
+                raise RuntimeError(
+                    f"Qwen3-TTS model type {model_type!r} is a cloning checkpoint; select it "
+                    "through voice cloning (cloning_engine='qwen3-tts'), not as base TTS."
+                )
+            for audio, sr in chunks:
+                self._sample_rate = int(sr)
+                yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
 
     def _synthesize_array(
         self,

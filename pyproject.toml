@@ -55,6 +55,9 @@ apple = [
     "faster-whisper>=0.10.0",
     # Whisper on the Apple GPU (MLX); faster-whisper (CTranslate2) has no Apple GPU backend.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    # Qwen3-TTS on the Apple GPU (MLX, ADR 0008) with its tokenizer from `tokenizers`.
+    "mlx>=0.31.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "tokenizers>=0.21.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
@@ -94,6 +97,9 @@ gpu = [
     "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
     # Same profile on an Apple Silicon Mac: Whisper on its GPU (MLX). No-op elsewhere.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    # Qwen3-TTS on the Apple GPU (MLX, ADR 0008) with its tokenizer from `tokenizers`. No-op elsewhere.
+    "mlx>=0.31.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "tokenizers>=0.21.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
@@ -182,6 +188,10 @@ qwen3-tts = [
     "safetensors>=0.4.0",
     "soundfile>=0.12.1",
     "numpy>=1.24.0",
+    # Apple Silicon: Qwen3-TTS runs on the Apple GPU through MLX (ADR 0008); the text tokenizer
+    # comes from `tokenizers` (vocab.json + merges.txt in the snapshot), not Transformers.
+    "mlx>=0.31.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "tokenizers>=0.21.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
 # OmniVoice (optional; omnilingual TTS + voice cloning / design)
@@ -250,6 +260,9 @@ all-apple = [
     "faster-whisper>=0.10.0",
     # Whisper on the Apple GPU (MLX); faster-whisper (CTranslate2) has no Apple GPU backend.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    # Qwen3-TTS on the Apple GPU (MLX, ADR 0008) with its tokenizer from `tokenizers`.
+    "mlx>=0.31.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "tokenizers>=0.21.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",
@@ -292,6 +305,9 @@ all-gpu = [
     "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
     # Same profile on an Apple Silicon Mac: Whisper on its GPU (MLX). No-op elsewhere.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    # Qwen3-TTS on the Apple GPU (MLX, ADR 0008) with its tokenizer from `tokenizers`. No-op elsewhere.
+    "mlx>=0.31.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "tokenizers>=0.21.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sounddevice>=0.4.6",
     "webrtcvad-wheels>=2.0.14",
     "soundfile>=0.12.1",

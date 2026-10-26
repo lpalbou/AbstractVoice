@@ -152,6 +152,8 @@ def engine_runtime_status(engine: Any, *, kind: Optional[str] = None) -> EngineR
         raise ValueError(
             f"unknown AbstractVoice engine {engine!r}; known engines: {', '.join(_ENGINES)}"
         )
+    if engine_id == "qwen3-tts":
+        spec = _qwen3_tts_requirement(spec)
     if kind is not None and _require_kind(kind) not in spec.kinds:
         raise ValueError(f"engine {engine_id!r} does not serve {kind!r} (it serves {', '.join(spec.kinds)})")
 
@@ -184,6 +186,23 @@ def engine_runtime_status(engine: Any, *, kind: Optional[str] = None) -> EngineR
 def engine_runtime_installed(engine: Any, *, kind: Optional[str] = None) -> bool:
     """Shorthand for ``engine_runtime_status(engine, kind=kind).installed``."""
     return engine_runtime_status(engine, kind=kind).installed
+
+
+def _qwen3_tts_requirement(spec: _EngineRequirement) -> _EngineRequirement:
+    """Qwen3-TTS runs on MLX on Apple silicon and on PyTorch elsewhere (ADR 0008), so the
+    packages it needs follow that policy (and ``ABSTRACTVOICE_QWEN3_TTS_BACKEND``). The policy
+    module is pure Python: no framework is imported here either."""
+    from .qwen3_tts.backend import select_backend
+
+    try:
+        backend = select_backend()
+    except Exception:
+        # An explicit 'mlx' request where MLX cannot run: report the PyTorch modules here;
+        # the runtime raises the real, plain error when it loads.
+        backend = "torch"
+    if backend != "mlx":
+        return spec
+    return _EngineRequirement(spec.label, spec.kinds, (("mlx",), ("tokenizers",), ("soundfile",)), spec.extra)
 
 
 def _require_kind(kind: str) -> str:

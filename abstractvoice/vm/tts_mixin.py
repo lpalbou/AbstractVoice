@@ -65,6 +65,14 @@ def trim_stream_silence(mono, sample_rate: int):
     return mono[start:end]
 
 
+def _adapter_streams_natively(adapter) -> bool:
+    """True when the adapter streams codec frames of one generation per reply (`native_frame_streaming`)."""
+    try:
+        return bool(getattr(adapter, "native_frame_streaming", False))
+    except Exception:  # noqa: BLE001 - a misconfigured backend fails loudly at synthesis, not here
+        return False
+
+
 def _adapter_device(adapter) -> dict:
     """`device` / `device_reason` of an adapter that reports them (else nothing)."""
     fn = getattr(adapter, "execution_device", None)
@@ -1347,10 +1355,16 @@ class TtsMixin:
                 # Delegate to the shared streaming bridge so stop/pause/metrics and
                 # LLM→TTS pipelining share one implementation.
                 try:
+                    adapter = getattr(self, "tts_adapter", None)
+                    native = _adapter_streams_natively(adapter)
                     stream = self.open_tts_text_stream(
                         voice=None,
                         callback=callback,
                         sanitize_syntax=False,  # `speak_text` already reflects sanitize_syntax.
+                        # A natively streaming engine speaks the whole reply as ONE generation
+                        # (bounded by its own max chars): no cut before the text is complete.
+                        max_chars=(int(adapter.get_max_chars()) if native else None),
+                        min_chars=(len(speak_text) + 1 if native else None),
                     )
                     stream.push(str(speak_text))
                     stream.close()
@@ -1694,6 +1708,7 @@ class TtsMixin:
             total_audio_s = 0.0
             segments = []
             stream_max_chars = 240
+            native = False
             configured_language = getattr(adapter, "_language", None)
             if reply_language and reply_language != configured_language:
                 adapter.set_language(reply_language)
@@ -1707,13 +1722,21 @@ class TtsMixin:
                 if not (int(max_chars) > 0):
                     max_chars = 240
 
-                stream_max_chars = min(int(max_chars), 240)
-                # Whole sentences: the first sentence alone, then groups sized to stay ahead
-                # of playback (round 17, text_chunking.split_complete_text_for_streaming).
-                segments = split_complete_text_for_streaming(
-                    str(speak_text),
-                    max_chars=stream_max_chars,
-                )
+                native = _adapter_streams_natively(adapter)
+                if native:
+                    # The engine streams codec frames of ONE generation per reply (bounded
+                    # inside the adapter): no per-sentence re-sampling, so the voice cannot
+                    # drift between sentences, and first audio is a fraction of a second in.
+                    stream_max_chars = int(max_chars)
+                    segments = [str(speak_text)]
+                else:
+                    stream_max_chars = min(int(max_chars), 240)
+                    # Whole sentences: the first sentence alone, then groups sized to stay ahead
+                    # of playback (round 17, text_chunking.split_complete_text_for_streaming).
+                    segments = split_complete_text_for_streaming(
+                        str(speak_text),
+                        max_chars=stream_max_chars,
+                    )
                 if not segments:
                     segments = [str(speak_text)]
                 for seg_text in segments:
@@ -1730,7 +1753,11 @@ class TtsMixin:
                         if cancel_event is not None and cancel_event.is_set():
                             break
                         sr_i = int(sr) if sr else 0
-                        mono = trim_stream_silence(np.asarray(chunk, dtype=np.float32).reshape(-1), sr_i)
+                        mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
+                        if not native:
+                            # Independent segments carry their own leading/trailing silence;
+                            # native frame chunks are contiguous pieces of one waveform.
+                            mono = trim_stream_silence(mono, sr_i)
                         if mono.size <= 0:
                             continue
                         if sr_i > 0:
@@ -1754,6 +1781,9 @@ class TtsMixin:
                     "segments": int(len(segments)),
                     "segment_max_chars": int(stream_max_chars),
                     "segment_chars": [len(str(x)) for x in segments],
+                    # "frames": chunks are codec frames of one generation per segment;
+                    # "segments": each chunk is one independently synthesized text segment.
+                    "streaming_unit": "frames" if native else "segments",
                     **_adapter_device(adapter),
                     "language": str(reply_language or getattr(adapter, "_language", None) or getattr(self, "language", None) or "en"),
                     "language_source": "request" if language else "reply" if reply_language else "configured",

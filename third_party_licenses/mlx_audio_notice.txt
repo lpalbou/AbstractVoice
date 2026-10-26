@@ -1,0 +1,102 @@
+Qwen3-TTS on MLX — model code notice
+====================================
+
+AbstractVoice's `abstractvoice/qwen3_tts/mlx/` package runs the Qwen3-TTS 12Hz
+family on Apple silicon through MLX. Its model code is derived from three MIT
+licensed projects; each vendored file's header lists its local modifications
+exhaustively.
+
+1. mlx-audio (version 0.6.1) by Prince Canuma and contributors
+   - Repository: https://github.com/Blaizzy/mlx-audio
+   - PyPI:       https://pypi.org/project/mlx-audio/
+   - License:    MIT
+   - Files derived: mlx_audio/tts/models/qwen3_tts/{config,talker,speaker_encoder,
+     speech_tokenizer,qwen3_tts}.py -> abstractvoice/qwen3_tts/mlx/{config,talker,
+     speaker_encoder,codec,model}.py
+
+2. Kyutai Mimi modules as redistributed by mlx-audio (mlx_audio/codec/models/mimi/*)
+   - Repository: https://github.com/kyutai-labs/moshi (moshi_mlx)
+   - License:    MIT
+   - The codec ENCODER layout in abstractvoice/qwen3_tts/mlx/codec.py follows these
+     modules (and Hugging Face Transformers' `MimiModel`, Apache-2.0, for naming).
+
+3. mlx-lm by Apple Inc., as redistributed by mlx-audio (mlx_audio/lm/models/cache.py)
+   - Repository: https://github.com/ml-explore/mlx-lm
+   - License:    MIT
+   - File derived: KVCache -> abstractvoice/qwen3_tts/mlx/_cache.py
+
+The MLX runtime itself (`mlx`, https://github.com/ml-explore/mlx) is an ordinary
+dependency (MIT), not vendored. Model weights are the original Qwen checkpoints
+(Apache-2.0; see qwen3_tts_notice.txt) and are never redistributed here.
+
+---
+
+MIT License
+
+Copyright (c) 2024 Prince Canuma
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+MIT License
+
+Copyright (c) Kyutai, all rights reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+MIT License
+
+Copyright © 2023-2024 Apple Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

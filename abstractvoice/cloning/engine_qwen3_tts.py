@@ -146,14 +146,30 @@ class Qwen3TTSVoiceCloningEngine:
         runtime = self._get_runtime()
         prompt = self._clone_prompt(str(ref_paths[0]), str(reference_text))
         qwen_language = _qwen_language(language)
+        language_arg = qwen_language if qwen_language != "Auto" else None
 
-        for chunk in split_text_batches(str(text), max_chars=int(max_chars)):
+        # Native frame streaming (MLX backend, ADR 0008): first audio no longer
+        # depends on the segment length, so the reply is ONE generation up to the
+        # native bound and the cloned voice cannot drift between sentences.
+        native = bool(getattr(runtime, "supports_native_streaming", False))
+        if native:
+            from ..qwen3_tts.runtime import NATIVE_STREAM_MAX_CHARS
+
+            bound = max(int(max_chars), int(NATIVE_STREAM_MAX_CHARS))
+        else:
+            bound = int(max_chars)
+
+        for chunk in split_text_batches(str(text), max_chars=bound):
             if not chunk.strip():
+                continue
+            if native:
+                for audio, sr in runtime.stream_clone(chunk, clone_prompt=prompt, language=language_arg):
+                    yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
                 continue
             audio, sr = runtime.synthesize_clone(
                 chunk,
                 clone_prompt=prompt,
-                language=qwen_language if qwen_language != "Auto" else None,
+                language=language_arg,
             )
             yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
 
