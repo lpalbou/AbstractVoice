@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.18.2] - 2026-10-26
+
+### Fixed
+
+- AbstractCore plugin: `clone(...)` and `design_voice(...)` refuse a local cloning engine this install cannot run, with its install command (`RuntimeError`). The voice used to be stored anyway, and was then neither speakable nor listed under that engine.
+
 ## [0.18.1] - 2026-10-26
 
 ### Fixed

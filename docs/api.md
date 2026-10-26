@@ -713,7 +713,7 @@ integration code:
     `instructions` support on `bytes` but not `playback` — so live-playback
     consumers should query `surface="playback"` explicitly.
 - `clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -> voice_id | dict`
-  - Creating a voice with a local cloning engine needs only that engine: the configured TTS and STT engines (OpenAI by default) are not built, so no OpenAI key is required.
+  - Creating a voice with a local cloning engine needs only that engine: the configured TTS and STT engines (OpenAI by default) are not built, so no OpenAI key is required. An engine this install cannot run is refused with its install command (`RuntimeError`) before anything is stored.
 - `clone_voice(...) -> ...` (compatibility alias of `clone(...)`)
 - Cloned-voice management (the clone registry is shared by every manager of the user):
   - `get_cloned_voice(voice_id) -> dict` (stored record: `voice_id`, `name`, `engine`, `reference_text`, `reference_files`, `meta`)

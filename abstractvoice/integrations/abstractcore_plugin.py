@@ -1749,6 +1749,14 @@ class _BaseVoice:
         remote_model_capable = engine in {"openai", "openai-compatible"}
         if not engine:
             return self._get_vm()
+        if not remote_model_capable:
+            # A voice stored for an engine this install cannot run would be neither
+            # speakable nor listed under that engine: refuse it with the install command.
+            from ..engine_runtime import engine_runtime_status
+
+            status = engine_runtime_status(engine)  # unknown engine: ValueError naming the known ones
+            if not status.installed:
+                raise RuntimeError(f"Creating a voice with {status.label} needs its runtime. {status.reason}")
 
         current = None
         try:
