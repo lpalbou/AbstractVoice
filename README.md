@@ -80,41 +80,25 @@ provider routing, and OpenAI-compatible HTTP endpoints; AbstractVoice supplies
 the concrete voice implementation.
 
 ```mermaid
-flowchart LR
-  App["Your app / CLI / REPL"] --> VM["abstractvoice.VoiceManager"]
+flowchart TB
+  App["Your app · CLI · REPL"]
+  AC["AbstractCore<br/>capability plugin"]
+  AR["AbstractRuntime<br/>optional ArtifactStore"]
+  VM["abstractvoice.VoiceManager"]
 
-  subgraph TTS["Text to speech"]
-    RemoteTTS["OpenAI / OpenAI-compatible audio"]
-    Supertonic["Supertonic 3 (ONNX)"]
-    Piper["Piper"]
-    Qwen["Qwen3-TTS: preset speakers, VoiceDesign<br/>MLX on Apple silicon, PyTorch elsewhere"]
-    Omni["OmniVoice"]
-    DiT["AudioDiT"]
-  end
+  App --> VM
+  AC -.-> VM
+  AR -.-> VM
 
-  subgraph Cloning["Voice cloning"]
-    Cloner["VoiceCloner"] --> Store["Clone store:<br/>your voices + 70 built-in voices"]
-    Cloner --> Engines["Clone engines: OmniVoice, Qwen3-TTS,<br/>OpenF5, Chroma, AudioDiT, remote"]
-  end
-
-  subgraph STT["Speech to text"]
-    FW["faster-whisper (CUDA or CPU)"]
-    MW["mlx-whisper (Apple GPU)"]
-    TA["transformers-asr:<br/>Whisper, Qwen3-ASR, Cohere"]
-    RemoteSTT["OpenAI / OpenAI-compatible audio"]
-  end
+  TTS["<b>Text to speech</b><br/>Supertonic · Piper · OmniVoice · AudioDiT<br/>Qwen3-TTS: MLX on Apple silicon, PyTorch elsewhere<br/>OpenAI-compatible audio"]
+  CLONE["<b>Voice cloning</b><br/>your clones + 70 built-in voices<br/>engines: OmniVoice · Qwen3-TTS · OpenF5<br/>Chroma · AudioDiT · remote"]
+  STT["<b>Speech to text</b><br/>faster-whisper: CUDA or CPU<br/>mlx-whisper: Apple GPU<br/>transformers-asr: Whisper, Qwen3-ASR, Cohere<br/>OpenAI-compatible audio"]
+  IO["<b>Audio I/O</b><br/>sounddevice playback and microphone<br/>VAD · optional echo cancellation"]
 
   VM --> TTS
-  VM --> Cloning
+  VM --> CLONE
   VM --> STT
-  VM --> IO["Audio I/O: sounddevice, VAD,<br/>optional echo cancellation"]
-
-  subgraph Framework["AbstractFramework"]
-    AC["AbstractCore"]
-    AR["AbstractRuntime"]
-  end
-  AC -. "capability plugin" .-> VM
-  AR -. "optional ArtifactStore" .-> VM
+  VM --> IO
 ```
 
 The shipped AbstractCore integration is via the capability plugin above. The `abstractvoice` REPL is a **demonstrator/smoke-test harness** (see `docs/repl_guide.md`) and includes a minimal OpenAI-compatible LLM HTTP client (`abstractvoice/examples/llm_provider.py`) for convenience.
