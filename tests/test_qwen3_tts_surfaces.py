@@ -170,7 +170,8 @@ def test_plugin_clone_routes_requested_checkpoint_and_persists_it(tmp_path, monk
     assert voice.engine == "qwen3-tts" and voice.meta["model_id"] == LARGE_BASE
     vms = list(plugin._VM_CACHE.values())
     assert any(vm.cloning_model == LARGE_BASE for vm in vms)
-    assert all(not vm.tts_adapter.is_engine_loaded() for vm in vms)
+    # Cloning never loads a TTS engine (the clone-request manager has none at all).
+    assert all(vm.tts_adapter is None or not vm.tts_adapter.is_engine_loaded() for vm in vms)
     catalog = cap.voice_catalog(provider="qwen3-tts", model=LARGE_BASE)
     assert any(v["voice_id"] == voice_id for v in catalog["cloned_voices"])
     assert not cap.voice_catalog(provider="qwen3-tts", model=BASE)["cloned_voices"]

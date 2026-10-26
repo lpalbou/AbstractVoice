@@ -1771,6 +1771,12 @@ class _BaseVoice:
         override_cfg["voice_cloning_engine"] = engine
         if remote_model_capable:
             override_cfg["voice_tts_engine"] = engine
+        else:
+            # Creating a local clone needs the cloner, not a TTS or STT engine:
+            # building the configured ones (OpenAI by default) would demand their
+            # credentials or runtime for a request that never uses them.
+            override_cfg["voice_tts_engine"] = "none"
+            override_cfg["voice_stt_engine"] = "none"
         if remote_model_capable and requested_model:
             override_cfg["voice_tts_model"] = requested_model
         if engine == "qwen3-tts" and requested_model:

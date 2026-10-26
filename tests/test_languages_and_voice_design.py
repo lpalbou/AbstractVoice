@@ -492,3 +492,38 @@ def test_language_filter_also_narrows_the_id_maps_and_keeps_native_speakers():
     cat = _navigable_voice_catalog(raw, language="fr")
     assert cat["tts_voices_by_provider"]["piper"] == ["siwis"]
     assert "c-fr" in [v["voice_id"] for v in cat["voices"]]
+
+
+def test_design_voice_names_the_extra_when_qwen3_tts_is_missing(monkeypatch):
+    from abstractvoice import engine_runtime
+
+    class _Missing:
+        installed = False
+        reason = 'Qwen3-TTS is not installed. Install it with: pip install "abstractvoice[qwen3-tts]"'
+
+    monkeypatch.setattr(engine_runtime, "engine_runtime_status", lambda engine: _Missing())
+    with pytest.raises(RuntimeError, match=r"abstractvoice\[qwen3-tts\]"):
+        _designer("en").design_voice("a calm voice")
+
+
+def test_local_clone_requests_build_no_tts_or_stt_engine(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    built = []
+
+    class _VM:
+        def __init__(self, **kwargs):
+            built.append(kwargs)
+            self.cloning_engine = kwargs.get("cloning_engine")
+
+    plugin._VM_CACHE.clear()
+    monkeypatch.setattr("abstractvoice.voice_manager.VoiceManager", _VM)
+
+    class _Owner:
+        # The configured TTS engine is unusable here (no key); a clone must not need it.
+        config = {"voice_tts_engine": "openai", "voice_cloning_engine": "omnivoice"}
+
+    vm = plugin._VoiceCapability(_Owner())._get_vm_for_clone_request(provider="qwen3-tts", model=None)
+    assert vm.cloning_engine == "qwen3-tts"
+    assert built[-1]["tts_engine"] == "none" and built[-1]["stt_engine"] == "none"
+    plugin._VM_CACHE.clear()
