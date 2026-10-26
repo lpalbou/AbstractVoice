@@ -1,3 +1,4 @@
+import os
 import sys
 
 import pytest
@@ -233,3 +234,48 @@ def test_transformers_asr_records_unavailable_reason_from_init_failure(monkeypat
     assert adapter.is_available() is False
     assert adapter.get_unavailable_reason() == "MPS load failed"
     assert adapter.get_info()["runtime"]["load_error"] == "MPS load failed"
+
+
+def test_resolve_torch_runtime_on_mps_makes_transformers_load_weights_sequentially(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import abstractvoice.compute.torch_runtime as runtime_module
+
+    monkeypatch.delenv("HF_DEACTIVATE_ASYNC_LOAD", raising=False)
+    monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
+    monkeypatch.setattr(runtime_module, "best_torch_dtype_name", lambda *, device: "float16")
+    monkeypatch.setattr(runtime_module, "resolve_torch_dtype", lambda *, device, dtype_name=None: "torch.float16")
+
+    runtime_module.resolve_torch_runtime(device="mps")
+
+    assert os.environ.get("HF_DEACTIVATE_ASYNC_LOAD") == "1"
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda", "cuda:1"])
+def test_resolve_torch_runtime_leaves_transformers_loading_alone_off_mps(
+    monkeypatch: pytest.MonkeyPatch, device: str
+) -> None:
+    import abstractvoice.compute.torch_runtime as runtime_module
+
+    monkeypatch.delenv("HF_DEACTIVATE_ASYNC_LOAD", raising=False)
+    monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
+    monkeypatch.setattr(runtime_module, "best_torch_dtype_name", lambda *, device: "float32")
+    monkeypatch.setattr(runtime_module, "resolve_torch_dtype", lambda *, device, dtype_name=None: "torch.float32")
+
+    runtime_module.resolve_torch_runtime(device=device)
+
+    assert "HF_DEACTIVATE_ASYNC_LOAD" not in os.environ
+
+
+def test_resolve_torch_runtime_respects_an_explicit_async_load_choice(monkeypatch: pytest.MonkeyPatch) -> None:
+    import abstractvoice.compute.torch_runtime as runtime_module
+
+    monkeypatch.setenv("HF_DEACTIVATE_ASYNC_LOAD", "0")
+    monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
+    monkeypatch.setattr(runtime_module, "best_torch_dtype_name", lambda *, device: "float16")
+    monkeypatch.setattr(runtime_module, "resolve_torch_dtype", lambda *, device, dtype_name=None: "torch.float16")
+
+    assert runtime_module.guard_metal_weight_loading("mps") is False
+    runtime_module.resolve_torch_runtime(device="mps")
+
+    assert os.environ["HF_DEACTIVATE_ASYNC_LOAD"] == "0"
