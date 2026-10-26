@@ -131,10 +131,17 @@ AbstractCore discovers AbstractVoice through the
   - `list_tts_voices(provider=..., model=...)`
   - `list_cloned_voices(provider=..., model=...)`
   - `get_capability_support(...)` / `find_compatible_models(...)`
+  - `list_languages(kind="tts"|"stt"|"cloning", provider=...)` for each engine's
+    languages, read without loading any model
   - `voice_catalog()`
 - first-class clone creation through:
   - `clone(audio, provider=..., model=..., name=..., reference_text=..., artifact_store=...)`
   - `clone_voice(...)` as a compatibility alias
+  - `design_voice(description, name=..., language=...)` to create a reusable
+    voice from a written description, with no recording
+- cloned-voice management through `get_cloned_voice(...)`,
+  `rename_cloned_voice(...)`, `set_cloned_voice_reference_text(...)` and
+  `delete_cloned_voice(...)`
 - local engine residency (process warmup/unload) through:
   - `load_resident_model(...)`, `list_resident_models(...)`, and `unload_resident_model(...)`
   - scope: cloned-TTS engines + local base TTS on the voice backend (`abstractvoice:default`), and local STT on the audio backend (`abstractvoice:stt`)
@@ -185,6 +192,18 @@ Italian). Use them by id like any cloned voice, for example
 `vm.speak_to_bytes("Bonjour.", voice="fr-female-camille")` or
 `core.voice.tts("Good evening.", voice="en-gb-male-oliver")`; see
 [Built-in voices](docs/voice-pack.md) for the list and how they were made.
+
+You can design your own voice the same way. `design_voice` renders a reference
+from your description with the 1.7B VoiceDesign checkpoint and clones it with
+the 1.7B Base checkpoint, so the voice keeps one identity on every call:
+
+```python
+voice_id = vm.design_voice(
+    "A calm, warm female voice in her thirties, clear and friendly.", name="Mira"
+)
+vm.speak_to_file("Good morning.", "morning.wav", voice=voice_id)
+# Through AbstractCore: core.voice.design_voice(...)["voice_id"]
+```
 
 `core.voice.tts_stream(...)` accepts the same description. Add `one_shot=True`
 to synthesize the whole text as one generation, never segmented, so the take
@@ -470,6 +489,7 @@ See `docs/api.md` for the supported integrator contract.
 
 At a glance:
 - **TTS**: `speak()`, `set_tts_engine()`, `stop_speaking()`, `pause_speaking()`, `resume_speaking()`, `speak_to_bytes()`, `speak_to_file()`
+- **Voices**: `clone_voice()`, `design_voice()`, `list_cloned_voices()`; `abstractvoice.languages.language_catalog()` for each engine's languages
 - **STT**: `transcribe_file()`, `transcribe_from_bytes()`
 - **Mic**: `listen()`, `stop_listening()`, `pause_listening()`, `resume_listening()`
 

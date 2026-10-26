@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.18.0] - 2026-10-26
+
+### Added
+
+- `VoiceManager.design_voice(description, *, name=None, language=None, text=None)` creates a reusable voice from a written description, with no recording. Qwen3-TTS 1.7B VoiceDesign renders a reference in one generation, the warm-up it needs to settle into the voice is cut off, and Qwen3-TTS 1.7B Base clones the rest, so the voice keeps one identity on every call. The voice is stored as a Qwen3-TTS clone and used with `voice="<voice_id>"`. Reference languages: en, fr, es, de, it, pt, ru, zh, ja, ko. Needs `abstractvoice[qwen3-tts]` and both 1.7B checkpoints.
+- `abstractvoice.languages.language_catalog(kind=None, provider=None)`: the languages of every TTS, STT and cloning engine, read without loading a model or importing torch. Remote providers are reported as `open`.
+- AbstractCore plugin: `list_languages(kind=None, provider=None)` and `design_voice(description, ...)`, which returns the stored record. `voice_catalog()` adds `tts_languages_by_provider` and `stt_languages_by_provider`, and catalog entries of designed voices carry `tags.designed` and the `description`.
+
 ## [0.17.2] - 2026-10-26
 
 ### Documentation

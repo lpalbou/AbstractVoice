@@ -337,6 +337,21 @@ For Piper, each language needs a cached voice:
 python -m abstractvoice download --piper fr
 ```
 
+### Which languages does each engine support?
+
+`abstractvoice.languages.language_catalog()` lists them for every TTS, STT and
+cloning engine without loading a model, and the AbstractCore plugin exposes the
+same lists as `list_languages(kind=..., provider=...)`:
+
+```python
+from abstractvoice.languages import language_catalog
+
+language_catalog(kind="stt", provider="faster-whisper")
+```
+
+Remote OpenAI and OpenAI-compatible providers are reported as `open`: the remote
+service decides which languages it accepts.
+
 ### Which TTS engine should I use?
 
 - Remote OpenAI-compatible engines are the lightest path for server and plugin
@@ -416,6 +431,15 @@ each language. They need `abstractvoice[qwen3-tts]` and the
 voice does, for example `vm.speak("Bonjour.", voice="fr-female-camille")` or
 `llm.voice.tts("Hello.", voice="en-us-male-harrison")` through AbstractCore.
 They are read-only. See [Built-in voices](voice-pack.md).
+
+### Can I create a voice from a description?
+
+Yes. `vm.design_voice("A calm, warm female voice in her thirties.", name="Mira")`
+returns a voice id you can use like any cloned voice; through AbstractCore, call
+`llm.voice.design_voice(...)`. Qwen3-TTS 1.7B VoiceDesign renders a reference from
+the description and Qwen3-TTS 1.7B Base clones it, so the voice keeps one identity.
+State the sex explicitly, in the reference language when it is not English. See
+[Designing a voice from a description](api.md#designing-a-voice-from-a-description).
 
 ### How should I prepare reference audio?
 

@@ -203,6 +203,57 @@ class TtsMixin:
             **({"model": model} if model else {}),
         )
 
+    def design_voice(
+        self,
+        description: str,
+        *,
+        name: str | None = None,
+        language: str | None = None,
+        text: str | None = None,
+    ) -> str:
+        """Create a reusable voice from a written description; returns its cloned voice id.
+
+        Qwen3-TTS VoiceDesign (1.7B) renders a reference in one generation, the
+        warm-up it needs to settle is cut off, and the reference is cloned with the
+        Qwen3-TTS 1.7B Base checkpoint, so the voice keeps one identity from then on
+        (a description passed as ``instructions`` samples a new voice on every call).
+        ``language`` defaults to the manager's language when Qwen3-TTS supports it,
+        else English; ``text`` overrides the built-in reference text for that language.
+        Needs ``abstractvoice[qwen3-tts]``; the two checkpoints download on first use
+        when downloads are allowed. Raises ValueError for an empty description or an
+        unsupported language.
+        """
+        import io
+
+        import soundfile as sf
+
+        from ..cloning.design import CLONING_MODEL_ID, DESIGN_MODEL_ID, WARMUPS, render_designed_reference
+
+        lang = str(language or getattr(self, "language", None) or "en").strip().lower()
+        if language is None and lang not in WARMUPS:
+            lang = "en"
+        audio, sr, reference_text = render_designed_reference(
+            str(description),
+            language=lang,
+            text=text,
+            allow_downloads=bool(getattr(self, "allow_downloads", True)),
+        )
+        buf = io.BytesIO()
+        sf.write(buf, audio, int(sr), format="WAV", subtype="PCM_16")
+        return self.clone_voice_from_wav_bytes(
+            buf.getvalue(),
+            name=(str(name).strip() if name and str(name).strip() else None),
+            reference_text=reference_text,
+            engine="qwen3-tts",
+            meta={
+                "designed": True,
+                "description": str(description).strip(),
+                "language_code": lang,
+                "design_model": DESIGN_MODEL_ID,
+            },
+            model=CLONING_MODEL_ID,
+        )
+
     def clone_voice_from_wav_bytes(
         self,
         wav_bytes: bytes,

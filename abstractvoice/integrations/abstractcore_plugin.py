@@ -235,6 +235,8 @@ def _clone_profile_tags(item: Any) -> Dict[str, Any]:
     if not isinstance(meta, dict):
         return {}
     tags: Dict[str, Any] = {"builtin": bool(meta.get("builtin"))}
+    if meta.get("designed"):
+        tags["designed"] = True
     for key in ("nationality", "language", "language_code", "sex", "style", "description", "model_id"):
         if meta.get(key) not in (None, ""):
             tags[key] = meta.get(key)
@@ -494,12 +496,10 @@ def _omnivoice_language_ids() -> list[str]:
         preferred = {item: index for index, item in enumerate(_OMNIVOICE_FALLBACK_LANGUAGES)}
         return sorted(_dedupe_strings(values), key=lambda item: (preferred.get(item.lower(), len(preferred)), item.lower()))
 
-    try:
-        from omnivoice.utils.lang_map import LANG_IDS  # type: ignore
+    # Parsed from OmniVoice's package file: importing it would load torch.
+    from ..languages import omnivoice_languages
 
-        return order([str(item).strip().lower() for item in LANG_IDS if str(item).strip()])
-    except Exception:
-        return list(_OMNIVOICE_FALLBACK_LANGUAGES)
+    return order(omnivoice_languages())
 
 
 def _selectable_tts_model_ids_for_provider(provider: Any, extra_candidates: Any = ()) -> list[str]:
@@ -1137,6 +1137,12 @@ def _piper_language_for_model(model_id: str) -> Optional[str]:
         if requested in candidates:
             return str(language)
     return None
+
+
+def _languages_by_provider(kind: str, providers: Any) -> Dict[str, list]:
+    from ..languages import languages_by_provider
+
+    return languages_by_provider(kind, providers)
 
 
 def _tts_formats_for_provider(provider: Any) -> list[str]:
@@ -3250,6 +3256,8 @@ class _VoiceCapability(_BaseVoice):
             # empty list would claim every provider is reachable -- including the
             # remote ones it never asked. Absent means "not checked"; see THE RULE.
             "stt_catalog_by_provider": {},
+            "tts_languages_by_provider": _languages_by_provider("tts", tts_providers),
+            "stt_languages_by_provider": {},
             "tts_formats_by_provider": {provider_id: _tts_formats_for_provider(provider_id) for provider_id in tts_providers},
             "stt_formats_by_provider": {},
             "controls": controls,
@@ -3535,6 +3543,43 @@ class _VoiceCapability(_BaseVoice):
     ) -> list[Dict[str, Any]]:
         """Alias for provider/model-filtered TTS voice discovery."""
         return self.list_tts_voices(provider=provider, model=model, include_clones=include_clones)
+
+    def list_languages(self, *, kind: Optional[str] = None, provider: Optional[str] = None) -> Dict[str, Any]:
+        """Languages each engine accepts: ``{kind: {provider: {languages, open, declared}}}``.
+
+        ``kind`` is ``tts``, ``stt`` or ``cloning`` (all when omitted). Read from the
+        engines' static tables: no model or framework is loaded. Remote providers are
+        ``open`` (the provider decides) with an empty list.
+        """
+        from ..languages import language_catalog
+
+        return _json_safe(language_catalog(kind=kind, provider=_norm_engine_id(provider) if provider else None))
+
+    def design_voice(
+        self,
+        description: str,
+        *,
+        name: Optional[str] = None,
+        language: Optional[str] = None,
+        text: Optional[str] = None,
+        **_kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Create a reusable voice from a written description (Qwen3-TTS); returns its record.
+
+        The voice is stored as a Qwen3-TTS clone, so it is listed with the cloned
+        voices and used with ``tts(voice=<voice_id>)``.
+        """
+        if not str(description or "").strip():
+            raise ValueError("description is required")
+        vm = self._get_vm_for_clone_request(provider="qwen3-tts", model="Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+        with self._vm_lock(vm):
+            voice_id = vm.design_voice(str(description), name=name, language=language, text=text)
+            # Read back from the manager that stored it: a clone-request manager may
+            # own a different store than this capability's registry.
+            record = vm.get_cloned_voice(voice_id)
+        out = dict(record) if isinstance(record, dict) else {"voice_id": voice_id}
+        out.setdefault("voice_id", voice_id)
+        return {"ok": True, **_json_safe(out)}
 
     # ------------------------------------------------------------------
     # Cloned-voice management (the registry is the clone store; one per user)
@@ -4272,6 +4317,8 @@ class _VoiceCapability(_BaseVoice):
             # this path did probe; empty here means "checked, all reachable".
             "unreachable_tts_providers": sorted(unreachable_providers),
             "stt_catalog_by_provider": stt_catalog_by_provider,
+            "tts_languages_by_provider": _languages_by_provider("tts", tts_providers),
+            "stt_languages_by_provider": _languages_by_provider("stt", stt_providers),
             "tts_formats_by_provider": {provider: _tts_formats_for_provider(provider) for provider in tts_providers},
             "stt_formats_by_provider": {provider: _stt_formats_for_provider(provider) for provider in stt_providers},
             "controls": controls,
