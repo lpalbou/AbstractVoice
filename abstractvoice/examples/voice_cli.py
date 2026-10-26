@@ -264,6 +264,15 @@ def _apply_tts_voice_profile(vm, voice: str | None) -> str | None:
             pass
         return selected
 
+    # An exact cloned-voice id (yours or a built-in one) is unambiguous: it wins before the
+    # active engine is asked, since some engines (OpenAI) accept any name as a profile.
+    try:
+        exact = vm.get_cloned_voice(selected)
+        if isinstance(exact, dict) and str(exact.get("voice_id") or selected).strip() == selected:
+            return selected
+    except Exception:
+        pass
+
     try:
         return None if bool(vm.set_profile(selected, kind="tts")) else _resolve_cloned_voice_id()
     except TypeError:
