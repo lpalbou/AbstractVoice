@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
-## [Unreleased]
+## [0.17.0] - 2026-10-26
 
 ### Added
 
+- 70 built-in Qwen3-TTS voices: women and men in American and British English, French, Spanish, German and Italian, plus a deep professional bass male voice in every language. Use them by id wherever a cloned voice is accepted (`voice="fr-female-camille"`, `voice="en-gb-male-oliver"`): `VoiceManager`, the CLI's `--voice`, the REPL's `/voices clone`, and the AbstractCore plugin (`list_cloned_voices`, `tts(voice=...)`, residency warm-up) and server (`GET /v1/audio/voices`). They need `abstractvoice[qwen3-tts]` and the `Qwen/Qwen3-TTS-12Hz-1.7B-Base` checkpoint. The package ships each voice's clone prompt (about 12 KB), not audio; listings carry the profile (`builtin`, `nationality`, `language`, `sex`, `style`, `description`) in `meta` and, in AbstractCore plugin catalog entries, in `tags`. Built-in voices are read-only. See `docs/voice-pack.md`.
+- `Qwen3TTSRuntime.export_clone_prompt()` / `clone_prompt_from_arrays()`: a voice-clone prompt as plain arrays and back, on either backend.
 - `one_shot=True` on `speak_to_bytes()`, `speak_to_file()`, the AbstractCore plugin's `tts()` and the CLI (`--one-shot`): the whole text is synthesized as ONE generation, with no sentence segmentation and no truncation, so a take keeps one voice from start to end. Available for Qwen3-TTS preset speakers, VoiceDesign and Qwen clones, up to 1000 characters; a longer text or another engine raises `ValueError` rather than cutting. Use it to produce voice references for cloning.
 
 ## [0.16.0] - 2026-10-26

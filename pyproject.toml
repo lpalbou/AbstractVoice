@@ -381,8 +381,8 @@ include = ["abstractvoice*"]
 exclude = ["audio_samples*", "tests*", "docs*"]
 
 [tool.setuptools.package-data]
-# Ship built-in voice profile preset packs (JSON).
-abstractvoice = ["assets/**/*.json"]
+# Ship built-in voice profile preset packs (JSON) and the built-in voice pack (Qwen3-TTS clone prompts, .npz).
+abstractvoice = ["assets/**/*.json", "assets/**/*.npz"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

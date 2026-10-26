@@ -229,6 +229,18 @@ def _norm_residency_provider(value: Any) -> str:
     return _norm_engine_id(text)
 
 
+def _clone_profile_tags(item: Any) -> Dict[str, Any]:
+    """Profile fields of a stored clone, surfaced as listing tags (built-in voices carry them all)."""
+    meta = item.get("meta") if isinstance(item, dict) else None
+    if not isinstance(meta, dict):
+        return {}
+    tags: Dict[str, Any] = {"builtin": bool(meta.get("builtin"))}
+    for key in ("nationality", "language", "language_code", "sex", "style", "description", "model_id"):
+        if meta.get(key) not in (None, ""):
+            tags[key] = meta.get(key)
+    return tags
+
+
 def _clone_engine_is_local(value: Any) -> bool:
     return _norm_engine_id(value) not in {"openai", "openai-compatible", "remote"}
 
@@ -3104,6 +3116,7 @@ class _VoiceCapability(_BaseVoice):
                                 "engine_id": clone_engine,
                                 "engine": clone_engine,
                                 "source": "abstractvoice_clone_store",
+                                **_json_safe(_clone_profile_tags(item)),
                             },
                             "params": _json_safe(item),
                         }
@@ -4021,6 +4034,7 @@ class _VoiceCapability(_BaseVoice):
                                         "engine_id": clone_engine,
                                         "engine": clone_engine,
                                         "source": "abstractvoice_clone_store",
+                                        **_json_safe(_clone_profile_tags(item)),
                                     },
                                     "params": _json_safe(item),
                                 }

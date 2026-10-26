@@ -44,6 +44,7 @@ Heavy/optional integration tests (skipped by default):
 - Cloning (OpenF5): set `ABSTRACTVOICE_RUN_CLONING_TESTS=1` (also needs `pip install "abstractvoice[cloning]"`)
 - Chroma: set `ABSTRACTVOICE_RUN_CHROMA_TESTS=1` (also needs `pip install "abstractvoice[chroma]"`)
 - Whisper through `transformers-asr`: set `ABSTRACTVOICE_RUN_WHISPER_HF_TESTS=1` (macOS, downloads `openai/whisper-tiny`; also needs `pip install "abstractvoice[stt-hf]"`)
+- Built-in voice pack: set `ABSTRACTVOICE_RUN_VOICE_PACK_TESTS=1` (needs `pip install "abstractvoice[qwen3-tts]"` and the cached `Qwen/Qwen3-TTS-12Hz-1.7B-Base`); rebuild the pack with `python tools/voice_pack/build.py <folder>` (see `docs/voice-pack.md`)
 - Qwen3-ASR: set `ABSTRACTVOICE_RUN_QWEN3_ASR_TESTS=1` (macOS, downloads the Qwen3-ASR checkpoint; also needs `pip install "abstractvoice[stt-hf]"`)
 
 ## Formatting and linting (optional but recommended)

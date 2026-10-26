@@ -805,6 +805,99 @@ class Qwen3TTSRuntime:
                 x_vector_only_mode=bool(x_vector_only),
             )
 
+    # ------------------------------------------------- portable clone prompts
+    #
+    # A voice-clone prompt is four things on both backends: the reference
+    # transcript, its 12Hz codec codes (frames x 16 codebooks), the speaker
+    # embedding of the Base checkpoint that built it, and the mode. Exported as
+    # plain arrays it is a few kilobytes and can be stored instead of reference
+    # audio (the built-in voice pack does this), then rebuilt on either backend.
+
+    def export_clone_prompt(self, clone_prompt: Any) -> dict:
+        """Plain arrays for a prompt built by :meth:`build_clone_prompt` on this runtime.
+
+        Returns ``{"ref_codes": int16 (T, 16) | None, "speaker_embedding": float32 (D,),
+        "x_vector_only": bool, "ref_text": str | None}``.
+        """
+        item = clone_prompt[0] if isinstance(clone_prompt, (list, tuple)) else clone_prompt
+        if hasattr(item, "ref_spk_embedding"):  # PyTorch VoiceClonePromptItem
+            codes, emb = item.ref_code, item.ref_spk_embedding
+            x_only = bool(item.x_vector_only_mode)
+            to_np = lambda t: t.detach().to("cpu").float().numpy() if hasattr(t, "detach") else np.asarray(t)  # noqa: E731
+        else:  # MLX MLXClonePrompt
+            codes, emb = item.ref_codes, item.speaker_embedding
+            x_only = bool(item.x_vector_only_mode)
+            to_np = lambda t: np.array(t)  # noqa: E731
+        ref_codes = None if (x_only or codes is None) else to_np(codes).astype(np.int16)
+        if ref_codes is not None and (ref_codes.ndim != 2 or ref_codes.shape[1] != 16):
+            raise ValueError(f"unexpected reference code shape {ref_codes.shape}; expected (frames, 16)")
+        return {
+            "ref_codes": ref_codes,
+            "speaker_embedding": to_np(emb).astype(np.float32).reshape(-1),
+            "x_vector_only": x_only,
+            "ref_text": item.ref_text,
+        }
+
+    def clone_prompt_from_arrays(
+        self,
+        *,
+        ref_codes: Optional[np.ndarray],
+        speaker_embedding: np.ndarray,
+        ref_text: Optional[str],
+        x_vector_only: bool = False,
+    ):
+        """Rebuild a voice-clone prompt for THIS runtime's backend from :meth:`export_clone_prompt` arrays.
+
+        The speaker embedding must come from the same Base checkpoint as this runtime
+        (its size is checked against the loaded model).
+        """
+        if not x_vector_only and (ref_codes is None or not str(ref_text or "").strip()):
+            raise ValueError("an ICL clone prompt needs both reference codes and the reference transcript")
+        self._ensure_loaded()
+        emb = np.asarray(speaker_embedding, dtype=np.float32).reshape(-1)
+        codes = None if x_vector_only else np.asarray(ref_codes).astype(np.int32)
+        if codes is not None and (codes.ndim != 2 or codes.shape[1] != 16):
+            raise ValueError(f"reference codes must be (frames, 16); got {codes.shape}")
+        if self._backend == "mlx":
+            import mlx.core as mx
+
+            from .mlx.model import MLXClonePrompt
+
+            expected = int(self._mlx_or_raise().config.talker_config.hidden_size)
+            if emb.shape[0] != expected:
+                raise ValueError(
+                    f"speaker embedding has {emb.shape[0]} values but {self.model_id} expects {expected}: "
+                    "the prompt was built by another Base checkpoint"
+                )
+            return MLXClonePrompt(
+                ref_codes=None if codes is None else mx.array(codes),
+                speaker_embedding=mx.array(emb),
+                x_vector_only_mode=bool(x_vector_only),
+                icl_mode=not bool(x_vector_only),
+                ref_text=ref_text,
+            )
+        import torch
+
+        from .orchestration import VoiceClonePromptItem
+
+        model = self._model_or_raise()
+        expected = int(model.model.config.talker_config.hidden_size)
+        if emb.shape[0] != expected:
+            raise ValueError(
+                f"speaker embedding has {emb.shape[0]} values but {self.model_id} expects {expected}: "
+                "the prompt was built by another Base checkpoint"
+            )
+        device = model.model.device
+        return [
+            VoiceClonePromptItem(
+                ref_code=None if codes is None else torch.as_tensor(codes, dtype=torch.long, device=device),
+                ref_spk_embedding=torch.as_tensor(emb, device=device).to(model.model.dtype),
+                x_vector_only_mode=bool(x_vector_only),
+                icl_mode=not bool(x_vector_only),
+                ref_text=ref_text,
+            )
+        ]
+
     def synthesize_clone(
         self,
         text: str,

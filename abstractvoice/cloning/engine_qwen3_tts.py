@@ -109,11 +109,22 @@ class Qwen3TTSVoiceCloningEngine:
         if self._prompt_cache_key == key and self._prompt_cache_value is not None:
             return self._prompt_cache_value
         runtime = self._get_runtime()
-        prompt = runtime.build_clone_prompt(
-            ref_audio=str(ref_path),
-            ref_text=str(reference_text),
-            x_vector_only=False,  # ICL; the manager guarantees the transcript.
-        )
+        if str(ref_path).lower().endswith(".npz"):
+            # A stored clone prompt (the built-in voice pack): codes + speaker embedding,
+            # rebuilt for this runtime's backend instead of re-encoding reference audio.
+            with np.load(str(ref_path)) as arrays:
+                prompt = runtime.clone_prompt_from_arrays(
+                    ref_codes=arrays["ref_codes"],
+                    speaker_embedding=arrays["speaker_embedding"],
+                    ref_text=str(reference_text),
+                    x_vector_only=False,
+                )
+        else:
+            prompt = runtime.build_clone_prompt(
+                ref_audio=str(ref_path),
+                ref_text=str(reference_text),
+                x_vector_only=False,  # ICL; the manager guarantees the transcript.
+            )
         self._prompt_cache_key = key
         self._prompt_cache_value = prompt
         return prompt
