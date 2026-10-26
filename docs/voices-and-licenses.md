@@ -99,6 +99,14 @@ Local notices:
 - Supertonic notice: `third_party_licenses/supertone_supertonic_notice.txt`
 - OmniVoice notice: `third_party_licenses/omnivoice_notice.txt`
 
+## Built-in voices
+
+The built-in voices ([Built-in voices](voice-pack.md)) are synthetic: each was designed from a written
+description with the Apache-2.0 Qwen3-TTS 1.7B VoiceDesign model, not recorded from or modelled on a real
+person. The package ships only their clone prompts (codec codes and speaker embeddings derived from those
+synthetic references); rendering them uses the Apache-2.0 `Qwen/Qwen3-TTS-12Hz-1.7B-Base` checkpoint.
+They carry no voice-actor rights and are distributed under the package's MIT license.
+
 ## Practical guidance
 
 - Treat **model weights** as third-party assets with their own compliance requirements.

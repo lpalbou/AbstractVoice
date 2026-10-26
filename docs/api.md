@@ -470,6 +470,18 @@ The REPL defaults to **mic input off**, and recommends `--voice-mode stop` for h
 
 ## Voice cloning (optional; heavy)
 
+Built-in voices: the clone store also lists 70 read-only Qwen3-TTS voices shipped with the package
+(ids such as `fr-female-camille`, `en-gb-male-oliver`; `meta.builtin` is `True`). Use them with
+`voice=<id>` anywhere a cloned voice is accepted; they need `abstractvoice[qwen3-tts]` and the
+`Qwen/Qwen3-TTS-12Hz-1.7B-Base` checkpoint. Renaming, editing, exporting or deleting one raises
+`ValueError`. `VoiceCloneStore(base_dir=None)` (the user store) lists them after your own voices; a store
+at an explicit directory lists them only with `builtin_voices=True`. See [Built-in voices](voice-pack.md).
+
+`Qwen3TTSRuntime.export_clone_prompt(prompt)` returns a clone prompt as plain arrays (`ref_codes` int16
+`(frames, 16)`, `speaker_embedding` float32, `x_vector_only`, `ref_text`), and
+`Qwen3TTSRuntime.clone_prompt_from_arrays(...)` rebuilds it on either backend; the embedding must come
+from the same Base checkpoint (its size is checked).
+
 Requires installing at least one cloning backend extra (and explicit artifact
 downloads; see `docs/installation.md`). The recommended/default local backend
 is OmniVoice:

@@ -62,6 +62,48 @@ class _SilenceStderrFD:
         return False
 
 
+# Built-in voices: a read-only voice pack shipped inside the package (see
+# docs/voice-pack.md). Each voice is a Qwen3-TTS clone prompt (reference codec
+# codes + speaker embedding of the 1.7B Base checkpoint) and its profile.
+BUILTIN_VOICE_PACK_DIR = Path(__file__).resolve().parents[1] / "assets" / "voices" / "qwen3_tts"
+_BUILTIN_CACHE: Dict[str, Any] = {}
+
+
+def builtin_voice_pack() -> Dict[str, Dict[str, Any]]:
+    """The built-in voices by id (read once). Empty when the pack is absent."""
+    if "voices" not in _BUILTIN_CACHE:
+        index_path = BUILTIN_VOICE_PACK_DIR / "voices.json"
+        voices: Dict[str, Dict[str, Any]] = {}
+        if index_path.exists():
+            pack = json.loads(index_path.read_text(encoding="utf-8"))
+            for entry in pack.get("voices") or []:
+                voices[str(entry["id"])] = dict(entry, engine=pack.get("engine", "qwen3-tts"))
+        _BUILTIN_CACHE["voices"] = voices
+    return _BUILTIN_CACHE["voices"]
+
+
+def _builtin_record(entry: Dict[str, Any]) -> "ClonedVoice":
+    return ClonedVoice(
+        voice_id=str(entry["id"]),
+        name=str(entry["name"]),
+        created_at=0.0,
+        reference_files=[str(entry["prompt"])],
+        reference_text=str(entry["reference_text"]),
+        engine=str(entry.get("engine") or "qwen3-tts"),
+        meta={
+            "builtin": True,
+            "model_id": str(entry["model"]),
+            "nationality": entry.get("nationality"),
+            "language": entry.get("language"),
+            "language_code": entry.get("language_code"),
+            "sex": entry.get("sex"),
+            "style": entry.get("style"),
+            "description": entry.get("description"),
+            "reference_text_source": "builtin",
+        },
+    )
+
+
 @dataclass(frozen=True)
 class ClonedVoice:
     voice_id: str
@@ -81,7 +123,10 @@ class VoiceCloneStore:
     - Avoid embedding binary blobs in JSON; store files on disk.
     """
 
-    def __init__(self, base_dir: Optional[str | Path] = None):
+    def __init__(self, base_dir: Optional[str | Path] = None, *, builtin_voices: Optional[bool] = None):
+        # The user's own store (no base_dir) also lists the built-in voice pack;
+        # a store at an explicit directory does not, unless asked.
+        self._builtin = (base_dir is None) if builtin_voices is None else bool(builtin_voices)
         if base_dir is None:
             root = Path(appdirs.user_data_dir("abstractvoice"))
             self._base_dir = root / "cloned_voices"
@@ -103,7 +148,20 @@ class VoiceCloneStore:
         self._index_path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
 
     def _voice_dir(self, voice_id: str) -> Path:
+        if self._builtin and voice_id in builtin_voice_pack() and voice_id not in self._read_index():
+            return BUILTIN_VOICE_PACK_DIR
         return self._base_dir / voice_id
+
+    def is_builtin(self, voice_id: str) -> bool:
+        """True for a voice of the built-in pack (read-only)."""
+        return self._builtin and voice_id in builtin_voice_pack() and voice_id not in self._read_index()
+
+    def _refuse_builtin(self, voice_id: str, action: str) -> None:
+        if self.is_builtin(voice_id):
+            raise ValueError(
+                f"{voice_id!r} is a built-in voice and cannot be {action}. "
+                "Clone its reference into your own voice to customize it."
+            )
 
     def resolve_reference_paths(self, voice_id: str) -> List[Path]:
         voice = self.get_voice(voice_id)
@@ -294,6 +352,8 @@ class VoiceCloneStore:
     def get_voice(self, voice_id: str) -> ClonedVoice:
         index = self._read_index()
         if voice_id not in index:
+            if self._builtin and voice_id in builtin_voice_pack():
+                return _builtin_record(builtin_voice_pack()[voice_id])
             raise KeyError(f"Unknown voice_id: {voice_id}")
         data = index[voice_id]
         return ClonedVoice(**data)
@@ -308,8 +368,12 @@ class VoiceCloneStore:
         out: List[Dict[str, Any]] = []
         for voice_id, data in index.items():
             out.append({"voice_id": voice_id, **data})
-        # newest first
+        # newest first, then the built-in pack by id
         out.sort(key=lambda d: float(d.get("created_at", 0)), reverse=True)
+        if self._builtin:
+            for vid in sorted(builtin_voice_pack()):
+                if vid not in index:
+                    out.append(self.get_voice_dict(vid))
         return out
 
     def set_reference_text(self, voice_id: str, reference_text: str, *, source: str | None = None) -> None:
@@ -318,6 +382,7 @@ class VoiceCloneStore:
         This matters a lot for cloning quality: if reference_text is garbled,
         the model often produces artifacts (wrong words bleeding into output).
         """
+        self._refuse_builtin(voice_id, "edited")
         index = self._read_index()
         if voice_id not in index:
             raise KeyError(f"Unknown voice_id: {voice_id}")
@@ -333,6 +398,8 @@ class VoiceCloneStore:
     def export_voice(self, voice_id: str, path: str | Path) -> str:
         """Export a voice bundle as a zip archive."""
         import zipfile
+
+        self._refuse_builtin(voice_id, "exported")
 
         voice = self.get_voice(voice_id)
         vdir = self._voice_dir(voice_id)
@@ -387,6 +454,7 @@ class VoiceCloneStore:
         return new_id
 
     def rename_voice(self, voice_id: str, new_name: str) -> None:
+        self._refuse_builtin(voice_id, "renamed")
         index = self._read_index()
         if voice_id not in index:
             raise KeyError(f"Unknown voice_id: {voice_id}")
@@ -397,6 +465,7 @@ class VoiceCloneStore:
 
     def delete_voice(self, voice_id: str) -> None:
         """Delete a voice entry and its reference files from disk."""
+        self._refuse_builtin(voice_id, "deleted")
         index = self._read_index()
         if voice_id not in index:
             raise KeyError(f"Unknown voice_id: {voice_id}")

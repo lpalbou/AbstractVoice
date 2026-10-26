@@ -38,6 +38,7 @@ local engines in the same install.
 - **Voice/model management**: `docs/model-management.md`
 - **Dependencies & model sources**: `docs/dependencies.md`
 - **Licensing notes for models/voices**: `docs/voices-and-licenses.md`
+- **Built-in voices (70 ready-made Qwen3-TTS voices in six languages)**: `docs/voice-pack.md`
 - **Benchmarks (TTS-only)**: `docs/benchmark.md`
 - **Preload benchmarks (local TTS/STT)**: `examples/bench_preload_local_models.py`
 

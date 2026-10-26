@@ -171,6 +171,13 @@ wav = core.voice.tts(
 )
 ```
 
+AbstractVoice ships 70 built-in Qwen3-TTS voices (women, men and a deep
+professional bass in American and British English, French, Spanish, German and
+Italian). Use them by id like any cloned voice, for example
+`vm.speak_to_bytes("Bonjour.", voice="fr-female-camille")` or
+`core.voice.tts("Good evening.", voice="en-gb-male-oliver")`; see
+[Built-in voices](docs/voice-pack.md) for the list and how they were made.
+
 `core.voice.tts_stream(...)` accepts the same description. Add `one_shot=True`
 to synthesize the whole text as one generation, never segmented, so the take
 keeps one voice from start to end: the right setting for a reference you will
