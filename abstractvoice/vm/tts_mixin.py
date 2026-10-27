@@ -165,8 +165,11 @@ class TtsMixin:
                     f"Original error: {e}"
                 ) from e
 
+            from ..cloning.store import open_voice_store
+
             # Use a slightly larger STT model for one-time reference-text auto-fallback.
             self._voice_cloner = VoiceCloner(
+                store=open_voice_store(getattr(self, "voice_store_dir", None), getattr(self, "voice_library_dirs", None)),
                 debug=bool(getattr(self, "debug_mode", False)),
                 whisper_model=getattr(self, "whisper_model", "tiny"),
                 reference_text_whisper_model="small",
@@ -194,13 +197,17 @@ class TtsMixin:
         reference_text: str | None = None,
         engine: str | None = None,
         model: str | None = None,
+        language: str | None = None,
     ) -> str:
+        """Clone a voice from a recording. `language`: the language the recording is in (ISO 639-1);
+        when omitted it is identified from `reference_text` when there is one."""
         return self._get_voice_cloner().clone_voice(
             reference_audio_path,
             name=name,
             reference_text=reference_text,
             engine=engine,
             **({"model": model} if model else {}),
+            **({"language": language} if language else {}),
         )
 
     def design_voice(
@@ -306,8 +313,9 @@ class TtsMixin:
         engine: str | None = None,
         meta: dict[str, Any] | None = None,
         model: str | None = None,
+        language: str | None = None,
     ) -> str:
-        """Create a new cloned voice from an in-memory WAV payload.
+        """Create a new cloned voice from an in-memory WAV payload (`language`: see `clone_voice`).
 
         This is the API surface used by client/server integrations where the
         reference audio arrives as uploaded bytes rather than a local file path.
@@ -321,6 +329,7 @@ class TtsMixin:
                 engine=engine,
                 meta=meta,
                 **({"model": model} if model else {}),
+                **({"language": language} if language else {}),
             )
         # Backward-compatible fallback for older cloner versions (should not
         # normally be needed inside this repo).
@@ -338,7 +347,9 @@ class TtsMixin:
             except Exception:
                 pass
         try:
-            return self.clone_voice(str(tmp_path), name=name, reference_text=reference_text, engine=engine, model=model)
+            return self.clone_voice(
+                str(tmp_path), name=name, reference_text=reference_text, engine=engine, model=model, language=language
+            )
         finally:
             try:
                 tmp_path.unlink(missing_ok=True)  # type: ignore[arg-type]
@@ -347,6 +358,14 @@ class TtsMixin:
 
     def list_cloned_voices(self):
         return self._get_voice_cloner().list_cloned_voices()
+
+    def deploy_voice_to_library(self, voice_id: str) -> str:
+        """Copy one of this manager's personal voices into its first library (everyone can then use
+        it); returns the library voice's id. Needs a personal store (`voice_store_dir`)."""
+        store = self._get_voice_cloner().store
+        if not hasattr(store, "deploy_to_library"):
+            raise ValueError("Deploying to a library needs a personal voice store (voice_store_dir).")
+        return store.deploy_to_library(voice_id)
 
     def get_cloned_voice(self, voice_id: str):
         return self._get_voice_cloner().get_cloned_voice(voice_id)

@@ -69,6 +69,40 @@ class _TTSDiscovery:
 _VM_CACHE_LOCK = threading.Lock()
 _VM_CACHE: dict[tuple, Any] = {}
 _VM_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = weakref.WeakKeyDictionary()
+# One voice-store object per (voice_store_dir, voice_library_dirs) setting (backlog 0065).
+_VOICE_STORES: Dict[tuple, Any] = {}
+
+
+class _VoiceStoreScopedLock:
+    """A manager's lock that, once acquired, applies the caller's voice store to the manager."""
+
+    def __init__(self, lock: threading.Lock, apply: Callable[[], None]):
+        self._lock = lock
+        self._apply = apply
+
+    def __enter__(self) -> "_VoiceStoreScopedLock":
+        self._lock.acquire()
+        try:
+            self._apply()
+        except BaseException:
+            self._lock.release()
+            raise
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self._lock.release()
+
+    def acquire(self, *args: Any, **kwargs: Any) -> bool:
+        got = self._lock.acquire(*args, **kwargs)
+        if got:
+            self._apply()
+        return got
+
+    def release(self) -> None:
+        self._lock.release()
+
+    def locked(self) -> bool:
+        return self._lock.locked()
 _TRUE_BOOL_VALUES = {"1", "true", "yes", "y", "on"}
 _FALSE_BOOL_VALUES = {"0", "false", "no", "n", "off"}
 _CLONE_RESIDENCY_PROVIDER_ALIASES = {"cloned", "clone", "cloning"}
@@ -1426,14 +1460,74 @@ class _BaseVoice:
         self._owner = owner
         self._vm = None
 
-    def _vm_lock(self, vm: Any) -> threading.Lock:
-        """Per-VoiceManager lock for synthesis/metrics consistency."""
+    def _vm_lock(self, vm: Any) -> "_VoiceStoreScopedLock":
+        """Per-VoiceManager lock for synthesis/metrics consistency.
+
+        A manager is shared by every capability with the same engine settings (one copy of the
+        weights), while the voice store is per capability (`voice_store_dir`, backlog 0065): the
+        lock, once held, points the manager at this capability's store, so a voice id is looked
+        up, spoken and changed in the store of the caller holding the lock."""
         with _VM_CACHE_LOCK:
             lk = _VM_LOCKS.get(vm)
             if lk is None:
                 lk = threading.Lock()
                 _VM_LOCKS[vm] = lk
-            return lk
+        return _VoiceStoreScopedLock(lk, lambda: self._apply_voice_store(vm))
+
+    def _voice_store_settings(self) -> tuple:
+        store_dir = self._config_text("voice_store_dir") or None
+        cfg = getattr(self._owner, "config", None)
+        raw = cfg.get("voice_library_dirs") if isinstance(cfg, dict) else None
+        if isinstance(raw, str):
+            libs = [x for x in raw.split(os.pathsep) if x.strip()]
+        elif isinstance(raw, (list, tuple)):
+            libs = [str(x) for x in raw if str(x or "").strip()]
+        else:
+            libs = []
+        return store_dir, tuple(libs)
+
+    def _configured_voice_store(self) -> Any:
+        """This capability's voice store: the machine user's store by default, or the personal
+        store in front of its libraries when `voice_store_dir` is set (one object per setting)."""
+        from ..cloning.store import open_voice_store
+
+        key = self._voice_store_settings()
+        if not key[0]:
+            return open_voice_store()  # unconfigured: the machine user's store, read fresh as before
+        with _VM_CACHE_LOCK:
+            store = _VOICE_STORES.get(key)
+            if store is None:
+                store = open_voice_store(key[0], list(key[1]) or None)
+                _VOICE_STORES[key] = store
+        return store
+
+    def _apply_voice_store(self, vm: Any) -> None:
+        """Point a (possibly shared) manager at this capability's voice store.
+
+        A capability with a personal store (`voice_store_dir`) installs it; one without restores
+        the manager's own store (the one it was built or embedded with), never replacing it."""
+        store_dir, libs = self._voice_store_settings()
+        cloner = getattr(vm, "_voice_cloner", None)
+        own = vm.__dict__.setdefault(
+            "_abstractvoice_own_store",
+            {
+                "store": getattr(cloner, "store", None) if cloner is not None else None,
+                "dir": getattr(vm, "voice_store_dir", None),
+                "libs": list(getattr(vm, "voice_library_dirs", None) or []),
+            },
+        ) if hasattr(vm, "__dict__") else None
+        if own is None:
+            return
+        if own["store"] is None and cloner is not None and not store_dir:
+            own["store"] = getattr(cloner, "store", None)
+        if store_dir:
+            vm.voice_store_dir, vm.voice_library_dirs = store_dir, list(libs)
+            if cloner is not None and hasattr(cloner, "store"):
+                cloner.store = self._configured_voice_store()
+        else:
+            vm.voice_store_dir, vm.voice_library_dirs = own["dir"], list(own["libs"])
+            if cloner is not None and hasattr(cloner, "store") and own["store"] is not None:
+                cloner.store = own["store"]
 
     def _get_vm(self):
         if self._vm is not None:
@@ -1861,9 +1955,7 @@ class _BaseVoice:
                         break
             if not engine:
                 try:
-                    from ..cloning.store import VoiceCloneStore
-
-                    info = VoiceCloneStore().get_voice_dict(voice_id)
+                    info = self._configured_voice_store().get_voice_dict(voice_id)
                     if isinstance(info, dict):
                         engine = _norm_engine_id(info.get("engine"))
                 except Exception:
@@ -3209,9 +3301,7 @@ class _VoiceCapability(_BaseVoice):
                 profiles.extend(_local_tts_voice_profiles(engine))
 
             try:
-                from ..cloning.store import VoiceCloneStore
-
-                for item in VoiceCloneStore().list_voices():
+                for item in self._configured_voice_store().list_voices():
                     if not isinstance(item, dict):
                         continue
                     meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
@@ -3727,6 +3817,10 @@ class _VoiceCapability(_BaseVoice):
         registry every manager reads is edited directly. Managers cached for other
         configurations are deliberately not consulted.
         """
+        if self._voice_store_settings()[0]:
+            # A personal store is configured: its records are this capability's, whatever
+            # store a shared manager last pointed at.
+            return self._configured_voice_store()
         vm = self._vm
         if vm is None:
             cfg = getattr(self._owner, "config", None)
@@ -3779,6 +3873,17 @@ class _VoiceCapability(_BaseVoice):
         setter = getattr(registry, "set_cloned_voice_reference_text", None) or getattr(registry, "set_reference_text")
         setter(vid, text)
         return {"ok": True, **self.get_cloned_voice(vid)}
+
+    def deploy_voice_to_library(self, voice_id: str) -> Dict[str, Any]:
+        """Copy one of this capability's personal voices into its first library, where every
+        configuration sharing that library lists and uses it (an administrator's act: the host
+        decides who may call it). Returns the library voice's record."""
+        vid = self._voice_id_or_raise(voice_id)
+        store = self._configured_voice_store()
+        if not hasattr(store, "deploy_to_library"):
+            raise ValueError("Deploying a voice to the library needs a personal voice store (voice_store_dir).")
+        library_id = store.deploy_to_library(vid)
+        return {"ok": True, **_json_safe(store.get_voice_dict(library_id))}
 
     def delete_cloned_voice(self, voice_id: str) -> Dict[str, Any]:
         """Delete a cloned voice and its reference audio from the registry; KeyError when unknown."""
@@ -3934,6 +4039,7 @@ class _VoiceCapability(_BaseVoice):
         provider: Optional[str] = None,
         artifact_store: Any = None,
         metadata: Optional[Dict[str, Any]] = None,
+        language: Optional[str] = None,
         **kwargs: Any,
     ) -> Any:
         """Create a cloned voice through the plugin boundary."""
@@ -3951,6 +4057,10 @@ class _VoiceCapability(_BaseVoice):
             clone_name = str(name) if name is not None else None
             ref_text = str(reference_text) if reference_text is not None else None
             clone_meta = dict(metadata) if isinstance(metadata, dict) else None
+            # The recording's language (ISO 639-1), for every input form: stated here or in
+            # `metadata.language`; else identified from the transcript by the cloner.
+            clone_language = str(language or (clone_meta or {}).get("language") or "").strip().lower() or None
+            lang_kw = {"language": clone_language} if clone_language else {}
 
             if isinstance(audio, str):
                 return vm.clone_voice(
@@ -3958,6 +4068,7 @@ class _VoiceCapability(_BaseVoice):
                     name=clone_name,
                     reference_text=ref_text,
                     engine=engine_name,
+                    **lang_kw,
                 )
 
             if isinstance(audio, dict):
@@ -3975,6 +4086,7 @@ class _VoiceCapability(_BaseVoice):
                         name=clone_name,
                         reference_text=ref_text,
                         engine=engine_name,
+                        **lang_kw,
                     )
                 finally:
                     try:
@@ -3988,6 +4100,7 @@ class _VoiceCapability(_BaseVoice):
                 reference_text=ref_text,
                 engine=engine_name,
                 meta=clone_meta,
+                **lang_kw,
             )
 
     def clone_voice(
@@ -4000,6 +4113,7 @@ class _VoiceCapability(_BaseVoice):
         provider: Optional[str] = None,
         artifact_store: Any = None,
         metadata: Optional[Dict[str, Any]] = None,
+        language: Optional[str] = None,
         **kwargs: Any,
     ) -> Any:
         """Alias for clone() for compatibility with older duck-typed callers."""
@@ -4011,6 +4125,7 @@ class _VoiceCapability(_BaseVoice):
             provider=provider,
             artifact_store=artifact_store,
             metadata=metadata,
+            language=language,
             **kwargs,
         )
 
@@ -4179,7 +4294,8 @@ class _VoiceCapability(_BaseVoice):
         cloned_voices: list[Dict[str, Any]] = []
         if hasattr(vm, "list_cloned_voices"):
             try:
-                raw_clones = vm.list_cloned_voices()
+                with self._vm_lock(vm):
+                    raw_clones = vm.list_cloned_voices()
             except Exception:
                 raw_clones = []
             if isinstance(raw_clones, list):
