@@ -3420,9 +3420,19 @@ class _VoiceCapability(_BaseVoice):
         cloned_voices = _dedupe_voice_records(_json_safe(cloned_voices))
         if requested_model:
             profiles = [item for item in profiles if not _profile_model_id(item) or _profile_model_id(item).lower() == requested_model]
-            cloned_voices = [
-                item for item in cloned_voices if not _profile_model_id(item) or _profile_model_id(item).lower() == requested_model
-            ]
+            # A clone records the CLONING checkpoint it was made with (Qwen3-TTS Base); `model` names
+            # a cloning checkpoint when the caller navigates clones by checkpoint, but a host picking a
+            # TTS model (CustomVoice, VoiceDesign, a Piper voice) must still see every clone of the
+            # engine: a clone is spoken with its own checkpoint whatever TTS model is selected.
+            cloning_model_ids = {str(_profile_model_id(item) or "").lower() for item in cloned_voices if _profile_model_id(item)}
+            try:
+                cloning_model_ids |= {str(m).lower() for m in self.list_cloning_models(requested_provider or None)}
+            except Exception:
+                pass
+            if requested_model in cloning_model_ids:
+                cloned_voices = [
+                    item for item in cloned_voices if not _profile_model_id(item) or _profile_model_id(item).lower() == requested_model
+                ]
 
         tts_providers = _dedupe_provider_ids(tts_providers)
         tts_models_by_provider: dict[str, list[str]] = {provider_id: [] for provider_id in tts_providers}

@@ -409,3 +409,26 @@ def test_a_nested_holder_gets_its_own_store_and_hands_the_manager_back(tmp_path:
     t.join(timeout=5)
     assert not t.is_alive()
     assert seen["back_to_alice"] == "alice-private"
+
+
+@pytest.mark.skipif(
+    __import__("importlib.util").util.find_spec("torch") is None or __import__("importlib.util").util.find_spec("transformers") is None,
+    reason="a TTS model's voice listing needs the qwen3-tts extra (torch + transformers)",
+)
+def test_clones_stay_listed_when_a_tts_model_is_selected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A host that picked a TTS model (Qwen3-TTS CustomVoice) still sees every clone of the engine:
+    a clone is spoken with its own Base checkpoint. Only a cloning checkpoint narrows the clones."""
+    from types import SimpleNamespace
+
+    from abstractvoice.integrations import abstractcore_plugin as plugin
+
+    plugin._VM_CACHE.clear()
+    store = _isolated_default_store(tmp_path, monkeypatch)
+    base, large = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+    a = store.create_voice_from_wav_bytes(_wav(), name="a", engine="qwen3-tts", meta={"model_id": base})
+    b = store.create_voice_from_wav_bytes(_wav(), name="b", engine="qwen3-tts", meta={"model_id": large})
+    monkeypatch.setattr("abstractvoice.local_models.hf_repo_is_cached", lambda model_id: True)
+    cap = plugin._VoiceCapability(SimpleNamespace(config={"voice_tts_engine": "qwen3-tts", "voice_allow_downloads": False}))
+    ids = lambda model: {v["voice_id"] for v in cap.voice_catalog(provider="qwen3-tts", model=model)["cloned_voices"]}
+    assert ids("Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice") >= {a, b}  # a TTS model: every clone
+    assert ids(large) == {b} and ids(base) == {a}  # a cloning checkpoint: those clones
