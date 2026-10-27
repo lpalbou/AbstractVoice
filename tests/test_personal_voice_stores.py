@@ -360,3 +360,52 @@ def test_concurrent_deploys_keep_every_voice(tmp_path: Path) -> None:
         t.join()
     library_ids = {v["voice_id"] for v in VoiceCloneStore(tmp_path / "library", builtin_voices=False).list_voices()}
     assert set(deployed) <= library_ids and len(library_ids) == 6
+
+
+def test_management_inside_a_held_manager_lock_does_not_deadlock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A host that manages voices from inside its own TTS stream loop (the stream holds the
+    manager's lock between chunks) re-enters the lock; only the outermost holder applies and
+    restores the store, so the stream keeps its store until it ends."""
+    import threading
+
+    _isolated_default_store(tmp_path, monkeypatch)
+    vm = _LazyVM()
+    alice = _capability({"voice_store_dir": str(tmp_path / "alice")})
+    alice._vm = vm
+    outcome = {}
+
+    def stream_loop():
+        with alice._vm_lock(vm):  # the stream holds the manager
+            vid = vm._cloner().store.create_voice_from_wav_bytes(_wav(), name="mine", engine="qwen3-tts")
+            outcome["record"] = alice.get_cloned_voice(vid)  # management inside the loop
+            outcome["still_alice"] = Path(vm._voice_cloner.store._base_dir) == tmp_path / "alice"
+
+    t = threading.Thread(target=stream_loop, daemon=True)
+    t.start()
+    t.join(timeout=5)
+    assert not t.is_alive(), "deadlock: management inside a held manager lock"
+    assert outcome["record"]["name"] == "mine" and outcome["still_alice"] is True
+    assert Path(vm._voice_cloner.store._base_dir) != tmp_path / "alice"  # restored at the outermost release
+
+
+def test_a_nested_holder_gets_its_own_store_and_hands_the_manager_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import threading
+
+    _isolated_default_store(tmp_path, monkeypatch)
+    vm = _LazyVM()
+    alice, plain = _capability({"voice_store_dir": str(tmp_path / "alice")}), _capability({})
+    alice._vm = plain._vm = vm
+    seen = {}
+
+    def flow():
+        with alice._vm_lock(vm):
+            vid = vm._cloner().store.create_voice_from_wav_bytes(_wav(), name="alice-private", engine="qwen3-tts")
+            with pytest.raises(KeyError):
+                plain.get_cloned_voice(vid)  # nested, unconfigured: its own store, not alice's
+            seen["back_to_alice"] = vm.get_cloned_voice(vid)["name"]
+
+    t = threading.Thread(target=flow, daemon=True)
+    t.start()
+    t.join(timeout=5)
+    assert not t.is_alive()
+    assert seen["back_to_alice"] == "alice-private"

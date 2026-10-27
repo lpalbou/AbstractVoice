@@ -195,7 +195,9 @@ class VoiceCloneStore:
 
         self._index_path = self._base_dir / "index.json"
         if not self._index_path.exists():
-            self._write_index({})
+            with _IndexLock(self._base_dir):
+                if not self._index_path.exists():  # another process may have created it meanwhile
+                    self._write_index({})
 
     def _read_index(self) -> Dict[str, Any]:
         try:

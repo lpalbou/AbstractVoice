@@ -73,24 +73,42 @@ _VM_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = weakref.WeakKeyDic
 _VOICE_STORES: Dict[tuple, Any] = {}
 
 
+_SCOPED_DEPTH = threading.local()
+
+
 class _VoiceStoreScopedLock:
     """A manager's lock that points the (shared) manager at the caller's voice store while held.
 
     Acquiring applies the caller's store; releasing puts the manager back on its own store (the
     one it was built or embedded with). A manager therefore never rests on someone's personal
-    store, so a call that reads it without the lock sees its own store, not another caller's."""
+    store, so a call that reads it without the lock sees its own store, not another caller's.
 
-    def __init__(self, lock: threading.Lock, apply: Callable[[], None], restore: Callable[[], None]):
+    Re-entrant per thread (the underlying lock is an RLock): a host that manages voices from
+    inside its own stream loop re-enters instead of deadlocking, and only the outermost holder
+    applies and restores the store."""
+
+    def __init__(self, lock: Any, apply: Callable[[], None], restore: Callable[[], None]):
         self._lock = lock
         self._apply = apply
         self._restore = restore
 
+    def _stack(self) -> list:
+        stacks = getattr(_SCOPED_DEPTH, "stacks", None)
+        if stacks is None:
+            stacks = _SCOPED_DEPTH.stacks = {}
+        return stacks.setdefault(id(self._lock), [])
+
     def _enter(self) -> None:
+        # Every holder, nested or not, gets its own store while it holds the manager; a nested
+        # holder's release hands the manager back to the holder it interrupted.
+        stack = self._stack()
+        stack.append(self._apply)
         try:
             self._apply()
         except BaseException:
+            stack.pop()
             try:
-                self._restore()
+                (stack[-1] if stack else self._restore)()
             finally:
                 self._lock.release()
             raise
@@ -110,13 +128,17 @@ class _VoiceStoreScopedLock:
         return got
 
     def release(self) -> None:
+        stack = self._stack()
         try:
-            self._restore()
+            if stack:
+                stack.pop()
+            (stack[-1] if stack else self._restore)()
         finally:
             self._lock.release()
 
     def locked(self) -> bool:
-        return self._lock.locked()
+        locked = getattr(self._lock, "locked", None)
+        return bool(locked()) if callable(locked) else False
 _TRUE_BOOL_VALUES = {"1", "true", "yes", "y", "on"}
 _FALSE_BOOL_VALUES = {"0", "false", "no", "n", "off"}
 _CLONE_RESIDENCY_PROVIDER_ALIASES = {"cloned", "clone", "cloning"}
@@ -1474,7 +1496,7 @@ class _BaseVoice:
         self._owner = owner
         self._vm = None
 
-    def _vm_lock(self, vm: Any) -> "_VoiceStoreScopedLock":
+    def _vm_lock(self, vm: Any) -> "_VoiceStoreScopedLock":  # noqa: D401
         """Per-VoiceManager lock for synthesis/metrics consistency.
 
         A manager is shared by every capability with the same engine settings (one copy of the
@@ -1483,8 +1505,8 @@ class _BaseVoice:
         up, spoken and changed in the store of the caller holding the lock."""
         with _VM_CACHE_LOCK:
             lk = _VM_LOCKS.get(vm)
-            if lk is None:
-                lk = threading.Lock()
+            if lk is None or not hasattr(lk, "_is_owned"):  # an RLock (re-entrant per thread)
+                lk = threading.RLock()
                 _VM_LOCKS[vm] = lk
         return _VoiceStoreScopedLock(lk, lambda: self._apply_voice_store(vm), lambda: self._restore_own_voice_store(vm))
 
@@ -1747,7 +1769,7 @@ class _BaseVoice:
                     openai_base_url=openai_base_url,
                 )
                 _VM_CACHE[key] = cached
-                _VM_LOCKS[cached] = threading.Lock()
+                _VM_LOCKS[cached] = threading.RLock()
             try:
                 setattr(cached, "_abstractvoice_tts_engine", str(tts_engine))
                 setattr(cached, "_abstractvoice_stt_engine", str(stt_engine))
