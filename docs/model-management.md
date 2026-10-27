@@ -86,10 +86,12 @@ containing weights. It counts only for the engine you selected with `ABSTRACTVOI
 `abstractvoice.local_models` exposes this directly:
 
 ```python
-from abstractvoice.local_models import cached_tts_model_ids, hf_repo_is_cached
+from abstractvoice.local_models import cached_tts_model_ids, hf_repo_is_cached, tts_model_role
 
 cached_tts_model_ids("piper")       # ['en_US-amy-medium', ...] — only what is downloaded
 cached_tts_model_ids("audiodit")    # [] until the weights are prefetched
+cached_tts_model_ids("qwen3-tts", include_cloning=True)  # adds the downloaded Base (cloning) checkpoints
+tts_model_role("qwen3-tts", "Qwen/Qwen3-TTS-12Hz-0.6B-Base")  # 'cloning'
 hf_repo_is_cached("k2-fsa/OmniVoice")
 ```
 

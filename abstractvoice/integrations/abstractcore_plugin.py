@@ -572,7 +572,7 @@ def _omnivoice_language_ids() -> list[str]:
     return order(omnivoice_languages())
 
 
-def _selectable_tts_model_ids_for_provider(provider: Any, extra_candidates: Any = ()) -> list[str]:
+def _selectable_tts_model_ids_for_provider(provider: Any, extra_candidates: Any = (), *, include_cloning: bool = True) -> list[str]:
     """Return public TTS model-selector values for local providers.
 
     The model selector must expose actual model/checkpoint ids, and only ones
@@ -594,6 +594,9 @@ def _selectable_tts_model_ids_for_provider(provider: Any, extra_candidates: Any 
             cached_tts_model_ids(
                 _norm_engine_id(provider),
                 extra_candidates=[str(item) for item in extra_candidates or ()],
+                # The cloning checkpoints (Qwen3-TTS Base) are listed too: they are what
+                # speaks a cloned voice. `tts_model_details_by_provider` marks them.
+                include_cloning=include_cloning,
             )
         )
     except Exception:
@@ -765,15 +768,17 @@ def _local_tts_engine_available(engine: Any, extra_candidates: Any = ()) -> bool
     imports an engine or builds an adapter -- the AudioDiT adapter alone drags in
     torch and transformers, and only to report a catalog the cache already knows.
 
-    Availability *is* "has a selectable model", asked through the same call, so an
-    engine can never be listed with nothing to select or hidden while selectable.
+    Availability *is* "has a model that speaks a preset voice", asked through the same
+    call as the selector. A cloning-only checkpoint (Qwen3-TTS Base) is selectable but does
+    not make the engine available: a request with no model would load the engine's default
+    (a CustomVoice checkpoint that is not on disk). The clones on it are listed anyway.
     """
     normalized = _norm_engine_id(engine)
     if not normalized or normalized in {"openai", "openai-compatible"}:
         return False
     if not _engine_runtime_available(normalized):
         return False
-    return bool(_selectable_tts_model_ids_for_provider(normalized, extra_candidates))
+    return bool(_selectable_tts_model_ids_for_provider(normalized, extra_candidates, include_cloning=False))
 
 
 def _local_stt_engine_available(engine: Any) -> bool:
@@ -1323,6 +1328,29 @@ def _order_like(values: Any, preferred: Any) -> list[str]:
     preferred_keys = [str(item).strip().lower() for item in list(preferred or []) if str(item or "").strip()]
     order = {item: index for index, item in enumerate(preferred_keys)}
     return sorted(deduped, key=lambda item: (order.get(item.lower(), len(order)), item.lower()))
+
+
+def _tts_model_detail(provider: Any, model_id: Any) -> Dict[str, Any]:
+    """One TTS model of a provider with its role: ``"cloning"`` for a checkpoint that
+    speaks cloned voices only (Qwen3-TTS Base; preset synthesis on it is refused),
+    else ``"tts"``. ``label`` is what a picker shows."""
+    model = str(model_id or "").strip()
+    try:
+        from ..local_models import tts_model_role
+
+        # Without a provider (an all-provider listing) the only engine with roles is
+        # asked: an id it does not know is a plain TTS model there too.
+        role = tts_model_role(_norm_engine_id(provider) or "qwen3-tts", model)
+    except Exception:
+        role = "tts"
+    return {"id": model, "role": role, "label": f"{model} (clones)" if role == "cloning" else model}
+
+
+def _tts_model_details_by_provider(models_by_provider: Dict[str, list[str]]) -> Dict[str, list[Dict[str, Any]]]:
+    return {
+        provider: [_tts_model_detail(provider, model_id) for model_id in values or [] if str(model_id or "").strip()]
+        for provider, values in (models_by_provider or {}).items()
+    }
 
 
 def _provider_variants(provider: Any, values: Any) -> list[str]:
@@ -3516,7 +3544,8 @@ class _VoiceCapability(_BaseVoice):
         active_model = (
             _tts_model_language_selector(active_provider, requested_model)
             or (str(_env("ABSTRACTVOICE_LANGUAGE", "en") or "en").strip().lower() if _tts_provider_uses_language_models(active_provider) else None)
-            or (tts_models[0] if tts_models else None)
+            # Never a cloning-only checkpoint: it speaks no preset voice.
+            or next((m for m in tts_models if _tts_model_detail(active_provider, m)["role"] != "cloning"), None)
         )
         return {
             "kind": "tts",
@@ -3538,6 +3567,7 @@ class _VoiceCapability(_BaseVoice):
             "tts_models": tts_models,
             "stt_models": [],
             "tts_models_by_provider": tts_models_by_provider,
+            "tts_model_details_by_provider": _tts_model_details_by_provider(tts_models_by_provider),
             "stt_models_by_provider": {},
             "tts_model_roles_by_provider": {
                 provider_id: "language" if _tts_provider_uses_language_models(provider_id) else "model"
@@ -3634,6 +3664,18 @@ class _VoiceCapability(_BaseVoice):
         if hasattr(vm, "get_profiles"):
             profiles = list(vm.get_profiles(kind=str(kind or "tts")) or [])
         return [_voice_profile_to_dict(profile) for profile in profiles]
+
+    def list_models_detailed(self, *, kind: str = "tts", provider: Optional[str] = None) -> list[Dict[str, Any]]:
+        """`list_models` with each model's role: ``{"id", "role", "label"}``. For TTS,
+        ``role`` is ``"cloning"`` for a checkpoint that speaks cloned voices only
+        (Qwen3-TTS Base, labelled "<id> (clones)"), else ``"tts"``; STT and cloning
+        models are ``"stt"`` / ``"cloning"``."""
+        normalized_kind = str(kind or "tts").strip().lower()
+        models = self.list_models(kind=normalized_kind, provider=provider)
+        if normalized_kind != "tts":
+            return [{"id": m, "role": normalized_kind, "label": m} for m in models]
+        provider_id, _model = _resolve_tts_provider_request(provider)
+        return [_tts_model_detail(provider_id, m) for m in models]
 
     def list_tts_models(self, provider: Optional[str] = None) -> list[str]:
         """List deduplicated TTS model ids from serveable AbstractVoice engines.
@@ -4658,6 +4700,7 @@ class _VoiceCapability(_BaseVoice):
             "tts_models": tts_models,
             "stt_models": stt_models,
             "tts_models_by_provider": tts_models_by_provider,
+            "tts_model_details_by_provider": _tts_model_details_by_provider(tts_models_by_provider),
             "stt_models_by_provider": stt_models_by_provider,
             "tts_model_roles_by_provider": {
                 provider: "language" if _tts_provider_uses_language_models(provider) else "model"

@@ -725,7 +725,10 @@ The voice backend also exposes thin catalog discovery methods for Core/Gateway
 integration code:
 - `list_profiles(kind="tts") -> list[dict]`
 - `list_models(kind="tts"|"stt"|"cloning", provider: str | None = None) -> list[str]`
-- `list_tts_models(provider: str | None = None) -> list[str]`
+- `list_tts_models(provider: str | None = None) -> list[str]` (includes the cloning checkpoints, Qwen3-TTS `…-Base`, since 0.19.2)
+- `list_models_detailed(kind="tts", provider: str | None = None) -> list[dict]` — `{id, role, label}`; for TTS `role` is
+  `"cloning"` for a checkpoint that speaks cloned voices only (label "<id> (clones)"; preset synthesis on it is refused),
+  else `"tts"`. The catalogs carry the same records as `tts_model_details_by_provider`.
 - `list_stt_models(provider: str | None = None) -> list[str]`
 - `list_cloning_models(provider: str | None = None) -> list[str]`
 - `list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True, language: str | None = None) -> list[dict]`

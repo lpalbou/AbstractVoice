@@ -24,6 +24,7 @@ from typing import Iterable
 
 __all__ = [
     "cached_tts_model_ids",
+    "tts_model_role",
     "hf_cached_snapshot_dir",
     "hf_repo_is_cached",
 ]
@@ -42,7 +43,7 @@ def _normalize_engine(engine: object) -> str:
     return str(engine or "").strip().lower().replace("_", "-")
 
 
-def cached_tts_model_ids(engine: object, *, extra_candidates: Iterable[str] = ()) -> list[str]:
+def cached_tts_model_ids(engine: object, *, extra_candidates: Iterable[str] = (), include_cloning: bool = False) -> list[str]:
     """TTS model ids for ``engine`` whose weights are on this machine.
 
     For Hugging Face engines the candidates are the ids this package declares,
@@ -55,6 +56,11 @@ def cached_tts_model_ids(engine: object, *, extra_candidates: Iterable[str] = ()
     Empty for remote engines and for local engines with nothing downloaded yet:
     the answer is "what can this machine speak with right now", not "what could
     it fetch".
+
+    ``include_cloning`` keeps the cloning-only checkpoints (Qwen3-TTS Base): they
+    are what speaks a cloned voice, so a model selector lists them, marked with
+    :func:`tts_model_role`. Preset-voice synthesis on one is still refused by the
+    engine.
     """
 
     engine_id = _normalize_engine(engine)
@@ -74,15 +80,39 @@ def cached_tts_model_ids(engine: object, *, extra_candidates: Iterable[str] = ()
         declared = _declared_model_ids(engine_id)
         candidates = declared + [item for item in extra if item not in declared]
         cached = [model_id for model_id in candidates if hf_repo_is_cached(model_id)]
-        if engine_id == "qwen3-tts":
+        if engine_id == "qwen3-tts" and not include_cloning:
             # Qwen3-TTS is the first provider whose checkpoints have different
             # ROLES: Base checkpoints are cloning-only (no preset speakers;
-            # selecting one for TTS raises). The TTS selector must not offer
-            # them; `cached_cloning_model_ids` is where they belong.
+            # preset synthesis on one raises). Without `include_cloning` the
+            # list is "what speaks a preset voice".
             cached = [model_id for model_id in cached if _qwen3_checkpoint_speaks(model_id)]
         return cached
 
     return []
+
+
+def tts_model_role(engine: object, model_id: object) -> str:
+    """``"cloning"`` for a cloning-only checkpoint (Qwen3-TTS Base: it speaks cloned
+    voices, never a preset one), else ``"tts"``.
+
+    Weight-free: the packaged cloning catalog names the declared Base checkpoints;
+    the cached ``config.json`` names an operator's own.
+    """
+
+    engine_id = _normalize_engine(engine)
+    if engine_id != "qwen3-tts":
+        return "tts"
+    text = str(model_id or "").strip()
+    if not text:
+        return "tts"
+    try:
+        from .compatibility import _asset_model_ids
+
+        if text in _asset_model_ids("cloning", engine_id):
+            return "cloning"
+    except Exception:
+        pass
+    return "tts" if _qwen3_checkpoint_speaks(text) else "cloning"
 
 
 def _qwen3_checkpoint_speaks(model_id: object) -> bool:
