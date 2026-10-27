@@ -58,7 +58,7 @@ Operator, 2026-10-27: "we would like to have proper isolation between the voices
 ## Dependencies
 
 - AbstractCore: none expected (plugin settings travel in the capability config).
-- AbstractRuntime: the per-account runtime config carries the two settings; the voice library facade lists the scope.
+- AbstractRuntime backlog 0851: the per-account runtime config carries the two settings; the voice library facade lists the scope.
 - AbstractGateway backlog 0942 (personal voices per account, admin deploy, entity profiles).
 - Related: `0063_cloned_voices_record_no_language.md`.
 
