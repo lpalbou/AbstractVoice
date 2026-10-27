@@ -35,6 +35,7 @@ TTS_COMPATIBILITY_FEATURES: tuple[str, ...] = (
     "ambient_audio",
     "background_sfx",
     "output_channels",
+    "one_shot",
 )
 
 STT_COMPATIBILITY_FEATURES: tuple[str, ...] = (
@@ -52,6 +53,8 @@ CLONING_COMPATIBILITY_FEATURES: tuple[str, ...] = (
     "multi_reference_audio",
     "speed",
     "audio_chunks",
+    "one_shot",
+    "design",
 )
 
 DEFAULT_OPENAI_STT_MODELS: tuple[str, ...] = (

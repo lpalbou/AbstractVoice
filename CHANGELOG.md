@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.18.3] - 2026-10-27
+
+### Added
+
+- The capability catalog (`compatibility_catalog()`, `get_capability_support(...)`, `find_compatible_models(...)`) declares voice design and one-shot synthesis. `cloning` gains `design` on the `create` surface: native only for Qwen3-TTS, with the VoiceDesign and Base models and the ten reference languages in its metadata, unsupported for every other engine. `one_shot` is native on Qwen3-TTS synthesis to bytes (each speaking checkpoint, `max_chars` 1000) and on speaking a Qwen3-TTS clone, unsupported on live playback, on the Base checkpoints and on other engines.
+
 ## [0.18.2] - 2026-10-26
 
 ### Fixed
