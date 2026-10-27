@@ -16,7 +16,8 @@ Older changelog entries may reference historical CLI commands or model choices.
   light catalog list them, so a picker can select the checkpoint a cloned voice is spoken with. The new
   `tts_model_details_by_provider` (`{provider: [{id, role, label}]}`) and `list_models_detailed(kind=, provider=)` mark
   them `role: "cloning"`, labelled "<id> (clones)". Preset-voice synthesis on a Base checkpoint is still refused with
-  the same sentence. A Qwen3-TTS engine with only a Base checkpoint downloaded is now listed as available.
+  the same sentence. A Base checkpoint never becomes the default model, and a Qwen3-TTS engine with only a Base checkpoint
+  downloaded is not reported as able to speak a preset voice (its clones are listed).
 - `local_models.cached_tts_model_ids(include_cloning=)` and `local_models.tts_model_role(engine, model_id)`.
 
 ## [0.19.1] - 2026-10-27

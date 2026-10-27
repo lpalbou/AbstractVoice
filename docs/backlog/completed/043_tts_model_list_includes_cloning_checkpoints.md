@@ -34,11 +34,12 @@ picked.
 - `tts_model_details_by_provider` (both catalogs): `{provider: [{id, role, label}]}`, `role: "cloning"` and
   label "<id> (clones)" for Base. `list_models_detailed(kind=, provider=)` returns the same records.
 - Unchanged: `Qwen3TTSAdapter` refuses preset synthesis on a Base checkpoint ("… is a cloning checkpoint; select it
-  through voice cloning …"). A qwen3-tts engine with only a Base checkpoint on disk is now listed as available
-  (it speaks the clones).
+  through voice cloning …"). A Base checkpoint is never the default (`active_model`), and an engine with only a Base
+  checkpoint on disk is not reported available (a request with no model would load a CustomVoice checkpoint
+  that is not there); its clones are still listed.
 
 ## Validation
 
-`tests/test_tts_model_roles.py` (5): the list with and without cloning, the role from the catalog and from an
+`tests/test_tts_model_roles.py` (8): the list with and without cloning, the role from the catalog and from an
 operator's config, the plugin list and details, the light catalog, the preset refusal. Mutation-checked red: the
 cloning checkpoints not included, the details key absent.

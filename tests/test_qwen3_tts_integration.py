@@ -666,10 +666,12 @@ def test_strict_loader_reads_sharded_index(tmp_path):
 
 
 def test_tts_listing_excludes_cloning_only_base_checkpoints(tmp_path, monkeypatch):
-    """Qwen3 checkpoints have ROLES: Base is cloning-only (selecting it for TTS
-    raises, and it has zero preset voices). The TTS model selector must not
-    offer it; the cloning catalog is where it belongs. Unreadable configs keep
-    the id -- discovery must not hide checkpoints over a parse hiccup."""
+    """Qwen3 checkpoints have ROLES: Base is cloning-only (preset synthesis on it
+    raises, and it has zero preset voices). The PRESET-VOICE list
+    (`cached_tts_model_ids` without `include_cloning`) leaves it out; the model
+    selector lists it with `include_cloning=True`, marked role "cloning"
+    (tests/test_tts_model_roles.py). Unreadable configs keep the id --
+    discovery must not hide checkpoints over a parse hiccup."""
     import abstractvoice.local_models as lm
 
     snapshots = {}

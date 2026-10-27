@@ -104,3 +104,62 @@ def test_preset_voice_synthesis_on_base_is_still_refused():
         adapter._synthesize_chunk("Hello.", speaker="aiden", instructions=None)
     with pytest.raises(RuntimeError, match="is a cloning checkpoint; select it through voice cloning"):
         list(adapter._stream_chunks("Hello.", speaker="aiden", instructions=None))
+
+
+@pytest.fixture
+def only_base_cache(tmp_path, monkeypatch):
+    """A machine with ONLY the Qwen3-TTS Base checkpoint on disk."""
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+    import abstractvoice.local_models as lm
+
+    d = tmp_path / "base"
+    d.mkdir()
+    (d / "config.json").write_text(json.dumps({"tts_model_type": "base"}))
+    monkeypatch.setattr(lm, "_declared_model_ids", lambda engine_id: [CUSTOM, BASE] if engine_id == "qwen3-tts" else [])
+    monkeypatch.setattr(lm, "hf_repo_is_cached", lambda model_id: str(model_id) == BASE)
+    monkeypatch.setattr(lm, "hf_cached_snapshot_dir", lambda model_id: d if str(model_id) == BASE else None)
+    monkeypatch.setattr(plugin, "_engine_runtime_available", lambda engine, *_a, **_k: engine == "qwen3-tts")
+
+
+def test_only_base_on_disk_does_not_make_the_engine_available(only_base_cache):
+    """A request with no model would load the engine's default (CustomVoice, not on
+    disk): Base alone must not report the engine as able to speak a preset voice."""
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    assert plugin._selectable_tts_model_ids_for_provider("qwen3-tts") == [BASE], "still selectable (for its clones)"
+    assert plugin._local_tts_engine_available("qwen3-tts") is False
+
+
+def test_the_default_model_is_never_a_cloning_checkpoint(qwen_cache, monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+
+    monkeypatch.setattr(plugin, "_engine_runtime_available", lambda engine, *_a, **_k: engine == "qwen3-tts")
+    monkeypatch.setattr(plugin, "_selectable_tts_model_ids_for_provider", lambda provider, *_a, **_k: [BASE, CUSTOM] if plugin._norm_engine_id(provider) == "qwen3-tts" else [])
+
+    class _Owner:
+        config: dict = {"tts_engine": "qwen3-tts"}
+
+    catalog = plugin._VoiceCapability(_Owner())._light_voice_catalog(provider="qwen3-tts")
+    assert catalog["tts_models_by_provider"]["qwen3-tts"][0] == BASE
+    assert catalog["active_model"] == CUSTOM, "Base listed first must still not be the default"
+
+
+def test_the_full_catalog_carries_the_model_details(monkeypatch):
+    import abstractvoice.integrations.abstractcore_plugin as plugin
+    from abstractvoice.integrations.abstractcore_plugin import _VoiceCapability
+
+    class _VM:
+        tts_engine = "openai"
+
+        def list_voices(self):
+            return []
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    catalog = _VoiceCapability(_Owner()).voice_catalog()
+    details = catalog["tts_model_details_by_provider"]
+    assert set(details) == set(catalog["tts_models_by_provider"])
+    for provider, models in catalog["tts_models_by_provider"].items():
+        assert [d["id"] for d in details[provider]] == [m for m in models if str(m).strip()]
+    assert plugin  # module import kept for the monkeypatch fixture

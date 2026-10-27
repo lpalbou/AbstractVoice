@@ -572,7 +572,7 @@ def _omnivoice_language_ids() -> list[str]:
     return order(omnivoice_languages())
 
 
-def _selectable_tts_model_ids_for_provider(provider: Any, extra_candidates: Any = ()) -> list[str]:
+def _selectable_tts_model_ids_for_provider(provider: Any, extra_candidates: Any = (), *, include_cloning: bool = True) -> list[str]:
     """Return public TTS model-selector values for local providers.
 
     The model selector must expose actual model/checkpoint ids, and only ones
@@ -596,7 +596,7 @@ def _selectable_tts_model_ids_for_provider(provider: Any, extra_candidates: Any 
                 extra_candidates=[str(item) for item in extra_candidates or ()],
                 # The cloning checkpoints (Qwen3-TTS Base) are listed too: they are what
                 # speaks a cloned voice. `tts_model_details_by_provider` marks them.
-                include_cloning=True,
+                include_cloning=include_cloning,
             )
         )
     except Exception:
@@ -768,15 +768,17 @@ def _local_tts_engine_available(engine: Any, extra_candidates: Any = ()) -> bool
     imports an engine or builds an adapter -- the AudioDiT adapter alone drags in
     torch and transformers, and only to report a catalog the cache already knows.
 
-    Availability *is* "has a selectable model", asked through the same call, so an
-    engine can never be listed with nothing to select or hidden while selectable.
+    Availability *is* "has a model that speaks a preset voice", asked through the same
+    call as the selector. A cloning-only checkpoint (Qwen3-TTS Base) is selectable but does
+    not make the engine available: a request with no model would load the engine's default
+    (a CustomVoice checkpoint that is not on disk). The clones on it are listed anyway.
     """
     normalized = _norm_engine_id(engine)
     if not normalized or normalized in {"openai", "openai-compatible"}:
         return False
     if not _engine_runtime_available(normalized):
         return False
-    return bool(_selectable_tts_model_ids_for_provider(normalized, extra_candidates))
+    return bool(_selectable_tts_model_ids_for_provider(normalized, extra_candidates, include_cloning=False))
 
 
 def _local_stt_engine_available(engine: Any) -> bool:
@@ -3542,7 +3544,8 @@ class _VoiceCapability(_BaseVoice):
         active_model = (
             _tts_model_language_selector(active_provider, requested_model)
             or (str(_env("ABSTRACTVOICE_LANGUAGE", "en") or "en").strip().lower() if _tts_provider_uses_language_models(active_provider) else None)
-            or (tts_models[0] if tts_models else None)
+            # Never a cloning-only checkpoint: it speaks no preset voice.
+            or next((m for m in tts_models if _tts_model_detail(active_provider, m)["role"] != "cloning"), None)
         )
         return {
             "kind": "tts",
