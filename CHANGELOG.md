@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.19.1] - 2026-10-27
+
+### Fixed
+
+- `voice_catalog(provider=, model=)` with a TTS model (Qwen3-TTS CustomVoice or VoiceDesign, a Piper voice) now lists
+  every clone of the engine, the 70 built-in voices included: a clone is spoken with its own cloning checkpoint
+  whatever TTS model is selected. Only a cloning checkpoint (`…-Base`) narrows the clones to the ones made with it.
+  Hosts that pick a TTS model before listing voices (AbstractAssistant's route editor) saw no clone at all.
+
 ## [0.19.0] - 2026-10-27
 
 ### Added
