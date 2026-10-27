@@ -249,8 +249,14 @@ def test_web_ui_all_declared_routes_smoke(monkeypatch):
         name = "dummy"
         base_url = "http://dummy.local"
 
-        def list_models(self):
+        def list_models(self, timeout=5.0):
             return ["dummy-model"]
+
+        def list_models_detailed(self, timeout=5.0):
+            return [{"id": "dummy-model", "kind": "chat"}]
+
+        def is_reachable(self, timeout=3.0):
+            return True
 
         def chat(self, *, model, messages, temperature=0.4, max_tokens=1024):
             return {"text": "hello", "usage": {}}
@@ -275,6 +281,8 @@ def test_web_ui_all_declared_routes_smoke(monkeypatch):
         "/api/stt/transcriptions",
         "/api/stt/transcribe",
         "/api/llm/models",
+        "/api/llm/providers",
+        "/api/voices/design",
         "/api/chat",
         "/v1/audio/speech",
         "/v1/audio/transcriptions",
@@ -862,3 +870,77 @@ def test_web_ui_chat_route_requires_user_message():
 
     assert response.status_code == 400
     assert "at least one user message" in response.json()["detail"]
+
+
+def test_web_ui_detects_local_servers_and_separates_embedding_models(monkeypatch) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from abstractvoice.examples import web_ui
+
+    class Server:
+        def __init__(self, name, models, reachable=True):
+            self.name, self.base_url, self._models, self._reachable = name, f"http://{name}.local", models, reachable
+
+        def list_models_detailed(self, timeout=5.0):
+            return [{"id": m, "kind": "embedding" if "embed" in m else "chat"} for m in self._models]
+
+        def is_reachable(self, timeout=3.0):
+            return self._reachable
+
+    servers = {"ollama": Server("ollama", [], reachable=True), "lmstudio": Server("lmstudio", ["qwen3-4b", "text-embedding-qwen3"])}
+    monkeypatch.setattr(web_ui, "resolve_provider", lambda name: servers.get(name) or Server("custom", ["m1"]))
+    client = TestClient(web_ui.create_app(voice_manager_factory=lambda _state: None))
+    rows = {r["name"]: r for r in client.get("/api/llm/providers").json()["providers"]}
+    assert rows["ollama"]["reachable"] is True and rows["ollama"]["models"] == []
+    assert rows["lmstudio"]["models"] == ["qwen3-4b"] and rows["lmstudio"]["embedding_models"] == ["text-embedding-qwen3"]
+    with_custom = client.get("/api/llm/providers?custom=http://127.0.0.1:9000").json()["providers"]
+    assert [r["name"] for r in with_custom] == ["ollama", "lmstudio", "custom"]
+    listed = client.get("/api/llm/models?provider=lmstudio").json()
+    assert listed["models"] == ["qwen3-4b"] and listed["embedding_models"] == ["text-embedding-qwen3"]
+
+
+def test_web_ui_designs_a_voice_and_lists_voices_with_their_language(monkeypatch) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from abstractvoice.examples import web_ui
+
+    class VM:
+        def __init__(self):
+            self.designed = []
+
+        def design_voice(self, description, *, name=None, language=None, text=None):
+            self.designed.append((description, name, language, text))
+            return "d1"
+
+        def get_cloned_voice(self, voice_id):
+            return {"voice_id": voice_id, "name": "Captain", "engine": "qwen3-tts", "meta": {"language": "en", "designed": True}}
+
+        def list_cloned_voices(self):
+            return [
+                {"voice_id": "b1", "name": "Ada", "engine": "qwen3-tts", "meta": {"builtin": True, "language_code": "fr", "description": "A warm French voice."}},
+                {"voice_id": "c1", "name": "mine", "engine": "omnivoice", "meta": {"source": "rec.wav"}},
+            ]
+
+        def get_profiles(self, kind="tts"):
+            return []
+
+        def get_active_profile(self, kind="tts"):
+            return None
+
+        def list_available_models(self, language=None):
+            return {}
+
+        def get_supported_languages(self):
+            return ["en", "fr"]
+
+    vm = VM()
+    client = TestClient(web_ui.create_app(voice_manager_factory=lambda _state: vm))
+    out = client.post("/api/voices/design", json={"description": "an old sea captain", "name": "Captain", "language": "en"})
+    assert out.status_code == 200, out.text
+    assert out.json()["voice_id"] == "d1" and vm.designed == [("an old sea captain", "Captain", "en", None)]
+    assert client.post("/api/voices/design", json={"description": "   "}).status_code >= 400
+    voices = {v["id"]: v for v in client.get("/api/voices").json()["cloned_voices"]}
+    assert voices["b1"]["builtin"] is True and voices["b1"]["language"] == "fr" and voices["b1"]["description"] == "A warm French voice."
+    assert voices["c1"]["builtin"] is False and voices["c1"]["language"] is None

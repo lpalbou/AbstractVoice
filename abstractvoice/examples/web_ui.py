@@ -12,6 +12,7 @@ It is intentionally not an agent runtime or a production chat server.
 """
 
 import argparse
+import asyncio
 import atexit
 import importlib.metadata
 import importlib.util
@@ -97,6 +98,16 @@ LOCAL_ROUTES = [
         "method": "GET",
         "path": "/api/llm/models",
         "maps_to": "Example-only OpenAI-compatible model listing; does not initialize VoiceManager",
+    },
+    {
+        "method": "GET",
+        "path": "/api/llm/providers",
+        "maps_to": "Example-only detection of local Ollama and LM Studio servers with their chat and embedding models",
+    },
+    {
+        "method": "POST",
+        "path": "/api/voices/design",
+        "maps_to": "VoiceManager.design_voice(): a voice from a written description (Qwen3-TTS VoiceDesign), stored as a cloned voice",
     },
     {
         "method": "POST",
@@ -460,6 +471,19 @@ PAGE = r"""
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    .side { display: flex; flex-direction: column; gap: 10px; min-width: 0; position: sticky; top: 76px; }
+    .side .tab-panel { max-height: calc(100vh - 150px); overflow: auto; }
+    .tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px; box-shadow: var(--shadow); }
+    .tab { flex: 1; min-height: 34px; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-weight: 650; cursor: pointer; }
+    .tab.active { background: var(--accent); color: var(--accent-ink); }
+    .segmented { display: flex; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+    .segment { flex: 1; min-height: 32px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-weight: 650; cursor: pointer; }
+    .segment.active { background: #e8eef8; color: var(--accent); }
+    details.advanced { border-top: 1px solid var(--line); padding-top: 8px; }
+    details.advanced > summary { cursor: pointer; color: var(--muted); font-weight: 650; margin-bottom: 8px; }
+    .hint { margin: 0; color: var(--muted); font-size: 12.5px; }
+    .side h3 { margin: 4px 0 0; font-size: 13.5px; }
+    [hidden] { display: none !important; }
     @media (max-width: 880px) {
       .topbar,
       main { display: block; }
@@ -469,6 +493,8 @@ PAGE = r"""
       .thread { height: 48vh; min-height: 310px; }
       .bubble-row { max-width: 92%; }
       .grid2 { grid-template-columns: 1fr; }
+      .side { position: static; }
+      .side .tab-panel { max-height: none; }
     }
   </style>
 </head>
@@ -514,43 +540,18 @@ PAGE = r"""
       </div>
     </section>
 
-    <aside class="stack">
-      <section class="panel">
-        <div class="panel-head"><h2>LLM</h2></div>
-        <div class="panel-body stack">
-          <div class="grid2">
-            <label>Provider
-              <input id="llm-provider" value="ollama" autocomplete="off">
-            </label>
-            <label>Model
-              <input id="llm-model" value="gemma3:1b" list="llm-models" autocomplete="off">
-              <datalist id="llm-models"></datalist>
-            </label>
-          </div>
-          <div class="grid2">
-            <label>Temperature
-              <input id="llm-temperature" type="number" min="0" max="2" step="0.05" value="0.4">
-            </label>
-            <label>Max Tokens
-              <input id="llm-max-tokens" type="number" min="32" max="8192" step="32" value="1024">
-            </label>
-          </div>
-          <label>System Prompt
-            <textarea id="system-prompt" class="compact">You are a helpful voice assistant. Keep replies short and conversational unless asked for detail.</textarea>
-          </label>
-          <div class="actions">
-            <button id="refresh-models" type="button" class="secondary">Models</button>
-            <label class="checkbox-line"><input id="chat-speak" type="checkbox" checked> Speak Reply</label>
-            <p id="llm-message" class="message">Ready.</p>
-          </div>
-        </div>
-      </section>
+    <aside class="side">
+      <nav class="tabs" role="tablist" aria-label="Settings">
+        <button type="button" class="tab active" role="tab" data-tab="voice" aria-selected="true">Voice</button>
+        <button type="button" class="tab" role="tab" data-tab="create" aria-selected="false">Create voice</button>
+        <button type="button" class="tab" role="tab" data-tab="assistant" aria-selected="false">Assistant</button>
+        <button type="button" class="tab" role="tab" data-tab="tools" aria-selected="false">Speech tools</button>
+      </nav>
 
-      <section class="panel">
-        <div class="panel-head"><h2>Voice</h2></div>
+      <section class="panel tab-panel" data-panel="voice">
         <div class="panel-body stack">
           <div class="grid2">
-            <label>TTS Provider
+            <label>TTS provider
               <select id="tts-engine-choice">
                 <option value="auto">Auto</option>
                 <option value="supertonic">Supertonic</option>
@@ -562,46 +563,57 @@ PAGE = r"""
                 <option value="qwen3-tts">Qwen3-TTS</option>
               </select>
             </label>
-            <label>Base TTS Profile
+            <label>Preset voice
               <select id="profile-choice">
                 <option value="">Default</option>
               </select>
             </label>
           </div>
-          <label>TTS model
-            <input id="tts-model" list="tts-model-options" placeholder="Provider default">
-            <datalist id="tts-model-options"></datalist>
+          <label>Show voices that speak
+            <select id="voice-language-filter">
+              <option value="">Any language</option>
+            </select>
           </label>
-          <div class="actions"><button id="apply-tts-model" type="button" class="secondary">Apply model</button></div>
           <div class="grid2">
-            <label>Qwen3-TTS predictor
-              <select id="qwen3-tts-predictor">
-                <option value="auto">auto (guarded fast loop)</option>
-                <option value="reference">reference (Transformers generate)</option>
-              </select>
-            </label>
-            <label>Qwen3-TTS sampler
-              <select id="qwen3-tts-sampler">
-                <option value="multinomial">multinomial</option>
-                <option value="exponential">exponential</option>
-              </select>
-            </label>
-          </div>
-          <div class="grid2">
-            <label>Assistant Voice
+            <label>Assistant voice
               <select id="assistant-voice-choice">
-                <option value="base">Base TTS</option>
+                <option value="base">Preset voice</option>
               </select>
             </label>
-            <label>User Voice
+            <label>User voice
               <select id="user-voice-choice">
-                <option value="base">Base TTS</option>
+                <option value="base">Preset voice</option>
               </select>
             </label>
           </div>
+          <p id="voice-details" class="hint"></p>
           <label>Speed
             <input id="speed" type="number" min="0.5" max="2" step="0.05" value="1">
           </label>
+          <details class="advanced">
+            <summary>Advanced</summary>
+            <div class="stack">
+              <label>TTS model
+                <input id="tts-model" list="tts-model-options" placeholder="Provider default">
+                <datalist id="tts-model-options"></datalist>
+              </label>
+              <div class="actions"><button id="apply-tts-model" type="button" class="secondary">Apply model</button></div>
+              <div class="grid2">
+                <label>Qwen3-TTS predictor
+                  <select id="qwen3-tts-predictor">
+                    <option value="auto">auto (guarded fast loop)</option>
+                    <option value="reference">reference (Transformers generate)</option>
+                  </select>
+                </label>
+                <label>Qwen3-TTS sampler
+                  <select id="qwen3-tts-sampler">
+                    <option value="multinomial">multinomial</option>
+                    <option value="exponential">exponential</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </details>
           <div class="actions">
             <button id="refresh-voices" type="button" class="secondary">Refresh</button>
             <p id="voice-message" class="message">Ready.</p>
@@ -609,55 +621,133 @@ PAGE = r"""
         </div>
       </section>
 
-      <section class="panel">
-        <div class="panel-head"><h2>Voice Cloning</h2></div>
+      <section class="panel tab-panel" data-panel="create" hidden>
         <div class="panel-body stack">
-          <div class="grid2">
-            <label>Name
-              <input id="clone-name" value="my_voice" autocomplete="off">
-            </label>
-            <label>Provider
-              <select id="clone-engine">
-                <option value="omnivoice" selected>OmniVoice</option>
-                <option value="qwen3-tts">Qwen3-TTS</option>
-                <option value="f5_tts">OpenF5</option>
-                <option value="chroma">Chroma</option>
-                <option value="audiodit">AudioDiT</option>
-                <option value="openai-compatible">OpenAI-compatible Remote</option>
-                <option value="openai">OpenAI Remote</option>
-              </select>
-            </label>
+          <div class="segmented" role="tablist" aria-label="Create a voice">
+            <button type="button" class="segment active" data-create="design">From a description</button>
+            <button type="button" class="segment" data-create="clone">From a recording</button>
           </div>
-          <label>Reference Audio
-            <input id="clone-file" type="file" accept=".wav,.flac,.ogg,.mp3,.m4a,.webm,.aac,audio/*">
-          </label>
-          <label>Cloning model (Qwen3-TTS Base)
-            <input id="clone-model" placeholder="Provider default; Qwen3-TTS uses a Base checkpoint">
-          </label>
-          <label>Reference Text
-            <textarea id="clone-reference-text" class="compact"></textarea>
-          </label>
-          <audio id="clone-preview" class="hidden" controls></audio>
-          <div class="actions">
-            <button id="record-clone" type="button" class="secondary">Record</button>
-            <button id="stop-clone-recording" type="button" class="secondary" disabled>Stop</button>
-            <button id="clone-voice" type="button">Clone Voice</button>
-            <p id="clone-message" class="message">Ready.</p>
+
+          <div class="stack" data-create-panel="design">
+            <label>Describe the voice
+              <textarea id="design-description" class="compact" placeholder="A calm, warm adult female voice with a slight British accent, speaking slowly."></textarea>
+            </label>
+            <div class="grid2">
+              <label>Name
+                <input id="design-name" placeholder="Calm narrator" autocomplete="off">
+              </label>
+              <label>Language
+                <select id="design-language">
+                  <option value="en">English</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="es">Spanish</option>
+                  <option value="it">Italian</option>
+                  <option value="pt">Portuguese</option>
+                  <option value="ru">Russian</option>
+                  <option value="zh">Chinese</option>
+                  <option value="ja">Japanese</option>
+                  <option value="ko">Korean</option>
+                </select>
+              </label>
+            </div>
+            <label>Sample sentence (optional)
+              <input id="design-text" placeholder="One per language by default" autocomplete="off">
+            </label>
+            <p class="hint">Qwen3-TTS renders a reference from your description, then stores it as a voice you can pick for the assistant or the user. Needs <code>abstractvoice[qwen3-tts]</code> and <code>abstractvoice[stt]</code>.</p>
+            <div class="actions">
+              <button id="design-voice" type="button">Create voice</button>
+              <p id="design-message" class="message">Ready.</p>
+            </div>
+          </div>
+
+          <div class="stack" data-create-panel="clone" hidden>
+            <div class="grid2">
+              <label>Name
+                <input id="clone-name" value="my_voice" autocomplete="off">
+              </label>
+              <label>Cloning engine
+                <select id="clone-engine">
+                  <option value="omnivoice" selected>OmniVoice</option>
+                  <option value="qwen3-tts">Qwen3-TTS</option>
+                  <option value="f5_tts">OpenF5</option>
+                  <option value="chroma">Chroma</option>
+                  <option value="audiodit">AudioDiT</option>
+                  <option value="openai-compatible">OpenAI-compatible Remote</option>
+                  <option value="openai">OpenAI Remote</option>
+                </select>
+              </label>
+            </div>
+            <label>Reference audio
+              <input id="clone-file" type="file" accept=".wav,.flac,.ogg,.mp3,.m4a,.webm,.aac,audio/*">
+            </label>
+            <label>What the recording says (optional)
+              <textarea id="clone-reference-text" class="compact"></textarea>
+            </label>
+            <details class="advanced">
+              <summary>Advanced</summary>
+              <label>Cloning model (Qwen3-TTS Base)
+                <input id="clone-model" placeholder="Provider default; Qwen3-TTS uses a Base checkpoint">
+              </label>
+            </details>
+            <audio id="clone-preview" class="hidden" controls></audio>
+            <div class="actions">
+              <button id="record-clone" type="button" class="secondary">Record</button>
+              <button id="stop-clone-recording" type="button" class="secondary" disabled>Stop</button>
+              <button id="clone-voice" type="button">Clone voice</button>
+              <p id="clone-message" class="message">Ready.</p>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="panel">
-        <div class="panel-head"><h2>Text To Speech</h2></div>
+      <section class="panel tab-panel" data-panel="assistant" hidden>
         <div class="panel-body stack">
-          <label>Speaker Voice
+          <div class="grid2">
+            <label>Provider
+              <select id="llm-provider">
+                <option value="ollama">Ollama</option>
+                <option value="lmstudio">LM Studio</option>
+                <option value="custom">Custom URL…</option>
+              </select>
+            </label>
+            <label>Model
+              <select id="llm-model"></select>
+            </label>
+          </div>
+          <label id="llm-custom-url-row" hidden>Server URL (OpenAI-compatible)
+            <input id="llm-custom-url" placeholder="http://localhost:8000" autocomplete="off">
+          </label>
+          <div class="grid2">
+            <label>Temperature
+              <input id="llm-temperature" type="number" min="0" max="2" step="0.05" value="0.4">
+            </label>
+            <label>Max tokens
+              <input id="llm-max-tokens" type="number" min="32" max="8192" step="32" value="1024">
+            </label>
+          </div>
+          <label>System prompt
+            <textarea id="system-prompt" class="compact">You are a helpful voice assistant. Keep replies short and conversational unless asked for detail.</textarea>
+          </label>
+          <div class="actions">
+            <button id="refresh-models" type="button" class="secondary">Detect</button>
+            <label class="checkbox-line"><input id="chat-speak" type="checkbox" checked> Speak reply</label>
+            <p id="llm-message" class="message">Ready.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel tab-panel" data-panel="tools" hidden>
+        <div class="panel-body stack">
+          <h3>Text to speech</h3>
+          <label>Speaker voice
             <select id="tts-role">
               <option value="assistant">Assistant</option>
               <option value="user">User</option>
             </select>
           </label>
           <label>Text
-            <textarea id="tts-text">Hello from AbstractVoice.</textarea>
+            <textarea id="tts-text" class="compact">Hello from AbstractVoice.</textarea>
           </label>
           <label>Voice instructions
             <textarea id="tts-instructions" class="compact" placeholder="Optional speaking style; required for Qwen3 VoiceDesign."></textarea>
@@ -668,13 +758,8 @@ PAGE = r"""
           </div>
           <audio id="audio" controls></audio>
           <p id="tts-message" class="message">Ready.</p>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><h2>Speech To Text</h2></div>
-        <div class="panel-body stack">
-          <label>Audio File
+          <h3>Speech to text</h3>
+          <label>Audio file
             <input id="file" type="file" accept="audio/*">
           </label>
           <div class="actions">
@@ -715,7 +800,11 @@ PAGE = r"""
     const speedInput = document.getElementById("speed");
     const providerInput = document.getElementById("llm-provider");
     const modelInput = document.getElementById("llm-model");
-    const modelOptions = document.getElementById("llm-models");
+    const customUrlInput = document.getElementById("llm-custom-url");
+    const customUrlRow = document.getElementById("llm-custom-url-row");
+    const languageFilter = document.getElementById("voice-language-filter");
+    const voiceDetails = document.getElementById("voice-details");
+    const designMessage = document.getElementById("design-message");
     const temperatureInput = document.getElementById("llm-temperature");
     const maxTokensInput = document.getElementById("llm-max-tokens");
     const systemPromptInput = document.getElementById("system-prompt");
@@ -757,6 +846,26 @@ PAGE = r"""
     ];
     let optionalDependencies = {};
     let cloneDefaultsApplied = false;
+    let clonedVoicesCache = [];
+
+    // Per-browser conveniences: the last provider, model and language filter.
+    function remember(key, value) { try { localStorage.setItem("abstractvoice.web." + key, value); } catch (_) {} }
+    function recall(key) { try { return localStorage.getItem("abstractvoice.web." + key) || ""; } catch (_) { return ""; } }
+
+    function showTab(name) {
+      for (const tab of document.querySelectorAll(".tab")) {
+        const on = tab.dataset.tab === name;
+        tab.classList.toggle("active", on);
+        tab.setAttribute("aria-selected", on ? "true" : "false");
+      }
+      for (const panel of document.querySelectorAll(".tab-panel")) panel.hidden = panel.dataset.panel !== name;
+      remember("tab", name);
+    }
+
+    function showCreateMode(name) {
+      for (const seg of document.querySelectorAll(".segment")) seg.classList.toggle("active", seg.dataset.create === name);
+      for (const panel of document.querySelectorAll("[data-create-panel]")) panel.hidden = panel.dataset.createPanel !== name;
+    }
 
     function setMessage(el, text, kind) {
       el.textContent = text;
@@ -1208,20 +1317,82 @@ PAGE = r"""
       }
     }
 
+    const LANGUAGE_NAMES = {en: "English", fr: "French", de: "German", es: "Spanish", it: "Italian", pt: "Portuguese", ru: "Russian", zh: "Chinese", ja: "Japanese", ko: "Korean", nl: "Dutch", pl: "Polish", tr: "Turkish", ar: "Arabic", hi: "Hindi"};
+    function languageName(code) { return LANGUAGE_NAMES[code] || code; }
+
+    function voiceLabel(item) {
+      const name = item.name || item.id || item.voice_id;
+      const bits = [];
+      if (item.language) bits.push(languageName(item.language));
+      if (!item.builtin && (item.provider || item.engine)) bits.push(item.provider || item.engine);
+      return name + (bits.length ? " · " + bits.join(" · ") : "");
+    }
+
     function buildVoiceOptions(select, selectedVoice, clonedVoices) {
+      const wanted = languageFilter.value;
       select.innerHTML = "";
       const base = document.createElement("option");
       base.value = "base";
-      base.textContent = "Base TTS";
+      const preset = profileChoice.selectedOptions[0];
+      base.textContent = "Preset voice" + (preset && preset.value ? " (" + preset.textContent + ")" : "");
       select.appendChild(base);
-      for (const item of clonedVoices || []) {
-        const opt = document.createElement("option");
-        opt.value = item.id || item.voice_id;
-        const provider = item.provider || item.engine || "";
-        opt.textContent = (item.name || item.id || item.voice_id) + (provider ? " (" + provider + ")" : "");
-        select.appendChild(opt);
+      const groups = [
+        ["Your voices", (item) => !item.builtin],
+        ["Built-in voices", (item) => item.builtin]
+      ];
+      for (const [label, keep] of groups) {
+        const items = (clonedVoices || [])
+          .filter(keep)
+          .filter((item) => !wanted || item.language === wanted || item.id === selectedVoice)
+          .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+        if (!items.length) continue;
+        const group = document.createElement("optgroup");
+        group.label = label + " (" + items.length + ")";
+        for (const item of items) {
+          const opt = document.createElement("option");
+          opt.value = item.id || item.voice_id;
+          opt.textContent = voiceLabel(item);
+          group.appendChild(opt);
+        }
+        select.appendChild(group);
       }
       select.value = Array.from(select.options).some((o) => o.value === selectedVoice) ? selectedVoice : "base";
+    }
+
+    function buildLanguageFilter(clonedVoices) {
+      const current = languageFilter.value || recall("language");
+      const codes = Array.from(new Set((clonedVoices || []).map((v) => v.language).filter(Boolean))).sort();
+      languageFilter.innerHTML = "";
+      const any = document.createElement("option");
+      any.value = "";
+      any.textContent = "Any language";
+      languageFilter.appendChild(any);
+      for (const code of codes) {
+        const opt = document.createElement("option");
+        opt.value = code;
+        opt.textContent = languageName(code);
+        languageFilter.appendChild(opt);
+      }
+      languageFilter.value = codes.includes(current) ? current : "";
+    }
+
+    function describeVoice() {
+      const lines = [];
+      for (const [role, select] of [["Assistant", assistantVoiceChoice], ["User", userVoiceChoice]]) {
+        const item = clonedVoicesCache.find((v) => v.id === select.value);
+        if (item && item.description) lines.push(role + ": " + item.description);
+      }
+      const untagged = clonedVoicesCache.filter((v) => !v.builtin && !v.language).length;
+      if (languageFilter.value && untagged) lines.push(untagged + " of your voices record no language and show only under Any language.");
+      voiceDetails.textContent = lines.join(" ");
+    }
+
+    function rebuildRoleVoices(roleVoices) {
+      const assistantSelected = (roleVoices && roleVoices.assistant) || assistantVoiceChoice.value || "base";
+      const userSelected = (roleVoices && roleVoices.user) || userVoiceChoice.value || "base";
+      buildVoiceOptions(assistantVoiceChoice, assistantSelected, clonedVoicesCache);
+      buildVoiceOptions(userVoiceChoice, userSelected, clonedVoicesCache);
+      describeVoice();
     }
 
     async function refreshVoices() {
@@ -1232,10 +1403,8 @@ PAGE = r"""
           ttsEngineChoice.value = currentProvider;
         }
         const roleVoices = (data.current && data.current.role_voices) || {};
-        const assistantSelected = roleVoices.assistant || assistantVoiceChoice.value || "base";
-        const userSelected = roleVoices.user || userVoiceChoice.value || "base";
-        buildVoiceOptions(assistantVoiceChoice, assistantSelected, data.cloned_voices || []);
-        buildVoiceOptions(userVoiceChoice, userSelected, data.cloned_voices || []);
+        clonedVoicesCache = data.cloned_voices || [];
+        buildLanguageFilter(clonedVoicesCache);
 
         const selectedProfile = profileChoice.value;
         profileChoice.innerHTML = "";
@@ -1264,7 +1433,8 @@ PAGE = r"""
         }
         if (profileChoice.selectedOptions[0] && profileChoice.selectedOptions[0].disabled) profileChoice.value = "";
         profileChoice.disabled = profileChoice.options.length <= 1;
-        setMessage(voiceMessage, "Voices refreshed.", "ok");
+        rebuildRoleVoices(roleVoices);
+        setMessage(voiceMessage, clonedVoicesCache.length + " voices: " + clonedVoicesCache.filter((v) => !v.builtin).length + " of yours, " + clonedVoicesCache.filter((v) => v.builtin).length + " built-in.", "ok");
         refreshStatus();
       } catch (err) {
         setMessage(voiceMessage, err.message || String(err), "error");
@@ -1430,8 +1600,8 @@ PAGE = r"""
       const history = messages.map((item) => ({role: roleLabel(item.role), content: item.text}));
       history.push({role: "user", content: userText});
       return {
-        provider: providerInput.value.trim() || "ollama",
-        model: modelInput.value.trim() || "gemma3:1b",
+        provider: currentProvider(),
+        model: modelInput.value || "",
         system_prompt: systemPromptInput.value.trim(),
         messages: history,
         temperature: Number.isFinite(temperature) ? temperature : 0.4,
@@ -1479,27 +1649,132 @@ PAGE = r"""
       }
     }
 
-    async function refreshModels() {
-      const button = document.getElementById("refresh-models");
-      button.disabled = true;
-      const finishButtonLoading = beginButtonLoading(button, "Loading");
-      try {
-        const provider = encodeURIComponent(providerInput.value.trim() || "ollama");
-        setMessage(llmMessage, "Loading models.", "");
-        const data = await fetchJson("/api/llm/models?provider=" + provider);
-        modelOptions.innerHTML = "";
-        for (const id of data.models || []) {
+    function currentProvider() {
+      return providerInput.value === "custom" ? (customUrlInput.value.trim() || "custom") : providerInput.value;
+    }
+
+    function fillModels(models, preferred, embeddingModels) {
+      modelInput.innerHTML = "";
+      for (const id of models || []) {
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = id;
+        modelInput.appendChild(opt);
+      }
+      if ((embeddingModels || []).length) {
+        const group = document.createElement("optgroup");
+        group.label = "Embedding models (cannot chat)";
+        for (const id of embeddingModels) {
           const opt = document.createElement("option");
           opt.value = id;
-          modelOptions.appendChild(opt);
+          opt.textContent = id;
+          opt.disabled = true;
+          group.appendChild(opt);
         }
-        setMessage(llmMessage, (data.models || []).length + " model(s) found.", "ok");
+        modelInput.appendChild(group);
+      }
+      if (!(models || []).length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No model found";
+        modelInput.insertBefore(opt, modelInput.firstChild);
+      }
+      modelInput.value = (models || []).includes(preferred) ? preferred : (models && models[0]) || "";
+      remember("model", modelInput.value);
+    }
+
+    // Ask every known local server (Ollama, LM Studio) which models it serves; pick the
+    // remembered provider when it answers, else the first that does, and fill the models.
+    async function detectProviders() {
+      const button = document.getElementById("refresh-models");
+      button.disabled = true;
+      const finishButtonLoading = beginButtonLoading(button, "Detecting");
+      try {
+        setMessage(llmMessage, "Looking for local model servers.", "");
+        const custom = providerInput.value === "custom" ? "&custom=" + encodeURIComponent(customUrlInput.value.trim()) : "";
+        const data = await fetchJson("/api/llm/providers?" + custom);
+        const rows = data.providers || [];
+        for (const opt of providerInput.options) {
+          const row = rows.find((r) => r.name === opt.value);
+          if (!row) continue;
+          const label = opt.dataset.label || opt.textContent;
+          opt.dataset.label = label;
+          opt.textContent = label + (row.reachable ? " · " + row.models.length + " models" : " · not running");
+        }
+        const remembered = recall("provider");
+        let choice = providerInput.value === "custom" ? rows.find((r) => r.name === "custom") : null;
+        const hasModels = (r) => r.reachable && (r.models || []).length;
+        choice = choice || rows.find((r) => r.name === remembered && hasModels(r)) || rows.find(hasModels) || rows.find((r) => r.reachable);
+        if (!choice) {
+          fillModels([], "");
+          setMessage(llmMessage, "No local model server answered. Start Ollama or LM Studio, or choose Custom URL, then Detect.", "error");
+          return;
+        }
+        if (choice.name !== "custom") providerInput.value = choice.name;
+        remember("provider", providerInput.value);
+        fillModels(choice.models, recall("model"), choice.embedding_models);
+        setMessage(llmMessage, (choice.label || choice.name) + ": " + choice.models.length + " model(s).", "ok");
       } catch (err) {
         setMessage(llmMessage, err.message || String(err), "error");
       } finally {
         finishButtonLoading();
         button.disabled = false;
       }
+    }
+
+    async function loadModelsForProvider() {
+      customUrlRow.hidden = providerInput.value !== "custom";
+      if (providerInput.value === "custom" && !customUrlInput.value.trim()) {
+        fillModels([], "");
+        setMessage(llmMessage, "Enter the server URL, then Detect.", "");
+        return;
+      }
+      remember("provider", providerInput.value);
+      try {
+        const data = await fetchJson("/api/llm/models?provider=" + encodeURIComponent(currentProvider()));
+        fillModels(data.models || [], recall("model"), data.embedding_models);
+        setMessage(llmMessage, (data.models || []).length ? (data.models.length + " model(s) on " + data.base_url + ".") : ("No model answered at " + data.base_url + "."), (data.models || []).length ? "ok" : "error");
+      } catch (err) {
+        setMessage(llmMessage, err.message || String(err), "error");
+      }
+    }
+
+    // Voice design: Qwen3-TTS renders a reference from the description and stores it as a voice.
+    async function designVoice() {
+      const button = document.getElementById("design-voice");
+      const description = document.getElementById("design-description").value.trim();
+      if (!description) {
+        setMessage(designMessage, "Describe the voice first.", "error");
+        return;
+      }
+      const body = {
+        description,
+        name: document.getElementById("design-name").value.trim() || null,
+        language: document.getElementById("design-language").value || null,
+        text: document.getElementById("design-text").value.trim() || null
+      };
+      button.disabled = true;
+      const finishButtonLoading = beginButtonLoading(button, "Creating");
+      try {
+        const data = await withBusy("Creating voice", "Rendering a reference from your description with Qwen3-TTS, then storing it. This takes a few seconds once the models are loaded.",
+          () => fetchJson("/api/voices/design", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}));
+        await useNewVoice(data.voice_id, data.name, designMessage);
+      } catch (err) {
+        setMessage(designMessage, err.message || String(err), "error");
+      } finally {
+        finishButtonLoading();
+        button.disabled = false;
+      }
+    }
+
+    // A voice just created becomes the assistant's voice, so it can be heard at once.
+    async function useNewVoice(voiceId, name, messageEl) {
+      await refreshVoices();
+      if (voiceId && Array.from(assistantVoiceChoice.options).some((o) => o.value === voiceId)) {
+        assistantVoiceChoice.value = voiceId;
+        await selectRoleVoice("assistant");
+      }
+      setMessage(messageEl, "Voice ready: " + (name || voiceId) + ". It is now the assistant voice (Voice tab).", "ok");
     }
 
     function writeAscii(view, offset, text) {
@@ -1660,8 +1935,7 @@ PAGE = r"""
           "Storing and validating the reference audio with " + cloneProvider + ".",
           () => fetchJson("/api/voices/clone", {method: "POST", body: form})
         );
-        await refreshVoices();
-        setMessage(cloneMessage, "Cloned and validated voice ready: " + (data.name || data.voice_id || "voice") + ".", "ok");
+        await useNewVoice(data.voice_id, data.name, cloneMessage);
       } catch (err) {
         setMessage(cloneMessage, err.message || String(err), "error");
       } finally {
@@ -1706,7 +1980,14 @@ PAGE = r"""
     });
     document.getElementById("speak").addEventListener("click", speakSingle);
     document.getElementById("transcribe").addEventListener("click", transcribe);
-    document.getElementById("refresh-models").addEventListener("click", refreshModels);
+    document.getElementById("refresh-models").addEventListener("click", detectProviders);
+    providerInput.addEventListener("change", loadModelsForProvider);
+    customUrlInput.addEventListener("change", loadModelsForProvider);
+    modelInput.addEventListener("change", () => remember("model", modelInput.value));
+    languageFilter.addEventListener("change", () => { remember("language", languageFilter.value); rebuildRoleVoices(null); });
+    for (const tab of document.querySelectorAll(".tab")) tab.addEventListener("click", () => showTab(tab.dataset.tab));
+    for (const seg of document.querySelectorAll(".segment")) seg.addEventListener("click", () => showCreateMode(seg.dataset.create));
+    document.getElementById("design-voice").addEventListener("click", designVoice);
     document.getElementById("refresh-voices").addEventListener("click", () => withBusy("Loading TTS voices", "Reading local profiles and cloned voices; the first run may initialize the TTS provider.", refreshVoices));
     ttsEngineChoice.addEventListener("change", () => {
       document.getElementById("tts-model").value = "";
@@ -1723,13 +2004,15 @@ PAGE = r"""
     document.getElementById("clone-model").disabled = cloneEngineInput.value !== "qwen3-tts";
     assistantVoiceChoice.addEventListener("change", () => selectRoleVoice("assistant"));
     userVoiceChoice.addEventListener("change", () => selectRoleVoice("user"));
-    profileChoice.addEventListener("change", selectProfile);
+    profileChoice.addEventListener("change", async () => { await selectProfile(); rebuildRoleVoices(null); });
     audio.addEventListener("play", updatePlaybackControls);
     audio.addEventListener("pause", updatePlaybackControls);
     audio.addEventListener("ended", updatePlaybackControls);
 
     renderMessages();
+    showTab(recall("tab") || "voice");
     refreshStatus();
+    detectProviders();
     withBusy("Loading TTS voices", "Reading local profiles and cloned voices; the first run may initialize the TTS provider.", refreshVoices);
   </script>
 </body>
@@ -1920,8 +2203,17 @@ class ExampleState:
         name = str(item.get("name") or "").strip()
         provider = str(item.get("provider") or item.get("engine") or "").strip()
         roles = [role for role, selected in self.role_voices.items() if voice_id and selected == voice_id]
+        meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
+        tags = item.get("tags") if isinstance(item.get("tags"), dict) else {}
+        language = str(item.get("language") or meta.get("language_code") or meta.get("language") or "").strip().lower() or None
         return {
             "id": voice_id,
+            # The voice's native language when the store records it (built-in and designed
+            # voices do; a voice cloned from a recording may not), for the language filter.
+            "language": language,
+            "builtin": bool(meta.get("builtin") or tags.get("builtin")),
+            "designed": bool(meta.get("designed") or tags.get("designed") or meta.get("design_description")),
+            "description": str(meta.get("description") or meta.get("design_description") or "").strip() or None,
             "voice_id": voice_id,
             "name": name,
             "label": name or voice_id,
@@ -2260,6 +2552,32 @@ class ExampleState:
                 except Exception:
                     pass
 
+    def design_voice(
+        self,
+        description: str,
+        *,
+        name: Optional[str] = None,
+        language: Optional[str] = None,
+        text: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Create a voice from a description (VoiceManager.design_voice) and return its record."""
+        if not str(description or "").strip():
+            raise ValueError("Describe the voice first.")
+        with self.lock:
+            vm = self.get_voice_manager()
+            voice_id = vm.design_voice(
+                str(description).strip(),
+                name=(str(name).strip() or None) if name else None,
+                language=(str(language).strip() or None) if language else None,
+                text=(str(text).strip() or None) if text else None,
+            )
+            record = {}
+            try:
+                record = dict(vm.get_cloned_voice(voice_id) or {})
+            except Exception:
+                record = {}
+        return {"ok": True, "voice_id": voice_id, "name": record.get("name") or name, "voice": record}
+
     def clone_voice_from_upload(
         self,
         audio_bytes: bytes,
@@ -2584,6 +2902,12 @@ def create_app(
             examples=["supertonic"],
         )
 
+    class VoiceDesignRequest(BaseModel):
+        description: str = Field(..., description="The voice in words.")
+        name: Optional[str] = Field(None, description="Display name of the new voice.")
+        language: Optional[str] = Field(None, description="Language of the reference (ISO code).")
+        text: Optional[str] = Field(None, description="Sentence the reference is rendered with.")
+
     class ChatRequest(BaseModel):
         provider: Optional[str] = Field(None, description="Provider preset or base URL.", examples=["ollama"])
         model: Optional[str] = Field(None, description="OpenAI-compatible model id.", examples=["gemma3:1b"])
@@ -2791,14 +3115,45 @@ def create_app(
         except Exception as e:
             http_error(e)
 
+    @app.get("/api/llm/providers", summary="Detect the local OpenAI-compatible model servers and their models")
+    async def llm_providers(custom: Optional[str] = Query(None, description="Also probe this base URL.")):
+        rows = []
+        candidates = [("ollama", "Ollama"), ("lmstudio", "LM Studio")]
+        if custom and custom.strip():
+            candidates.append((custom.strip(), "Custom"))
+        for key, label in candidates:
+            llm = resolve_provider(key)
+            detailed = await asyncio.to_thread(llm.list_models_detailed, 2.0)
+            models = [m["id"] for m in detailed if m["kind"] == "chat"]
+            rows.append({
+                "embedding_models": [m["id"] for m in detailed if m["kind"] == "embedding"],
+                "name": "custom" if label == "Custom" else llm.name,
+                "label": label,
+                "base_url": llm.base_url,
+                "reachable": bool(models) or await asyncio.to_thread(llm.is_reachable, 1.5),
+                "models": models,
+            })
+        return {"ok": True, "providers": rows}
+
+    @app.post("/api/voices/design", summary="Create a voice from a written description (Qwen3-TTS VoiceDesign)")
+    async def design_voice(payload: VoiceDesignRequest):
+        try:
+            return await asyncio.to_thread(
+                state.design_voice, payload.description, name=payload.name, language=payload.language, text=payload.text
+            )
+        except Exception as e:
+            http_error(e)
+
     @app.get("/api/llm/models", summary="List models from an OpenAI-compatible provider")
     async def llm_models(provider: Optional[str] = Query(None, description="Provider preset or base URL.", examples=["ollama"])):
         llm = resolve_provider(provider or DEFAULT_PROVIDER)
+        detailed = await asyncio.to_thread(llm.list_models_detailed)
         return {
             "ok": True,
             "provider": llm.name,
             "base_url": llm.base_url,
-            "models": llm.list_models(),
+            "models": [m["id"] for m in detailed if m["kind"] == "chat"],
+            "embedding_models": [m["id"] for m in detailed if m["kind"] == "embedding"],
         }
 
     # Example-only LLM bridge: no server-side memory, auth, streaming, or agent loop.
