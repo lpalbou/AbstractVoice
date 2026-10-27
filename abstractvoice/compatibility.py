@@ -490,9 +490,18 @@ def _merge_surfaces(
     for surface_name, raw_features in dict(overrides or {}).items():
         if not isinstance(raw_features, dict):
             continue
-        current = dict(out.get(str(surface_name)) or {})
-        current.update(_normalize_surface_features(kind, raw_features))
-        out[str(surface_name)] = current
+        name = str(surface_name)
+        if name not in out:
+            out[name] = _normalize_surface_features(kind, raw_features)
+            continue
+        # An override changes only the features it names: a model record inherits
+        # every other feature from its provider's defaults.
+        current = dict(out[name])
+        for feature_name, value in raw_features.items():
+            key = str(feature_name or "").strip()
+            if key:
+                current[key] = _support_from_asset(value)
+        out[name] = current
     return out
 
 

@@ -133,7 +133,7 @@ def test_compatibility_catalog_support_queries_are_surface_aware() -> None:
         feature="speed",
     )
     assert piper_bytes_speed is not None
-    assert piper_bytes_speed.support == "unsupported"
+    assert piper_bytes_speed.support == "emulated"  # time-stretch after generation (backlog 0062)
 
     openai_prompt = catalog.support_for(
         kind="stt",

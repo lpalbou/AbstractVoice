@@ -2436,6 +2436,24 @@ class TtsMixin:
             return self.tts_engine.is_active()
         return False
 
+    def _speed_usable(self, provider_name: str | None, model_name: str | None) -> bool:
+        """Whether some path of this manager can apply a speed.
+
+        The speed is a manager setting; each path applies it or drops it per the
+        capability catalog. It is kept when the TTS engine supports it on live
+        playback or on synthesis to bytes, or when the cloning engine supports it
+        for cloned speech (a manager may have no TTS engine at all).
+        """
+        level = self._compatibility_support_level
+        if provider_name:
+            for surface in ("playback", "bytes"):
+                if level(kind="tts", provider=provider_name, model=model_name, surface=surface, feature="speed") != "unsupported":
+                    return True
+        clone_engine = str(getattr(self, "cloning_engine", "") or "").strip().lower()
+        if clone_engine and level(kind="cloning", provider=clone_engine, surface="speak_bytes", feature="speed") != "unsupported":
+            return True
+        return False
+
     def set_speed(self, speed):
         try:
             sp = float(speed)
@@ -2461,13 +2479,7 @@ class TtsMixin:
         except Exception:
             provider_name = None
             model_name = None
-        if sp != 1.0 and self._compatibility_support_level(
-            kind="tts",
-            provider=provider_name,
-            model=model_name,
-            surface="playback",
-            feature="speed",
-        ) == "unsupported":
+        if sp != 1.0 and not self._speed_usable(provider_name, model_name):
             # Keep manager speed unchanged (or reset to 1.0 if unset).
             try:
                 self.speed = float(getattr(self, "speed", 1.0) or 1.0)

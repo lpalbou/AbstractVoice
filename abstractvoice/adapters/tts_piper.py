@@ -822,11 +822,20 @@ class PiperTTSAdapter(TTSAdapter):
         ).strip()
         return self._profile_for_language(language)
 
-    def synthesize_to_bytes_with_voice(self, text: str, *, format: str = "wav", voice: str | None = None, **_kwargs: Any) -> bytes:
+    def synthesize_to_bytes_with_voice(
+        self, text: str, *, format: str = "wav", voice: str | None = None, speed: Any = None, **_kwargs: Any
+    ) -> bytes:
         """Core/Gateway compatibility hook for profile-style voice selection."""
         if voice and not self.set_profile(str(voice)):
             raise ValueError(f"Unknown Piper voice/profile: {voice}")
-        return self.synthesize_to_bytes(text, format=format)
+        if speed is None or float(speed) == 1.0:
+            return self.synthesize_to_bytes(text, format=format)
+        if str(format or "wav").lower() != "wav":
+            raise ValueError(f"Piper adapter currently only supports WAV format, not {format}")
+        from ..tts.tts_engine import apply_speed_without_pitch_change
+
+        audio = apply_speed_without_pitch_change(self.synthesize(text), float(speed), sr=int(self.get_sample_rate()))
+        return self._array_to_wav_bytes(audio)
 
     def list_available_models(self, language: Optional[str] = None) -> Dict[str, Any]:
         """List available Piper voices with cache status.

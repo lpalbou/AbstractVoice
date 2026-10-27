@@ -1,7 +1,8 @@
 ## Task 0062: Speed is ignored when Supertonic and Piper synthesize to bytes
 
 **Date**: 2026-10-26  
-**Status**: Planned  
+**Status**: Completed  
+**Completed**: 2026-10-27  
 **Priority**: P2  
 **Area**: TTS adapters (`abstractvoice/adapters/tts_supertonic.py`, `abstractvoice/adapters/tts_piper.py`), `TtsMixin.speak_to_bytes`  
 **Version**: found in 0.18.2; deferred to the package rebuild
@@ -109,4 +110,24 @@ a surface whose adapter drops it.
 
 ### Summary
 
+Shipped in 0.18.4, together with Qwen3-TTS speed. Supertonic honours `speed` natively on the bytes path
+(`_synthesize_with_speed`, the playback rule: 1.0 keeps the engine's default pace). Piper, Qwen3-TTS
+(preset speakers) and Qwen3-TTS clones apply the existing pitch-preserving time-stretch
+(`apply_speed_without_pitch_change`: librosa when installed, else WSOLA) after generation, as Chroma already
+did. The catalog declares `speed` native (Supertonic) or emulated (Piper, Qwen3-TTS bytes, Qwen3-TTS clone
+`speak_bytes`); Qwen3-TTS live playback stays unsupported. Two root causes surfaced and were fixed:
+`set_speed` refused any speed when live playback could not apply it (so the AbstractCore plugin, which applies
+a per-call speed through `set_speed`, dropped it for Qwen3-TTS); it now keeps a speed that any path can apply.
+And a model record in the catalog reset every feature it did not name to unsupported, which dropped per-call
+preset voices and quality presets for Qwen3-TTS on the bytes path; model records now inherit their provider's
+defaults. Option A of the decision was followed; Piper uses the time-stretch rather than `length_scale`
+(simpler, same contract), which can be revisited.
+
 ### Validation
+
+- Tests: `tests/test_speed_on_bytes_path.py` (each path measured on its output duration; catalog levels;
+  model inheritance). Full suite 844 passed; torch-free CI mirror 689 passed.
+- Real weights, `speak_to_bytes` at 0.8 / 1.25 (expected x1.25 / x0.80): Supertonic x1.31 / x0.84, Piper
+  x1.20 / x0.79, Qwen3-TTS preset x1.37 / x0.79, Qwen3-TTS built-in clone x1.25 / x0.77; Whisper word error
+  0.00 at 0.8, at most 0.13 at 1.25. Through the AbstractCore plugin (per-call `speed`, built-in clone, median of
+  three takes): x0.85 at 1.25, x1.37 at 0.8.

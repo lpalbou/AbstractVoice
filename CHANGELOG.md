@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.18.4] - 2026-10-27
+
+### Added
+
+- Qwen3-TTS speed: `speak_to_bytes()` / `speak_to_file()` with a speed other than 1.0 apply a pitch-preserving
+  time-stretch after generation, for preset speakers and for Qwen3-TTS clones (including the built-in voices).
+  The catalog reports it as `emulated`; live playback with Qwen3-TTS does not apply it.
+
+### Fixed
+
+- Speed on the bytes path, used by the AbstractCore plugin and `/v1/audio/speech`: Supertonic applies it natively
+  and Piper through the same time-stretch; both were reported unsupported and ignored there.
+- `set_speed()` keeps a speed whenever some path of the manager can apply it (playback, synthesis to bytes, or
+  the cloning engine). It refused any speed the live playback path could not apply, so the AbstractCore plugin,
+  which applies a per-call speed through it, dropped speed for Qwen3-TTS and for managers without a TTS engine.
+- The capability catalog's model records inherit their provider's defaults: a record naming one feature reset
+  every other feature to unsupported, so per-call preset voices and quality presets were dropped for Qwen3-TTS
+  checkpoints on the bytes path.
+
 ## [0.18.3] - 2026-10-27
 
 ### Added
