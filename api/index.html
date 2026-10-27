@@ -2887,6 +2887,13 @@ AbstractCore/Gateway:
   without forcing older clients to understand it
 - <code>compatibility_catalog</code> is the central matrix for provider/model capability
   queries across <code>tts</code>, <code>stt</code>, and <code>cloning</code>
+  - <code>tts</code> features include <code>one_shot</code> (native on Qwen3-TTS <code>bytes</code> for the speaking
+    checkpoints, with <code>metadata.max_chars</code>; unsupported on <code>playback</code> and elsewhere)
+  - <code>cloning</code> features include <code>design</code> on the <code>create</code> surface (native only for
+    Qwen3-TTS, with the design and cloning models and the languages in <code>metadata</code>) and
+    <code>one_shot</code> on <code>speak_bytes</code>; for example
+    <code>find_compatible_models(kind="cloning", feature="design", surface="create")</code> lists
+    the engines that can create a voice from a description
 - <code>clone(...)</code> accepts a local file path, raw audio bytes, an artifact-ref dict,
   or a direct audio payload dict with <code>content</code>/<code>bytes</code> plus optional
   <code>filename</code> / <code>content_type</code>. File-path and filename-bearing payloads preserve
