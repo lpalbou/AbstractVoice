@@ -1985,8 +1985,14 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <li>
 <p><code>set_speed(speed: float) -&gt; bool</code>, <code>get_speed() -&gt; float</code></p>
 </li>
+<li>Adjusts the default speaking speed used by <code>speak_to_*()</code> and the REPL (0.5 to 2.0). It is kept when
+    some path can apply it (the TTS engine on playback or on <code>speak_to_bytes</code>, or the cloning engine for
+    cloned speech) and returns <code>False</code> otherwise.</li>
 <li>
-<p>Adjusts the default speaking speed used by <code>speak_to_*()</code> and the REPL.</p>
+<p>Supertonic and OmniVoice apply speed natively; Piper, Qwen3-TTS (preset speakers and clones) and Chroma
+    apply a pitch-preserving time-stretch after generation (librosa when installed, else WSOLA). Qwen3-TTS live
+    playback does not apply it. <code>get_capability_support(kind=..., feature="speed", provider=..., surface=...)</code>
+    reports <code>native</code>, <code>emulated</code> or <code>unsupported</code> per path.</p>
 </li>
 <li>
 <p><code>set_tts_quality_preset(preset: str) -&gt; bool</code>, <code>get_tts_quality_preset() -&gt; str | None</code></p>

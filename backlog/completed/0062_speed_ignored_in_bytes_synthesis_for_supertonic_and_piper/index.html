@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/planned/0062_speed_ignored_in_bytes_synthesis_for_supertonic_and_piper/">
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/completed/0062_speed_ignored_in_bytes_synthesis_for_supertonic_and_piper/">
       
       
       
@@ -1316,7 +1316,8 @@
 
 <h2 id="task-0062-speed-is-ignored-when-supertonic-and-piper-synthesize-to-bytes">Task 0062: Speed is ignored when Supertonic and Piper synthesize to bytes<a class="headerlink" href="#task-0062-speed-is-ignored-when-supertonic-and-piper-synthesize-to-bytes" title="Permanent link">&para;</a></h2>
 <p><strong>Date</strong>: 2026-10-26<br />
-<strong>Status</strong>: Planned<br />
+<strong>Status</strong>: Completed<br />
+<strong>Completed</strong>: 2026-10-27<br />
 <strong>Priority</strong>: P2<br />
 <strong>Area</strong>: TTS adapters (<code>abstractvoice/adapters/tts_supertonic.py</code>, <code>abstractvoice/adapters/tts_piper.py</code>), <code>TtsMixin.speak_to_bytes</code><br />
 <strong>Version</strong>: found in 0.18.2; deferred to the package rebuild</p>
@@ -1405,7 +1406,27 @@ a surface whose adapter drops it.</p>
 <hr />
 <h2 id="report-fill-only-when-completed">Report (fill only when completed)<a class="headerlink" href="#report-fill-only-when-completed" title="Permanent link">&para;</a></h2>
 <h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
+<p>Shipped in 0.18.4, together with Qwen3-TTS speed. Supertonic honours <code>speed</code> natively on the bytes path
+(<code>_synthesize_with_speed</code>, the playback rule: 1.0 keeps the engine's default pace). Piper, Qwen3-TTS
+(preset speakers) and Qwen3-TTS clones apply the existing pitch-preserving time-stretch
+(<code>apply_speed_without_pitch_change</code>: librosa when installed, else WSOLA) after generation, as Chroma already
+did. The catalog declares <code>speed</code> native (Supertonic) or emulated (Piper, Qwen3-TTS bytes, Qwen3-TTS clone
+<code>speak_bytes</code>); Qwen3-TTS live playback stays unsupported. Two root causes surfaced and were fixed:
+<code>set_speed</code> refused any speed when live playback could not apply it (so the AbstractCore plugin, which applies
+a per-call speed through <code>set_speed</code>, dropped it for Qwen3-TTS); it now keeps a speed that any path can apply.
+And a model record in the catalog reset every feature it did not name to unsupported, which dropped per-call
+preset voices and quality presets for Qwen3-TTS on the bytes path; model records now inherit their provider's
+defaults. Option A of the decision was followed; Piper uses the time-stretch rather than <code>length_scale</code>
+(simpler, same contract), which can be revisited.</p>
 <h3 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tests: <code>tests/test_speed_on_bytes_path.py</code> (each path measured on its output duration; catalog levels;
+  model inheritance). Full suite 844 passed; torch-free CI mirror 689 passed.</li>
+<li>Real weights, <code>speak_to_bytes</code> at 0.8 / 1.25 (expected x1.25 / x0.80): Supertonic x1.31 / x0.84, Piper
+  x1.20 / x0.79, Qwen3-TTS preset x1.37 / x0.79, Qwen3-TTS built-in clone x1.25 / x0.77; Whisper word error
+  0.00 at 0.8, at most 0.13 at 1.25. Through the AbstractCore plugin (per-call <code>speed</code>, built-in clone, median of
+  three takes): x0.85 at 1.25, x1.37 at 0.8.</li>
+</ul>
 
 
 
