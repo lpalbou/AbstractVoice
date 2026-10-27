@@ -5298,6 +5298,13 @@ class VoiceREPL(cmd.Cmd):
         cloned = state.get("cloned_voice")
         if cloned:
             self.do_tts_voice(f"clone {cloned}")
+        elif state and self.current_tts_voice:
+            # The saved session spoke with the preset voice: leave the current cloned voice.
+            self.do_tts_voice("base")
+        stt_engine = state.get("stt_engine")
+        current_stt = str(getattr(self.voice_manager, "_stt_engine_name", "") or "")
+        if stt_engine and stt_engine != current_stt:
+            self.do_stt_engine(stt_engine)
 
     def _get_current_timestamp(self):
         """Get current timestamp in the format YYYY-MM-DD HH-MM-SS."""

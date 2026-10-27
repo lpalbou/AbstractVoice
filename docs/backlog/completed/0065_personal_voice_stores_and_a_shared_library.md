@@ -112,3 +112,18 @@ An unconfigured capability restores the manager's own store (an embedder's injec
   ("Unknown voice_id") nor delete it; alice deploys it; bob speaks with the library voice and cannot delete it
   ("is a library voice"); one loaded speech engine served both.
 - Full suite: 857 passed, 3 skipped.
+
+### Adversarial review (2026-10-27) and fixes
+
+Verdict before fixes: do not ship. Confirmed and fixed: (1) an unconfigured caller could inherit another account's
+personal store when the shared manager's cloner was built lazily: the scoped lock now restores the manager's own
+store (recorded before any caller's settings) on every release, so a manager never rests on a personal store;
+(2) cloned-voice management on a shared manager ran without the lock: now under it; (4) a library voice without a
+transcript failed every synthesis (the ASR fallback wrote to the read-only library): its transcript is kept in memory
+per process; plus deploy records name no path of the deployer, store index writes are serialised (thread lock +
+`fcntl` file lock, atomic replace), the residency lookup reads the caller's store first and other managers only
+under their lock. Regression tests in `tests/test_personal_voice_stores.py` (lazy cloner with configured and
+unconfigured callers in both orders, unconfigured management, library voice without a transcript, deploy record,
+concurrent deploys); dropping the restore-on-release turns the lazy-cloner test red. Real weights rerun: 11/11.
+Full suite: 869 passed, 3 skipped.
+

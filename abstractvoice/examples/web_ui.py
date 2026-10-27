@@ -1481,10 +1481,12 @@ PAGE = r"""
         const extra = data.preload && data.preload.seconds ? " Preloaded in " + data.preload.seconds.toFixed(1) + "s." : "";
         setMessage(voiceMessage, (speakerRole === "user" ? "User" : "Assistant") + " voice updated." + extra, "ok");
         refreshStatus();
+        return true;
       } catch (err) {
         await refreshVoices();
         const text = voiceSelectionErrorText(err.message || String(err), speakerRole);
         setMessage(voiceMessage, text, "error");
+        return false;
       }
     }
 
@@ -1726,6 +1728,7 @@ PAGE = r"""
           return;
         }
         if (choice.name !== "custom") providerInput.value = choice.name;
+        customUrlRow.hidden = providerInput.value !== "custom";
         remember("provider", providerInput.value);
         fillModels(choice.models, recall("model"), choice.embedding_models);
         setMessage(llmMessage, (choice.label || choice.name) + ": " + choice.models.length + " model(s).", "ok");
@@ -1785,11 +1788,25 @@ PAGE = r"""
     // A voice just created becomes the assistant's voice, so it can be heard at once.
     async function useNewVoice(voiceId, name, messageEl) {
       await refreshVoices();
-      if (voiceId && Array.from(assistantVoiceChoice.options).some((o) => o.value === voiceId)) {
-        assistantVoiceChoice.value = voiceId;
-        await selectRoleVoice("assistant");
+      const label = name || voiceId;
+      const listed = () => Array.from(assistantVoiceChoice.options).some((o) => o.value === voiceId);
+      if (voiceId && !listed() && languageFilter.value) {
+        // The language filter hides the new voice: show every language so it can be selected.
+        languageFilter.value = "";
+        remember("language", "");
+        rebuildRoleVoices(null);
       }
-      setMessage(messageEl, "Voice ready: " + (name || voiceId) + ". It is now the assistant voice (Voice tab).", "ok");
+      if (!voiceId || !listed()) {
+        setMessage(messageEl, "Voice created: " + label + ", but it is not in the voice list yet; use Refresh on the Voice tab.", "error");
+        return;
+      }
+      assistantVoiceChoice.value = voiceId;
+      const selected = await selectRoleVoice("assistant");
+      if (selected) {
+        setMessage(messageEl, "Voice ready: " + label + ". It is now the assistant voice (Voice tab).", "ok");
+      } else {
+        setMessage(messageEl, "Voice created: " + label + ", but selecting it for the assistant failed; see the Voice tab.", "error");
+      }
     }
 
     function writeAscii(view, offset, text) {

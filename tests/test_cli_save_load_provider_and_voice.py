@@ -83,13 +83,17 @@ def test_load_restores_the_provider_then_the_model_and_reapplies_the_voice(tmp_p
     repl.do_language = lambda arg: applied.append(("language", arg))
     repl.do_profile = lambda arg: applied.append(("profile", arg))
     repl.do_tts_voice = lambda arg: applied.append(("voice", arg))
+    repl.do_stt_engine = lambda arg: applied.append(("stt", arg))
     repl._reset_and_recalculate_tokens = lambda: None
     repl.voice_manager._tts_engine_name = "piper"
+    repl.voice_manager._stt_engine_name = "openai"
     repl.voice_manager.get_language = lambda: "en"
     repl.do_load(str(tmp_path / "chat"))
 
     assert repl.provider.name == "lmstudio" and repl.model == "qwen3.6-35b"
-    assert applied == [("engine", "supertonic"), ("language", "fr"), ("profile", "M3"), ("voice", "clone voice-123")]
+    assert applied == [
+        ("engine", "supertonic"), ("language", "fr"), ("profile", "M3"), ("voice", "clone voice-123"), ("stt", "faster_whisper")
+    ]
     out = capsys.readouterr().out
     assert "Provider changed from ollama" in out
 
@@ -100,3 +104,19 @@ def test_load_of_a_file_without_provider_keeps_the_current_one(tmp_path: Path) -
     repl._reset_and_recalculate_tokens = lambda: None
     repl.do_load(str(tmp_path / "old"))
     assert repl.provider.name == "ollama" and repl.model == "m"
+
+
+def test_load_of_a_session_on_the_preset_voice_leaves_the_cloned_voice(tmp_path: Path) -> None:
+    saved = _repl("lmstudio")
+    saved.current_tts_voice = None
+    saved.do_save(str(tmp_path / "preset"))
+    repl = _repl("lmstudio")  # currently on a cloned voice
+    applied = []
+    repl.do_tts_engine = lambda arg: applied.append(("engine", arg))
+    repl.do_language = lambda arg: applied.append(("language", arg))
+    repl.do_profile = lambda arg: applied.append(("profile", arg))
+    repl.do_tts_voice = lambda arg: applied.append(("voice", arg))
+    repl.do_stt_engine = lambda arg: applied.append(("stt", arg))
+    repl._reset_and_recalculate_tokens = lambda: None
+    repl.do_load(str(tmp_path / "preset"))
+    assert ("voice", "base") in applied

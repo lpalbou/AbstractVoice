@@ -173,3 +173,190 @@ def test_the_plugin_passes_the_language_for_every_input_form() -> None:
     cap.clone(b"RIFF", provider="qwen3-tts", language="fr")
     cap.clone("/tmp/ref.wav", provider="qwen3-tts", metadata={"language": "de"})
     assert calls == [("bytes", "fr"), ("path", "de")]
+
+
+# ---------------------------------------------------------------------------------------
+# Regressions from the 0.19.0 adversarial review
+# ---------------------------------------------------------------------------------------
+
+
+def _isolated_default_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> VoiceCloneStore:
+    """The machine user's store, redirected to a temporary folder for the test."""
+    from abstractvoice.cloning import store as store_module
+
+    real = store_module.VoiceCloneStore
+    default_dir = tmp_path / "machine-store"
+
+    def factory(base_dir=None, **kwargs):
+        if base_dir is None:
+            return real(default_dir, builtin_voices=False)
+        return real(base_dir, **kwargs)
+
+    monkeypatch.setattr(store_module, "VoiceCloneStore", factory)
+    return real(default_dir, builtin_voices=False)
+
+
+def _capability(config: dict):
+    from abstractvoice.integrations import abstractcore_plugin as plugin
+
+    class Owner:
+        pass
+
+    Owner.config = dict(config)
+    cap = plugin._VoiceCapability.__new__(plugin._VoiceCapability)
+    cap._owner = Owner()
+    cap._vm = None
+    return cap
+
+
+class _LazyVM:
+    """Like VoiceManager: the cloner is built lazily from the manager's store settings."""
+
+    def __init__(self):
+        self._voice_cloner = None
+        self.voice_store_dir = None
+        self.voice_library_dirs = []
+
+    def _cloner(self):
+        if self._voice_cloner is None:
+            from abstractvoice.cloning.store import open_voice_store
+
+            self._voice_cloner = type("C", (), {})()
+            self._voice_cloner.store = open_voice_store(self.voice_store_dir, self.voice_library_dirs or None)
+        return self._voice_cloner
+
+    def get_cloned_voice(self, voice_id):
+        return self._cloner().store.get_voice_dict(voice_id)
+
+    def rename_cloned_voice(self, voice_id, name):
+        self._cloner().store.rename_voice(voice_id, name)
+
+    def set_cloned_voice_reference_text(self, voice_id, text):
+        self._cloner().store.set_reference_text(voice_id, text)
+
+    def delete_cloned_voice(self, voice_id):
+        self._cloner().store.delete_voice(voice_id)
+
+    def list_cloned_voices(self):
+        return self._cloner().store.list_voices()
+
+
+@pytest.mark.parametrize("first", ["alice", "plain"])
+def test_a_lazily_built_cloner_never_leaks_a_personal_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, first: str) -> None:
+    _isolated_default_store(tmp_path, monkeypatch)
+    vm = _LazyVM()
+    alice = _capability({"voice_store_dir": str(tmp_path / "alice")})
+    plain = _capability({})
+    for cap in (alice, plain):
+        cap._vm = vm  # the shared manager
+    order = [alice, plain] if first == "alice" else [plain, alice]
+    voice_id = None
+    for cap in order:
+        with cap._vm_lock(vm):
+            ids = [v["voice_id"] for v in vm.list_cloned_voices()]
+            if cap is alice:
+                voice_id = vm._cloner().store.create_voice_from_wav_bytes(_wav(), name="alice-private", engine="qwen3-tts")
+    assert vm._voice_cloner.store is not alice._configured_voice_store()  # back on its own store at rest
+    with plain._vm_lock(vm):
+        assert voice_id not in [v["voice_id"] for v in vm.list_cloned_voices()]
+    # Unconfigured management goes through the lock and never reaches alice's store.
+    with pytest.raises(KeyError):
+        plain.get_cloned_voice(voice_id)
+    with pytest.raises(KeyError):
+        plain.rename_cloned_voice(voice_id, "stolen")
+    with pytest.raises(KeyError):
+        plain.delete_cloned_voice(voice_id)
+    assert alice.get_cloned_voice(voice_id)["name"] == "alice-private"
+
+
+def test_management_never_sees_a_store_applied_by_another_caller(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _isolated_default_store(tmp_path, monkeypatch)
+    vm = _LazyVM()
+    alice, plain = _capability({"voice_store_dir": str(tmp_path / "alice")}), _capability({})
+    alice._vm = plain._vm = vm
+    with alice._vm_lock(vm):
+        vid = vm._cloner().store.create_voice_from_wav_bytes(_wav(), name="mine", engine="qwen3-tts")
+        # While alice holds the manager, an unconfigured management call waits for the lock
+        # rather than reading alice's store: proven by the at-rest checks below.
+    with pytest.raises(KeyError):
+        plain.get_cloned_voice(vid)
+
+
+@pytest.mark.parametrize("engine", ["omnivoice", "chroma", None])
+def test_cloning_with_a_transcript_and_no_language_never_fails(tmp_path: Path, engine) -> None:
+    from abstractvoice.cloning.manager import VoiceCloner
+
+    cloner = VoiceCloner(store=VoiceCloneStore(tmp_path / "s", builtin_voices=False))
+    vid = cloner.clone_voice_from_wav_bytes(_wav(), engine=engine, reference_text="Hello everyone, welcome to the weekly meeting today.")
+    meta = cloner.get_cloned_voice(vid)["meta"]
+    assert meta.get("language_code") in (None, "en")
+
+
+def test_the_language_is_the_recordings_whatever_the_engine_speaks(tmp_path: Path) -> None:
+    pytest.importorskip("py3langid")
+    from abstractvoice.cloning.manager import VoiceCloner
+
+    cloner = VoiceCloner(store=VoiceCloneStore(tmp_path / "s", builtin_voices=False))
+    vid = cloner.clone_voice_from_wav_bytes(
+        _wav(), engine="f5_tts", reference_text="Bonjour et bienvenue à tous, nous allons commencer la réunion."
+    )
+    assert cloner.get_cloned_voice(vid)["meta"]["language_code"] == "fr"  # not forced into f5's en/zh
+
+
+def test_a_stated_language_wins_over_meta(tmp_path: Path) -> None:
+    from abstractvoice.cloning.manager import VoiceCloner
+
+    cloner = VoiceCloner(store=VoiceCloneStore(tmp_path / "s", builtin_voices=False))
+    vid = cloner.clone_voice_from_wav_bytes(_wav(), engine="qwen3-tts", meta={"language_code": "en"}, language="de")
+    assert cloner.get_cloned_voice(vid)["meta"]["language_code"] == "de"
+
+
+def test_a_library_voice_without_a_transcript_can_be_spoken(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from abstractvoice.cloning.manager import VoiceCloner
+
+    library = VoiceCloneStore(tmp_path / "library", builtin_voices=False)
+    lib_id = library.create_voice_from_wav_bytes(_wav(), name="shared", engine="qwen3-tts")  # no transcript
+    store = LayeredVoiceStore(VoiceCloneStore(tmp_path / "me", builtin_voices=False), [library])
+    cloner = VoiceCloner(store=store)
+
+    class FakeSTT:
+        def __init__(self, *a, **k):
+            pass
+
+        def is_available(self):
+            return True
+
+        def transcribe(self, path):
+            return "This is the shared voice."
+
+    import abstractvoice.adapters.stt_faster_whisper as fw
+
+    monkeypatch.setattr(fw, "FasterWhisperAdapter", FakeSTT)
+    assert cloner._ensure_reference_text(lib_id) == "This is the shared voice."
+    assert cloner._ensure_reference_text(lib_id) == "This is the shared voice."  # remembered, no store write
+    assert not (library.get_voice(lib_id).reference_text or "")  # the library is unchanged
+
+
+def test_a_deployed_voice_names_no_path_of_the_deployer(tmp_path: Path) -> None:
+    alice = _layered(tmp_path, "alice")
+    ref = tmp_path / "secret" / "alice-recording.wav"
+    ref.parent.mkdir()
+    ref.write_bytes(_wav())
+    vid = alice.create_voice([ref], name="mine", engine="qwen3-tts", meta={"source": str(ref)})
+    shared = alice.deploy_to_library(vid)
+    assert alice.get_voice_dict(shared)["meta"]["source"] == "library"
+
+
+def test_concurrent_deploys_keep_every_voice(tmp_path: Path) -> None:
+    import threading
+
+    stores = [_layered(tmp_path, f"user{i}") for i in range(6)]
+    ids = [s.create_voice_from_wav_bytes(_wav(), name=f"v{i}", engine="qwen3-tts") for i, s in enumerate(stores)]
+    deployed = []
+    threads = [threading.Thread(target=lambda s=s, v=v: deployed.append(s.deploy_to_library(v))) for s, v in zip(stores, ids)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    library_ids = {v["voice_id"] for v in VoiceCloneStore(tmp_path / "library", builtin_voices=False).list_voices()}
+    assert set(deployed) <= library_ids and len(library_ids) == 6

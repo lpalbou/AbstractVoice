@@ -180,3 +180,13 @@ field: AbstractCore backlog (filed 2026-10-27).
 - `tests/test_personal_voice_stores.py`: stated language for bytes and path; identified from the transcript; a short
   transcript records nothing; a transcript set later teaches the language; the plugin passes it for bytes and path.
 - Full suite: 857 passed, 3 skipped.
+
+### Adversarial review (2026-10-27) and fixes
+
+Confirmed and fixed: (3) cloning failed for OmniVoice, Chroma and unknown engines when a transcript came without a
+language (their language lists hold codes py3langid refuses): identification now runs over every language
+py3langid knows (`tts/language_id.known_languages`) and never raises; (5) engines with few languages forced a wrong
+language (a French transcript stored as `en` for F5-TTS): the candidates are no longer the engine's languages;
+a stated language now wins over `metadata`. Regression tests: OmniVoice/Chroma/default engine with a transcript
+and no language; French on F5-TTS; stated language over `meta`.
+

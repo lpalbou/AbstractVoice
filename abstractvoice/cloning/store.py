@@ -104,6 +104,65 @@ def _builtin_record(entry: Dict[str, Any]) -> "ClonedVoice":
     )
 
 
+_INDEX_THREAD_LOCKS: Dict[str, threading.RLock] = {}
+_INDEX_THREAD_LOCKS_GUARD = threading.Lock()
+_INDEX_DEPTH = threading.local()
+
+
+class _IndexLock:
+    """A per-folder lock: a thread lock in this process, plus an OS file lock where available."""
+
+    def __init__(self, base_dir: Path):
+        key = str(Path(base_dir).resolve())
+        self._key = key
+        with _INDEX_THREAD_LOCKS_GUARD:
+            self._thread_lock = _INDEX_THREAD_LOCKS.setdefault(key, threading.RLock())
+        self._path = Path(base_dir) / ".index.lock"
+        self._fh = None
+
+    def __enter__(self) -> "_IndexLock":
+        self._thread_lock.acquire()
+        depth = _INDEX_DEPTH.__dict__.setdefault(self._key, 0)
+        _INDEX_DEPTH.__dict__[self._key] = depth + 1
+        if depth:
+            return self  # nested in this thread: the outer holder has the file lock
+        try:
+            import fcntl  # POSIX only
+
+            self._fh = open(self._path, "a+")
+            fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX)
+        except ImportError:
+            self._fh = None
+        except Exception:
+            if self._fh is not None:
+                self._fh.close()
+            self._fh = None
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        _INDEX_DEPTH.__dict__[self._key] -= 1
+        try:
+            if self._fh is not None:
+                import fcntl
+
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+                self._fh.close()
+        finally:
+            self._fh = None
+            self._thread_lock.release()
+
+
+def _locked_index(method):
+    """Run a store method that changes the index under the folder's index lock."""
+    import functools
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._index_mutation():
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
 @dataclass(frozen=True)
 class ClonedVoice:
     voice_id: str
@@ -145,7 +204,15 @@ class VoiceCloneStore:
             return {}
 
     def _write_index(self, data: Dict[str, Any]) -> None:
-        self._index_path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+        # Written beside and moved in whole: a reader never sees a half-written index.
+        tmp = self._index_path.with_name(self._index_path.name + f".{os.getpid()}.{threading.get_ident()}.tmp")
+        tmp.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+        os.replace(tmp, self._index_path)
+
+    def _index_mutation(self):
+        """Serialise one read-modify-write of the index across threads and processes (a shared
+        library is written by several hosts' deploys)."""
+        return _IndexLock(self._base_dir)
 
     def _voice_dir(self, voice_id: str) -> Path:
         if self._builtin and voice_id in builtin_voice_pack() and voice_id not in self._read_index():
@@ -231,6 +298,7 @@ class VoiceCloneStore:
                 pass
         return True
 
+    @_locked_index
     def create_voice(
         self,
         reference_paths: Iterable[str | Path],
@@ -298,6 +366,7 @@ class VoiceCloneStore:
         self._write_index(index)
         return voice_id
 
+    @_locked_index
     def create_voice_from_wav_bytes(
         self,
         wav_bytes: bytes,
@@ -376,6 +445,7 @@ class VoiceCloneStore:
                     out.append(self.get_voice_dict(vid))
         return out
 
+    @_locked_index
     def set_reference_text(self, voice_id: str, reference_text: str, *, source: str | None = None) -> None:
         """Set (or replace) the stored reference text for a cloned voice.
 
@@ -395,6 +465,7 @@ class VoiceCloneStore:
         index[voice_id] = data
         self._write_index(index)
 
+    @_locked_index
     def set_language(self, voice_id: str, language_code: str, *, source: str) -> None:
         """Record the language a voice speaks natively (`meta.language_code`) and how it is known
         (`meta.language_source`: `request` when stated, `text` when identified from its transcript)."""
@@ -433,6 +504,7 @@ class VoiceCloneStore:
 
         return str(out_path)
 
+    @_locked_index
     def import_voice(self, path: str | Path) -> str:
         """Import a voice bundle zip archive into the local store."""
         import zipfile
@@ -468,6 +540,7 @@ class VoiceCloneStore:
 
         return new_id
 
+    @_locked_index
     def rename_voice(self, voice_id: str, new_name: str) -> None:
         self._refuse_builtin(voice_id, "renamed")
         index = self._read_index()
@@ -478,6 +551,7 @@ class VoiceCloneStore:
         index[voice_id] = data
         self._write_index(index)
 
+    @_locked_index
     def delete_voice(self, voice_id: str) -> None:
         """Delete a voice entry and its reference files from disk."""
         self._refuse_builtin(voice_id, "deleted")
@@ -617,7 +691,17 @@ class LayeredVoiceStore:
         self._writable(voice_id, "deployed")
         with tempfile.TemporaryDirectory() as tmp:
             bundle = self.personal.export_voice(voice_id, Path(tmp) / "voice.zip")
-            return target.import_voice(bundle)
+            library_id = target.import_voice(bundle)
+        # The library record names no path of the deployer's machine or account.
+        with target._index_mutation():
+            index = target._read_index()
+            data = dict(index.get(library_id) or {})
+            meta = {k: v for k, v in dict(data.get("meta") or {}).items() if k != "source"}
+            meta["source"] = "library"
+            data["meta"] = meta
+            index[library_id] = data
+            target._write_index(index)
+        return library_id
 
 
 def open_voice_store(

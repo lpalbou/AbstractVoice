@@ -17,13 +17,17 @@ Older changelog entries may reference historical CLI commands or model choices.
   library voices (and the built-in voices) are listed and spoken by everyone and are read-only. Without
   `voice_library_dirs`, the machine user's store is the library, so existing voices stay visible. Records carry
   `meta.scope` (`personal` | `library`). `deploy_voice_to_library(voice_id)` copies a personal voice into the
-  library (`VoiceManager` and plugin). Plugin capabilities with the same engine settings share one manager and
-  one copy of the weights while each uses its own store. See [Personal voices and a shared
+  library (`VoiceManager` and plugin); the library record names no path of the deployer. Plugin capabilities with
+  the same engine settings share one manager and one copy of the weights: a capability's store is applied while
+  it holds the manager, and the manager returns to its own store when released. A library voice without a
+  transcript is transcribed once per process and kept in memory (the library is not written). Store index writes
+  are serialised across threads and processes. See [Personal voices and a shared
   library](docs/api.md#personal-voices-and-a-shared-library).
 - A cloned voice records its language: `clone_voice(..., language=)`, `clone_voice_from_wav_bytes(..., language=)`
-  and the plugin's `clone(..., language=)` (or `metadata["language"]`), for every input form. Without it, the
-  language of the voice's transcript is identified (`meta.language_source = "text"`); too short a text leaves it
-  unknown. Language-filtered listings now rank such a voice among the native speakers.
+  and the plugin's `clone(..., language=)` (or `metadata["language"]`), for every input form; a stated language
+  wins over `metadata`. Without it, the language of the voice's transcript is identified among every language the
+  identifier knows (`meta.language_source = "text"`); too short or ambiguous a text leaves it unknown, and cloning
+  never fails on it. Language-filtered listings now rank such a voice among the native speakers.
 - Web example: four tabs (Voice, Create voice, Assistant, Speech tools); voice menus grouped into the preset,
   your voices and the built-in voices, with a language filter and descriptions; **Create voice → From a
   description**; Ollama and LM Studio detected with their chat models filled in automatically (embedding models
