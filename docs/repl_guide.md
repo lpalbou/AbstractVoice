@@ -407,6 +407,12 @@ Commands:
 /tokens
 ```
 
+`/save` writes the messages, the system prompt, the LLM provider and model, the
+generation settings and the voice choices (TTS engine, language, preset, cloned
+voice, STT engine). `/load` restores the provider before the model, then re-applies
+the voice choices through the same commands you would type, each with its own
+message. A file saved by an older version restores the model on the current provider.
+
 `/clear` resets the LLM message history. `/reset` also resets the selected voice
 state. Neither command deletes saved `.mem` files or terminal command history.
 

@@ -530,8 +530,44 @@ actionable error instead of silently pretending cloning is standardized.
 
 Core cloning calls:
 
-- `clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None) -> str`
-- `clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None) -> str`
+- `clone_voice(reference_audio_path: str, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None, language: str | None = None) -> str`
+- `clone_voice_from_wav_bytes(wav_bytes: bytes, name: str | None = None, *, reference_text: str | None = None, engine: str | None = None, model: str | None = None, language: str | None = None) -> str`
+
+`language` is the language the recording is in (ISO 639-1). The voice stores it as
+`meta.language_code` with `meta.language_source = "request"`. When you omit it, the
+language of `reference_text` (yours, or the transcript Whisper writes the first time the
+voice is used) is identified among the languages the engine speaks and stored with
+`language_source = "text"`; a text that is too short or ambiguous leaves the language
+unknown rather than guessed (identification uses `py3langid`, installed with the engine
+extras). The language puts the voice among the native speakers in language-filtered
+listings.
+
+### Personal voices and a shared library
+
+By default every `VoiceManager` of a machine user reads and writes one store (the user's
+data folder, with the built-in voices). A host that serves several people can give each
+person their own store instead:
+
+```python
+vm = VoiceManager(
+    tts_engine="qwen3-tts",
+    voice_store_dir="/data/users/alice/voices",       # alice's voices: hers only
+    voice_library_dirs=["/data/voice-library"],        # everyone's voices: read-only here
+)
+```
+
+- Voices cloned or designed through this manager go to `voice_store_dir`; listing,
+  speaking, renaming and deleting see that store first, then the libraries.
+- Library voices (and the built-in voices, listed with the first library) are read-only:
+  renaming, editing or deleting one raises `ValueError` (`LibraryVoiceError`).
+- Without `voice_library_dirs`, the machine user's store is the library: the voices you
+  already have, built-in ones included, stay visible to everyone, unchanged.
+- `vm.deploy_voice_to_library(voice_id) -> str` copies one of the personal voices into the
+  first library (the personal voice is kept) and returns the library voice's id. Who may
+  deploy is the host's decision.
+- Every listed record carries `meta.scope`: `personal` or `library`.
+- `abstractvoice.cloning.store.open_voice_store(store_dir, library_dirs)` returns the store a
+  configuration names, for tools that manage voices without a `VoiceManager`.
 - `design_voice(description: str, *, name: str | None = None, language: str | None = None, text: str | None = None) -> str` (see below)
 - `speak(..., voice="<voice_id>")` / `speak_to_bytes(..., voice="<voice_id>")` / `speak_to_file(..., voice="<voice_id>")`
 - `list_cloned_voices()`, `get_cloned_voice(voice_id: str) -> dict`
@@ -718,7 +754,8 @@ integration code:
     Surfaces can genuinely differ — for example qwen3-tts reports
     `instructions` support on `bytes` but not `playback` — so live-playback
     consumers should query `surface="playback"` explicitly.
-- `clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, **kwargs) -> voice_id | dict`
+- `clone(audio, *, name=None, reference_text=None, provider=None, model=None, artifact_store=None, metadata=None, language=None, **kwargs) -> voice_id | dict`
+  - `language` (or `metadata["language"]`): the recording's language, recorded for every input form (bytes, path, artifact reference); see `clone_voice` above.
   - Creating a voice with a local cloning engine needs only that engine: the configured TTS and STT engines (OpenAI by default) are not built, so no OpenAI key is required. An engine this install cannot run is refused with its install command (`RuntimeError`) before anything is stored.
 - `clone_voice(...) -> ...` (compatibility alias of `clone(...)`)
 - Cloned-voice management (the clone registry is shared by every manager of the user):
@@ -726,7 +763,8 @@ integration code:
   - `rename_cloned_voice(voice_id, new_name) -> dict` (the id is unchanged; returns the updated record with `ok`)
   - `set_cloned_voice_reference_text(voice_id, reference_text) -> dict` (a wrong transcript degrades cloned speech; returns the updated record)
   - `delete_cloned_voice(voice_id) -> {ok, deleted, voice_id, name, engine}` (removes the record and its reference audio)
-  - `delete_voice(...)` / `rename_voice(...)` are aliases. An unknown id raises `KeyError`; an empty id, name or transcript raises `ValueError`. None of these builds a `VoiceManager` or loads an engine.
+  - `delete_voice(...)` / `rename_voice(...)` are aliases. An unknown id raises `KeyError`; an empty id, name or transcript raises `ValueError`; a library voice raises `ValueError` (read-only). None of these builds a `VoiceManager` or loads an engine.
+  - `deploy_voice_to_library(voice_id) -> dict`: copies one of this capability's personal voices into its first library (needs `voice_store_dir`) and returns the library voice's record.
 - `design_voice(description, *, name=None, language=None, text=None) -> dict`: creates a voice from a written description (see [Designing a voice from a description](#designing-a-voice-from-a-description)) and returns its stored record with `ok`. Catalog entries of designed voices carry `tags.designed = true` and the `description`.
 - `voice_catalog(provider=None, model=None, providers_only=False, language=None) -> {kind, provider_id (alias engine_id), active_profile, active_model, voices (profiles + clones), tts_models, stt_models, tts_models_by_provider, stt_models_by_provider, tts_model_variants, stt_engine_variants, tts_catalog_by_provider, stt_catalog_by_provider, tts_languages_by_provider, stt_languages_by_provider, available_providers, catalog}`
   - `tts_languages_by_provider` / `stt_languages_by_provider` map each listed provider to its language codes (empty for remote providers, which decide their own); a third-party provider without a known list is left out.
@@ -970,6 +1008,12 @@ different provider:
 - `voice_openai_base_url`: optional OpenAI base URL used with `voice_openai_api_key`
   (default: the OpenAI API, `https://api.openai.com/v1`; `OPENAI_BASE_URL` is not
   used for this key, because it names the OpenAI-compatible server)
+- `voice_store_dir`: this capability's personal voice store (see [Personal voices and a
+  shared library](#personal-voices-and-a-shared-library)); capabilities with the same
+  engine settings share one `VoiceManager` (one copy of the weights) and each speaks,
+  lists and changes voices in its own store
+- `voice_library_dirs`: read-only voice libraries in front of which the personal store sits
+  (a list, or a string separated by `os.pathsep`); default: the machine user's store
 - `voice_qwen3_tts_predictor` / `voice_qwen3_tts_sampler`: Qwen3-TTS codebook
   predictor and sampler (see [Qwen performance controls](#qwen-performance-controls))
 - `voice_qwen3_tts_backend`: `auto` (default) | `mlx` | `torch` — Qwen3-TTS backend
@@ -1087,12 +1131,14 @@ abstractvoice web --tts-engine openai-compatible --stt-engine openai-compatible 
 - `GET /v1/audio/voices` -> compatible extension for remote profile/voice discovery (`VoiceManager.get_profiles()` + `list_cloned_voices()`)
 - `POST /api/tts/provider` (alias: `/api/tts/engine`) -> switch the browser example's base TTS provider through `VoiceManager.set_tts_engine(...)`; resets the base profile/voice to the provider/language default and clears local role clone selections
 - `POST /api/voices/select` -> select base TTS, a cloned voice, or a TTS profile; optional local `role="assistant"|"user"` stores browser-example defaults; optional `preload=true` warms a cloned voice by calling a tiny `VoiceManager.speak_to_bytes(...)`
-- `POST /api/voices/clone` -> example-only multipart upload for browser voice cloning; stores the uploaded/recorded reference with `VoiceManager.clone_voice(...)` and validates by synthesizing a short sample by default (`validate=false` skips validation)
+- `POST /api/voices/clone` -> example-only multipart upload for browser voice cloning; stores the uploaded/recorded reference with `VoiceManager.clone_voice(...)` (optional `language`) and validates by synthesizing a short sample by default (`validate=false` skips validation)
 - `POST /v1/voice/clone` -> compatible extension for remote clone creation; returns `voice_id`/`id` for later `/v1/audio/speech` `voice`
 - `POST /api/tts` -> `VoiceManager.speak_to_bytes(...)`; accepts `input`/`text`, `voice`, `role`, `language`, `speed`, `format`/`response_format`, and `sanitize_syntax`
 - `POST /api/stt/transcriptions` -> `VoiceManager.transcribe_file(...)`
 - `POST /api/stt/transcribe` -> compatibility alias for `/api/stt/transcriptions`
-- `GET /api/llm/models` -> example-only model listing for an OpenAI-compatible local provider such as Ollama
+- `GET /api/llm/models` -> example-only model listing for an OpenAI-compatible local provider such as Ollama; embedding models are listed apart (`embedding_models`)
+- `GET /api/llm/providers` -> example-only detection of local Ollama and LM Studio servers (and an optional `custom` URL) with their chat models; the page picks a server that has models and fills the model list
+- `POST /api/voices/design` -> `VoiceManager.design_voice(...)`: a voice from a written description (`description`, optional `name`, `language`, `text`)
 - `POST /api/chat` -> example-only non-streaming chat completion proxy; the browser owns history and sends the full short message list
 - `POST /v1/audio/speech` and `POST /v1/audio/transcriptions` -> local aliases for quick AbstractCore-compatible smoke tests. In the web example, `voice` may be either a cloned voice id/name or an active-provider profile id.
 

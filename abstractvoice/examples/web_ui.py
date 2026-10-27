@@ -684,6 +684,21 @@ PAGE = r"""
             <label>What the recording says (optional)
               <textarea id="clone-reference-text" class="compact"></textarea>
             </label>
+            <label>Language of the recording
+              <select id="clone-language">
+                <option value="">Detect from what it says</option>
+                <option value="en">English</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="es">Spanish</option>
+                <option value="it">Italian</option>
+                <option value="pt">Portuguese</option>
+                <option value="ru">Russian</option>
+                <option value="zh">Chinese</option>
+                <option value="ja">Japanese</option>
+                <option value="ko">Korean</option>
+              </select>
+            </label>
             <details class="advanced">
               <summary>Advanced</summary>
               <label>Cloning model (Qwen3-TTS Base)
@@ -1925,6 +1940,8 @@ PAGE = r"""
       const cloneModel = document.getElementById("clone-model").value.trim();
       if (cloneModel && cloneProvider === "qwen3-tts") form.append("model", cloneModel);
       form.append("reference_text", cloneReferenceTextInput.value.trim());
+      const cloneLanguage = document.getElementById("clone-language").value;
+      if (cloneLanguage) form.append("language", cloneLanguage);
       form.append("validate", "true");
 
       cloneVoiceButton.disabled = true;
@@ -2588,6 +2605,7 @@ class ExampleState:
         model: Optional[str] = None,
         reference_text: Optional[str] = None,
         validate: bool = True,
+        language: Optional[str] = None,
     ) -> dict[str, Any]:
         if not audio_bytes:
             raise ValueError("Missing reference audio.")
@@ -2621,6 +2639,7 @@ class ExampleState:
                     reference_text=(str(reference_text or "").strip() or None),
                     engine=(str(engine or "").strip().lower() or None),
                     **({"model": model.strip()} if model and model.strip() else {}),
+                    **({"language": language.strip().lower()} if language and language.strip() else {}),
                 )
                 info: dict[str, Any] = {}
                 try:
@@ -3054,6 +3073,10 @@ def create_app(
             None,
             description="Transcript of the reference audio when the selected engine can use it.",
         ),
+        language: Optional[str] = Form(
+            None,
+            description="Language of the recording (ISO 639-1); when omitted it is identified from the transcript.",
+        ),
         validate_clone: bool = Form(
             True,
             alias="validate",
@@ -3070,6 +3093,7 @@ def create_app(
                 model=model,
                 reference_text=reference_text,
                 validate=bool(validate_clone),
+                language=language,
             )
         except Exception as e:
             http_error(e)

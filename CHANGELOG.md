@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.19.0] - 2026-10-27
+
+### Added
+
+- Personal voice stores in front of shared libraries: `VoiceManager(voice_store_dir=..., voice_library_dirs=[...])`
+  and the AbstractCore plugin settings of the same names. Voices cloned or designed go to the personal store;
+  library voices (and the built-in voices) are listed and spoken by everyone and are read-only. Without
+  `voice_library_dirs`, the machine user's store is the library, so existing voices stay visible. Records carry
+  `meta.scope` (`personal` | `library`). `deploy_voice_to_library(voice_id)` copies a personal voice into the
+  library (`VoiceManager` and plugin). Plugin capabilities with the same engine settings share one manager and
+  one copy of the weights while each uses its own store. See [Personal voices and a shared
+  library](docs/api.md#personal-voices-and-a-shared-library).
+- A cloned voice records its language: `clone_voice(..., language=)`, `clone_voice_from_wav_bytes(..., language=)`
+  and the plugin's `clone(..., language=)` (or `metadata["language"]`), for every input form. Without it, the
+  language of the voice's transcript is identified (`meta.language_source = "text"`); too short a text leaves it
+  unknown. Language-filtered listings now rank such a voice among the native speakers.
+- Web example: four tabs (Voice, Create voice, Assistant, Speech tools); voice menus grouped into the preset,
+  your voices and the built-in voices, with a language filter and descriptions; **Create voice → From a
+  description**; Ollama and LM Studio detected with their chat models filled in automatically (embedding models
+  apart) and a custom URL; `GET /api/llm/providers`, `POST /api/voices/design`, `language` on
+  `POST /api/voices/clone`.
+
+### Fixed
+
+- REPL `/save` keeps the LLM provider and the voice choices (TTS engine, language, preset, cloned voice, STT
+  engine), and `/load` restores them; a saved session used to restore the model on whatever provider was
+  current.
+
 ## [0.18.4] - 2026-10-27
 
 ### Added

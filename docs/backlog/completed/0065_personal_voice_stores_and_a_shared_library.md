@@ -1,7 +1,7 @@
 ## Task 0065: Personal voice stores per owner, and a shared library an administrator deploys to
 
 **Date**: 2026-10-27  
-**Status**: Planned  
+**Status**: Completed (2026-10-27, 0.19.0)  
 **Priority**: P1  
 **Area**: `cloning/store.py` (`VoiceCloneStore`), AbstractCore plugin (store settings, listing, synthesis lookup), capability catalog  
 **Version**: today one store per machine user
@@ -88,8 +88,27 @@ Operator, 2026-10-27: "we would like to have proper isolation between the voices
 
 ---
 
-## Report (fill only when completed)
+## Report
 
 ### Summary
 
+Completed 2026-10-27 (0.19.0), Option A. `cloning/store.py`: `LayeredVoiceStore` (a personal `VoiceCloneStore` in front
+of read-only library stores, `meta.scope` on every record, `LibraryVoiceError` for changes to library voices,
+`deploy_to_library`) and `open_voice_store(store_dir, library_dirs)` (unconfigured: the machine user's store as
+before; `store_dir` without libraries: the machine user's store becomes the library, so existing voices, built-in ones
+included, stay visible). `VoiceManager(voice_store_dir=, voice_library_dirs=)`, `deploy_voice_to_library(voice_id)`.
+AbstractCore plugin: settings `voice_store_dir`, `voice_library_dirs`; capabilities with the same engine settings share
+one cached `VoiceManager` (one copy of the weights) and each call points it at the caller's store under the manager's
+lock (`_VoiceStoreScopedLock`); voice management goes to the configured store; `deploy_voice_to_library(voice_id)`.
+An unconfigured capability restores the manager's own store (an embedder's injected store is never replaced).
+
 ### Validation
+
+- `tests/test_personal_voice_stores.py`: two personal stores never see each other; library voices listed for everyone,
+  read-only, resolvable; deploy keeps the personal voice; defaults; a shared manager speaks and manages in the caller's
+  store.
+- Real weights (Qwen3-TTS, M-series Mac, 2026-10-27), two plugin capabilities with personal stores and one library,
+  11/11: alice designs a voice (10.4 s), lists and speaks it (107,564 bytes); bob does not list it, cannot speak with it
+  ("Unknown voice_id") nor delete it; alice deploys it; bob speaks with the library voice and cannot delete it
+  ("is a library voice"); one loaded speech engine served both.
+- Full suite: 857 passed, 3 skipped.
