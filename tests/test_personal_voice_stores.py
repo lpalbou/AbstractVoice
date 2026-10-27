@@ -411,6 +411,10 @@ def test_a_nested_holder_gets_its_own_store_and_hands_the_manager_back(tmp_path:
     assert seen["back_to_alice"] == "alice-private"
 
 
+@pytest.mark.skipif(
+    __import__("importlib.util").util.find_spec("torch") is None or __import__("importlib.util").util.find_spec("transformers") is None,
+    reason="a TTS model's voice listing needs the qwen3-tts extra (torch + transformers)",
+)
 def test_clones_stay_listed_when_a_tts_model_is_selected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A host that picked a TTS model (Qwen3-TTS CustomVoice) still sees every clone of the engine:
     a clone is spoken with its own Base checkpoint. Only a cloning checkpoint narrows the clones."""
