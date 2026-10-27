@@ -5,7 +5,7 @@ This folder is the **single source of truth** for planned and completed work in 
 ## Current snapshot
 
 - Updated: 2026-10-26
-- Planned: 17
+- Planned: 18
 - Proposed: 11
 - Completed: 36
 - Recurrent: 1
@@ -81,6 +81,9 @@ Rationale:
   reproduction.
 - `docs/backlog/planned/0064_one_shot_for_every_engine.md`: `one_shot` (one take, one voice) is a
   framework guarantee every engine must offer, natively or composed, with its limit in the catalog.
+- `docs/backlog/planned/0065_personal_voice_stores_and_a_shared_library.md`: each person's own voice
+  store (clone, design, rename, delete their voices only) next to a read-only shared library an
+  administrator deploys to; requested for multi-account gateways.
 
 ## Other current proposed items
 
