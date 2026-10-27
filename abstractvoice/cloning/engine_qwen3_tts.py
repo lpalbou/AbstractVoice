@@ -241,6 +241,11 @@ class Qwen3TTSVoiceCloningEngine:
             chunks.append(np.asarray(chunk, dtype=np.float32).reshape(-1))
             sr_out = int(sr)
         audio = np.concatenate(chunks) if chunks else np.zeros((0,), dtype=np.float32)
+        if speed is not None and float(speed) != 1.0 and audio.size:
+            # Pitch-preserving time-stretch after generation (Qwen3-TTS has no speed control).
+            from ..tts.tts_engine import apply_speed_without_pitch_change
+
+            audio = apply_speed_without_pitch_change(audio, float(speed), sr=int(sr_out))
         buf = io.BytesIO()
         sf.write(buf, audio, int(sr_out), format="WAV", subtype="PCM_16")
         return buf.getvalue()

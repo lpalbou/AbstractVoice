@@ -293,10 +293,18 @@ class SupertonicTTSAdapter(TTSAdapter):
         out.write_bytes(data)
         return str(out)
 
-    def synthesize_to_bytes_with_voice(self, text: str, *, format: str = "wav", voice: str | None = None, **_kwargs: Any) -> bytes:
+    def synthesize_to_bytes_with_voice(
+        self, text: str, *, format: str = "wav", voice: str | None = None, speed: Any = None, **_kwargs: Any
+    ) -> bytes:
         if voice and not self.set_profile(str(voice)):
             raise ValueError(f"Unknown Supertonic voice/profile: {voice}")
-        return self.synthesize_to_bytes(text, format=format)
+        if speed is None or float(speed) == 1.0:
+            return self.synthesize_to_bytes(text, format=format)
+        # Native speed, as on the playback path (`synthesize_with_speed`).
+        if str(format or "wav").strip().lower() != "wav":
+            raise ValueError("Supertonic adapter currently supports WAV output only.")
+        rt = self._get_runtime()
+        return rt.synthesize_to_wav_bytes(self._synthesize_with_speed(str(text), float(speed)))
 
     def list_available_models(self, language: Optional[str] = None) -> Dict[str, Any]:
         cached = bool(is_supertonic_cached(self._cache_dir))

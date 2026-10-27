@@ -491,7 +491,6 @@ class Qwen3TTSAdapter(TTSAdapter):
         ``one_shot=True`` synthesizes the whole text as one generation (ValueError
         beyond ``ONE_SHOT_MAX_CHARS``) instead of sentence-bounded segments.
         """
-        _ = speed  # Speed is reported unsupported in the capability catalog.
         if str(format or "wav").strip().lower() != "wav":
             raise ValueError("Qwen3-TTS adapter currently supports WAV output only.")
         speaker = self._active_speaker()
@@ -517,6 +516,11 @@ class Qwen3TTSAdapter(TTSAdapter):
             )
         else:
             audio = self._synthesize_array(str(text), speaker=speaker, instructions=effective_instructions)
+        if speed is not None and float(speed) != 1.0:
+            # Qwen3-TTS has no speed control: a pitch-preserving time-stretch after generation.
+            from ..tts.tts_engine import apply_speed_without_pitch_change
+
+            audio = apply_speed_without_pitch_change(audio, float(speed), sr=int(self.get_sample_rate()))
         buf = io.BytesIO()
         sf.write(buf, audio, int(self.get_sample_rate()), format="WAV", subtype="PCM_16")
         return buf.getvalue()

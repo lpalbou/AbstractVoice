@@ -114,7 +114,13 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
   - By default, common Markdown syntax is stripped from spoken output (headers + emphasis). Set `sanitize_syntax=False` to speak raw text.
 
 - `set_speed(speed: float) -> bool`, `get_speed() -> float`
-  - Adjusts the default speaking speed used by `speak_to_*()` and the REPL.
+  - Adjusts the default speaking speed used by `speak_to_*()` and the REPL (0.5 to 2.0). It is kept when
+    some path can apply it (the TTS engine on playback or on `speak_to_bytes`, or the cloning engine for
+    cloned speech) and returns `False` otherwise.
+  - Supertonic and OmniVoice apply speed natively; Piper, Qwen3-TTS (preset speakers and clones) and Chroma
+    apply a pitch-preserving time-stretch after generation (librosa when installed, else WSOLA). Qwen3-TTS live
+    playback does not apply it. `get_capability_support(kind=..., feature="speed", provider=..., surface=...)`
+    reports `native`, `emulated` or `unsupported` per path.
 
 - `set_tts_quality_preset(preset: str) -> bool`, `get_tts_quality_preset() -> str | None`
   - Provider-agnostic speed/quality knob (`low|standard|high`). Back-compat aliases: `fast`→`low`, `balanced`→`standard`.
