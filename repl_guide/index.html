@@ -1869,6 +1869,11 @@ python<span class="w"> </span>-m<span class="w"> </span>abstractvoice<span class
 /load my-session
 /tokens
 </code></pre></div>
+<p><code>/save</code> writes the messages, the system prompt, the LLM provider and model, the
+generation settings and the voice choices (TTS engine, language, preset, cloned
+voice, STT engine). <code>/load</code> restores the provider before the model, then re-applies
+the voice choices through the same commands you would type, each with its own
+message. A file saved by an older version restores the model on the current provider.</p>
 <p><code>/clear</code> resets the LLM message history. <code>/reset</code> also resets the selected voice
 state. Neither command deletes saved <code>.mem</code> files or terminal command history.</p>
 <p>To delete terminal command history, remove <code>repl_history</code> from:</p>

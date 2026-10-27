@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/planned/0063_cloned_voices_record_no_language/">
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/completed/0065_personal_voice_stores_and_a_shared_library/">
       
       
       
@@ -23,7 +23,7 @@
     
     
       
-        <title>0063 cloned voices record no language - AbstractVoice</title>
+        <title>0065 personal voice stores and a shared library - AbstractVoice</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#task-0063-voices-cloned-from-a-recording-record-no-language" class="md-skip">
+        <a href="#task-0065-personal-voice-stores-per-owner-and-a-shared-library-an-administrator-deploys-to" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              0063 cloned voices record no language
+              0065 personal voice stores and a shared library
             
           </span>
         </div>
@@ -1122,10 +1122,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#task-0063-voices-cloned-from-a-recording-record-no-language" class="md-nav__link">
+  <a href="#task-0065-personal-voice-stores-per-owner-and-a-shared-library-an-administrator-deploys-to" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Task 0063: Voices cloned from a recording record no language
+        Task 0065: Personal voice stores per owner, and a shared library an administrator deploys to
       
     </span>
   </a>
@@ -1166,21 +1166,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reproduction-exact-experiment-2026-10-26-abstractvoice-0182" class="md-nav__link">
+  <a href="#current-code-reality-2026-10-27-0184" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reproduction (exact experiment, 2026-10-26, abstractvoice 0.18.2)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#current-code-reality-2026-10-26-0182" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Current code reality (2026-10-26, 0.18.2)
+        Current code reality (2026-10-27, 0.18.4)
       
     </span>
   </a>
@@ -1265,15 +1254,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#report-fill-only-when-completed" class="md-nav__link">
+  <a href="#report" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Report (fill only when completed)
+        Report
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Report (fill only when completed)">
+    <nav class="md-nav" aria-label="Report">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1292,6 +1281,17 @@
     <span class="md-ellipsis">
       
         Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adversarial-review-2026-10-27-and-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adversarial review (2026-10-27) and fixes
       
     </span>
   </a>
@@ -1323,144 +1323,115 @@
   
 
 
-  <h1>0063 cloned voices record no language</h1>
+  <h1>0065 personal voice stores and a shared library</h1>
 
-<h2 id="task-0063-voices-cloned-from-a-recording-record-no-language">Task 0063: Voices cloned from a recording record no language<a class="headerlink" href="#task-0063-voices-cloned-from-a-recording-record-no-language" title="Permanent link">&para;</a></h2>
-<p><strong>Date</strong>: 2026-10-26<br />
-<strong>Status</strong>: Planned<br />
-<strong>Priority</strong>: P2<br />
-<strong>Area</strong>: cloning (<code>abstractvoice/cloning/</code>), AbstractCore plugin <code>clone()</code> and voice navigation (<code>_with_voice_navigation</code>), AbstractCore <code>POST /v1/voice/clone</code><br />
-<strong>Version</strong>: found in 0.18.2</p>
+<h2 id="task-0065-personal-voice-stores-per-owner-and-a-shared-library-an-administrator-deploys-to">Task 0065: Personal voice stores per owner, and a shared library an administrator deploys to<a class="headerlink" href="#task-0065-personal-voice-stores-per-owner-and-a-shared-library-an-administrator-deploys-to" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-10-27<br />
+<strong>Status</strong>: Completed (2026-10-27, 0.19.0)<br />
+<strong>Priority</strong>: P1<br />
+<strong>Area</strong>: <code>cloning/store.py</code> (<code>VoiceCloneStore</code>), AbstractCore plugin (store settings, listing, synthesis lookup), capability catalog<br />
+<strong>Version</strong>: today one store per machine user</p>
 <hr />
 <h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
 <ul>
-<li>A voice cloned from a recording stores the language it was recorded in, so voice navigation reports its native <code>language</code> and lists it among the native speakers when filtering by that language, as it already does for built-in and designed voices.</li>
+<li>A host can give each person their own voice store: the voices they clone or design are theirs, listed, used, renamed and deleted by them only.</li>
+<li>Next to it, a shared library (the built-in voices and the voices an administrator deploys for everyone) that every person lists and speaks with but cannot change.</li>
 </ul>
 <h2 id="secondary-goals">Secondary goals<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
 <ul>
-<li>One documented way to state the language at clone time, honoured for every audio input form (bytes, path, artifact reference) and forwarded by AbstractCore's <code>POST /v1/voice/clone</code>.</li>
+<li>An administrator can deploy a voice to the library directly, or promote one of their personal voices into it.</li>
 </ul>
 <hr />
 <h2 id="context-problem">Context / problem<a class="headerlink" href="#context-problem" title="Permanent link">&para;</a></h2>
-<p>Built-in voices carry <code>meta.language_code</code> (voice pack) and designed voices carry it
-(<code>design_voice</code> writes it). A voice cloned from a recording carries none, so the plugin's
-navigation record has <code>language: null</code>. It still appears under <code>language=</code> filters for every
-language its engine speaks, but never among the native speakers listed first: a French
-recording cloned for French use is ranked after every native French voice.</p>
+<p>Operator, 2026-10-27: "we would like to have proper isolation between the voices cloned for each user ... users should be allowed to register the voices they want, and this should be personal, not shared by all; an admin should still be able to deploy new voices for all." Today every caller of the plugin reads and writes one store, <code>appdirs.user_data_dir("abstractvoice")</code> (<code>cloning/store.py:131</code>). On a gateway serving several accounts that means one account's clone, rename or delete changes every account's voices, and a recording of someone's voice cloned by one account is available to all. AbstractGateway therefore makes voice changes admin-only for now (its routes <code>routes/voice_library.py</code>).</p>
 <hr />
-<h2 id="reproduction-exact-experiment-2026-10-26-abstractvoice-0182">Reproduction (exact experiment, 2026-10-26, abstractvoice 0.18.2)<a class="headerlink" href="#reproduction-exact-experiment-2026-10-26-abstractvoice-0182" title="Permanent link">&para;</a></h2>
-<p>Environment: <code>abstractvoice[qwen3-tts]</code> installed (creating a Qwen3-TTS clone stores the reference
-and does not run the model). Run from a directory outside the repository:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">io</span><span class="o">,</span><span class="w"> </span><span class="nn">wave</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.integrations.abstractcore_plugin</span><span class="w"> </span><span class="kn">import</span> <span class="n">_VoiceCapability</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">Owner</span><span class="p">:</span>
-    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"voice_allow_downloads"</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
-
-<span class="n">cap</span> <span class="o">=</span> <span class="n">_VoiceCapability</span><span class="p">(</span><span class="n">Owner</span><span class="p">())</span>
-<span class="n">buf</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">()</span>
-<span class="k">with</span> <span class="n">wave</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>  <span class="c1"># 5 s of tone stands in for a recording</span>
-    <span class="n">w</span><span class="o">.</span><span class="n">setnchannels</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="n">w</span><span class="o">.</span><span class="n">setsampwidth</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span> <span class="n">w</span><span class="o">.</span><span class="n">setframerate</span><span class="p">(</span><span class="mi">24000</span><span class="p">)</span>
-    <span class="n">w</span><span class="o">.</span><span class="n">writeframes</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">24000</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span> <span class="o">/</span> <span class="mi">10</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3000</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"int16"</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
-<span class="n">vid</span> <span class="o">=</span> <span class="n">cap</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">buf</span><span class="o">.</span><span class="n">getvalue</span><span class="p">(),</span> <span class="n">provider</span><span class="o">=</span><span class="s2">"qwen3-tts"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"repro-fr"</span><span class="p">,</span> <span class="n">reference_text</span><span class="o">=</span><span class="s2">"Bonjour et bienvenue à tous."</span><span class="p">)</span>
-<span class="k">try</span><span class="p">:</span>
-    <span class="n">rec</span> <span class="o">=</span> <span class="n">cap</span><span class="o">.</span><span class="n">get_cloned_voice</span><span class="p">(</span><span class="n">vid</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"stored meta:"</span><span class="p">,</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">rec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"meta"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"language"</span><span class="p">,</span> <span class="s2">"language_code"</span><span class="p">,</span> <span class="s2">"designed"</span><span class="p">)})</span>
-    <span class="n">fr</span> <span class="o">=</span> <span class="n">cap</span><span class="o">.</span><span class="n">list_cloned_voices</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="s2">"qwen3-tts"</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s2">"fr"</span><span class="p">)</span>
-    <span class="n">entry</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">fr</span> <span class="k">if</span> <span class="n">v</span><span class="p">[</span><span class="s2">"voice_id"</span><span class="p">]</span> <span class="o">==</span> <span class="n">vid</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"listed language:"</span><span class="p">,</span> <span class="n">entry</span><span class="p">[</span><span class="s2">"language"</span><span class="p">],</span> <span class="s2">"| speakable languages:"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="s2">"languages"</span><span class="p">]))</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"position among fr clones:"</span><span class="p">,</span> <span class="p">[</span><span class="n">v</span><span class="p">[</span><span class="s2">"voice_id"</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">fr</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">vid</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"of"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">fr</span><span class="p">),</span>
-          <span class="s2">"| native fr voices listed first:"</span><span class="p">,</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">fr</span> <span class="k">if</span> <span class="n">v</span><span class="p">[</span><span class="s2">"language"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"fr"</span><span class="p">))</span>
-<span class="k">finally</span><span class="p">:</span>
-    <span class="n">cap</span><span class="o">.</span><span class="n">delete_cloned_voice</span><span class="p">(</span><span class="n">vid</span><span class="p">)</span>
-</code></pre></div>
-<p>Observed output (machine with the 70 built-in voices):</p>
-<div class="highlight"><pre><span></span><code>stored meta: {'language': None, 'language_code': None, 'designed': None}
-listed language: None | speakable languages: 10
-position among fr clones: 12 of 76 | native fr voices listed first: 11
-</code></pre></div>
-<p>Expected after the fix: <code>language_code</code> is <code>fr</code>, <code>listed language: fr</code>, and the clone ranks among
-the native French voices.</p>
-<p>Over HTTP (AbstractCore 2.30.0): <code>POST /v1/voice/clone</code> with a French recording, then
-<code>GET /v1/voice/clones?language=fr</code> shows the new voice with <code>"language": null</code>; the form has no
-field to state the language.</p>
-<hr />
-<h2 id="current-code-reality-2026-10-26-0182">Current code reality (2026-10-26, 0.18.2)<a class="headerlink" href="#current-code-reality-2026-10-26-0182" title="Permanent link">&para;</a></h2>
+<h2 id="current-code-reality-2026-10-27-0184">Current code reality (2026-10-27, 0.18.4)<a class="headerlink" href="#current-code-reality-2026-10-27-0184" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>_VoiceCapability.clone(audio, *, ..., metadata=None, ...)</code> passes <code>metadata</code> as the stored <code>meta</code>
-  only when <code>audio</code> is bytes (<code>vm.clone_voice_from_wav_bytes(..., meta=clone_meta)</code>); the path and
-  artifact-dict branches call <code>vm.clone_voice(...)</code> without it, so the same input in another form
-  is stored differently. <code>metadata</code> is not documented as the place for a language.</li>
-<li><code>VoiceManager.clone_voice(...)</code> has no <code>meta</code> / language parameter; <code>clone_voice_from_wav_bytes</code>
-  has <code>meta</code>.</li>
-<li><code>_with_voice_navigation</code> reads the native language from <code>tags.language_code</code> or
-  <code>params.meta.language_code</code> only.</li>
-<li>When <code>reference_text</code> is omitted, the cloner transcribes the reference with Whisper, which detects
-  the language, and discards it.</li>
-<li>AbstractCore <code>POST /v1/voice/clone</code> has no <code>language</code> form field.</li>
+<li><code>VoiceCloneStore(root=None)</code> already takes a root folder; the plugin constructs it with no argument at several places (<code>integrations/abstractcore_plugin.py:1866, 3214, 3742</code>), so it always uses the machine-user default.</li>
+<li>Built-in voices ship in the package and are flagged <code>tags.builtin</code>; they are read-only (delete/rename refuse).</li>
+<li>Synthesis resolves <code>voice=&lt;voice_id&gt;</code> through the same store.</li>
 </ul>
 <hr />
 <h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Keep <code>clone(...)</code> / <code>clone_voice(...)</code> backward compatible (the new argument is optional).</li>
-<li>Do not guess silently: an inferred language must say it was inferred (<code>language_source</code>).</li>
-<li>Keep creation weight-free when <code>reference_text</code> is given (no STT run just to infer a language).</li>
+<li>One plugin instance per host process may serve several people: the store must be chosen per call or per configured instance, never by a process-global switch.</li>
+<li>A voice id stays unique across stores (a personal voice never shadows a library voice silently).</li>
+<li>Default behaviour unchanged when no store is configured (single-user installs keep today's folder).</li>
 </ul>
 <hr />
 <h2 id="research-options-and-references">Research, options, and references<a class="headerlink" href="#research-options-and-references" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Option A</strong>: explicit <code>language=</code> on <code>VoiceManager.clone_voice*</code>, the plugin <code>clone()</code> and the
-  AbstractCore form, stored as <code>meta.language_code</code> for every input form.</li>
-<li>Simple, exact, no inference.</li>
-<li><strong>Option B</strong>: infer it: from Whisper's detected language when the reference is auto-transcribed,
-  else from <code>reference_text</code> with the text language identifier already used for Supertonic
-  (<code>py3langid</code>).</li>
-<li>Works for callers that state nothing; short texts can be misidentified.</li>
-<li><strong>Option C</strong>: A, falling back to B, recording <code>meta.language_source</code> (<code>request</code> | <code>stt</code> | <code>text</code>).</li>
+<li><strong>Option A</strong>: plugin settings <code>voice_store_dir</code> (the personal, writable store) and <code>voice_library_dirs</code> (read-only stores, the built-in voices always included). Listing = library + personal (each record says which, <code>scope: personal|library</code>); synthesis looks up personal then library; changes only in the personal store. The host (AbstractGateway) builds one AbstractCore client per account already and passes that account's folder.</li>
+<li><strong>Option B</strong>: one store with an <code>owner</code> field, filtered by the host. Weaker: every account's audio sits in one folder, deleting an account means filtering files, and a host bug leaks voices.</li>
+<li>Deploy to everyone: <code>store.export(voice_id)</code> / <code>library.import(...)</code> (copy the reference audio and record into a library folder the administrator controls).</li>
 </ul>
 <hr />
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p><strong>Chosen approach</strong>: Option C.</p>
-<p><strong>Why</strong>:
-- The caller knows best (A), but most callers will not say it (B covers them).
-- <code>language_source</code> keeps an inferred value from being mistaken for a stated one.</p>
+<p><strong>Chosen approach</strong>: Option A (folders are the isolation; the record carries its scope).</p>
 <hr />
 <h2 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>ADRs</strong>:</li>
-<li><code>docs/adr/0003_cloning_reference_text_fallback.md</code> (reference transcript handling)</li>
-<li><code>docs/adr/0007_directed_speech_requests_and_planning_are_package_owned.md</code></li>
-<li><strong>Backlog tasks</strong>:</li>
-<li>Related: <code>docs/backlog/planned/0062_speed_ignored_in_bytes_synthesis_for_supertonic_and_piper.md</code> (same rebuild)</li>
-<li><strong>Cross-package</strong>: AbstractCore <code>POST /v1/voice/clone</code> gains an optional <code>language</code> field forwarded to the plugin.</li>
+<li>AbstractCore: none expected (plugin settings travel in the capability config).</li>
+<li>AbstractRuntime backlog 0851: the per-account runtime config carries the two settings; the voice library facade lists the scope.</li>
+<li>AbstractGateway backlog 0942 (personal voices per account, admin deploy, entity profiles).</li>
+<li>Related: <code>0063_cloned_voices_record_no_language.md</code>.</li>
 </ul>
 <hr />
 <h2 id="implementation-plan">Implementation plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Add <code>language</code> to <code>VoiceManager.clone_voice</code>, <code>clone_voice_from_wav_bytes</code> and the plugin <code>clone()</code>; route <code>metadata</code> to the store for every audio input form.</li>
-<li>Keep Whisper's detected language when the cloner transcribes the reference; otherwise identify it from <code>reference_text</code>.</li>
-<li>Store <code>meta.language_code</code> and <code>meta.language_source</code>.</li>
-<li>Turn the reproduction above into a weight-free test (it already runs without model weights) asserting <code>language_code == "fr"</code> and native-first ranking.</li>
-<li>Coordinate the AbstractCore form field.</li>
+<li><code>VoiceCloneStore</code> roots from the plugin settings; a read-only store mode for library folders.</li>
+<li>Listing, lookup and synthesis across personal + library; changes refused on library voices (422 like built-ins).</li>
+<li><code>deploy_to_library(voice_id, library_dir)</code> (copy) for administrators.</li>
+<li>Catalog/compatibility: declare the scope fields.</li>
 </ul>
 <hr />
 <h2 id="success-criteria">Success criteria<a class="headerlink" href="#success-criteria" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The reproduction prints <code>language_code</code> <code>fr</code>, <code>listed language: fr</code>, and the clone ranks among the native French voices.</li>
-<li>Bytes, path and artifact inputs store the same metadata.</li>
-<li><code>GET /v1/voice/clones?language=fr</code> through AbstractCore shows the clone with <code>"language": "fr"</code>.</li>
+<li>Two plugin configurations with two personal folders never see each other's voices; both see the library.</li>
+<li>A library voice cannot be renamed or deleted through a personal configuration.</li>
+<li>Unconfigured installs behave exactly as 0.18.4.</li>
 </ul>
 <hr />
 <h2 id="test-plan">Test plan<a class="headerlink" href="#test-plan" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>pytest -q</code></li>
-<li>The reproduction script above, before and after.</li>
+<li><code>pytest -q</code> (two stores in temp folders, library read-only, id collisions refused)</li>
+<li>Gated E2E: design a voice in store A, speak with it from A, not listed in B.</li>
 </ul>
 <hr />
-<h2 id="report-fill-only-when-completed">Report (fill only when completed)<a class="headerlink" href="#report-fill-only-when-completed" title="Permanent link">&para;</a></h2>
+<h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
 <h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
+<p>Completed 2026-10-27 (0.19.0), Option A. <code>cloning/store.py</code>: <code>LayeredVoiceStore</code> (a personal <code>VoiceCloneStore</code> in front
+of read-only library stores, <code>meta.scope</code> on every record, <code>LibraryVoiceError</code> for changes to library voices,
+<code>deploy_to_library</code>) and <code>open_voice_store(store_dir, library_dirs)</code> (unconfigured: the machine user's store as
+before; <code>store_dir</code> without libraries: the machine user's store becomes the library, so existing voices, built-in ones
+included, stay visible). <code>VoiceManager(voice_store_dir=, voice_library_dirs=)</code>, <code>deploy_voice_to_library(voice_id)</code>.
+AbstractCore plugin: settings <code>voice_store_dir</code>, <code>voice_library_dirs</code>; capabilities with the same engine settings share
+one cached <code>VoiceManager</code> (one copy of the weights) and each call points it at the caller's store under the manager's
+lock (<code>_VoiceStoreScopedLock</code>); voice management goes to the configured store; <code>deploy_voice_to_library(voice_id)</code>.
+An unconfigured capability restores the manager's own store (an embedder's injected store is never replaced).</p>
 <h3 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>tests/test_personal_voice_stores.py</code>: two personal stores never see each other; library voices listed for everyone,
+  read-only, resolvable; deploy keeps the personal voice; defaults; a shared manager speaks and manages in the caller's
+  store.</li>
+<li>Real weights (Qwen3-TTS, M-series Mac, 2026-10-27), two plugin capabilities with personal stores and one library,
+  11/11: alice designs a voice (10.4 s), lists and speaks it (107,564 bytes); bob does not list it, cannot speak with it
+  ("Unknown voice_id") nor delete it; alice deploys it; bob speaks with the library voice and cannot delete it
+  ("is a library voice"); one loaded speech engine served both.</li>
+<li>Full suite: 857 passed, 3 skipped.</li>
+</ul>
+<h3 id="adversarial-review-2026-10-27-and-fixes">Adversarial review (2026-10-27) and fixes<a class="headerlink" href="#adversarial-review-2026-10-27-and-fixes" title="Permanent link">&para;</a></h3>
+<p>Verdict before fixes: do not ship. Confirmed and fixed: (1) an unconfigured caller could inherit another account's
+personal store when the shared manager's cloner was built lazily: the scoped lock now restores the manager's own
+store (recorded before any caller's settings) on every release, so a manager never rests on a personal store;
+(2) cloned-voice management on a shared manager ran without the lock: now under it; (4) a library voice without a
+transcript failed every synthesis (the ASR fallback wrote to the read-only library): its transcript is kept in memory
+per process; plus deploy records name no path of the deployer, store index writes are serialised (thread lock +
+<code>fcntl</code> file lock, atomic replace), the residency lookup reads the caller's store first and other managers only
+under their lock. Regression tests in <code>tests/test_personal_voice_stores.py</code> (lazy cloner with configured and
+unconfigured callers in both orders, unconfigured management, library voice without a transcript, deploy record,
+concurrent deploys); dropping the restore-on-release turns the lazy-cloner test red. Real weights rerun: 11/11.
+Full suite: 869 passed, 3 skipped.</p>
 
 
 
