@@ -55,8 +55,15 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         qwen3_tts_sampler: str | None = None,
         qwen3_tts_backend: str | None = None,  # auto | mlx | torch (ADR 0008)
         qwen3_tts_mlx_quantization: str | None = None,  # auto | bf16 | 8bit | 4bit
+        voice_store_dir: str | None = None,
+        voice_library_dirs: list[str] | None = None,
     ):
         self.debug_mode = debug_mode
+        # Where cloned voices live (backlog 0065): unset = the machine user's store (built-in
+        # voices included); set = a personal store in front of read-only libraries
+        # (`voice_library_dirs`, else the machine user's store). See cloning.store.open_voice_store.
+        self.voice_store_dir = str(voice_store_dir).strip() if voice_store_dir else None
+        self.voice_library_dirs = [str(d) for d in (voice_library_dirs or []) if str(d or "").strip()]
         self.speed = 1.0
         self.tts_model = tts_model
         self.stt_model = stt_model

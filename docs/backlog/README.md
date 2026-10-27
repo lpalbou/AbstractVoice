@@ -4,10 +4,10 @@ This folder is the **single source of truth** for planned and completed work in 
 
 ## Current snapshot
 
-- Updated: 2026-10-26
-- Planned: 18
+- Updated: 2026-10-27
+- Planned: 16
 - Proposed: 11
-- Completed: 36
+- Completed: 38
 - Recurrent: 1
 
 ### Principles
@@ -76,14 +76,15 @@ Rationale:
 
 ## Other current planned items
 
-- `docs/backlog/planned/0063_cloned_voices_record_no_language.md`: a voice cloned from a recording
-  stores no language, so voice navigation cannot rank it among native speakers; includes the exact
-  reproduction.
 - `docs/backlog/planned/0064_one_shot_for_every_engine.md`: `one_shot` (one take, one voice) is a
   framework guarantee every engine must offer, natively or composed, with its limit in the catalog.
-- `docs/backlog/planned/0065_personal_voice_stores_and_a_shared_library.md`: each person's own voice
-  store (clone, design, rename, delete their voices only) next to a read-only shared library an
-  administrator deploys to; requested for multi-account gateways.
+
+## Recently completed
+
+- `docs/backlog/completed/0063_cloned_voices_record_no_language.md` (0.19.0): a cloned voice records
+  its language, stated or identified from its transcript.
+- `docs/backlog/completed/0065_personal_voice_stores_and_a_shared_library.md` (0.19.0): personal
+  voice stores in front of read-only shared libraries.
 
 ## Other current proposed items
 

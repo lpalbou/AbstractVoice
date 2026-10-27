@@ -5211,8 +5211,11 @@ class VoiceREPL(cmd.Cmd):
                 "header": {
                     "timestamp_utc": self._get_current_timestamp(),
                     "model": self.model,
+                    # The LLM provider the model runs on: `/load` restores both, never the model alone.
+                    "provider": {"name": self.provider.name, "base_url": self.provider.base_url},
                     "version": __import__('abstractvoice').__version__  # Get version from package __init__.py
                 },
+                "voice": self._voice_session_state(),
                 "system_prompt": self.system_prompt,
                 "token_stats": {
                     "system": self.system_tokens,
@@ -5239,6 +5242,70 @@ class VoiceREPL(cmd.Cmd):
                 print(f"Error saving chat history: {e}")
             print(f"Failed to save chat history to {filename}")
     
+    def _voice_session_state(self) -> dict:
+        """The voice choices `/save` keeps: TTS engine, language, base profile, cloned voice, STT engine."""
+        vm = self.voice_manager
+        if vm is None:
+            return {}
+        state: dict = {}
+        for key, getter in (
+            ("tts_engine", lambda: getattr(vm, "_tts_engine_name", None) or getattr(self, "_initial_tts_engine", None)),
+            ("language", lambda: vm.get_language()),
+            ("profile", lambda: getattr(vm.get_active_profile(kind="tts"), "profile_id", None)),
+            ("stt_engine", lambda: getattr(vm, "_stt_engine_name", None) or getattr(self, "_initial_stt_engine", None)),
+        ):
+            try:
+                value = getter()
+            except Exception:
+                value = None
+            if value:
+                state[key] = str(value)
+        if self.current_tts_voice:
+            state["cloned_voice"] = str(self.current_tts_voice)
+        return state
+
+    def _restore_provider(self, saved: dict) -> None:
+        name = str(saved.get("name") or "").strip()
+        base_url = str(saved.get("base_url") or "").strip()
+        candidate = resolve_provider(name) if name and name != "custom" else None
+        if candidate is None or (base_url and candidate.base_url.rstrip("/") != base_url.rstrip("/")):
+            candidate = resolve_provider(base_url or name)
+        old = self.provider
+        self.provider = candidate
+        print(f"Provider changed from {old.name} ({old.base_url}) to {candidate.name} ({candidate.base_url})")
+
+    def _restore_voice_session_state(self, state: dict) -> None:
+        """Re-apply the saved voice choices through the same commands a person would type, each with
+        its own message, so a choice that cannot be restored here says so."""
+        if not self.voice_manager:
+            if state:
+                print("Voice settings in this file were not restored: voice features are off (/tts on).")
+            return
+        engine = state.get("tts_engine")
+        if engine and engine != str(getattr(self.voice_manager, "_tts_engine_name", "") or ""):
+            self.do_tts_engine(engine)
+        language = state.get("language")
+        if language:
+            try:
+                current = str(self.voice_manager.get_language())
+            except Exception:
+                current = ""
+            if language != current:
+                self.do_language(language)
+        profile = state.get("profile")
+        if profile:
+            self.do_profile(profile)
+        cloned = state.get("cloned_voice")
+        if cloned:
+            self.do_tts_voice(f"clone {cloned}")
+        elif state and self.current_tts_voice:
+            # The saved session spoke with the preset voice: leave the current cloned voice.
+            self.do_tts_voice("base")
+        stt_engine = state.get("stt_engine")
+        current_stt = str(getattr(self.voice_manager, "_stt_engine_name", "") or "")
+        if stt_engine and stt_engine != current_stt:
+            self.do_stt_engine(stt_engine)
+
     def _get_current_timestamp(self):
         """Get current timestamp in the format YYYY-MM-DD HH-MM-SS."""
         from datetime import datetime
@@ -5266,11 +5333,17 @@ class VoiceREPL(cmd.Cmd):
                 if self.debug_mode:
                     print("Processing .mem format with messages")
                 
-                # Update model if specified
-                if "header" in memory_data and "model" in memory_data["header"]:
+                # Restore the LLM provider, then the model (a model belongs to its provider).
+                header = memory_data.get("header") if isinstance(memory_data.get("header"), dict) else {}
+                saved_provider = header.get("provider") if isinstance(header.get("provider"), dict) else None
+                if saved_provider:
+                    self._restore_provider(saved_provider)
+                if "model" in header:
                     old_model = self.model
-                    self.model = memory_data["header"]["model"]
+                    self.model = header["model"]
                     print(f"Model changed from {old_model} to {self.model}")
+                if isinstance(memory_data.get("voice"), dict):
+                    self._restore_voice_session_state(memory_data["voice"])
                 
                 # Update system prompt
                 if "system_prompt" in memory_data:

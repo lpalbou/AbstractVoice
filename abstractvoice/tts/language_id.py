@@ -44,3 +44,22 @@ def identify_language(text: str, languages: Iterable[str]) -> Optional[str]:
         return None
     lang, prob = _identifier(langs).classify(s)
     return str(lang) if float(prob) >= MIN_CONFIDENCE else None
+
+
+_KNOWN: list = []
+
+
+def known_languages() -> tuple:
+    """Every language code the identifier knows (py3langid's model); empty when it is not
+    installed. Callers pass candidate lists through this, since an unknown code is refused."""
+    with _lock:
+        if not _KNOWN:
+            try:
+                from py3langid.langid import MODEL_FILE, LanguageIdentifier
+
+                load = getattr(LanguageIdentifier, "from_model_file", None) or LanguageIdentifier.from_pickled_model
+                _KNOWN.append(tuple(sorted(load(MODEL_FILE, norm_probs=True).nb_classes)))
+            except Exception:
+                _KNOWN.append(())
+        return _KNOWN[0]
+

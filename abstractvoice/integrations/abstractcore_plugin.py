@@ -69,6 +69,76 @@ class _TTSDiscovery:
 _VM_CACHE_LOCK = threading.Lock()
 _VM_CACHE: dict[tuple, Any] = {}
 _VM_LOCKS: "weakref.WeakKeyDictionary[Any, threading.Lock]" = weakref.WeakKeyDictionary()
+# One voice-store object per (voice_store_dir, voice_library_dirs) setting (backlog 0065).
+_VOICE_STORES: Dict[tuple, Any] = {}
+
+
+_SCOPED_DEPTH = threading.local()
+
+
+class _VoiceStoreScopedLock:
+    """A manager's lock that points the (shared) manager at the caller's voice store while held.
+
+    Acquiring applies the caller's store; releasing puts the manager back on its own store (the
+    one it was built or embedded with). A manager therefore never rests on someone's personal
+    store, so a call that reads it without the lock sees its own store, not another caller's.
+
+    Re-entrant per thread (the underlying lock is an RLock): a host that manages voices from
+    inside its own stream loop re-enters instead of deadlocking, and only the outermost holder
+    applies and restores the store."""
+
+    def __init__(self, lock: Any, apply: Callable[[], None], restore: Callable[[], None]):
+        self._lock = lock
+        self._apply = apply
+        self._restore = restore
+
+    def _stack(self) -> list:
+        stacks = getattr(_SCOPED_DEPTH, "stacks", None)
+        if stacks is None:
+            stacks = _SCOPED_DEPTH.stacks = {}
+        return stacks.setdefault(id(self._lock), [])
+
+    def _enter(self) -> None:
+        # Every holder, nested or not, gets its own store while it holds the manager; a nested
+        # holder's release hands the manager back to the holder it interrupted.
+        stack = self._stack()
+        stack.append(self._apply)
+        try:
+            self._apply()
+        except BaseException:
+            stack.pop()
+            try:
+                (stack[-1] if stack else self._restore)()
+            finally:
+                self._lock.release()
+            raise
+
+    def __enter__(self) -> "_VoiceStoreScopedLock":
+        self._lock.acquire()
+        self._enter()
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.release()
+
+    def acquire(self, *args: Any, **kwargs: Any) -> bool:
+        got = self._lock.acquire(*args, **kwargs)
+        if got:
+            self._enter()
+        return got
+
+    def release(self) -> None:
+        stack = self._stack()
+        try:
+            if stack:
+                stack.pop()
+            (stack[-1] if stack else self._restore)()
+        finally:
+            self._lock.release()
+
+    def locked(self) -> bool:
+        locked = getattr(self._lock, "locked", None)
+        return bool(locked()) if callable(locked) else False
 _TRUE_BOOL_VALUES = {"1", "true", "yes", "y", "on"}
 _FALSE_BOOL_VALUES = {"0", "false", "no", "n", "off"}
 _CLONE_RESIDENCY_PROVIDER_ALIASES = {"cloned", "clone", "cloning"}
@@ -1426,14 +1496,97 @@ class _BaseVoice:
         self._owner = owner
         self._vm = None
 
-    def _vm_lock(self, vm: Any) -> threading.Lock:
-        """Per-VoiceManager lock for synthesis/metrics consistency."""
+    def _vm_lock(self, vm: Any) -> "_VoiceStoreScopedLock":  # noqa: D401
+        """Per-VoiceManager lock for synthesis/metrics consistency.
+
+        A manager is shared by every capability with the same engine settings (one copy of the
+        weights), while the voice store is per capability (`voice_store_dir`, backlog 0065): the
+        lock, once held, points the manager at this capability's store, so a voice id is looked
+        up, spoken and changed in the store of the caller holding the lock."""
         with _VM_CACHE_LOCK:
             lk = _VM_LOCKS.get(vm)
-            if lk is None:
-                lk = threading.Lock()
+            if lk is None or not hasattr(lk, "_is_owned"):  # an RLock (re-entrant per thread)
+                lk = threading.RLock()
                 _VM_LOCKS[vm] = lk
-            return lk
+        return _VoiceStoreScopedLock(lk, lambda: self._apply_voice_store(vm), lambda: self._restore_own_voice_store(vm))
+
+    def _voice_store_settings(self) -> tuple:
+        store_dir = self._config_text("voice_store_dir") or None
+        cfg = getattr(self._owner, "config", None)
+        raw = cfg.get("voice_library_dirs") if isinstance(cfg, dict) else None
+        if isinstance(raw, str):
+            libs = [x for x in raw.split(os.pathsep) if x.strip()]
+        elif isinstance(raw, (list, tuple)):
+            libs = [str(x) for x in raw if str(x or "").strip()]
+        else:
+            libs = []
+        return store_dir, tuple(libs)
+
+    def _configured_voice_store(self) -> Any:
+        """This capability's voice store: the machine user's store by default, or the personal
+        store in front of its libraries when `voice_store_dir` is set (one object per setting)."""
+        from ..cloning.store import open_voice_store
+
+        key = self._voice_store_settings()
+        if not key[0]:
+            return open_voice_store()  # unconfigured: the machine user's store, read fresh as before
+        with _VM_CACHE_LOCK:
+            store = _VOICE_STORES.get(key)
+            if store is None:
+                store = open_voice_store(key[0], list(key[1]) or None)
+                _VOICE_STORES[key] = store
+        return store
+
+    @staticmethod
+    def _own_voice_store_state(vm: Any) -> Optional[Dict[str, Any]]:
+        """The manager's own store settings, recorded the first time the plugin touches it (before
+        any caller's settings are applied: only the scoped lock changes them, and it restores them
+        on release). `store` is the cloner's store object when the cloner already existed (an
+        embedder may have given it one); otherwise it is rebuilt from the settings when needed."""
+        if not hasattr(vm, "__dict__"):
+            return None
+        state = vm.__dict__.get("_abstractvoice_own_store")
+        if state is None:
+            cloner = getattr(vm, "_voice_cloner", None)
+            state = {
+                "store": getattr(cloner, "store", None) if cloner is not None else None,
+                "dir": getattr(vm, "voice_store_dir", None),
+                "libs": list(getattr(vm, "voice_library_dirs", None) or []),
+            }
+            vm.__dict__["_abstractvoice_own_store"] = state
+        return state
+
+    @staticmethod
+    def _own_store_object(state: Dict[str, Any]) -> Any:
+        if state.get("store") is not None:
+            return state["store"]
+        from ..cloning.store import open_voice_store
+
+        return open_voice_store(state.get("dir"), state.get("libs") or None)
+
+    def _apply_voice_store(self, vm: Any) -> None:
+        """Point a (possibly shared) manager at this capability's voice store; only the scoped lock
+        calls this, and it restores the manager's own store on release."""
+        state = self._own_voice_store_state(vm)
+        if state is None:
+            return
+        store_dir, libs = self._voice_store_settings()
+        cloner = getattr(vm, "_voice_cloner", None)
+        if store_dir:
+            vm.voice_store_dir, vm.voice_library_dirs = store_dir, list(libs)
+            if cloner is not None and hasattr(cloner, "store"):
+                cloner.store = self._configured_voice_store()
+        else:
+            self._restore_own_voice_store(vm)
+
+    def _restore_own_voice_store(self, vm: Any) -> None:
+        state = self._own_voice_store_state(vm)
+        if state is None:
+            return
+        vm.voice_store_dir, vm.voice_library_dirs = state.get("dir"), list(state.get("libs") or [])
+        cloner = getattr(vm, "_voice_cloner", None)
+        if cloner is not None and hasattr(cloner, "store"):
+            cloner.store = self._own_store_object(state)
 
     def _get_vm(self):
         if self._vm is not None:
@@ -1616,7 +1769,7 @@ class _BaseVoice:
                     openai_base_url=openai_base_url,
                 )
                 _VM_CACHE[key] = cached
-                _VM_LOCKS[cached] = threading.Lock()
+                _VM_LOCKS[cached] = threading.RLock()
             try:
                 setattr(cached, "_abstractvoice_tts_engine", str(tts_engine))
                 setattr(cached, "_abstractvoice_stt_engine", str(stt_engine))
@@ -1850,24 +2003,31 @@ class _BaseVoice:
         voice_id = str(voice or "").strip() or None
         engine = _norm_engine_id(model)
         if voice_id and not engine:
-            for _cache_key, vm in self._iter_known_vms():
-                try:
-                    info = vm.get_cloned_voice(voice_id) if hasattr(vm, "get_cloned_voice") else None
-                except Exception:
-                    info = None
+            # The caller's own store first; another manager is asked only while its lock (which
+            # applies this caller's store) is held, never in the state another caller left.
+            try:
+                info = self._configured_voice_store().get_voice_dict(voice_id)
                 if isinstance(info, dict):
                     engine = _norm_engine_id(info.get("engine"))
-                    if engine:
-                        break
+            except Exception:
+                engine = engine or ""
             if not engine:
-                try:
-                    from ..cloning.store import VoiceCloneStore
-
-                    info = VoiceCloneStore().get_voice_dict(voice_id)
+                for _cache_key, vm in self._iter_known_vms():
+                    if not hasattr(vm, "get_cloned_voice"):
+                        continue
+                    lk = self._vm_lock(vm)
+                    if not lk.acquire(timeout=2.0):
+                        continue
+                    try:
+                        info = vm.get_cloned_voice(voice_id)
+                    except Exception:
+                        info = None
+                    finally:
+                        lk.release()
                     if isinstance(info, dict):
                         engine = _norm_engine_id(info.get("engine"))
-                except Exception:
-                    engine = engine or ""
+                        if engine:
+                            break
         return (engine or None), voice_id
 
     def _clone_residency_entry(
@@ -3209,9 +3369,7 @@ class _VoiceCapability(_BaseVoice):
                 profiles.extend(_local_tts_voice_profiles(engine))
 
             try:
-                from ..cloning.store import VoiceCloneStore
-
-                for item in VoiceCloneStore().list_voices():
+                for item in self._configured_voice_store().list_voices():
                     if not isinstance(item, dict):
                         continue
                     meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
@@ -3717,6 +3875,14 @@ class _VoiceCapability(_BaseVoice):
         out.setdefault("voice_id", voice_id)
         return {"ok": True, **_json_safe(out)}
 
+    def _registry_lock(self, registry: Any) -> Any:
+        """The scoped lock when the clone registry is a (possibly shared) manager; a store needs none."""
+        from contextlib import nullcontext
+
+        if hasattr(registry, "get_cloned_voice") and not hasattr(registry, "get_voice_dict"):
+            return self._vm_lock(registry)
+        return nullcontext()
+
     def _clone_registry(self):
         """The object that owns stored clones: this capability's manager, else the store.
 
@@ -3727,6 +3893,10 @@ class _VoiceCapability(_BaseVoice):
         registry every manager reads is edited directly. Managers cached for other
         configurations are deliberately not consulted.
         """
+        if self._voice_store_settings()[0]:
+            # A personal store is configured: its records are this capability's, whatever
+            # store a shared manager last pointed at.
+            return self._configured_voice_store()
         vm = self._vm
         if vm is None:
             cfg = getattr(self._owner, "config", None)
@@ -3753,7 +3923,8 @@ class _VoiceCapability(_BaseVoice):
         vid = self._voice_id_or_raise(voice_id)
         registry = self._clone_registry()
         getter = getattr(registry, "get_cloned_voice", None) or getattr(registry, "get_voice_dict")
-        record = getter(vid)
+        with self._registry_lock(registry):
+            record = getter(vid)
         out = dict(record) if isinstance(record, dict) else {"voice_id": vid}
         out.setdefault("voice_id", vid)
         return _json_safe(out)
@@ -3766,7 +3937,8 @@ class _VoiceCapability(_BaseVoice):
             raise ValueError("new_name is required")
         registry = self._clone_registry()
         renamer = getattr(registry, "rename_cloned_voice", None) or getattr(registry, "rename_voice")
-        renamer(vid, name)
+        with self._registry_lock(registry):
+            renamer(vid, name)
         return {"ok": True, **self.get_cloned_voice(vid)}
 
     def set_cloned_voice_reference_text(self, voice_id: str, reference_text: str) -> Dict[str, Any]:
@@ -3777,8 +3949,20 @@ class _VoiceCapability(_BaseVoice):
             raise ValueError("reference_text is required")
         registry = self._clone_registry()
         setter = getattr(registry, "set_cloned_voice_reference_text", None) or getattr(registry, "set_reference_text")
-        setter(vid, text)
+        with self._registry_lock(registry):
+            setter(vid, text)
         return {"ok": True, **self.get_cloned_voice(vid)}
+
+    def deploy_voice_to_library(self, voice_id: str) -> Dict[str, Any]:
+        """Copy one of this capability's personal voices into its first library, where every
+        configuration sharing that library lists and uses it (an administrator's act: the host
+        decides who may call it). Returns the library voice's record."""
+        vid = self._voice_id_or_raise(voice_id)
+        store = self._configured_voice_store()
+        if not hasattr(store, "deploy_to_library"):
+            raise ValueError("Deploying a voice to the library needs a personal voice store (voice_store_dir).")
+        library_id = store.deploy_to_library(vid)
+        return {"ok": True, **_json_safe(store.get_voice_dict(library_id))}
 
     def delete_cloned_voice(self, voice_id: str) -> Dict[str, Any]:
         """Delete a cloned voice and its reference audio from the registry; KeyError when unknown."""
@@ -3786,7 +3970,8 @@ class _VoiceCapability(_BaseVoice):
         registry = self._clone_registry()
         record = self.get_cloned_voice(vid)
         deleter = getattr(registry, "delete_cloned_voice", None) or getattr(registry, "delete_voice")
-        deleter(vid)
+        with self._registry_lock(registry):
+            deleter(vid)
         return {"ok": True, "deleted": True, "voice_id": vid, "name": record.get("name"), "engine": record.get("engine")}
 
     # Aliases for duck-typed callers that use the shorter verbs.
@@ -3934,6 +4119,7 @@ class _VoiceCapability(_BaseVoice):
         provider: Optional[str] = None,
         artifact_store: Any = None,
         metadata: Optional[Dict[str, Any]] = None,
+        language: Optional[str] = None,
         **kwargs: Any,
     ) -> Any:
         """Create a cloned voice through the plugin boundary."""
@@ -3951,6 +4137,10 @@ class _VoiceCapability(_BaseVoice):
             clone_name = str(name) if name is not None else None
             ref_text = str(reference_text) if reference_text is not None else None
             clone_meta = dict(metadata) if isinstance(metadata, dict) else None
+            # The recording's language (ISO 639-1), for every input form: stated here or in
+            # `metadata.language`; else identified from the transcript by the cloner.
+            clone_language = str(language or (clone_meta or {}).get("language") or "").strip().lower() or None
+            lang_kw = {"language": clone_language} if clone_language else {}
 
             if isinstance(audio, str):
                 return vm.clone_voice(
@@ -3958,6 +4148,7 @@ class _VoiceCapability(_BaseVoice):
                     name=clone_name,
                     reference_text=ref_text,
                     engine=engine_name,
+                    **lang_kw,
                 )
 
             if isinstance(audio, dict):
@@ -3975,6 +4166,7 @@ class _VoiceCapability(_BaseVoice):
                         name=clone_name,
                         reference_text=ref_text,
                         engine=engine_name,
+                        **lang_kw,
                     )
                 finally:
                     try:
@@ -3988,6 +4180,7 @@ class _VoiceCapability(_BaseVoice):
                 reference_text=ref_text,
                 engine=engine_name,
                 meta=clone_meta,
+                **lang_kw,
             )
 
     def clone_voice(
@@ -4000,6 +4193,7 @@ class _VoiceCapability(_BaseVoice):
         provider: Optional[str] = None,
         artifact_store: Any = None,
         metadata: Optional[Dict[str, Any]] = None,
+        language: Optional[str] = None,
         **kwargs: Any,
     ) -> Any:
         """Alias for clone() for compatibility with older duck-typed callers."""
@@ -4011,6 +4205,7 @@ class _VoiceCapability(_BaseVoice):
             provider=provider,
             artifact_store=artifact_store,
             metadata=metadata,
+            language=language,
             **kwargs,
         )
 
@@ -4179,7 +4374,8 @@ class _VoiceCapability(_BaseVoice):
         cloned_voices: list[Dict[str, Any]] = []
         if hasattr(vm, "list_cloned_voices"):
             try:
-                raw_clones = vm.list_cloned_voices()
+                with self._vm_lock(vm):
+                    raw_clones = vm.list_cloned_voices()
             except Exception:
                 raw_clones = []
             if isinstance(raw_clones, list):

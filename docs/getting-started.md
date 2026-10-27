@@ -146,21 +146,31 @@ Then open `http://127.0.0.1:5000`.
 The web example is offline-first by default. Its `auto` TTS default has the same
 interactive behavior as the REPL: installed Supertonic, installed Piper, then
 remote OpenAI. Prefetch models first, or start it with `--allow-downloads` when
-you explicitly want web requests to download missing models. The Voice panel
-includes a base TTS provider selector; switching providers resets the base
-profile to that provider/language default. Selecting a cloned voice can take a while on first use because the
-cloning backend loads weights and builds prompt/runtime caches; the browser UI
-shows a busy overlay while that work is happening.
+you explicitly want web requests to download missing models.
 
-The browser voice-cloning action validates a new clone by synthesizing a short
-sample before reporting success. If an optional provider runtime cannot load, the stored
-clone is removed and the backend error is shown instead of leaving a broken
-voice in the selector.
+The settings column has four tabs:
 
-For the dialogue panel, start a compatible local LLM server separately (for
-example Ollama on `http://localhost:11434`), choose a model in the page, then
-use **Ask Assistant**. The browser owns the short chat history; the example
-server only forwards one `/v1/chat/completions` request.
+- **Voice**: the TTS provider and its preset voice, then the assistant and user
+  voices. Their menus group the preset voice, your voices and the built-in voices,
+  and **Show voices that speak** keeps the voices of one language. Switching
+  providers resets the preset to that provider/language default. Selecting a cloned
+  voice can take a while on first use because the cloning backend loads weights and
+  builds prompt/runtime caches; the page shows a busy overlay meanwhile. The engine's
+  model and Qwen3-TTS controls sit under **Advanced**.
+- **Create voice**: **From a description** creates a voice from words (Qwen3-TTS
+  VoiceDesign; needs `abstractvoice[qwen3-tts]` and `abstractvoice[stt]`), and
+  **From a recording** clones an uploaded or recorded sample, with its language.
+  A new voice becomes the assistant voice at once. The recording path validates a new
+  clone by synthesizing a short sample before reporting success; if an optional
+  provider runtime cannot load, the stored clone is removed and the backend error is
+  shown instead of leaving a broken voice in the selector.
+- **Assistant**: the page detects Ollama (`http://localhost:11434`) and LM Studio
+  (`http://localhost:1234`), picks one that has models and fills the model list
+  (embedding models are listed apart, as they cannot chat); **Custom URL…** takes any
+  OpenAI-compatible server and **Detect** looks again. The browser remembers your
+  choice. Then use **Ask Assistant**: the browser owns the short chat history and
+  the example server forwards one `/v1/chat/completions` request.
+- **Speech tools**: speak a text, or transcribe a file.
 
 ## Minimal library usage
 

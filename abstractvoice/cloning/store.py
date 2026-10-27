@@ -104,6 +104,65 @@ def _builtin_record(entry: Dict[str, Any]) -> "ClonedVoice":
     )
 
 
+_INDEX_THREAD_LOCKS: Dict[str, threading.RLock] = {}
+_INDEX_THREAD_LOCKS_GUARD = threading.Lock()
+_INDEX_DEPTH = threading.local()
+
+
+class _IndexLock:
+    """A per-folder lock: a thread lock in this process, plus an OS file lock where available."""
+
+    def __init__(self, base_dir: Path):
+        key = str(Path(base_dir).resolve())
+        self._key = key
+        with _INDEX_THREAD_LOCKS_GUARD:
+            self._thread_lock = _INDEX_THREAD_LOCKS.setdefault(key, threading.RLock())
+        self._path = Path(base_dir) / ".index.lock"
+        self._fh = None
+
+    def __enter__(self) -> "_IndexLock":
+        self._thread_lock.acquire()
+        depth = _INDEX_DEPTH.__dict__.setdefault(self._key, 0)
+        _INDEX_DEPTH.__dict__[self._key] = depth + 1
+        if depth:
+            return self  # nested in this thread: the outer holder has the file lock
+        try:
+            import fcntl  # POSIX only
+
+            self._fh = open(self._path, "a+")
+            fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX)
+        except ImportError:
+            self._fh = None
+        except Exception:
+            if self._fh is not None:
+                self._fh.close()
+            self._fh = None
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        _INDEX_DEPTH.__dict__[self._key] -= 1
+        try:
+            if self._fh is not None:
+                import fcntl
+
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+                self._fh.close()
+        finally:
+            self._fh = None
+            self._thread_lock.release()
+
+
+def _locked_index(method):
+    """Run a store method that changes the index under the folder's index lock."""
+    import functools
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._index_mutation():
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
 @dataclass(frozen=True)
 class ClonedVoice:
     voice_id: str
@@ -136,7 +195,9 @@ class VoiceCloneStore:
 
         self._index_path = self._base_dir / "index.json"
         if not self._index_path.exists():
-            self._write_index({})
+            with _IndexLock(self._base_dir):
+                if not self._index_path.exists():  # another process may have created it meanwhile
+                    self._write_index({})
 
     def _read_index(self) -> Dict[str, Any]:
         try:
@@ -145,7 +206,15 @@ class VoiceCloneStore:
             return {}
 
     def _write_index(self, data: Dict[str, Any]) -> None:
-        self._index_path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+        # Written beside and moved in whole: a reader never sees a half-written index.
+        tmp = self._index_path.with_name(self._index_path.name + f".{os.getpid()}.{threading.get_ident()}.tmp")
+        tmp.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+        os.replace(tmp, self._index_path)
+
+    def _index_mutation(self):
+        """Serialise one read-modify-write of the index across threads and processes (a shared
+        library is written by several hosts' deploys)."""
+        return _IndexLock(self._base_dir)
 
     def _voice_dir(self, voice_id: str) -> Path:
         if self._builtin and voice_id in builtin_voice_pack() and voice_id not in self._read_index():
@@ -231,6 +300,7 @@ class VoiceCloneStore:
                 pass
         return True
 
+    @_locked_index
     def create_voice(
         self,
         reference_paths: Iterable[str | Path],
@@ -298,6 +368,7 @@ class VoiceCloneStore:
         self._write_index(index)
         return voice_id
 
+    @_locked_index
     def create_voice_from_wav_bytes(
         self,
         wav_bytes: bytes,
@@ -376,6 +447,7 @@ class VoiceCloneStore:
                     out.append(self.get_voice_dict(vid))
         return out
 
+    @_locked_index
     def set_reference_text(self, voice_id: str, reference_text: str, *, source: str | None = None) -> None:
         """Set (or replace) the stored reference text for a cloned voice.
 
@@ -392,6 +464,22 @@ class VoiceCloneStore:
             meta = dict(data.get("meta") or {})
             meta["reference_text_source"] = str(source)
             data["meta"] = meta
+        index[voice_id] = data
+        self._write_index(index)
+
+    @_locked_index
+    def set_language(self, voice_id: str, language_code: str, *, source: str) -> None:
+        """Record the language a voice speaks natively (`meta.language_code`) and how it is known
+        (`meta.language_source`: `request` when stated, `text` when identified from its transcript)."""
+        self._refuse_builtin(voice_id, "edited")
+        index = self._read_index()
+        if voice_id not in index:
+            raise KeyError(f"Unknown voice_id: {voice_id}")
+        data = dict(index[voice_id])
+        meta = dict(data.get("meta") or {})
+        meta["language_code"] = str(language_code).strip().lower()
+        meta["language_source"] = str(source)
+        data["meta"] = meta
         index[voice_id] = data
         self._write_index(index)
 
@@ -418,6 +506,7 @@ class VoiceCloneStore:
 
         return str(out_path)
 
+    @_locked_index
     def import_voice(self, path: str | Path) -> str:
         """Import a voice bundle zip archive into the local store."""
         import zipfile
@@ -453,6 +542,7 @@ class VoiceCloneStore:
 
         return new_id
 
+    @_locked_index
     def rename_voice(self, voice_id: str, new_name: str) -> None:
         self._refuse_builtin(voice_id, "renamed")
         index = self._read_index()
@@ -463,6 +553,7 @@ class VoiceCloneStore:
         index[voice_id] = data
         self._write_index(index)
 
+    @_locked_index
     def delete_voice(self, voice_id: str) -> None:
         """Delete a voice entry and its reference files from disk."""
         self._refuse_builtin(voice_id, "deleted")
@@ -480,3 +571,155 @@ class VoiceCloneStore:
 
         del index[voice_id]
         self._write_index(index)
+
+
+class LibraryVoiceError(ValueError):
+    """A change was asked of a voice that belongs to a read-only library."""
+
+
+class LayeredVoiceStore:
+    """A personal voice store (writable) in front of library stores (read-only).
+
+    The voices a person clones or designs go to their personal store; the libraries hold the
+    voices everyone may use (the built-in pack, and the voices an administrator deploys). Lookups
+    search the personal store first, then each library; changes reach the personal store only.
+    Every listed record carries ``meta.scope``: ``personal`` or ``library``.
+
+    It answers the same calls as :class:`VoiceCloneStore`, so the cloner and the engines use it
+    unchanged (AbstractVoice backlog 0065).
+    """
+
+    def __init__(self, personal: VoiceCloneStore, libraries: Iterable[VoiceCloneStore] = ()):
+        self.personal = personal
+        self.libraries = list(libraries)
+        self._base_dir = personal._base_dir
+
+    # -- lookup -----------------------------------------------------------------------------
+
+    def _layers(self) -> List[tuple]:
+        return [(self.personal, "personal")] + [(lib, "library") for lib in self.libraries]
+
+    def _owner(self, voice_id: str) -> tuple:
+        for store, scope in self._layers():
+            try:
+                store.get_voice(voice_id)
+            except KeyError:
+                continue
+            return store, scope
+        raise KeyError(f"Unknown voice_id: {voice_id}")
+
+    def scope_of(self, voice_id: str) -> str:
+        return self._owner(voice_id)[1]
+
+    def _writable(self, voice_id: str, action: str) -> VoiceCloneStore:
+        store, scope = self._owner(voice_id)
+        if scope != "personal":
+            raise LibraryVoiceError(
+                f"{voice_id!r} is a library voice (shared with everyone) and cannot be {action} here. "
+                "Clone its reference into your own voice to customize it."
+            )
+        return store
+
+    def get_voice(self, voice_id: str) -> "ClonedVoice":
+        return self._owner(voice_id)[0].get_voice(voice_id)
+
+    def get_voice_dict(self, voice_id: str) -> Dict[str, Any]:
+        store, scope = self._owner(voice_id)
+        out = store.get_voice_dict(voice_id)
+        out["meta"] = dict(out.get("meta") or {}, scope=scope)
+        return out
+
+    def list_voices(self) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        seen: set = set()
+        for store, scope in self._layers():
+            for item in store.list_voices():
+                vid = str(item.get("voice_id") or "")
+                if not vid or vid in seen:
+                    continue
+                seen.add(vid)
+                out.append(dict(item, meta=dict(item.get("meta") or {}, scope=scope)))
+        return out
+
+    def is_builtin(self, voice_id: str) -> bool:
+        try:
+            store, _scope = self._owner(voice_id)
+        except KeyError:
+            return False
+        return store.is_builtin(voice_id)
+
+    def resolve_reference_paths(self, voice_id: str) -> List[Path]:
+        return self._owner(voice_id)[0].resolve_reference_paths(voice_id)
+
+    def normalize_reference_audio(self, voice_id: str) -> int:
+        store, scope = self._owner(voice_id)
+        # A library is read-only from here: its references are used as they are.
+        return store.normalize_reference_audio(voice_id) if scope == "personal" else 0
+
+    # -- changes (personal store only) --------------------------------------------------------
+
+    def create_voice(self, *args: Any, **kwargs: Any) -> str:
+        return self.personal.create_voice(*args, **kwargs)
+
+    def create_voice_from_wav_bytes(self, *args: Any, **kwargs: Any) -> str:
+        return self.personal.create_voice_from_wav_bytes(*args, **kwargs)
+
+    def import_voice(self, path: str | Path) -> str:
+        return self.personal.import_voice(path)
+
+    def export_voice(self, voice_id: str, path: str | Path) -> str:
+        return self._owner(voice_id)[0].export_voice(voice_id, path)
+
+    def set_reference_text(self, voice_id: str, reference_text: str, *, source: str | None = None) -> None:
+        self._writable(voice_id, "edited").set_reference_text(voice_id, reference_text, source=source)
+
+    def set_language(self, voice_id: str, language_code: str, *, source: str) -> None:
+        self._writable(voice_id, "edited").set_language(voice_id, language_code, source=source)
+
+    def rename_voice(self, voice_id: str, new_name: str) -> None:
+        self._writable(voice_id, "renamed").rename_voice(voice_id, new_name)
+
+    def delete_voice(self, voice_id: str) -> None:
+        self._writable(voice_id, "deleted").delete_voice(voice_id)
+
+    # -- library deployment (an administrator's act; the host decides who may) ----------------
+
+    def deploy_to_library(self, voice_id: str, library: Optional[VoiceCloneStore] = None) -> str:
+        """Copy one of the personal voices into a library (the first by default); returns the
+        library voice's id. The personal voice is kept."""
+        target = library if library is not None else (self.libraries[0] if self.libraries else None)
+        if target is None:
+            raise ValueError("No voice library is configured to deploy to.")
+        self._writable(voice_id, "deployed")
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = self.personal.export_voice(voice_id, Path(tmp) / "voice.zip")
+            library_id = target.import_voice(bundle)
+        # The library record names no path of the deployer's machine or account.
+        with target._index_mutation():
+            index = target._read_index()
+            data = dict(index.get(library_id) or {})
+            meta = {k: v for k, v in dict(data.get("meta") or {}).items() if k != "source"}
+            meta["source"] = "library"
+            data["meta"] = meta
+            index[library_id] = data
+            target._write_index(index)
+        return library_id
+
+
+def open_voice_store(
+    store_dir: Optional[str | Path] = None,
+    library_dirs: Optional[Iterable[str | Path]] = None,
+) -> "VoiceCloneStore | LayeredVoiceStore":
+    """The voice store a configuration names.
+
+    - nothing configured: the machine user's store (with the built-in voices), as before;
+    - ``store_dir``: that folder is the personal store, in front of the libraries:
+      ``library_dirs`` when given, else the machine user's store (whose voices, built-in ones
+      included, everyone keeps seeing and using, read-only).
+    """
+    if not store_dir:
+        return VoiceCloneStore()
+    personal = VoiceCloneStore(store_dir, builtin_voices=False)
+    dirs = [d for d in (library_dirs or []) if str(d or "").strip()]
+    libraries = [VoiceCloneStore(d, builtin_voices=(i == 0)) for i, d in enumerate(dirs)] if dirs else [VoiceCloneStore()]
+    return LayeredVoiceStore(personal, libraries)

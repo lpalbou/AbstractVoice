@@ -1,7 +1,7 @@
 ## Task 0065: Personal voice stores per owner, and a shared library an administrator deploys to
 
 **Date**: 2026-10-27  
-**Status**: Planned  
+**Status**: Completed (2026-10-27, 0.19.0)  
 **Priority**: P1  
 **Area**: `cloning/store.py` (`VoiceCloneStore`), AbstractCore plugin (store settings, listing, synthesis lookup), capability catalog  
 **Version**: today one store per machine user
@@ -88,8 +88,42 @@ Operator, 2026-10-27: "we would like to have proper isolation between the voices
 
 ---
 
-## Report (fill only when completed)
+## Report
 
 ### Summary
 
+Completed 2026-10-27 (0.19.0), Option A. `cloning/store.py`: `LayeredVoiceStore` (a personal `VoiceCloneStore` in front
+of read-only library stores, `meta.scope` on every record, `LibraryVoiceError` for changes to library voices,
+`deploy_to_library`) and `open_voice_store(store_dir, library_dirs)` (unconfigured: the machine user's store as
+before; `store_dir` without libraries: the machine user's store becomes the library, so existing voices, built-in ones
+included, stay visible). `VoiceManager(voice_store_dir=, voice_library_dirs=)`, `deploy_voice_to_library(voice_id)`.
+AbstractCore plugin: settings `voice_store_dir`, `voice_library_dirs`; capabilities with the same engine settings share
+one cached `VoiceManager` (one copy of the weights) and each call points it at the caller's store under the manager's
+lock (`_VoiceStoreScopedLock`); voice management goes to the configured store; `deploy_voice_to_library(voice_id)`.
+An unconfigured capability restores the manager's own store (an embedder's injected store is never replaced).
+
 ### Validation
+
+- `tests/test_personal_voice_stores.py`: two personal stores never see each other; library voices listed for everyone,
+  read-only, resolvable; deploy keeps the personal voice; defaults; a shared manager speaks and manages in the caller's
+  store.
+- Real weights (Qwen3-TTS, M-series Mac, 2026-10-27), two plugin capabilities with personal stores and one library,
+  11/11: alice designs a voice (10.4 s), lists and speaks it (107,564 bytes); bob does not list it, cannot speak with it
+  ("Unknown voice_id") nor delete it; alice deploys it; bob speaks with the library voice and cannot delete it
+  ("is a library voice"); one loaded speech engine served both.
+- Full suite: 857 passed, 3 skipped.
+
+### Adversarial review (2026-10-27) and fixes
+
+Verdict before fixes: do not ship. Confirmed and fixed: (1) an unconfigured caller could inherit another account's
+personal store when the shared manager's cloner was built lazily: the scoped lock now restores the manager's own
+store (recorded before any caller's settings) on every release, so a manager never rests on a personal store;
+(2) cloned-voice management on a shared manager ran without the lock: now under it; (4) a library voice without a
+transcript failed every synthesis (the ASR fallback wrote to the read-only library): its transcript is kept in memory
+per process; plus deploy records name no path of the deployer, store index writes are serialised (thread lock +
+`fcntl` file lock, atomic replace), the residency lookup reads the caller's store first and other managers only
+under their lock. Regression tests in `tests/test_personal_voice_stores.py` (lazy cloner with configured and
+unconfigured callers in both orders, unconfigured management, library voice without a transcript, deploy record,
+concurrent deploys); dropping the restore-on-release turns the lazy-cloner test red. Real weights rerun: 11/11.
+Full suite: 869 passed, 3 skipped.
+

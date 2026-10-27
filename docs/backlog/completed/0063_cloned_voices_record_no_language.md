@@ -1,7 +1,7 @@
 ## Task 0063: Voices cloned from a recording record no language
 
 **Date**: 2026-10-26  
-**Status**: Planned  
+**Status**: Completed (2026-10-27, 0.19.0)  
 **Priority**: P2  
 **Area**: cloning (`abstractvoice/cloning/`), AbstractCore plugin `clone()` and voice navigation (`_with_voice_navigation`), AbstractCore `POST /v1/voice/clone`  
 **Version**: found in 0.18.2
@@ -159,8 +159,34 @@ field to state the language.
 
 ---
 
-## Report (fill only when completed)
+## Report
 
 ### Summary
 
+Completed 2026-10-27 (0.19.0), Option C. `clone_voice(..., language=)`, `clone_voice_from_wav_bytes(..., language=)`
+and the plugin's `clone(..., language=)` (or `metadata["language"]`) record `meta.language_code` with
+`language_source = "request"` for every input form (bytes, path, artifact reference). Without it, the language of the
+transcript is identified among the languages the engine speaks (`tts/language_id.identify_language`, py3langid) and
+recorded with `language_source = "text"`, at creation when a transcript is given and when a transcript is set later
+(manually or by the Whisper fallback, `VoiceCloner._learn_language_from_transcript`). Too short or ambiguous text, or no
+py3langid installed: nothing is recorded (no guess). `VoiceCloneStore.set_language(voice_id, code, source=)` added.
+The web example's recording form takes a language. AbstractCore's `POST /v1/voice/clone` form still has no `language`
+field: AbstractCore backlog (filed 2026-10-27).
+
 ### Validation
+
+- The exact reproduction above, after the fix: `stored meta: {'language_code': 'fr', 'language_source': 'text'}` (transcript
+  only) and `'request'` (stated); `listed language: fr`; position among fr clones 1 of 76 (was 12 of 76).
+- `tests/test_personal_voice_stores.py`: stated language for bytes and path; identified from the transcript; a short
+  transcript records nothing; a transcript set later teaches the language; the plugin passes it for bytes and path.
+- Full suite: 857 passed, 3 skipped.
+
+### Adversarial review (2026-10-27) and fixes
+
+Confirmed and fixed: (3) cloning failed for OmniVoice, Chroma and unknown engines when a transcript came without a
+language (their language lists hold codes py3langid refuses): identification now runs over every language
+py3langid knows (`tts/language_id.known_languages`) and never raises; (5) engines with few languages forced a wrong
+language (a French transcript stored as `en` for F5-TTS): the candidates are no longer the engine's languages;
+a stated language now wins over `metadata`. Regression tests: OmniVoice/Chroma/default engine with a transcript
+and no language; French on F5-TTS; stated language over `meta`.
+

@@ -23,6 +23,27 @@ def _normalize_cloning_engine(engine: str | None) -> str:
     return name
 
 
+
+def _identify_transcript_language(engine_name: str, text: str | None) -> str | None:
+    """The language a voice's transcript is written in, or None.
+
+    The candidates are every language the identifier knows, not only the ones the engine speaks:
+    the result is the language of the RECORDING, and limiting the candidates would force a French
+    transcript into an English-and-Chinese engine's "en". None when the text is too short or the
+    identification is not confident, or when the identifier (`py3langid`, in the engine extras)
+    is not installed; never an exception, since cloning must not fail on this."""
+    del engine_name  # kept for the call sites; the recording's language does not depend on it
+    if not str(text or "").strip():
+        return None
+    try:
+        from ..tts.language_id import identify_language, known_languages
+
+        candidates = known_languages()
+        return identify_language(str(text), candidates) if candidates else None
+    except Exception:
+        return None
+
+
 class VoiceCloner:
     """High-level voice cloning manager (optional).
 
@@ -397,6 +418,17 @@ class VoiceCloner:
                 continue
         return {}
 
+    @staticmethod
+    def _language_meta(engine_name: str, language: str | None, reference_text: str | None) -> Dict[str, Any]:
+        """`{language_code, language_source}` for a new voice: the stated language (`request`), else
+        the language of its transcript among the languages the engine speaks (`text`), else nothing
+        (no guess: an unknown language stays unknown)."""
+        code = str(language or "").strip().lower()
+        if code:
+            return {"language_code": code, "language_source": "request"}
+        identified = _identify_transcript_language(engine_name, reference_text)
+        return {"language_code": identified, "language_source": "text"} if identified else {}
+
     def clone_voice(
         self,
         reference_audio_path: str,
@@ -405,10 +437,13 @@ class VoiceCloner:
         reference_text: str | None = None,
         engine: str | None = None,
         model: str | None = None,
+        language: str | None = None,
     ) -> str:
         """Create a new cloned voice from a file or directory.
 
-        If a directory is provided, all WAV/FLAC/OGG files inside are used.
+        If a directory is provided, all WAV/FLAC/OGG files inside are used. `language` is the
+        language the recording is in (ISO 639-1); when omitted it is identified from
+        `reference_text` when there is one (see `_language_meta`).
         """
         p = Path(reference_audio_path)
         if not p.exists():
@@ -443,7 +478,7 @@ class VoiceCloner:
         if engine_name in _REMOTE_CLONING_ENGINES:
             eng = self._get_engine(engine_name)
             remote_meta = eng.clone_voice(str(refs[0]), name=name, reference_text=reference_text)
-            meta = {"source": str(p)}
+            meta = {"source": str(p), **self._language_meta(engine_name, language, reference_text)}
             if isinstance(remote_meta, dict):
                 meta.update(remote_meta)
             return self.store.create_voice(
@@ -459,7 +494,9 @@ class VoiceCloner:
             name=name,
             reference_text=reference_text,
             engine=engine_name,
-            meta=self._clone_metadata(engine_name, {"source": str(p)}, model=model),
+            meta=self._clone_metadata(
+                engine_name, {"source": str(p), **self._language_meta(engine_name, language, reference_text)}, model=model
+            ),
         )
         return voice_id
 
@@ -472,8 +509,9 @@ class VoiceCloner:
         engine: str | None = None,
         meta: Dict[str, Any] | None = None,
         model: str | None = None,
+        language: str | None = None,
     ) -> str:
-        """Create a new cloned voice from an in-memory WAV payload."""
+        """Create a new cloned voice from an in-memory WAV payload (`language`: see `clone_voice`)."""
         if not wav_bytes:
             raise ValueError("wav_bytes must be non-empty")
 
@@ -483,6 +521,9 @@ class VoiceCloner:
 
         meta_out = self._clone_metadata(engine_name, meta, model=model)
         meta_out.setdefault("source", "bytes")
+        if language or not meta_out.get("language_code"):
+            # A stated language wins over anything in `meta`; otherwise keep what `meta` states.
+            meta_out.update(self._language_meta(engine_name, language or meta_out.get("language"), reference_text))
 
         if engine_name in _REMOTE_CLONING_ENGINES:
             eng = self._get_engine(engine_name)
@@ -532,11 +573,33 @@ class VoiceCloner:
 
     def set_reference_text(self, voice_id: str, reference_text: str) -> None:
         self.store.set_reference_text(voice_id, reference_text, source="manual")
+        self._learn_language_from_transcript(voice_id, reference_text)
+
+    def _learn_language_from_transcript(self, voice_id: str, reference_text: str) -> None:
+        """A voice whose language was never stated takes the language of its transcript (its own
+        voices only: a library or built-in voice is not changed from here)."""
+        try:
+            info = self.store.get_voice_dict(voice_id)
+        except Exception:
+            return
+        meta = info.get("meta") if isinstance(info.get("meta"), dict) else {}
+        if meta.get("builtin") or meta.get("language_code") or meta.get("scope") == "library":
+            return
+        identified = _identify_transcript_language(str(info.get("engine") or ""), reference_text)
+        if identified:
+            try:
+                self.store.set_language(voice_id, identified, source="text")
+            except ValueError:
+                return
 
     def _ensure_reference_text(self, voice_id: str) -> str:
         voice = self.store.get_voice(voice_id)
         if (voice.reference_text or "").strip():
             return str(voice.reference_text).strip()
+        # A read-only (library) voice's transcript is kept in memory for this process.
+        remembered = getattr(self, "_transient_reference_text", {}).get(voice_id)
+        if remembered:
+            return remembered
 
         # One-time fallback: transcribe reference audio and persist.
         ref_paths = self.store.resolve_reference_paths(voice_id)
@@ -663,8 +726,16 @@ class VoiceCloner:
             except Exception:
                 pass
 
-        # Persist so we never re-transcribe for this voice.
-        self.store.set_reference_text(voice_id, best, source="asr")
+        # Persist so we never re-transcribe for this voice; a library voice is read-only from
+        # here, so its transcript is kept in memory for this process instead.
+        try:
+            self.store.set_reference_text(voice_id, best, source="asr")
+        except ValueError:
+            if not hasattr(self, "_transient_reference_text"):
+                self._transient_reference_text = {}
+            self._transient_reference_text[voice_id] = best
+            return best
+        self._learn_language_from_transcript(voice_id, best)
         return best
 
     def speak_to_bytes(

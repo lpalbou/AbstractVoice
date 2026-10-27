@@ -91,6 +91,30 @@ class LLMProvider:
         except Exception:
             return []
 
+    def list_models_detailed(self, timeout: float = 5.0) -> list[dict[str, str]]:
+        """Model ids with a `kind`: `chat`, or `embedding` for a model that cannot chat.
+
+        LM Studio's own listing (`/api/v0/models`) says `type: embeddings` for many embedding
+        models; the rest are recognised by well-known embedding family names. Empty on failure.
+        """
+        types: dict[str, str] = {}
+        try:
+            resp = requests.get(f"{self.base_url}/api/v0/models", timeout=timeout)
+            if resp.ok:
+                for m in (resp.json() or {}).get("data", []) or []:
+                    if isinstance(m, dict) and m.get("id"):
+                        types[str(m["id"])] = str(m.get("type") or "")
+        except Exception:
+            pass
+        out = []
+        for model_id in self.list_models(timeout=timeout):
+            low = model_id.lower()
+            embedding = types.get(model_id) == "embeddings" or any(
+                tag in low for tag in ("embed", "minilm", "bge-", "e5-", "gte-", "nomic-embed")
+            )
+            out.append({"id": model_id, "kind": "embedding" if embedding else "chat"})
+        return out
+
     def is_reachable(self, timeout: float = 3.0) -> bool:
         try:
             resp = requests.get(self.models_url, timeout=timeout)
