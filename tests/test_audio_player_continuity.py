@@ -93,3 +93,33 @@ def test_failing_audio_hook_does_not_drop_remaining_queued_samples():
     player.audio_queue.put(np.ones(3, dtype=np.float32))
     player.audio_queue.put(np.ones(5, dtype=np.float32))
     np.testing.assert_array_equal(render(player, 8)[:, 0], np.ones(8))
+
+
+def test_stop_stream_resets_started_so_the_next_utterance_fires_start(monkeypatch):
+    # A stop mid-utterance must clear the "speech started" state; otherwise the
+    # next utterance never fires on_audio_start (desktop showed a spinner while speaking).
+    class InlineThread:
+        def __init__(self, *, target, daemon):
+            self.target = target
+
+        def start(self):
+            self.target()
+
+    monkeypatch.setattr(threading, "Thread", InlineThread)
+    events = []
+    player = NonBlockingAudioPlayer()
+    player.on_audio_start = lambda: events.append("start")
+    player.audio_queue.put(np.ones(16, dtype=np.float32))
+    player.is_playing = True
+    render(player, 4)
+    assert events == ["start"]
+    assert player._audio_started
+
+    player.stop_stream()  # No device was opened: stream is None, the state still resets.
+    assert not player._audio_started
+    assert not player.is_playing
+
+    player.audio_queue.put(np.ones(4, dtype=np.float32))
+    player.is_playing = True
+    render(player, 4)
+    assert events == ["start", "start"]

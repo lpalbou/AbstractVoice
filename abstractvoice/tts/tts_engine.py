@@ -683,6 +683,10 @@ class NonBlockingAudioPlayer:
         self._opened_device_key = None
 
         self.is_playing = False
+        # A stopped utterance has not "started" any more: without this reset the
+        # next utterance never fires `on_audio_start`, so a consumer waiting for
+        # speech to begin (a desktop spinner) waits forever.
+        self._audio_started = False
         with self._pause_lock:
             self._paused = False
         self.clear_queue()

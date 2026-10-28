@@ -633,6 +633,8 @@ Provider caveats that affect release choice are tracked in `docs/known-issues.md
 - Per-utterance callback: `speak(..., callback=...)` (invoked after playback drains).
 - TTS lifecycle callbacks: `vm.tts_engine.on_playback_start` / `vm.tts_engine.on_playback_end` (synthesis/queue lifecycle).
 - Audio lifecycle callbacks (actual output): `vm.on_audio_start` / `vm.on_audio_end` / `vm.on_audio_pause` / `vm.on_audio_resume` (wired in `abstractvoice/vm/core.py`).
+  `on_audio_start` fires when the first samples of an utterance reach the output, once per utterance, including the
+  first utterance after a stop (`stop_stream()` resets the started state since 0.19.3).
 
 ## Explicit downloads (offline-first)
 
