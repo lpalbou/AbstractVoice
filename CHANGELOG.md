@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.19.3] - 2026-10-28
+
+### Fixed
+
+- The audio player's "speech started" state is reset by `stop_stream()`. Before, a stopped utterance left it set, so
+  the next utterance never fired `on_audio_start` (`vm.on_audio_start`) and a host waiting for speech to begin (the
+  AbstractAssistant desktop) kept showing its spinner while the voice spoke. Backlog 055.
+
 ## [0.19.2] - 2026-10-28
 
 ### Changed
