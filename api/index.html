@@ -2625,7 +2625,9 @@ may pick the other one.</p>
 <ul>
 <li>Per-utterance callback: <code>speak(..., callback=...)</code> (invoked after playback drains).</li>
 <li>TTS lifecycle callbacks: <code>vm.tts_engine.on_playback_start</code> / <code>vm.tts_engine.on_playback_end</code> (synthesis/queue lifecycle).</li>
-<li>Audio lifecycle callbacks (actual output): <code>vm.on_audio_start</code> / <code>vm.on_audio_end</code> / <code>vm.on_audio_pause</code> / <code>vm.on_audio_resume</code> (wired in <code>abstractvoice/vm/core.py</code>).</li>
+<li>Audio lifecycle callbacks (actual output): <code>vm.on_audio_start</code> / <code>vm.on_audio_end</code> / <code>vm.on_audio_pause</code> / <code>vm.on_audio_resume</code> (wired in <code>abstractvoice/vm/core.py</code>).
+  <code>on_audio_start</code> fires when the first samples of an utterance reach the output, once per utterance, including the
+  first utterance after a stop (<code>stop_stream()</code> resets the started state since 0.19.3).</li>
 </ul>
 <h2 id="explicit-downloads-offline-first">Explicit downloads (offline-first)<a class="headerlink" href="#explicit-downloads-offline-first" title="Permanent link">&para;</a></h2>
 <p>For offline deployments, prefetch explicitly (cross-platform):</p>
