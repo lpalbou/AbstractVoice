@@ -2698,7 +2698,10 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice<span class="w">       
 integration code:
 - <code>list_profiles(kind="tts") -&gt; list[dict]</code>
 - <code>list_models(kind="tts"|"stt"|"cloning", provider: str | None = None) -&gt; list[str]</code>
-- <code>list_tts_models(provider: str | None = None) -&gt; list[str]</code>
+- <code>list_tts_models(provider: str | None = None) -&gt; list[str]</code> (includes the cloning checkpoints, Qwen3-TTS <code>…-Base</code>, since 0.19.2)
+- <code>list_models_detailed(kind="tts", provider: str | None = None) -&gt; list[dict]</code> — <code>{id, role, label}</code>; for TTS <code>role</code> is
+  <code>"cloning"</code> for a checkpoint that speaks cloned voices only (label "<id> (clones)"; preset synthesis on it is refused),
+  else <code>"tts"</code>. The catalogs carry the same records as <code>tts_model_details_by_provider</code>.
 - <code>list_stt_models(provider: str | None = None) -&gt; list[str]</code>
 - <code>list_cloning_models(provider: str | None = None) -&gt; list[str]</code>
 - <code>list_tts_voices(provider: str | None = None, model: str | None = None, include_clones: bool = True, language: str | None = None) -&gt; list[dict]</code>
