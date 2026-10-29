@@ -178,12 +178,13 @@ class Qwen3TTSVoiceCloningEngine:
     #   is clearly the clone, else decided at SPEAKER_CHECK_SECONDS. A miss
     #   discards that generation and runs it again (SPEAKER_RETRIES); a second
     #   miss raises ClonedVoiceNotAppliedError naming the segment.
-    # - after the opening, a delay line (0.19.5): each chunk is released once the
-    #   SPEAKER_CHECK_SECONDS window starting at it scores as the clone; a window
-    #   clearly in another voice raises before its first chunk plays. Delivery
-    #   keeps the generation's cadence (_Outbox), across segment boundaries, and
-    #   never lets the listener's audio in hand fall under LEAD_FLOOR_SECONDS
-    #   for a pending score (that chunk goes out first, and is still scored).
+    # - after the opening (0.19.6): chunks are released as generated, paced by the
+    #   reply's _Outbox (never a held block), and each SPEAKER_CHECK_SECONDS window
+    #   is scored for the segment record only (`window_scores`, `low_windows`). The
+    #   0.19.5 stop line on those windows (MIN_BLOCK_SPEAKER_SIMILARITY) stopped
+    #   ordinary long replies on hal9000-qwen2; it stops nothing until a measured
+    #   line exists. A later segment's opening is checked while the previous one
+    #   plays; the listener never waits on it below LEAD_FLOOR_SECONDS in hand.
     #
     # Thresholds, from the real-weights calibration in backlog 056 (Qwen3-TTS
     # 0.6B Base, MLX 8-bit, cosine vs the prompt's reference embedding, 70+
@@ -198,7 +199,7 @@ class Qwen3TTSVoiceCloningEngine:
     SPEAKER_CHECK_EARLY_ACCEPT = 0.975
     SPEAKER_CHECK_SECONDS = 4.0
     MIN_SPEAKER_SIMILARITY = 0.95
-    # A later block below this is another voice, not scoring noise.
+    # Windows after the opening below this are counted in `low_windows` (logged, not enforced; 0.19.6).
     MIN_BLOCK_SPEAKER_SIMILARITY = 0.93
     # Shorter audio is too short to score reliably and passes unchecked.
     SPEAKER_CHECK_MIN_SECONDS = 1.0
@@ -221,23 +222,20 @@ class Qwen3TTSVoiceCloningEngine:
         self, runtime, prompt, *, index: int, count: int, text: str, generate, sink: Optional[list] = None,
         outbox: Optional["_Outbox"] = None, record: Optional[dict] = None,
     ):
-        """Yield one segment's audio, each chunk released once a score covers it as the cloned voice.
+        """Yield one segment's audio once its opening scores as the cloned voice.
 
         ``generate()`` starts one generation of ``text`` and returns its ``(audio, sr)``
         iterator; a rejected generation is closed (releasing the model) before the next.
 
-        Delivery is continuous (0.19.5): chunks go out through the reply's ``outbox``
-        at the generation's own cadence, never as a held block released at once.
-
         - The opening (``SPEAKER_CHECK_EARLY_SECONDS`` / ``SPEAKER_CHECK_SECONDS``) is
-          scored before any of it is released; a miss regenerates it (``SPEAKER_RETRIES``).
-        - After the opening, chunk i is released once the window of
-          ``SPEAKER_CHECK_SECONDS`` starting at it scores as the clone: a delay line,
-          not a held block. A failing window raises before its first chunk plays.
-        - The listener is never starved for the check: when the audio already sent is
-          less than ``LEAD_FLOOR_SECONDS`` ahead of real-time playback, the oldest
-          chunk is released before its window is scored ("provisional"; never for the
-          reply's first opening). It is still scored; a miss then raises (it was heard).
+          scored before any of it is released; a miss regenerates it (``SPEAKER_RETRIES``),
+          a second miss raises ``ClonedVoiceNotAppliedError``.
+        - After the opening, chunks are released as generated, through the reply's
+          ``outbox`` at the generation's cadence; each 4 s window is scored for the
+          record only (0.19.6).
+        - The listener is never starved for a later segment's opening: below
+          ``LEAD_FLOOR_SECONDS`` in hand a chunk goes out before the opening decision
+          ("provisional"; never for the reply's first opening), and a miss then raises.
         """
         if not self.speaker_check:
             for audio, sr in generate():
@@ -263,8 +261,36 @@ class Qwen3TTSVoiceCloningEngine:
                 segment_index=index, segment_count=count, text=text, scores=scores, threshold=limit, mid_segment=heard,
             )
 
+        window = {"start": 0}
+
+        def log_windows(chunks: list, sizes: list, sr: int, *, final: bool) -> None:
+            """Score each completed SPEAKER_CHECK_SECONDS window after the opening, for the record only."""
+            need = int(self.SPEAKER_CHECK_SECONDS * sr)
+            while window["start"] < len(chunks):
+                rest = sum(sizes[window["start"]:])
+                if rest < need and not (final and rest >= int(self.SPEAKER_CHECK_MIN_SECONDS * sr)):
+                    return
+                end, acc = window["start"], 0
+                while end < len(chunks) and acc < need:
+                    acc += sizes[end]
+                    end += 1
+                value = self._speaker_score(runtime, prompt, chunks[window["start"]:end])
+                window["start"] = end
+                if value is None or record is None:
+                    continue
+                record.setdefault("window_scores", []).append(round(float(value), 3))
+                if value < block_threshold:
+                    record["low_windows"] = int(record.get("low_windows", 0)) + 1
+                    logger.info(
+                        "Qwen3-TTS clone: text segment %d/%d, window at %.1f s scored %.3f (< %.3f); logged, not enforced",
+                        index + 1, count, sum(sizes[: window["start"]]) / float(sr) - acc / float(sr), value, block_threshold,
+                    )
+
         for attempt in range(1 + int(self.SPEAKER_RETRIES)):
             retrying = attempt < int(self.SPEAKER_RETRIES)
+            window["start"] = 0
+            if record is not None:
+                record["window_scores"], record["low_windows"] = [], 0
             # The reply's very first opening may hold (first-audio latency); later ones only
             # while the listener has enough audio in hand.
             strict_opening = box.started_at is None
@@ -305,18 +331,10 @@ class Qwen3TTSVoiceCloningEngine:
                                 break
                             opened, verified = True, len(chunks)
                     else:
-                        # Delay line: score the window starting at each unverified chunk once it is complete.
-                        need = int(self.SPEAKER_CHECK_SECONDS * sr)
-                        while verified < len(chunks) and sum(sizes[verified:]) >= need:
-                            end = verified
-                            acc = 0
-                            while end < len(chunks) and acc < need:
-                                acc += sizes[end]
-                                end += 1
-                            score = scored(chunks[verified:end])
-                            if score is not None and score < block_threshold:
-                                raise fail(score, block_threshold, heard=released > verified or box.started_at is not None)
-                            verified += 1
+                        # After the opening: released as generated (0.19.6). Each 4 s window is scored
+                        # for the record only; it stops nothing until a measured line exists.
+                        verified = len(chunks)
+                        log_windows(chunks, sizes, sr, final=False)
                     # Hand verified chunks over; then keep the listener fed.
                     while released < verified:
                         box.put(*chunks[released])
@@ -330,21 +348,15 @@ class Qwen3TTSVoiceCloningEngine:
                     yield from box.take()
                 if rejected:
                     continue
-                # End of the generation: every unverified chunk lies inside the last window.
-                if verified < len(chunks):
-                    sr = int(chunks[-1][1]) or 24000
-                    tail: list = []
-                    acc = 0
-                    for item in reversed(chunks):
-                        tail.insert(0, item)
-                        acc += item[0].size
-                        if acc >= int(self.SPEAKER_CHECK_SECONDS * sr):
-                            break
-                    score = scored(tail)
-                    limit = block_threshold if opened else threshold
-                    if score is not None and score < limit:
-                        if opened or provisional:
-                            raise fail(score, limit, heard=True)
+                # End of the generation. Opened: log the last window. A generation shorter than the
+                # opening window is decided here, on all of it (enforced, like any opening).
+                if opened:
+                    log_windows(chunks, sizes, int(chunks[-1][1]) or 24000, final=True)
+                elif chunks:
+                    score = scored(chunks)
+                    if score is not None and score < threshold:
+                        if provisional:
+                            raise fail(score, threshold, heard=True)
                         scores.append(score)
                         logger.warning(
                             "Qwen3-TTS clone: text segment %d/%d came out in another voice (speaker similarity %.3f < %.3f); %s",
@@ -400,6 +412,8 @@ class Qwen3TTSVoiceCloningEngine:
             "scores": [],
             "audio_s": 0.0,
             "provisional_s": 0.0,
+            "window_scores": [],  # 4 s windows after the opening: logged, not enforced (0.19.6)
+            "low_windows": 0,
             "status": "running",
             "error": None,
         }

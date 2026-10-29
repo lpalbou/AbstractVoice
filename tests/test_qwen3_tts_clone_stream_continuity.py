@@ -141,3 +141,25 @@ def test_near_realtime_the_listener_is_fed_and_a_voice_change_still_stops_the_re
     assert max(gaps, default=0.0) < 0.1
     stock_heard = sum(1 for v in delivered if v < CLONE) * 0.96
     assert stock_heard <= 4.0  # at most the opening window before the stop
+
+
+def test_a_mid_segment_dip_neither_stops_nor_gaps_the_reply():
+    """0.19.6: low windows after a verified opening are logged; the reply plays to the end, gap-free."""
+
+    class _DipRT(_RT):
+        def stream_clone(self, text, *, clone_prompt, language=None, **kw):
+            for i, (audio, sr) in enumerate(super().stream_clone(text, clone_prompt=clone_prompt, language=language)):
+                if self.texts.index(text) == 1 and 8 <= i <= 12:
+                    audio = np.full(audio.size, STOCK, dtype=np.float32)  # a dip in the middle of segment 1
+                yield audio, sr
+
+    clock = _Clock()
+    engine = Qwen3TTSVoiceCloningEngine(allow_downloads=False)
+    engine._clock = clock
+    engine._runtime = _DipRT(clock, rtf=0.6, seconds=20.0)
+    arrivals, gaps = _play(engine, TEXT)
+    assert sum(d for _, d, _ in arrivals) == pytest.approx(60.0, abs=0.1)
+    assert max(gaps, default=0.0) < 0.1
+    recs = engine.last_segments
+    assert [r["status"] for r in recs] == ["ok", "ok", "ok"]
+    assert recs[1]["low_windows"] >= 1 and recs[0]["low_windows"] == 0 and recs[2]["low_windows"] == 0

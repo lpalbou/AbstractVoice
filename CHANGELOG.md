@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.19.6] - 2026-10-29
+
+### Fixed
+
+- A long cloned Qwen3-TTS reply is no longer stopped by the check on its windows after the opening. 0.19.5 stopped a
+  segment when any 4 s window after its opening scored under 0.93 against the reference; on the operator's gateway that
+  ended 3 of 4 ordinary ~125 s replies in hal9000-qwen2. Only each segment's OPENING is enforced again (as in 0.19.4:
+  one regeneration, then `ClonedVoiceNotAppliedError` naming the segment). After the opening, chunks are released as
+  generated through the reply's outbox (the 0.19.5 continuous delivery is kept: no gap, no held block), and every 4 s
+  window is scored for the segment record only (`window_scores`, `low_windows`; an INFO log line per low window). It
+  stops nothing until a measured line exists. Backlog 058.
+
 ## [0.19.5] - 2026-10-29
 
 ### Fixed

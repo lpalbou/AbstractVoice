@@ -156,16 +156,18 @@ def test_an_unsure_opening_is_held_until_the_full_check_window():
     assert rt.gens[0].closed  # a consumer that stops reading releases the model
 
 
-def test_a_voice_change_part_way_raises_before_the_changed_block_plays():
-    # The opening is the clone; from chunk 5 on (the second 4 s block) the voice is another one.
+def test_a_voice_change_part_way_is_recorded_not_stopped():
+    """0.19.6: after the opening, 4 s windows are scored for the record only (the 0.93 line stopped ordinary
+    long replies on hal9000-qwen2 in 0.19.5: 3 of 4 on the operator's gateway). Only openings are enforced."""
+    # The opening is the clone; from chunk 5 on (the second 4 s window) the scores are low.
     rt = _RT(lambda seg, att, k: STOCK if (seg == 0 and k >= 5) else CLONE, native=True, seconds=12.0)
-    delivered = []
-    with pytest.raises(ClonedVoiceNotAppliedError) as info:
-        for audio, sr in _speak(_engine(rt)):
-            delivered.append(audio)
-    assert info.value.mid_segment and info.value.segment_index == 0
-    assert "changed part-way" in str(info.value)
-    assert max(_untag(a[0])[2] for a in delivered) < 5  # no audio of the changed block was delivered
+    engine = _engine(rt)
+    delivered = list(_speak(engine))
+    assert sum(a.size for a, _ in delivered) >= int(12.0 * SR) * len(rt.texts) - 1  # nothing stopped, nothing dropped
+    rec = engine.last_segments[0]
+    assert rec["status"] == "ok" and rec["attempts"] == 1
+    assert rec["low_windows"] >= 1 and min(rec["window_scores"]) < Qwen3TTSVoiceCloningEngine.MIN_BLOCK_SPEAKER_SIMILARITY
+    assert all(r["low_windows"] == 0 for r in engine.last_segments[1:])
 
 
 def test_buffered_and_one_shot_synthesis_are_checked_too():
