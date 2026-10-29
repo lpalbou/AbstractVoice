@@ -430,15 +430,39 @@ class VoiceCloneStore:
         return ClonedVoice(**data)
 
     def get_voice_dict(self, voice_id: str) -> Dict[str, Any]:
-        """Return the stored voice record as a JSON-serializable dict."""
+        """Return the stored voice record as a JSON-serializable dict.
+
+        ``reference_seconds`` (computed, not stored) is the length of the voice's reference
+        audio, for display; None for built-in voices and unreadable files.
+        """
         v = self.get_voice(voice_id)
-        return {"voice_id": voice_id, **asdict(v)}
+        return {"voice_id": voice_id, **asdict(v), "reference_seconds": self._reference_seconds(v)}
+
+    def _reference_seconds(self, voice: Any) -> Optional[float]:
+        files = list(getattr(voice, "reference_files", None) or [])
+        meta = getattr(voice, "meta", None) or {}
+        if not files or (isinstance(meta, dict) and meta.get("builtin")):
+            return None
+        total = 0.0
+        try:
+            import soundfile as sf
+
+            for rel in files:
+                info = sf.info(str(self._voice_dir(voice.voice_id) / rel))
+                total += float(info.frames) / float(info.samplerate)
+        except Exception:
+            return None
+        return round(total, 2)
 
     def list_voices(self) -> List[Dict[str, Any]]:
         index = self._read_index()
         out: List[Dict[str, Any]] = []
         for voice_id, data in index.items():
-            out.append({"voice_id": voice_id, **data})
+            try:
+                seconds = self._reference_seconds(ClonedVoice(**data))
+            except Exception:
+                seconds = None
+            out.append({"voice_id": voice_id, **data, "reference_seconds": seconds})
         # newest first, then the built-in pack by id
         out.sort(key=lambda d: float(d.get("created_at", 0)), reverse=True)
         if self._builtin:

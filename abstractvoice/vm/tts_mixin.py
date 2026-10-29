@@ -1792,6 +1792,16 @@ class TtsMixin:
                         "speed": float(clone_speed),
                         "ts": time.time(),
                     }
+                    # Per text segment: model/backend, voice reference, attempts, speaker scores, outcome
+                    # (backlog 056), so a voice change inside one reply is traceable from the stream's metrics.
+                    records = getattr(cloner, "last_segment_records", None)
+                    if callable(records):
+                        try:
+                            segs = records()
+                        except Exception:
+                            segs = None
+                        if segs:
+                            metrics["segments"] = segs
                     self._set_last_tts_metrics(metrics)
 
             return _gen_clone()

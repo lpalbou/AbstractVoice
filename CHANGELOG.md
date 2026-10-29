@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.19.4] - 2026-10-29
+
+### Fixed
+
+- A Qwen3-TTS cloned voice no longer switches to a stock-sounding voice for part of a reply. The 0.6B Base checkpoint
+  sometimes samples a whole generation in another voice from the same clone prompt; a long reply is several
+  generations (800 characters each on MLX, 120 on PyTorch), so one of them could come out in another voice while
+  the stream reported success (seen live: generation 9 of the 11 of an 8 kB reply read in the operator's clone). Each
+  generation's audio is now scored with the checkpoint's own speaker encoder against the clone before it is
+  delivered: the opening is held back (released at 2 s when clearly the clone, else decided at 4 s), a generation
+  that opens in another voice is discarded and run again once, and a second miss, or a voice change part-way through
+  a generation, raises `ClonedVoiceNotAppliedError` naming the text segment. Nothing in another voice is delivered.
+  First audio of a cloned reply waits for the check (about 0.5 to 1.1 s on MLX). `Qwen3TTSRuntime.speaker_similarity()`
+  is the scoring primitive; `ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK=0` disables the check and
+  `ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY` retunes the opening threshold (default 0.95). Backlog 056.
+
+### Added
+
+- Per-segment records of a cloned synthesis (Qwen3-TTS): index, characters, first words, model, backend, dtype,
+  reference file, attempts, speaker scores, audio seconds, status (`ok` / `regenerated` / `failed` / `cancelled` /
+  `error`) and error. They are logged at INFO, kept on the engine (`last_segments`, `VoiceCloner.last_segment_records()`),
+  added to the streamed-speech metrics as `segments` (so they reach a gateway artifact's
+  `capability_metadata.terminal_event.metrics`), and carried by `ClonedVoiceNotAppliedError.segments`.
+- `reference_seconds` on cloned-voice records: the length of the reference recording (`VoiceCloneStore.list_voices()`
+  / `get_voice_dict()`, so the plugin's `get_cloned_voice`), and `tags.reference_seconds` on the plugin's voice listings.
+  None for built-in voices.
+
 ## [0.19.3] - 2026-10-28
 
 ### Fixed

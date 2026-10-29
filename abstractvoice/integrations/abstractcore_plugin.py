@@ -302,9 +302,12 @@ def _norm_residency_provider(value: Any) -> str:
 def _clone_profile_tags(item: Any) -> Dict[str, Any]:
     """Profile fields of a stored clone, surfaced as listing tags (built-in voices carry them all)."""
     meta = item.get("meta") if isinstance(item, dict) else None
+    # Length of the reference recording, for a voice card (backlog 056).
+    seconds = item.get("reference_seconds") if isinstance(item, dict) else None
+    length = {"reference_seconds": float(seconds)} if isinstance(seconds, (int, float)) else {}
     if not isinstance(meta, dict):
-        return {}
-    tags: Dict[str, Any] = {"builtin": bool(meta.get("builtin"))}
+        return length
+    tags: Dict[str, Any] = {"builtin": bool(meta.get("builtin")), **length}
     if meta.get("designed"):
         tags["designed"] = True
     for key in ("nationality", "language", "language_code", "sex", "style", "description", "model_id"):
