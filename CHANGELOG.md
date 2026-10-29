@@ -20,7 +20,9 @@ Older changelog entries may reference historical CLI commands or model choices.
   the clone, one chunk per generated chunk, across segment boundaries too (the next segment's opening is checked
   while the previous one plays). When the listener has less than 1.5 s of audio in hand, the oldest chunk goes out
   before its score and is still scored (`provisional_s` in the segment record); at ordinary speed nothing is
-  provisional. Same 80 s reply: no gap at 0.6 or 0.85, at most 2 chunks at once. The one-voice rule is unchanged: a
+  provisional. Same 80 s reply: no gap at 0.6 or 0.85, at most 2 chunks at once. Trade-off, stated plainly: at slow
+  generation (less than 1.5 s in hand) a chunk plays BEFORE it is scored, so up to one check window (4 s) of a
+  wrong voice can reach the listener before the check stops the reply; at ordinary speed nothing plays unverified. The one-voice rule is unchanged: a
   segment that opens in another voice is regenerated once, then the reply stops with `ClonedVoiceNotAppliedError`
   naming it; verified audio queued before a stop is delivered first. The audio itself is bit-identical with and
   without the check. Backlog 057.

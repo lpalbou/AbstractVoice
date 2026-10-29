@@ -62,3 +62,9 @@ decoding. Whether those lumps are the operator's cuts at idle speed is not verif
 - At RTF >= 0.6 the first ~10 s of a reply include provisional chunks (the delay line needs a lead it has not built yet).
 - Kit: scheduling each decoded buffer ahead (`source.start(nextStartTime)`) instead of starting it from the previous
   buffer's `onended` would make playback gapless whatever the arrival pattern.
+
+## Trade-off (stated for the record, lead review 2026-10-29)
+At slow generation (listener with less than 1.5 s of audio in hand) the oldest chunk is released before its 4 s window is
+scored, so up to one check window (4 s) of a wrong voice can play before `ClonedVoiceNotAppliedError` stops the reply; at
+ordinary speed every chunk is verified before it plays (`test_at_ordinary_speed_every_chunk_is_verified_before_it_plays`).
+Accepted because the alternative (holding audio) was the 0.19.4 gap the operator heard.
