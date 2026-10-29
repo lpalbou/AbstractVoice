@@ -11,12 +11,57 @@ it; it is never inferred from a missing transcript.
 from __future__ import annotations
 
 import io
+import logging
+import os
 from typing import Any, Iterable, Optional
 
 import numpy as np
 import soundfile as sf
 
 from ..qwen3_tts.runtime import DEFAULT_BASE_MODEL_ID
+
+logger = logging.getLogger(__name__)
+
+# Operator overrides for the per-generation speaker check (backlog 056).
+SPEAKER_CHECK_ENV = "ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK"
+MIN_SPEAKER_SIMILARITY_ENV = "ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY"
+
+
+class ClonedVoiceNotAppliedError(RuntimeError):
+    """A text segment came out in a voice other than the clone, twice (backlog 056).
+
+    One reply is spoken in ONE voice: a segment whose audio does not carry the
+    cloned speaker is regenerated once, and if it still does not, synthesis stops
+    here and names the segment instead of speaking it in a stock voice.
+    """
+
+    def __init__(
+        self, *, segment_index: int, segment_count: int, text: str, scores: list, threshold: float, mid_segment: bool = False
+    ):
+        self.segment_index = int(segment_index)
+        self.segment_count = int(segment_count)
+        self.text = str(text)
+        self.scores = [float(x) for x in scores]
+        self.threshold = float(threshold)
+        self.mid_segment = bool(mid_segment)
+        self.segments: list = []  # per-segment records of the reply up to this one (set by the engine)
+        words = " ".join(self.text.split()[:8])
+        found = ", ".join(f"{x:.3f}" for x in self.scores)
+        if self.mid_segment:
+            what = (
+                f"its voice changed part-way (speaker similarity {found} < {self.threshold:.3f}); the part already "
+                "delivered was in the cloned voice, the rest of the reply was not spoken"
+            )
+        else:
+            what = (
+                f"speaker similarity {found} stayed below {self.threshold:.3f} over {len(self.scores)} attempts; "
+                "the audio already delivered is in the cloned voice, this segment and the rest of the reply were not spoken"
+            )
+        super().__init__(
+            f"Qwen3-TTS could not apply the cloned voice to text segment {self.segment_index + 1} of "
+            f"{self.segment_count} (\"{words}...\"): {what} rather than spoken in another voice."
+        )
+
 
 class Qwen3TTSVoiceCloningEngine:
     """Cloning over :class:`abstractvoice.qwen3_tts.runtime.Qwen3TTSRuntime`."""
@@ -36,6 +81,8 @@ class Qwen3TTSVoiceCloningEngine:
         sampler: str | None = None,
         backend: str | None = None,
         mlx_quantization: str | None = None,
+        speaker_check: bool | None = None,
+        min_speaker_similarity: float | None = None,
     ) -> None:
         from ..qwen3_tts.runtime import Qwen3TTSSettings
 
@@ -53,6 +100,209 @@ class Qwen3TTSVoiceCloningEngine:
         # text chunk would dominate chunked synthesis.
         self._prompt_cache_key: Optional[tuple] = None
         self._prompt_cache_value: Any = None
+        # Explicit arguments win; else the environment (an operator's escape hatch); else the defaults.
+        if speaker_check is None:
+            env = os.environ.get(SPEAKER_CHECK_ENV, "").strip().lower()
+            if env and env not in ("0", "1", "true", "false", "on", "off", "yes", "no"):
+                raise ValueError(f"{SPEAKER_CHECK_ENV} must be 0/1, true/false, on/off or yes/no; got {env!r}")
+            speaker_check = self.SPEAKER_CHECK if not env else env in ("1", "true", "on", "yes")
+        if min_speaker_similarity is None:
+            env = os.environ.get(MIN_SPEAKER_SIMILARITY_ENV, "").strip()
+            min_speaker_similarity = float(env) if env else self.MIN_SPEAKER_SIMILARITY
+        self.speaker_check = bool(speaker_check)
+        self.min_speaker_similarity = float(min_speaker_similarity)
+        # One record per text segment of the latest synthesis (backlog 056): what ran, with which
+        # voice reference, model and backend, how many attempts, the speaker scores, and how it ended.
+        self.last_segments: list = []
+
+    # ------------------------------------------------------- speaker check
+    #
+    # Backlog 056: the 0.6B Base checkpoint sometimes samples a WHOLE generation
+    # in a stock-sounding voice from the same ICL prompt (seen live: generation 9
+    # of the 11 of one 8 kB reply; reproduced on real weights for two short-
+    # reference clones). Nothing fails and every per-call check stays green, so
+    # every generation's audio is scored with the checkpoint's own speaker
+    # encoder against the prompt's speaker embedding BEFORE it is delivered:
+    #
+    # - the opening is held back: released at SPEAKER_CHECK_EARLY_SECONDS when it
+    #   is clearly the clone, else decided at SPEAKER_CHECK_SECONDS. A miss
+    #   discards that generation and runs it again (SPEAKER_RETRIES); a second
+    #   miss raises ClonedVoiceNotAppliedError naming the segment.
+    # - after the opening, each SPEAKER_CHECK_SECONDS block is scored before it is
+    #   released; a block clearly in another voice raises (it cannot be retried:
+    #   the start of the segment has already been heard).
+    #
+    # Thresholds, from the real-weights calibration in backlog 056 (Qwen3-TTS
+    # 0.6B Base, MLX 8-bit, cosine vs the prompt's reference embedding, 70+
+    # generations of five clones): the clone's 4 s openings score >= 0.956 and
+    # its later 4 s blocks >= 0.948; stock-voice openings <= 0.941 at 4 s (none
+    # reaches 0.975 at 2 s), stock-voice and runaway blocks <= 0.92. Each
+    # generation costs up to SPEAKER_CHECK_SECONDS of first-audio latency (about
+    # 0.5 s or 1.1 s at the MLX backend's real-time factor).
+    SPEAKER_CHECK = True
+    SPEAKER_CHECK_EARLY_SECONDS = 2.0
+    SPEAKER_CHECK_EARLY_ACCEPT = 0.975
+    SPEAKER_CHECK_SECONDS = 4.0
+    MIN_SPEAKER_SIMILARITY = 0.95
+    # A later block below this is another voice, not scoring noise.
+    MIN_BLOCK_SPEAKER_SIMILARITY = 0.93
+    # Shorter audio is too short to score reliably and passes unchecked.
+    SPEAKER_CHECK_MIN_SECONDS = 1.0
+    SPEAKER_RETRIES = 1
+
+    def _speaker_score(self, runtime, prompt, held: list) -> Optional[float]:
+        """Similarity of the held audio to the clone, or None when too short to judge."""
+        if not held:
+            return None
+        sr = int(held[-1][1]) or 24000
+        audio = np.concatenate([a for a, _ in held])
+        if audio.size < int(self.SPEAKER_CHECK_MIN_SECONDS * sr):
+            return None
+        return float(runtime.speaker_similarity(audio, clone_prompt=prompt, sample_rate=sr))
+
+    def _checked_generation(self, runtime, prompt, *, index: int, count: int, text: str, generate, sink: Optional[list] = None):
+        """Yield one segment's audio, each part released only once it is scored as the cloned voice.
+
+        ``generate()`` starts one generation of ``text`` and returns its ``(audio, sr)``
+        iterator; a rejected generation is closed (releasing the model) before the next.
+        """
+        if not self.speaker_check:
+            for audio, sr in generate():
+                yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
+            return
+        threshold = self.min_speaker_similarity
+        scores: list = []
+
+        def scored(held: list) -> Optional[float]:
+            value = self._speaker_score(runtime, prompt, held)
+            if value is not None and sink is not None:
+                sink.append(round(float(value), 3))
+            return value
+
+        def miss(score: float, *, retrying: bool) -> None:
+            scores.append(score)
+            logger.warning(
+                "Qwen3-TTS clone: text segment %d/%d came out in another voice (speaker similarity %.3f < %.3f); %s",
+                index + 1, count, score, threshold, "regenerating it" if retrying else "giving up",
+            )
+
+        for attempt in range(1 + int(self.SPEAKER_RETRIES)):
+            retrying = attempt < int(self.SPEAKER_RETRIES)
+            source = iter(generate())
+            try:
+                held: list = []
+                held_n = 0
+                opened = False
+                early_done = False
+                rejected = False
+                for audio, sr in source:
+                    mono = np.asarray(audio, dtype=np.float32).reshape(-1)
+                    held.append((mono, int(sr)))
+                    held_n += mono.size
+                    if not opened:
+                        if not early_done and held_n >= int(self.SPEAKER_CHECK_EARLY_SECONDS * int(sr)):
+                            early_done = True
+                            score = scored(held)
+                            if score is not None and score >= self.SPEAKER_CHECK_EARLY_ACCEPT:
+                                opened = True
+                        if not opened and held_n >= int(self.SPEAKER_CHECK_SECONDS * int(sr)):
+                            score = scored(held)
+                            if score is not None and score < threshold:
+                                miss(score, retrying=retrying)
+                                rejected = True
+                                break
+                            opened = True
+                        if opened:
+                            yield from held
+                            held, held_n = [], 0
+                    elif held_n >= int(self.SPEAKER_CHECK_SECONDS * int(sr)):
+                        score = scored(held)
+                        if score is not None and score < self.MIN_BLOCK_SPEAKER_SIMILARITY:
+                            scores.append(score)
+                            raise ClonedVoiceNotAppliedError(
+                                segment_index=index, segment_count=count, text=text, scores=scores,
+                                threshold=self.MIN_BLOCK_SPEAKER_SIMILARITY, mid_segment=True,
+                            )
+                        yield from held
+                        held, held_n = [], 0
+                if rejected:
+                    continue
+                # End of the generation: the rest is either a short opening or a final partial block.
+                score = scored(held)
+                limit = self.MIN_BLOCK_SPEAKER_SIMILARITY if opened else threshold
+                if score is not None and score < limit:
+                    if opened:
+                        scores.append(score)
+                        raise ClonedVoiceNotAppliedError(
+                            segment_index=index, segment_count=count, text=text, scores=scores, threshold=limit,
+                            mid_segment=True,
+                        )
+                    miss(score, retrying=retrying)
+                    continue
+                yield from held
+                return
+            finally:
+                close = getattr(source, "close", None)
+                if close is not None:
+                    close()
+        raise ClonedVoiceNotAppliedError(
+            segment_index=index, segment_count=count, text=text, scores=scores, threshold=threshold
+        )
+
+    def _recorded_segment(self, runtime, prompt, *, index: int, count: int, text: str, ref_path: str, generate):
+        """``_checked_generation`` plus one traceable record per segment in ``last_segments`` and the log."""
+        info = {}
+        try:
+            info = dict(runtime.runtime_info())
+        except Exception:
+            info = {}
+        record = {
+            "index": int(index),
+            "count": int(count),
+            "chars": len(str(text)),
+            "first_words": " ".join(str(text).split()[:6]),
+            "model": info.get("model_id") or self._model_id,
+            "backend": info.get("backend"),
+            "dtype": info.get("dtype"),
+            "reference": "/".join(str(ref_path).replace("\\", "/").split("/")[-2:]),
+            "speaker_check": bool(self.speaker_check),
+            "attempts": 0,
+            "scores": [],
+            "audio_s": 0.0,
+            "status": "running",
+            "error": None,
+        }
+        self.last_segments.append(record)
+
+        def counted():
+            record["attempts"] += 1
+            return generate()
+
+        try:
+            for audio, sr in self._checked_generation(
+                runtime, prompt, index=index, count=count, text=text, generate=counted, sink=record["scores"]
+            ):
+                record["audio_s"] = round(record["audio_s"] + float(audio.size) / float(sr or 24000), 2)
+                yield audio, sr
+            record["status"] = "ok" if record["attempts"] <= 1 else "regenerated"
+        except GeneratorExit:
+            record["status"] = "cancelled"
+            raise
+        except ClonedVoiceNotAppliedError as e:
+            record["status"], record["error"] = "failed", str(e)
+            # The loud failure carries the reply's records so far, so it reads like a success's metrics.
+            e.segments = [dict(r) for r in self.last_segments]
+            raise
+        except Exception as e:
+            record["status"], record["error"] = "error", f"{type(e).__name__}: {e}"
+            raise
+        finally:
+            logger.info(
+                "Qwen3-TTS clone segment %d/%d: %s, %d chars, %.1f s audio, %d attempt(s), scores %s, %s/%s, ref %s%s",
+                index + 1, count, record["status"], record["chars"], record["audio_s"], record["attempts"],
+                record["scores"], record["model"], record["backend"], record["reference"],
+                f", error: {record['error']}" if record["error"] else "",
+            )
 
     # -------------------------------------------------------------- lifecycle
 
@@ -99,8 +349,6 @@ class Qwen3TTSVoiceCloningEngine:
     # -------------------------------------------------------------- inference
 
     def _clone_prompt(self, ref_path: str, reference_text: str):
-        import os
-
         try:
             mtime = os.path.getmtime(ref_path)
         except OSError:
@@ -143,13 +391,14 @@ class Qwen3TTSVoiceCloningEngine:
         runtime = self._get_runtime()
         prompt = self._clone_prompt(str(ref_paths[0]), str(reference_text))
         qwen_language = _qwen_language(language)
-        audio, sr = runtime.synthesize_clone(
-            str(text),
-            clone_prompt=prompt,
-            language=qwen_language if qwen_language != "Auto" else None,
-            max_new_tokens=max_new_tokens,
+        language_arg = qwen_language if qwen_language != "Auto" else None
+        self.last_segments = []
+        yield from self._recorded_segment(
+            runtime, prompt, index=0, count=1, text=str(text), ref_path=str(ref_paths[0]),
+            generate=lambda: [runtime.synthesize_clone(
+                str(text), clone_prompt=prompt, language=language_arg, max_new_tokens=max_new_tokens
+            )],
         )
-        yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
 
     def infer_to_audio_chunks(
         self,
@@ -196,19 +445,17 @@ class Qwen3TTSVoiceCloningEngine:
         else:
             bound = int(max_chars)
 
-        for chunk in split_text_batches(str(text), max_chars=bound):
-            if not chunk.strip():
-                continue
+        segments = [chunk for chunk in split_text_batches(str(text), max_chars=bound) if chunk.strip()]
+        self.last_segments = []
+        for index, chunk in enumerate(segments):
             if native:
-                for audio, sr in runtime.stream_clone(chunk, clone_prompt=prompt, language=language_arg):
-                    yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
-                continue
-            audio, sr = runtime.synthesize_clone(
-                chunk,
-                clone_prompt=prompt,
-                language=language_arg,
+                generate = lambda chunk=chunk: runtime.stream_clone(chunk, clone_prompt=prompt, language=language_arg)  # noqa: E731
+            else:
+                generate = lambda chunk=chunk: [runtime.synthesize_clone(chunk, clone_prompt=prompt, language=language_arg)]  # noqa: E731
+            yield from self._recorded_segment(
+                runtime, prompt, index=index, count=len(segments), text=chunk, ref_path=str(ref_paths[0]),
+                generate=generate,
             )
-            yield np.asarray(audio, dtype=np.float32).reshape(-1), int(sr)
 
     # `one_shot=True` on infer_to_wav_bytes: the whole text as ONE generation.
     supports_one_shot = True

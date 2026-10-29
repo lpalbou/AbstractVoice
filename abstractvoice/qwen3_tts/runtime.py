@@ -838,6 +838,35 @@ class Qwen3TTSRuntime:
             "ref_text": item.ref_text,
         }
 
+    def speaker_similarity(self, audio: np.ndarray, *, clone_prompt: Any, sample_rate: int = 24000) -> float:
+        """Cosine similarity between the speaker of ``audio`` and the voice ``clone_prompt`` was built for.
+
+        Both embeddings come from the SAME encoder: the Base checkpoint's speaker
+        encoder that built the prompt's speaker embedding. Used to check that a
+        cloned generation actually carries the cloned voice (the 0.6B Base model
+        occasionally samples a whole generation in another, stock-sounding voice
+        from the same prompt).
+
+        Deliberately lock-free: the speaker encoder is stateless and separate from
+        the decoder state the lock protects, and it is called while a clone stream
+        (which holds the lock) is suspended between chunks.
+        """
+        ref = np.asarray(self.export_clone_prompt(clone_prompt)["speaker_embedding"], dtype=np.float32).reshape(-1)
+        wav = np.asarray(audio, dtype=np.float32).reshape(-1)
+        if int(sample_rate) != 24000:
+            from ..audio.resample import sinc_resample_mono
+
+            wav = sinc_resample_mono(wav, int(sample_rate), 24000).astype(np.float32)
+        if self._backend == "mlx":
+            emb = np.array(self._mlx_or_raise().speaker_embedding(wav), dtype=np.float32).reshape(-1)
+        else:
+            model = self._model_or_raise()
+            emb = model.model.extract_speaker_embedding(audio=wav, sr=24000).detach().to("cpu").float().numpy().reshape(-1)
+        if emb.shape != ref.shape:
+            raise ValueError(f"speaker embedding sizes differ ({emb.shape[0]} vs {ref.shape[0]}): the prompt was built by another checkpoint")
+        denom = float(np.linalg.norm(emb) * np.linalg.norm(ref))
+        return float(emb @ ref) / denom if denom > 0 else 0.0
+
     def clone_prompt_from_arrays(
         self,
         *,

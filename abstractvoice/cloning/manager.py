@@ -799,6 +799,11 @@ class VoiceCloner:
             language=language,
         )
 
+    def last_segment_records(self) -> list:
+        """Per-segment records of the latest chunked clone synthesis, for engines that keep them (Qwen3-TTS)."""
+        eng = getattr(self, "_last_chunks_engine", None)
+        return [dict(r) for r in (getattr(eng, "last_segments", None) or [])]
+
     def speak_to_audio_chunks(
         self,
         text: str,
@@ -829,6 +834,7 @@ class VoiceCloner:
         ref_paths = self.store.resolve_reference_paths(voice_id)
         ref_text = self._ensure_reference_text(voice_id)
         eng = self._get_engine_for_voice(voice)
+        self._last_chunks_engine = eng
         return eng.infer_to_audio_chunks(
             text=text,
             reference_paths=ref_paths,
