@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [0.19.5] - 2026-10-29
+
+### Fixed
+
+- Cloned Qwen3-TTS speech streams continuously again. 0.19.4's speaker check held each verified 4 s block and released
+  it at once, and held every segment's opening: the stream reached the listener in 4-5 s lumps, and as soon as
+  synthesis slowed (a model generating on the same GPU) the listener ran out of audio (real weights, 80 s reply:
+  a 0.49 s gap at real-time factor 0.6, 1.7 s at 0.85; 5-6 chunks per lump at every speed). The check now runs as a
+  delay line: after the reply's first opening, each chunk is released once the 4 s window starting at it scores as
+  the clone, one chunk per generated chunk, across segment boundaries too (the next segment's opening is checked
+  while the previous one plays). When the listener has less than 1.5 s of audio in hand, the oldest chunk goes out
+  before its score and is still scored (`provisional_s` in the segment record); at ordinary speed nothing is
+  provisional. Same 80 s reply: no gap at 0.6 or 0.85, at most 2 chunks at once. Trade-off, stated plainly: at slow
+  generation (less than 1.5 s in hand) a chunk plays BEFORE it is scored, so up to one check window (4 s) of a
+  wrong voice can reach the listener before the check stops the reply; at ordinary speed nothing plays unverified. The one-voice rule is unchanged: a
+  segment that opens in another voice is regenerated once, then the reply stops with `ClonedVoiceNotAppliedError`
+  naming it; verified audio queued before a stop is delivered first. The audio itself is bit-identical with and
+  without the check. Backlog 057.
+
 ## [0.19.4] - 2026-10-29
 
 ### Fixed
