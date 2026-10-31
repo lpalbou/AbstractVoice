@@ -132,6 +132,23 @@ def apply_speed_without_pitch_change(audio: np.ndarray, speed: float, sr: int = 
             return audio
 
 
+class _AudioQueue(queue.Queue):
+    """Queue with O(1) pending-frame accounting under Queue's own mutex."""
+
+    def __init__(self):
+        super().__init__()
+        self.pending_frames = 0
+
+    def _put(self, item):
+        super()._put(item)
+        self.pending_frames += len(item)
+
+    def _get(self):
+        item = super()._get()
+        self.pending_frames -= len(item)
+        return item
+
+
 class NonBlockingAudioPlayer:
     """Non-blocking audio player using OutputStream callbacks for pause/resume."""
 
@@ -157,9 +174,16 @@ class NonBlockingAudioPlayer:
         # including a microphone. Hosts that may be listening override this.
         self.allow_device_refresh: Optional[Callable[[], bool]] = None
 
-        self.audio_queue: "queue.Queue[np.ndarray]" = queue.Queue()
+        self.audio_queue: "queue.Queue[np.ndarray]" = _AudioQueue()
         self.stream = None
         self._stream_lock = threading.RLock()
+        # Only short buffer/queue operations take this lock. Device open/close
+        # never holds it, so the output callback cannot wait on device I/O.
+        self._audio_state_lock = threading.RLock()
+        self._frames_written = 0
+        self._callback_error = ""
+        self._recovering_output = False
+        self._stop_requested = threading.Event()
         self.is_playing = False
 
         # Track which output device the stream is pinned to.
@@ -278,7 +302,8 @@ class NonBlockingAudioPlayer:
         # not re-attempt on every single utterance.
         self._opened_device_key = wanted.key
         try:
-            self.stop_stream()
+            with self._stream_lock:
+                self._stop_stream_locked()
         except Exception:
             # Best-effort; if stop fails, keep the existing stream.
             return
@@ -295,58 +320,184 @@ class NonBlockingAudioPlayer:
         if status and self.debug_mode:
             print(f"Audio callback status: {status}")
 
+        if self._stop_requested.is_set():
+            outdata.fill(0)
+            return
         with self._pause_lock:
             if self._paused:
                 outdata.fill(0)
                 return
 
         try:
-            outdata.fill(0)
-            written = 0
-            # Chunk boundaries are not silence: a device buffer may span several
-            # queued chunks. Only a genuinely empty queue leaves zero padding.
-            while written < frames:
-                if self.current_audio is None or self.current_position >= len(self.current_audio):
-                    try:
-                        self.current_audio = self.audio_queue.get_nowait()
-                        self.current_position = 0
-                    except queue.Empty:
-                        # Defer completion until a callback emits no audio: any
-                        # samples written above still have to reach the speaker.
-                        if written == 0 and self.is_playing:
-                            self.is_playing = False
-                            self._audio_started = False
-                            if self.on_audio_end:
-                                threading.Thread(target=self.on_audio_end, daemon=True).start()
-                            if self.playback_complete_callback:
-                                threading.Thread(target=self.playback_complete_callback, daemon=True).start()
-                        break
-                    if len(self.current_audio) == 0:
-                        continue
-
-                count = min(frames - written, len(self.current_audio) - self.current_position)
-                chunk = self.current_audio[self.current_position : self.current_position + count]
-                outdata[written : written + count] = chunk[:, None]
-                self.current_position += count
-                written += count
-
-                if not self._audio_started:
-                    self._audio_started = True
-                    if self.on_audio_start:
-                        threading.Thread(target=self.on_audio_start, daemon=True).start()
-
-                # Emit the actual output chunk (mono float32) for optional consumers.
-                try:
-                    if self.on_audio_chunk:
-                        self.on_audio_chunk(chunk, int(self.sample_rate))
-                except Exception:
-                    # Never let optional hooks break audio playback.
-                    pass
-
+            with self._audio_state_lock:
+                notifications = self._fill_output_buffer(outdata, frames)
         except Exception as e:
-            if self.debug_mode:
-                print(f"Error in audio callback: {e}")
+            # Capture the cause cheaply; hosts inspect it outside the realtime
+            # callback. An exception used to leave silent output indefinitely.
+            self._callback_error = f"{type(e).__name__}: {e}"
             outdata.fill(0)
+            return
+        # External hooks may query status or take application locks. Never call
+        # them with the buffer lock held (control operations can wait for it).
+        for callback, args, background in notifications:
+            try:
+                if background:
+                    threading.Thread(target=callback, daemon=True).start()
+                else:
+                    callback(*args)
+            except Exception:
+                pass
+
+    def _fill_output_buffer(self, outdata, frames):
+        notifications = []
+        outdata.fill(0)
+        written = 0
+        # Chunk boundaries are not silence: a device buffer may span several
+        # queued chunks. Only a genuinely empty queue leaves zero padding.
+        while written < frames:
+            if self.current_audio is None or self.current_position >= len(self.current_audio):
+                try:
+                    self.current_audio = self.audio_queue.get_nowait()
+                    self.current_position = 0
+                except queue.Empty:
+                    # Defer completion until a callback emits no audio: any
+                    # samples written above still have to reach the speaker.
+                    if written == 0 and self.is_playing:
+                        self.is_playing = False
+                        self._audio_started = False
+                        for callback in (self.on_audio_end, self.playback_complete_callback):
+                            if callback:
+                                notifications.append((callback, (), True))
+                    break
+                if len(self.current_audio) == 0:
+                    continue
+
+            count = min(frames - written, len(self.current_audio) - self.current_position)
+            chunk = self.current_audio[self.current_position : self.current_position + count]
+            outdata[written : written + count] = chunk[:, None]
+            self.current_position += count
+            written += count
+            self._frames_written += count
+
+            if not self._audio_started:
+                self._audio_started = True
+                if self.on_audio_start:
+                    notifications.append((self.on_audio_start, (), True))
+
+            if self.on_audio_chunk:
+                notifications.append((self.on_audio_chunk, (chunk, int(self.sample_rate)), False))
+        return notifications
+
+    def playback_status(self) -> dict:
+        """Snapshot output progress without changing playback or device state.
+
+        ``frames_written`` counts frames submitted to the device, not acoustic
+        delivery. A disconnected device may lose its final hardware buffer.
+        """
+        # Do not take _stream_lock here: a callback-side hook can query status
+        # while a control thread holds that lock waiting for stream.stop().
+        stream = self.stream
+        try:
+            active = bool(stream is not None and stream.active)
+        except Exception:
+            active = False
+        with self._pause_lock:
+            paused = bool(self._paused)
+        with self._audio_state_lock:
+            pending = max(0, len(self.current_audio) - self.current_position) if self.current_audio is not None else 0
+            with self.audio_queue.mutex:
+                pending += self.audio_queue.pending_frames
+            return {
+                "frames_written": self._frames_written,
+                "pending_frames": pending,
+                "is_playing": bool(self.is_playing),
+                "paused": paused,
+                "stream_active": active,
+                "sample_rate": int(self.sample_rate),
+                "callback_error": self._callback_error,
+                "recovering_output": bool(self._recovering_output),
+            }
+
+    def recover_stream(self, *, cancelled: Optional[Callable[[], bool]] = None) -> bool:
+        """Reopen only this output, preserving unsubmitted audio and pause state.
+
+        Call from a control/worker thread. The old callback is stopped before
+        pending samples are collected; pending samples are converted exactly
+        once if the reopened output negotiates a different sample rate. No
+        global PortAudio refresh is permitted because that invalidates the mic.
+        """
+        externally_cancelled = cancelled if callable(cancelled) else lambda: False
+
+        def is_cancelled():
+            return self._stop_requested.is_set() or externally_cancelled()
+
+        with self._stream_lock:
+            if is_cancelled():
+                return False
+            self._recovering_output = True
+            try:
+                return self._recover_stream_locked(is_cancelled)
+            finally:
+                self._recovering_output = False
+
+    def _recover_stream_locked(self, is_cancelled: Callable[[], bool]) -> bool:
+        old_rate = int(self.sample_rate)
+        if self.stream is not None:
+            # close() synchronizes with the callback before we inspect its
+            # position. On failure retain the object and do not duplicate it.
+            try:
+                self.stream.stop()
+            except Exception:
+                pass
+            self.stream.close()
+            self.stream = None
+        with self._audio_state_lock:
+            pending = []
+            if self.current_audio is not None and self.current_position < len(self.current_audio):
+                pending.append(self.current_audio[self.current_position:].copy())
+            while True:
+                try:
+                    pending.append(self.audio_queue.get_nowait())
+                except queue.Empty:
+                    break
+            self.current_audio = None
+            self.current_position = 0
+            self.is_playing = False
+        if is_cancelled():
+            return False
+        try:
+            self.start_stream()
+            if is_cancelled():
+                self.stop_stream()
+                return False
+            new_rate = int(self.sample_rate)
+            if new_rate != old_rate:
+                pending = [linear_resample_mono(chunk, old_rate, new_rate) for chunk in pending]
+            if is_cancelled():
+                self.stop_stream()
+                return False
+            with self._audio_state_lock:
+                for chunk in pending:
+                    if len(chunk):
+                        self.audio_queue.put(chunk)
+                self.is_playing = bool(pending)
+                self._callback_error = ""
+            logger.warning(
+                "#FALLBACK audio output: recovered output, rate=%s->%s, pending_frames=%s",
+                old_rate, new_rate, sum(len(chunk) for chunk in pending),
+            )
+            return True
+        except Exception:
+            if is_cancelled():
+                self.stop_stream()
+                return False
+            # Retain speech for inspection/retry if opening failed. The
+            # caller decides whether to terminate its playback generation.
+            with self._audio_state_lock:
+                for chunk in pending:
+                    self.audio_queue.put(chunk)
+                self.is_playing = bool(pending)
+            raise
 
     def set_output_device(self, spec) -> None:
         """Choose the speaker. None/"" = follow the system default.
@@ -403,6 +554,8 @@ class NonBlockingAudioPlayer:
                 pass
 
     def _may_refresh_devices(self) -> bool:
+        if self._recovering_output:
+            return False
         gate = self.allow_device_refresh
         if callable(gate):
             try:
@@ -511,14 +664,8 @@ class NonBlockingAudioPlayer:
                 # object (sleep, USB interruption). Reusing it queues audio
                 # forever: no output callback will consume those samples.
                 logger.warning("#FALLBACK audio output: reopening an inactive stream")
-                try:
-                    self.stream.close()
-                except Exception as exc:
-                    logger.warning("#FALLBACK audio output: stale stream close failed: %s", exc)
-                finally:
-                    self.stream = None
-                self._audio_started = False
-                # Preserve pending audio and pause state across recovery.
+                self.recover_stream()
+                return
             sd = _import_sounddevice()
 
             desired_sr = int(self.sample_rate)
@@ -663,33 +810,51 @@ class NonBlockingAudioPlayer:
                 raise last_err
             raise RuntimeError(f"Failed to start audio output stream on {wanted}")
 
-    def stop_stream(self):
-        with self._stream_lock:
-            if self.stream:
-                try:
-                    self.stream.stop()
-                except Exception:
-                    pass
-                try:
-                    self.stream.close()
-                except Exception:
-                    pass
-                self.stream = None
+    def try_stop_stream(self) -> bool:
+        """Request stop immediately, returning False if output control is busy.
 
-        # Clear device tracking (we will repopulate on next start).
+        A False result allows GUI hosts to detach this player and finish its
+        stop on a worker. The cancellation request is visible to in-flight
+        opening/recovery even though this call did not acquire their lock.
+        """
+        self._stop_requested.set()
+        if not self._stream_lock.acquire(blocking=False):
+            return False
+        try:
+            self._stop_stream_locked()
+            return True
+        finally:
+            self._stream_lock.release()
+
+    def stop_stream(self):
+        self._stop_requested.set()
+        with self._stream_lock:
+            self._stop_stream_locked()
+
+    def _stop_stream_locked(self):
+        if self.stream:
+            try:
+                self.stream.stop()
+            except Exception:
+                pass
+            try:
+                self.stream.close()
+            except Exception:
+                pass
+            self.stream = None
+
+        # Clear all output state before another enqueue/recovery can run.
         self._opened_output_device_index = None
         self._opened_output_device_name = None
         self._opened_output_channels = None
         self._opened_device_key = None
-
-        self.is_playing = False
-        # A stopped utterance has not "started" any more: without this reset the
-        # next utterance never fires `on_audio_start`, so a consumer waiting for
-        # speech to begin (a desktop spinner) waits forever.
-        self._audio_started = False
+        with self._audio_state_lock:
+            self.is_playing = False
+            self._audio_started = False
+            self._callback_error = ""
+            self.clear_queue()
         with self._pause_lock:
             self._paused = False
-        self.clear_queue()
 
     def cleanup(self):
         self.stop_stream()
@@ -714,35 +879,46 @@ class NonBlockingAudioPlayer:
         except Exception:
             pass
 
-        # If we haven't started the output stream yet, do so first. This allows
-        # `start_stream()` to fall back to a compatible device sample rate.
-        if self.stream is None:
-            self.start_stream()
-        else:
-            # If the system default output changed since we opened the stream,
-            # restart the stream when idle so system volume keys match what users
-            # expect (best-effort).
-            self._maybe_restart_stream_for_default_device_change()
-            self.start_stream()  # Also recovers a surviving but inactive stream.
+        with self._stream_lock:
+            # A new call may reuse a stopped player. In-flight calls observe a
+            # stop request made after this point and must not enqueue afterward.
+            self._stop_requested.clear()
+            # If we haven't started the output stream yet, do so first. This allows
+            # `start_stream()` to fall back to a compatible device sample rate.
+            if self.stream is None:
+                self.start_stream()
+            else:
+                # If the system default output changed since we opened the stream,
+                # restart the stream when idle so system volume keys match what users
+                # expect (best-effort).
+                self._maybe_restart_stream_for_default_device_change()
+                self.start_stream()  # Also recovers a surviving but inactive stream.
 
-        sr_in = int(sample_rate) if sample_rate is not None else int(self.sample_rate)
-        sr_out = int(self.sample_rate)
-        if sr_in != sr_out:
-            audio_array = linear_resample_mono(audio_array, sr_in, sr_out)
+            if self._stop_requested.is_set():
+                self._stop_stream_locked()
+                return
+            sr_in = int(sample_rate) if sample_rate is not None else int(self.sample_rate)
+            sr_out = int(self.sample_rate)
+            if sr_in != sr_out:
+                audio_array = linear_resample_mono(audio_array, sr_in, sr_out)
 
-        max_abs = float(np.max(np.abs(audio_array))) if len(audio_array) else 0.0
-        if max_abs > 1.0:
-            audio_array = audio_array / max_abs
-        else:
-            # Best-effort clamp to avoid rare device-specific clipping issues.
-            try:
-                audio_array = np.clip(audio_array, -1.0, 1.0, out=audio_array)
-            except Exception:
-                pass
+            max_abs = float(np.max(np.abs(audio_array))) if len(audio_array) else 0.0
+            if max_abs > 1.0:
+                audio_array = audio_array / max_abs
+            else:
+                # Best-effort clamp to avoid rare device-specific clipping issues.
+                try:
+                    audio_array = np.clip(audio_array, -1.0, 1.0, out=audio_array)
+                except Exception:
+                    pass
 
-        self.audio_queue.put(audio_array)
-        self.is_playing = True
-        # Stream should already be started above when needed.
+            if self._stop_requested.is_set():
+                self._stop_stream_locked()
+                return
+            with self._audio_state_lock:
+                self.audio_queue.put(audio_array)
+                self.is_playing = True
+            # Stream should already be started above when needed.
 
     def pause(self) -> bool:
         with self._pause_lock:

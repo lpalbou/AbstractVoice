@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Note: For current usage and supported behavior, prefer `README.md` and `docs/getting-started.md`.
 Older changelog entries may reference historical CLI commands or model choices.
 
+## [Unreleased]
+
+### Fixed
+
+- Audio output recovery preserves the unsubmitted current suffix and queued
+  speech, including when the reopened device negotiates a different sample
+  rate. Recovery never refreshes global PortAudio or invalidates microphone
+  streams. Hosts can inspect `NonBlockingAudioPlayer.playback_status()` and
+  call `recover_stream(cancelled=...)` from a worker thread to recover a
+  stalled output without replaying the message. Cancellation during reopening
+  or resampling discards the outgoing generation's pending speech.
+
 ## [0.19.5] - 2026-10-29
 
 ### Fixed

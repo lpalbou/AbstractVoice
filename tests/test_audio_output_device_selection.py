@@ -170,7 +170,7 @@ def test_the_stream_moves_when_the_system_default_changes(devices, monkeypatch) 
     player._opened_device_key = SPEAKERS.key  # stream was opened on the speakers
     restarted: list[str] = []
     monkeypatch.setattr(player, "_is_idle", lambda: True)
-    monkeypatch.setattr(player, "stop_stream", lambda: restarted.append("stop"))
+    monkeypatch.setattr(player, "_stop_stream_locked", lambda: restarted.append("stop"))
     monkeypatch.setattr(player, "start_stream", lambda: restarted.append("start"))
 
     player._maybe_restart_stream_for_default_device_change()

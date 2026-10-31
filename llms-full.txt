@@ -276,7 +276,7 @@ See [the complete Qwen API guide](docs/api.md#qwen3-tts-checkpoints).
 - [Remote OpenAI-compatible TTS adapter](abstractvoice/adapters/tts_openai_compatible.py)
 - [Remote OpenAI-compatible STT adapter](abstractvoice/adapters/stt_openai_compatible.py)
 - [TTS engine wrapper](abstractvoice/tts/adapter_tts_engine.py): wraps adapters + uses `NonBlockingAudioPlayer`
-- [Audio playback](abstractvoice/tts/tts_engine.py): pause/resume/stop + optional audio-fx; `NonBlockingAudioPlayer(output_device=...)` resolves the output device live per utterance, falls back to the system default only (reported via `on_output_device_problem`), and reopens a stream the OS stopped; `on_audio_start` fires once per utterance, the first one after a `stop_stream()` included (0.19.3)
+- [Audio playback](abstractvoice/tts/tts_engine.py): pause/resume/stop + optional audio-fx; `NonBlockingAudioPlayer(output_device=...)` resolves the output device live per utterance and reports fallback to the system default. `playback_status()` exposes constant-time output progress and pending frames; `recover_stream(cancelled=...)` preserves unsubmitted audio, pause and rate correctness without global PortAudio refresh. `try_stop_stream()` silences immediately and returns false if device control is busy; detach and finish stopping on a worker in that case. `on_audio_start` fires for each new utterance. See [the recovery contract](docs/architecture.md).
 - [Output devices](abstractvoice/tts/audio_devices.py): `list_output_devices()` / `system_default_output()` / `resolve_output_device(spec)` — live CoreAudio-backed resolution on macOS, devices identified by stable UID
 - [Mic capture + VAD + stop phrase](abstractvoice/recognition.py)
 - [Stop phrase helper](abstractvoice/stop_phrase.py)

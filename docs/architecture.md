@@ -206,6 +206,30 @@ system default only and reports it through `on_output_device_problem`; a
 stream the OS stopped (sleep, USB interruption) is reopened on the next
 utterance without losing queued audio.
 
+`NonBlockingAudioPlayer.playback_status()` returns a snapshot of
+`frames_written`, `pending_frames`, `is_playing`, `paused`, `stream_active`,
+`sample_rate`, `callback_error`, and `recovering_output`. Frame counts refer
+to samples submitted to the output, not proof of acoustic delivery. A host
+can use progress to suspend stall accounting during pause, and call
+`recover_stream(cancelled=...)` once from its playback worker when output
+stops progressing. AbstractVoice owns device and queue recovery; the host
+owns the generation, pause policy, retry budget and user reporting.
+
+Recovery closes the old output before collecting its unsubmitted suffix and
+queued arrays, converts those arrays if the output sample rate changes,
+and preserves pause state. It never refreshes global PortAudio, because that
+would invalidate microphone streams. The cancellation predicate is checked
+before and after opening and resampling so an outgoing generation cannot be
+requeued after cancellation. A disconnected device can still lose frames
+already submitted to its hardware buffer; recovery does not replay those
+frames or restart the message. Optional callback hooks run outside the
+short buffer lock, and progress snapshots use constant-time queue accounting.
+For GUI cancellation, `try_stop_stream()` first requests cancellation and
+returns `False` if another control operation owns the output lock. The host
+can detach that player and finish `stop_stream()` on a worker; the in-flight
+open or recovery observes the cancellation before enqueueing any more audio.
+An uncontended `try_stop_stream()` performs the normal output stop itself.
+
 Discovery follows the same policy from the other direction: asking which providers and models are
 available is a filesystem question, answered by `abstractvoice/local_models.py` without importing an
 engine runtime or loading weights. A local engine is discoverable when its runtime is importable and

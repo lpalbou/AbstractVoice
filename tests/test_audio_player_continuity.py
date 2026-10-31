@@ -119,7 +119,7 @@ def test_stop_stream_resets_started_so_the_next_utterance_fires_start(monkeypatc
     assert not player._audio_started
     assert not player.is_playing
 
-    player.audio_queue.put(np.ones(4, dtype=np.float32))
-    player.is_playing = True
+    monkeypatch.setattr(player, "start_stream", lambda: None)
+    player.play_audio(np.ones(4, dtype=np.float32))
     render(player, 4)
     assert events == ["start", "start"]
