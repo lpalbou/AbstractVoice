@@ -65,5 +65,9 @@ carried only `sequence`, format and sample rate.
 - Apple clients (`SpeechEvent` in abstractassistant's `AbstractGatewayClient`) decode the fields and apply the hybrid
   retry rule (coordinator decision 2026-11-02): exact at segment boundaries, the existing seconds skip
   (`SpeechPieceRetry`) inside the unfinished segment.
-- Resume granularity on MLX is one generation (up to 800 characters per reply, ADR 0008): finer resume would need
-  shorter generations, a trade against one voice per reply.
+- Operator decision pending (review W8, 2026-11-02): let the Qwen3-TTS clone engine generate streamed requests in
+  sentence groups (about 240 characters, the base engines' bound) instead of one MLX generation up to 800 characters,
+  so segment-only resume is exact per sentence group and the approximate seconds skip inside a segment goes away.
+  ADR 0008's "one voice per reply" is already spent at the piece level: clients send ~600-character pieces, each its
+  own generation. The cost is more generation boundaries (voice-drift chances, speaker-checked openings) per piece.
+  Recorded in ADR 0009, "Follow-up (decision pending)".

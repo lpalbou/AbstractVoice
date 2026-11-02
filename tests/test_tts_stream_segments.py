@@ -251,6 +251,18 @@ def test_stream_lines_carry_the_segment_and_its_span_and_end_marks_follow_the_la
     assert [line["sequence"] for line in body if line["type"] == "audio"] == list(
         range(sum(line["type"] == "audio" for line in body))
     )
+    # Ordering, segment by segment: exactly one segment_end, after the segment's last audio line and before the
+    # next segment's first (a client that trusts segment_end must have heard the whole segment by then).
+    count = lines[-1]["segments"]
+    for k in range(count):
+        audio_at = [i for i, line in enumerate(body) if line["type"] == "audio" and line["segment"] == k]
+        end_at = [i for i, line in enumerate(body) if line["type"] == "segment_end" and line["segment"] == k]
+        assert len(end_at) == 1, (k, end_at)
+        assert audio_at and end_at[0] > max(audio_at)
+        if k + 1 < count:
+            next_audio = [i for i, line in enumerate(body) if line["type"] == "audio" and line["segment"] == k + 1]
+            assert end_at[0] < min(next_audio)
+    assert sum(line["type"] == "segment_end" for line in body) == count
 
 
 def test_the_client_retry_rule_loses_and_repeats_nothing():

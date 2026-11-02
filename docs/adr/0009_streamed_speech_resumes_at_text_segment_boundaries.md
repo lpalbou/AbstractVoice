@@ -47,7 +47,9 @@ generation of a known slice of the text, and its audio speaks exactly that slice
   as many as were received of that unfinished segment. Offsets in the retried stream
   index the retried text. The seam is exact at a segment boundary and approximate (a few
   words) inside a segment; a piece is never replayed whole. Clients do not shrink their
-  pieces to get finer segments: one voice per reply (ADR 0008) outranks a finer seam.
+  pieces to get finer segments: one voice per reply (ADR 0008) outranks a finer seam. The
+  retried stream's offsets index the retried text; clients add the resume offset to map
+  them back. Audio is played as it arrives, never held until its `segment_end`.
 - AbstractVoice is the authoritative producer. Hosts between the plugin and the client
   (AbstractRuntime, AbstractGateway) forward the text and these fields unchanged; they do
   not strip the text, renumber segments, or derive their own offsets.
@@ -71,9 +73,20 @@ generation of a known slice of the text, and its audio speaks exactly that slice
   different timing on the retry, so that seam can land a few words early or late. Exact
   seams inside a generation would need finer generations, which trade against one voice
   per reply.
-- An emphasis marker that spans two segments (`*first. second.*`) leaves its closing
-  marker in the retried text. The contract is exact for plain text; clients that resume
-  send plain text.
+- The sanitizer removes `#` to `#####` headers at the start of a line, `**bold**` and
+  `*italic*` markers. Such a marker spanning two segments (`*first. second.*`) leaves its
+  closing marker in the retried text. The contract is exact for plain text; clients that
+  resume send plain text.
+
+### Follow-up (decision pending)
+
+- The clone engine could generate streamed requests in sentence groups (about 240
+  characters, the base engines' bound) instead of one generation up to 800 characters.
+  Segment-only resume would then be exact per sentence group and the approximate half of
+  the hybrid rule would go away. ADR 0008's "one voice per reply" is already spent at the
+  piece level, because clients send ~600-character pieces that are separate generations.
+  The trade is more generation boundaries per piece (each one a chance of voice drift,
+  each opening speaker-checked). This is the operator's decision (backlog 0066).
 
 ### Neutral
 
