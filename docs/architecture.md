@@ -267,18 +267,26 @@ It provides:
 - a voice backend (TTS+STT) that can optionally store generated audio into an `artifact_store`
 - an audio backend (STT) for transcription-only use
 
-The voice backend's `tts_stream(...)` turns `VoiceManager.speak_to_audio_chunks()` into
+The voice backend's `tts_stream(...)` turns `VoiceManager.speak_to_audio_segments()` into
 transport-safe events: one standalone WAV segment per `audio` event, at most 2 s of
-audio each (`STREAM_LINE_MAX_SECONDS`), then a `done` (or `cancelled`) event with the
-engine's metrics. See `docs/api.md` for the event fields.
+audio each (`STREAM_LINE_MAX_SECONDS`), each naming its text segment and that segment's
+span of the request text; a `segment_end` event after each segment's last audio; then a
+`done` (or `cancelled`) event with the engine's metrics. The engine marks its own
+generations (Qwen3-TTS through its delivery outbox, base engines per sentence group);
+`SegmentLocator` maps each one back to the caller's text, so a client resumes a broken
+stream from the last segment it received whole, exactly at that boundary (ADR 0009). See
+`docs/api.md` for the event fields and the retry rule.
 
 ```mermaid
 flowchart LR
   Core["AbstractCore<br/>core.voice.tts_stream()"] --> Cap["_VoiceCapability.tts_stream"]
-  Cap --> VM["VoiceManager<br/>speak_to_audio_chunks()"]
-  VM -->|"(audio, sample_rate)"| Split["slices of at most 2 s"]
-  Split --> Audio["audio events<br/>standalone WAV, sequence 0..n"]
-  Cap --> Done["done / cancelled event<br/>chunks, metrics"]
+  Cap --> VM["VoiceManager<br/>speak_to_audio_segments()"]
+  Eng["engine generations<br/>SegmentStart, audio, SegmentEnd"] --> VM
+  VM -->|"SegmentLocator: text_start, text_end"| Cap
+  Cap --> Split["slices of at most 2 s"]
+  Split --> Audio["audio events<br/>sequence 0..n, segment, text_start, text_end"]
+  Cap --> End["segment_end event<br/>after each segment's last slice"]
+  Cap --> Done["done / cancelled event<br/>chunks, segments, metrics"]
 ```
 
 The local FastAPI web UI (`abstractvoice web`) is a small example wrapper around

@@ -23,11 +23,25 @@ def sanitize_markdown_for_speech(text: str) -> str:
     - Strip ATX headers at the start of a line: "#", "##", ... "#####"
     - Strip emphasis markers: "**bold**" and "*italic*"
     """
-    if not text:
-        return ""
+    return sanitize_markdown_with_index(text)[0]
 
-    out = str(text)
-    out = _MD_HEADER_RE.sub(r"\1", out)
-    out = _MD_BOLD_RE.sub(r"\1", out)
-    out = _MD_ITALIC_RE.sub(r"\1", out)
-    return out
+
+def sanitize_markdown_with_index(text: str) -> tuple[str, list[int]]:
+    """``sanitize_markdown_for_speech`` plus, for each kept character, its index in ``text``.
+
+    Every pass only deletes characters (each match is replaced by its first group), so the
+    result is a subsequence of ``text`` and the index list maps it back exactly.
+    """
+    out = str(text or "")
+    index = list(range(len(out)))
+    for pattern in (_MD_HEADER_RE, _MD_BOLD_RE, _MD_ITALIC_RE):
+        kept: list[int] = []
+        last = 0
+        for m in pattern.finditer(out):
+            kept.extend(range(last, m.start()))
+            kept.extend(range(m.start(1), m.end(1)))
+            last = m.end()
+        kept.extend(range(last, len(out)))
+        out = "".join(out[i] for i in kept)
+        index = [index[i] for i in kept]
+    return out, index

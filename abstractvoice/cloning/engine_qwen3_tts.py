@@ -70,6 +70,9 @@ class _Outbox:
     listener is short of audio: what was sent is compared with real-time playback from
     the first chunk on (the listener starts playing when the first chunk arrives).
     Bursts of held audio are what made 0.19.4 deliver in 4 s lumps.
+
+    Segment markers (``mark``) queue between the audio in order and leave with it;
+    they carry no audio, so the pacing ignores them.
     """
 
     def __init__(self, floor_s: float, *, clock=None) -> None:
@@ -85,24 +88,41 @@ class _Outbox:
     def put(self, mono, sr: int) -> None:
         self._q.append((mono, int(sr)))
 
+    def mark(self, marker) -> None:
+        self._q.append(marker)
+
+    def _has_audio(self) -> bool:
+        return any(isinstance(item, tuple) for item in self._q)
+
     def lead_s(self) -> float:
         if self.started_at is None:
             return 0.0
         return self.sent_s - (self._clock() - self.started_at)
 
     def starving(self) -> bool:
-        return self.started_at is not None and not self._q and self.lead_s() < self.floor_s
+        return self.started_at is not None and not self._has_audio() and self.lead_s() < self.floor_s
 
     def _pop(self):
-        mono, sr = self._q.popleft()
-        if self.started_at is None:
-            self.started_at = self._clock()
-        self.sent_s += float(mono.size) / float(sr or 24000)
-        return mono, sr
+        item = self._q.popleft()
+        if isinstance(item, tuple):
+            mono, sr = item
+            if self.started_at is None:
+                self.started_at = self._clock()
+            self.sent_s += float(mono.size) / float(sr or 24000)
+        return item
+
+    def markers(self) -> list:
+        """The markers at the head of the queue (nothing behind undelivered audio)."""
+        out = []
+        while self._q and not isinstance(self._q[0], tuple):
+            out.append(self._pop())
+        return out
 
     def take(self) -> list:
-        out = [self._pop()] if self._q else []
-        while self._q and self.lead_s() < self.floor_s:
+        out = self.markers()
+        if self._q:
+            out.append(self._pop())
+        while self._q and (not isinstance(self._q[0], tuple) or self.lead_s() < self.floor_s):
             out.append(self._pop())
         return out
 
@@ -244,7 +264,12 @@ class Qwen3TTSVoiceCloningEngine:
                 mono = np.asarray(audio, dtype=np.float32).reshape(-1)
                 if record is not None:
                     record["audio_s"] = round(record["audio_s"] + mono.size / float(int(sr) or 24000), 2)
-                yield mono, int(sr)
+                if outbox is None:
+                    yield mono, int(sr)
+                else:
+                    # Through the reply's outbox, behind any segment marker queued before this chunk.
+                    outbox.put(mono, int(sr))
+                    yield from outbox.take()
             return
         box = outbox if outbox is not None else _Outbox(self.LEAD_FLOOR_SECONDS, clock=self._clock)
         threshold = self.min_speaker_similarity
@@ -410,11 +435,11 @@ class Qwen3TTSVoiceCloningEngine:
             return generate()
 
         try:
-            for audio, sr in self._checked_generation(
+            # Audio chunks, and the segment markers queued in the reply's outbox.
+            yield from self._checked_generation(
                 runtime, prompt, index=index, count=count, text=text, generate=counted, sink=record["scores"],
                 outbox=outbox, record=record,
-            ):
-                yield audio, sr
+            )
             record["status"] = "ok" if record["attempts"] <= 1 else "regenerated"
         except GeneratorExit:
             record["status"] = "cancelled"
@@ -542,6 +567,34 @@ class Qwen3TTSVoiceCloningEngine:
         language: str | None = None,
     ):
         """Chunked synthesis: early playback + per-utterance cancellation (ADR 0004)."""
+        from ..tts.segments import audio_only
+
+        yield from audio_only(
+            self.infer_to_audio_segments(
+                text=text, reference_paths=reference_paths, reference_text=reference_text,
+                speed=speed, max_chars=max_chars, language=language,
+            )
+        )
+
+    def infer_to_audio_segments(
+        self,
+        *,
+        text: str,
+        reference_paths: Iterable[str],
+        reference_text: str,
+        speed: Optional[float] = None,
+        max_chars: int = 200,
+        language: str | None = None,
+    ):
+        """``infer_to_audio_chunks`` with each generation's text segment marked (ADR 0009).
+
+        Yields ``SegmentStart(i, text)``, that generation's ``(audio, sr)`` chunks and
+        ``SegmentEnd(i)``, in delivery order: the markers travel through the reply's
+        outbox, so a segment ends only after its last chunk was released. A regenerated
+        segment (speaker check) is still one segment: only the accepted take is delivered.
+        """
+        from ..tts.segments import SegmentEnd, SegmentStart
+
         _ = speed  # Reported unsupported in the capability catalog.
         if not reference_text or not str(reference_text).strip():
             raise RuntimeError(
@@ -580,6 +633,7 @@ class Qwen3TTSVoiceCloningEngine:
         self.last_segments = []
         outbox = _Outbox(self.LEAD_FLOOR_SECONDS, clock=self._clock)  # one per reply: continuous delivery across segments
         for index, chunk in enumerate(segments):
+            outbox.mark(SegmentStart(index, chunk))
             if native:
                 generate = lambda chunk=chunk: runtime.stream_clone(chunk, clone_prompt=prompt, language=language_arg)  # noqa: E731
             else:
@@ -588,6 +642,8 @@ class Qwen3TTSVoiceCloningEngine:
                 runtime, prompt, index=index, count=len(segments), text=chunk, ref_path=str(ref_paths[0]),
                 generate=generate, outbox=outbox,
             )
+            outbox.mark(SegmentEnd(index))
+            yield from outbox.markers()  # at once when the segment's audio has all gone out
         yield from outbox.flush()
 
     # `one_shot=True` on infer_to_wav_bytes: the whole text as ONE generation.

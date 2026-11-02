@@ -813,6 +813,28 @@ class VoiceCloner:
         max_chars: int = 120,
         language: Optional[str] = None,
     ):
+        from ..tts.segments import audio_only
+
+        return audio_only(
+            self.speak_to_audio_segments(text, voice_id=voice_id, speed=speed, max_chars=max_chars, language=language)
+        )
+
+    def speak_to_audio_segments(
+        self,
+        text: str,
+        *,
+        voice_id: str,
+        speed: Optional[float] = None,
+        max_chars: int = 120,
+        language: Optional[str] = None,
+    ):
+        """``speak_to_audio_chunks`` with the engine's text segments marked (ADR 0009).
+
+        An engine that reports its generations (``infer_to_audio_segments``) marks each;
+        for any other engine the whole text is segment 0.
+        """
+        from ..tts.segments import single_segment
+
         voice = self.store.get_voice(voice_id)
         # Voices created before engine-bound metadata used OpenF5 semantics.
         # Keep that legacy fallback for old stores; new clones default to OmniVoice.
@@ -820,12 +842,12 @@ class VoiceCloner:
         if engine_name in _REMOTE_CLONING_ENGINES:
             eng = self._get_engine(engine_name)
             if hasattr(eng, "audio_chunks_for_voice"):
-                return eng.audio_chunks_for_voice(
+                return single_segment(text, eng.audio_chunks_for_voice(
                     text=text,
                     voice=self.store.get_voice_dict(voice_id),
                     speed=speed,
                     language=language,
-                )
+                ))
 
         try:
             self.store.normalize_reference_audio(voice_id)
@@ -835,7 +857,7 @@ class VoiceCloner:
         ref_text = self._ensure_reference_text(voice_id)
         eng = self._get_engine_for_voice(voice)
         self._last_chunks_engine = eng
-        return eng.infer_to_audio_chunks(
+        kwargs = dict(
             text=text,
             reference_paths=ref_paths,
             reference_text=ref_text,
@@ -843,3 +865,7 @@ class VoiceCloner:
             max_chars=int(max_chars),
             language=language,
         )
+        segmented = getattr(eng, "infer_to_audio_segments", None)
+        if callable(segmented):
+            return segmented(**kwargs)
+        return single_segment(text, eng.infer_to_audio_chunks(**kwargs))

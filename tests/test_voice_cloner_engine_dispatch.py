@@ -41,6 +41,13 @@ def test_voice_cloner_dispatches_by_engine(tmp_path: Path):
     assert sr == 24000
     assert len(audio) == 10
 
+    # An engine that does not report its generations: the whole text is segment 0 (ADR 0009).
+    from abstractvoice.tts.segments import SegmentEnd, SegmentStart
+
+    events = list(cloner.speak_to_audio_segments("hi", voice_id=voice_id, max_chars=50))
+    assert events[0] == SegmentStart(0, "hi") and events[-1] == SegmentEnd(0)
+    assert [len(item[0]) for item in events[1:-1]] == [10]
+
 
 def test_voice_cloner_clone_from_wav_bytes_sets_engine(tmp_path: Path):
     import io

@@ -5042,7 +5042,11 @@ class _VoiceCapability(_BaseVoice):
         lk = self._vm_lock(vm)
 
         def _events():
+            from ..tts.segments import SegmentEnd, SegmentStart
+
             chunk_count = 0
+            segments_done = 0
+            segment: Optional[SegmentStart] = None
             cancelled = False
             tts_metrics = None
             with lk:
@@ -5153,7 +5157,9 @@ class _VoiceCapability(_BaseVoice):
                             applied_profile = False
 
                     stream_voice = None if applied_profile or piper_voice_is_profile else local_voice_name
-                    for audio_chunk, sample_rate in vm.speak_to_audio_chunks(
+                    # Every audio line names its text segment and that segment's span of `text`;
+                    # a `segment_end` line follows its last audio (ADR 0009: exact resume).
+                    for item in vm.speak_to_audio_segments(
                         str(text),
                         voice=stream_voice,
                         cancel_event=cancel_event,
@@ -5162,6 +5168,25 @@ class _VoiceCapability(_BaseVoice):
                         if cancel_event is not None and cancel_event.is_set():
                             cancelled = True
                             break
+                        if isinstance(item, SegmentStart):
+                            segment = item
+                            continue
+                        if isinstance(item, SegmentEnd):
+                            if segment is None or segment.index != item.index:
+                                raise RuntimeError(f"TTS stream segment {item.index} ended before it started")
+                            yield {
+                                "type": "segment_end",
+                                "schema": "abstractvoice.tts_stream.segment_end.v1",
+                                "segment": int(segment.index),
+                                "text_start": int(segment.text_start),
+                                "text_end": int(segment.text_end),
+                            }
+                            segments_done += 1
+                            segment = None
+                            continue
+                        if segment is None:
+                            raise RuntimeError("TTS stream audio arrived outside a text segment")
+                        audio_chunk, sample_rate = item
                         # One line per <= STREAM_LINE_MAX_SECONDS of audio: a base-TTS segment
                         # (up to ~16 s, 1.2 MB of 44.1 kHz WAV) is sliced so its first audio
                         # reaches the client before the whole segment has downloaded.
@@ -5184,6 +5209,9 @@ class _VoiceCapability(_BaseVoice):
                                 "voice": local_voice_name,
                                 "profile": profile_name or None,
                                 "delivery": "abstractvoice_audio_chunk",
+                                "segment": int(segment.index),
+                                "text_start": int(segment.text_start),
+                                "text_end": int(segment.text_end),
                             }
                             chunk_count += 1
                     if cancel_event is not None and cancel_event.is_set():
@@ -5245,6 +5273,7 @@ class _VoiceCapability(_BaseVoice):
                 "cancelled": bool(cancelled),
                 "chunks": int(chunk_count),
                 "single_chunk": int(chunk_count) == 1,
+                "segments": int(segments_done),
                 "format": "wav",
                 "content_type": "audio/wav",
                 "metrics": _json_safe(tts_metrics) if isinstance(tts_metrics, dict) else None,

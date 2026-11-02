@@ -274,9 +274,9 @@ def test_every_segment_leaves_a_traceable_record_and_metrics_carry_them():
         def __init__(self):
             pass
 
-        def speak_to_audio_chunks(self, text, *, voice_id, speed=None, max_chars=120, language=None):
+        def speak_to_audio_segments(self, text, *, voice_id, speed=None, max_chars=120, language=None):
             self._last_chunks_engine = engine
-            return engine.infer_to_audio_chunks(text=text, reference_paths=["ref.wav"], reference_text="t")
+            return engine.infer_to_audio_segments(text=text, reference_paths=["ref.wav"], reference_text="t")
 
     class _VM(TtsMixin):
         language = "en"

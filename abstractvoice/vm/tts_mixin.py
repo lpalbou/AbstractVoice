@@ -1718,6 +1718,41 @@ class TtsMixin:
     ):
         """Synthesize to an iterator of `(audio_chunk, sample_rate)` tuples.
 
+        The audio of `speak_to_audio_segments`, without its segment markers.
+        """
+        from ..tts.segments import audio_only
+
+        return audio_only(
+            self.speak_to_audio_segments(
+                text,
+                voice=voice,
+                instructions=instructions,
+                cancel_event=cancel_event,
+                sanitize_syntax=sanitize_syntax,
+                saninitze_syntax=saninitze_syntax,
+                language=language,
+            )
+        )
+
+    def speak_to_audio_segments(
+        self,
+        text: str,
+        *,
+        voice: str | None = None,
+        instructions: str | None = None,
+        cancel_event: threading.Event | None = None,
+        sanitize_syntax: bool = True,
+        saninitze_syntax: bool | None = None,
+        language: str | None = None,
+    ):
+        """Synthesize to `(audio_chunk, sample_rate)` tuples between text-segment markers (ADR 0009).
+
+        Yields `SegmentStart` (its `text_start`/`text_end` locate the segment in `text`, in
+        code points), the segment's audio chunks, then `SegmentEnd`, segment after segment
+        (`abstractvoice.tts.segments`). A segment is one independent synthesis: base TTS
+        segments are sentence groups; a native-streaming engine's single generation, and a
+        clone engine that does not report its generations, make the whole text segment 0.
+
         This is the engine-agnostic streaming surface for integrations that want
         incremental delivery (e.g. future HTTP chunked/streaming endpoints).
 
@@ -1732,9 +1767,17 @@ class TtsMixin:
         # Clear prior metrics for this new utterance (best-effort; populated on completion).
         self._set_last_tts_metrics(None)
 
+        from ..tts.segments import SegmentEnd, SegmentLocator, SegmentStart
+
         speak_text = str(text)
-        if _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax):
+        sanitize = _resolve_sanitize_syntax_arg(sanitize_syntax, saninitze_syntax)
+        if sanitize:
             speak_text = sanitize_markdown_for_speech(speak_text)
+        locator = SegmentLocator(str(text), sanitize=sanitize)
+
+        def _located(marker: SegmentStart) -> SegmentStart:
+            start, end = locator.locate(marker.text)
+            return replace(marker, text_start=start, text_end=end)
 
         if voice:
             if instructions:
@@ -1755,7 +1798,7 @@ class TtsMixin:
                 chunks = 0
                 total_audio_s = 0.0
                 try:
-                    for chunk, sr in cloner.speak_to_audio_chunks(
+                    for item in cloner.speak_to_audio_segments(
                         str(speak_text),
                         voice_id=str(voice),
                         speed=clone_speed,
@@ -1764,6 +1807,10 @@ class TtsMixin:
                     ):
                         if cancel_event is not None and cancel_event.is_set():
                             break
+                        if not isinstance(item, tuple):
+                            yield _located(item) if isinstance(item, SegmentStart) else item
+                            continue
+                        chunk, sr = item
                         mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
                         if mono.size <= 0:
                             continue
@@ -1834,6 +1881,7 @@ class TtsMixin:
             chunks = 0
             total_audio_s = 0.0
             segments = []
+            seg_count = 0
             stream_max_chars = 240
             native = False
             configured_language = getattr(adapter, "_language", None)
@@ -1872,6 +1920,9 @@ class TtsMixin:
                     seg_text = str(seg_text or "").strip()
                     if not seg_text:
                         continue
+                    seg_index = seg_count
+                    seg_count += 1
+                    yield _located(SegmentStart(seg_index, seg_text))
                     audio_chunks = (
                         adapter.synthesize_to_audio_chunks_with_instructions(str(seg_text), instructions=instructions)
                         if instructions else adapter.synthesize_to_audio_chunks(str(seg_text))
@@ -1893,6 +1944,9 @@ class TtsMixin:
                         if first_chunk_t is None:
                             first_chunk_t = time.monotonic()
                         yield mono, int(sr_i)
+                    if cancel_event is not None and cancel_event.is_set():
+                        break  # this segment's audio was cut short: it never ends
+                    yield SegmentEnd(seg_index)
             finally:
                 t1 = time.monotonic()
                 synth_s = float(t1 - t0)

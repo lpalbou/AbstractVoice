@@ -1247,11 +1247,15 @@ def test_voice_capability_tts_stream_emits_wav_segment_and_done_event():
         speed = 1.0
         language = "en"
 
-        def speak_to_audio_chunks(self, text: str, *, voice=None, cancel_event=None):
+        def speak_to_audio_segments(self, text: str, *, voice=None, cancel_event=None):
+            from abstractvoice.tts.segments import SegmentEnd, SegmentStart
+
             assert text == "hello stream"
             assert voice is None
             assert cancel_event is not None
+            yield SegmentStart(0, "hello stream", 0, 12)
             yield [0.0, 0.25, -0.25], 24000
+            yield SegmentEnd(0)
 
         def pop_last_tts_metrics(self):
             return {"chunks": 1, "streaming": True}
@@ -1261,18 +1265,24 @@ def test_voice_capability_tts_stream_emits_wav_segment_and_done_event():
 
     events = list(_VoiceCapability(_Owner()).tts_stream("hello stream", cancel_event=threading.Event()))
 
-    assert [event["type"] for event in events] == ["audio", "done"]
+    assert [event["type"] for event in events] == ["audio", "segment_end", "done"]
     audio = events[0]
     assert audio["content_type"] == "audio/wav"
     assert audio["sequence"] == 0
+    assert (audio["segment"], audio["text_start"], audio["text_end"]) == (0, 0, 12)
+    assert events[1] == {
+        "type": "segment_end", "schema": "abstractvoice.tts_stream.segment_end.v1",
+        "segment": 0, "text_start": 0, "text_end": 12,
+    }
     with wave.open(io.BytesIO(audio["audio"]), "rb") as wf:
         assert wf.getnchannels() == 1
         assert wf.getsampwidth() == 2
         assert wf.getframerate() == 24000
         assert wf.getnframes() == 3
-    done = events[1]
+    done = events[2]
     assert done["ok"] is True
     assert done["single_chunk"] is True
+    assert done["segments"] == 1
     assert done["metrics"] == {"chunks": 1, "streaming": True}
 
 
@@ -1890,8 +1900,12 @@ def test_voice_capability_tts_stream_slices_long_segments_into_short_lines():
         speed = 1.0
         language = "en"
 
-        def speak_to_audio_chunks(self, text: str, *, voice=None, cancel_event=None):
+        def speak_to_audio_segments(self, text: str, *, voice=None, cancel_event=None):
+            from abstractvoice.tts.segments import SegmentEnd, SegmentStart
+
+            yield SegmentStart(0, text, 0, len(text))
             yield waveform, sr
+            yield SegmentEnd(0)
 
         def pop_last_tts_metrics(self):
             return {"chunks": 1, "segments": 1, "streaming": True}
@@ -1905,6 +1919,9 @@ def test_voice_capability_tts_stream_slices_long_segments_into_short_lines():
     audio = [e for e in events if e["type"] == "audio"]
     assert len(audio) >= 5, len(audio)
     assert [e["sequence"] for e in audio] == list(range(len(audio)))
+    # The slices of one segment share its index and span; one segment_end follows the last slice.
+    assert {(e["segment"], e["text_start"], e["text_end"]) for e in audio} == {(0, 0, 21)}
+    assert [e["type"] for e in events[len(audio):]] == ["segment_end", "done"]
     pcm = b""
     for e in audio:
         with wave.open(io.BytesIO(e["audio"]), "rb") as wf:

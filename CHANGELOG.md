@@ -10,6 +10,21 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Added
+
+- Streamed speech names its text segments, for an exact resume (ADR 0009). `VoiceManager.speak_to_audio_segments()`
+  yields `SegmentStart` / `SegmentEnd` markers around each segment's `(audio, sample_rate)` chunks
+  (`abstractvoice.tts.segments`); `SegmentStart.text_start` / `text_end` are the segment's code-point span of the text
+  you passed, with Markdown markers and collapsed whitespace mapped back. The AbstractCore plugin's `tts_stream` puts
+  `segment`, `text_start` and `text_end` on every `audio` event, sends a `segment_end` event after each segment's last
+  audio, and counts `segments` in `done`. After a break, request the text from `text_end` of the last `segment_end`
+  received and skip the seconds already received of the unfinished segment: the seam is exact at a segment boundary
+  (whatever the engine samples) and within a few words inside a segment.
+  Qwen3-TTS clones mark each generation (`infer_to_audio_segments`); base engines mark each sentence group; other
+  clone engines and native-streaming engines speak the whole text as segment 0. The fields are additive.
+- `sanitize_markdown_with_index()` (`abstractvoice.text_sanitize`): the speech sanitizer plus the original index of
+  every kept character.
+
 ## [0.19.5] - 2026-11-02
 
 Version 0.19.4 was not published; its changes are part of this release.
