@@ -1871,3 +1871,61 @@ def test_voice_capability_management_uses_the_store_without_building_a_manager(t
     assert cap.delete_cloned_voice(voice_id)["deleted"] is True
     with pytest.raises(KeyError):
         store.get_voice(voice_id)
+
+
+def test_voice_capability_tts_stream_slices_long_segments_into_short_lines():
+    """A base-TTS segment of 10 s leaves as >= 5 lines of <= 2.05 s whose PCM concatenates byte-identically
+    (2026-11-01: a 12 s, 1.2 MB line gave a watch nothing to play until it had all of it)."""
+    import numpy as np
+    from abstractvoice.integrations.abstractcore_plugin import (
+        STREAM_LINE_MAX_SECONDS,
+        _audio_chunk_to_wav_segment_bytes,
+    )
+
+    sr = 24000
+    rng = np.random.default_rng(7)
+    waveform = (rng.standard_normal(10 * sr) * 0.3).astype(np.float32)
+
+    class _VM:
+        speed = 1.0
+        language = "en"
+
+        def speak_to_audio_chunks(self, text: str, *, voice=None, cancel_event=None):
+            yield waveform, sr
+
+        def pop_last_tts_metrics(self):
+            return {"chunks": 1, "segments": 1, "streaming": True}
+
+    class _Owner:
+        config = {"voice_manager_instance": _VM()}
+
+    assert STREAM_LINE_MAX_SECONDS == 2.0
+    events = list(_VoiceCapability(_Owner()).tts_stream("ten seconds of speech", cancel_event=threading.Event()))
+
+    audio = [e for e in events if e["type"] == "audio"]
+    assert len(audio) >= 5, len(audio)
+    assert [e["sequence"] for e in audio] == list(range(len(audio)))
+    pcm = b""
+    for e in audio:
+        with wave.open(io.BytesIO(e["audio"]), "rb") as wf:
+            assert wf.getframerate() == sr and wf.getnchannels() == 1 and wf.getsampwidth() == 2
+            assert wf.getnframes() / sr <= 2.05, wf.getnframes()
+            pcm += wf.readframes(wf.getnframes())
+    with wave.open(io.BytesIO(_audio_chunk_to_wav_segment_bytes(waveform, sr)), "rb") as wf:
+        whole = wf.readframes(wf.getnframes())
+    assert pcm == whole, "the slices must concatenate to the segment's own PCM"
+
+    done = events[-1]
+    assert done["type"] == "done" and done["ok"] is True
+    assert done["chunks"] == len(audio) and done["single_chunk"] is False  # chunks = lines sent
+    assert done["metrics"] == {"chunks": 1, "segments": 1, "streaming": True}  # the engine's own counts
+
+
+def test_voice_capability_tts_stream_leaves_short_chunks_whole():
+    import numpy as np
+    from abstractvoice.integrations.abstractcore_plugin import _split_audio_for_stream
+
+    short = np.zeros(24000, dtype=np.float32)  # 1 s at 24 kHz: one slice, the same array
+    assert [s.size for s in _split_audio_for_stream(short, 24000)] == [24000]
+    assert [s.size for s in _split_audio_for_stream(np.zeros(100000, dtype=np.float32), 24000)] == [48000, 48000, 4000]
+    assert [s.size for s in _split_audio_for_stream(np.zeros(0, dtype=np.float32), 24000)] == [0]

@@ -330,6 +330,26 @@ def _json_safe(value: Any) -> Any:
     return str(value)
 
 
+# Longest audio one streamed line carries (seconds). Base TTS engines hand over a
+# whole text segment at once (supertonic: up to ~16 s = 1.2 MB of 44.1 kHz WAV per
+# JSON line); a client can play nothing of a line before it has all of it, and a
+# slow link turns that into minutes of silence (2026-11-01, watch "Voice
+# unavailable"). The clone engines already stream ~1 s chunks, which pass unchanged.
+STREAM_LINE_MAX_SECONDS = 2.0
+
+
+def _split_audio_for_stream(audio_chunk: Any, sample_rate: Any, *, max_seconds: float = STREAM_LINE_MAX_SECONDS):
+    """The chunk as consecutive slices of at most ``max_seconds`` (a chunk within the cap is one slice)."""
+    import numpy as np
+
+    arr = np.asarray(audio_chunk).reshape(-1)
+    sr = int(sample_rate or 0)
+    step = int(float(max_seconds) * sr) if sr > 0 and float(max_seconds) > 0 else 0
+    if arr.size <= 0 or step <= 0 or arr.size <= step:
+        return [arr]
+    return [arr[start:start + step] for start in range(0, arr.size, step)]
+
+
 def _audio_chunk_to_wav_segment_bytes(audio_chunk: Any, sample_rate: Any) -> bytes:
     """Encode one mono float/int chunk as a standalone WAV segment."""
     import numpy as np
@@ -5142,26 +5162,30 @@ class _VoiceCapability(_BaseVoice):
                         if cancel_event is not None and cancel_event.is_set():
                             cancelled = True
                             break
-                        audio_bytes = _audio_chunk_to_wav_segment_bytes(audio_chunk, sample_rate)
-                        if not audio_bytes:
-                            continue
-                        yield {
-                            "type": "audio",
-                            "schema": "abstractvoice.tts_stream.audio.v1",
-                            "sequence": int(chunk_count),
-                            "content_type": "audio/wav",
-                            "format": "wav",
-                            "sample_rate": int(sample_rate or 0),
-                            "channels": 1,
-                            "audio": audio_bytes,
-                            "size_bytes": len(audio_bytes),
-                            "provider": active_provider or None,
-                            "model": model_name or requested_model or None,
-                            "voice": local_voice_name,
-                            "profile": profile_name or None,
-                            "delivery": "abstractvoice_audio_chunk",
-                        }
-                        chunk_count += 1
+                        # One line per <= STREAM_LINE_MAX_SECONDS of audio: a base-TTS segment
+                        # (up to ~16 s, 1.2 MB of 44.1 kHz WAV) is sliced so its first audio
+                        # reaches the client before the whole segment has downloaded.
+                        for piece in _split_audio_for_stream(audio_chunk, sample_rate):
+                            audio_bytes = _audio_chunk_to_wav_segment_bytes(piece, sample_rate)
+                            if not audio_bytes:
+                                continue
+                            yield {
+                                "type": "audio",
+                                "schema": "abstractvoice.tts_stream.audio.v1",
+                                "sequence": int(chunk_count),
+                                "content_type": "audio/wav",
+                                "format": "wav",
+                                "sample_rate": int(sample_rate or 0),
+                                "channels": 1,
+                                "audio": audio_bytes,
+                                "size_bytes": len(audio_bytes),
+                                "provider": active_provider or None,
+                                "model": model_name or requested_model or None,
+                                "voice": local_voice_name,
+                                "profile": profile_name or None,
+                                "delivery": "abstractvoice_audio_chunk",
+                            }
+                            chunk_count += 1
                     if cancel_event is not None and cancel_event.is_set():
                         cancelled = True
                 finally:
