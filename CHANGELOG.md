@@ -10,61 +10,56 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
-### Fixed
+## [0.19.5] - 2026-11-02
 
-- Audio output recovery preserves the unsubmitted current suffix and queued
-  speech, including when the reopened device negotiates a different sample
-  rate. Recovery never refreshes global PortAudio or invalidates microphone
-  streams. Hosts can inspect `NonBlockingAudioPlayer.playback_status()` and
-  call `recover_stream(cancelled=...)` from a worker thread to recover a
-  stalled output without replaying the message. Cancellation during reopening
-  or resampling discards the outgoing generation's pending speech.
-
-## [0.19.5] - 2026-10-29
-
-### Fixed
-
-- Cloned Qwen3-TTS speech streams continuously again. 0.19.4's speaker check held each verified 4 s block and released
-  it at once, and held every segment's opening: the stream reached the listener in 4-5 s lumps, and as soon as
-  synthesis slowed (a model generating on the same GPU) the listener ran out of audio (real weights, 80 s reply:
-  a 0.49 s gap at real-time factor 0.6, 1.7 s at 0.85; 5-6 chunks per lump at every speed). The check now runs as a
-  delay line: after the reply's first opening, each chunk is released once the 4 s window starting at it scores as
-  the clone, one chunk per generated chunk, across segment boundaries too (the next segment's opening is checked
-  while the previous one plays). When the listener has less than 1.5 s of audio in hand, the oldest chunk goes out
-  before its score and is still scored (`provisional_s` in the segment record); at ordinary speed nothing is
-  provisional. Same 80 s reply: no gap at 0.6 or 0.85, at most 2 chunks at once. Trade-off, stated plainly: at slow
-  generation (less than 1.5 s in hand) a chunk plays BEFORE it is scored, so up to one check window (4 s) of a
-  wrong voice can reach the listener before the check stops the reply; at ordinary speed nothing plays unverified. The one-voice rule is unchanged: a
-  segment that opens in another voice is regenerated once, then the reply stops with `ClonedVoiceNotAppliedError`
-  naming it; verified audio queued before a stop is delivered first. The audio itself is bit-identical with and
-  without the check. Backlog 057.
-
-## [0.19.4] - 2026-10-29
-
-### Fixed
-
-- A Qwen3-TTS cloned voice no longer switches to a stock-sounding voice for part of a reply. The 0.6B Base checkpoint
-  sometimes samples a whole generation in another voice from the same clone prompt; a long reply is several
-  generations (800 characters each on MLX, 120 on PyTorch), so one of them could come out in another voice while
-  the stream reported success (seen live: generation 9 of the 11 of an 8 kB reply read in the operator's clone). Each
-  generation's audio is now scored with the checkpoint's own speaker encoder against the clone before it is
-  delivered: the opening is held back (released at 2 s when clearly the clone, else decided at 4 s), a generation
-  that opens in another voice is discarded and run again once, and a second miss, or a voice change part-way through
-  a generation, raises `ClonedVoiceNotAppliedError` naming the text segment. Nothing in another voice is delivered.
-  First audio of a cloned reply waits for the check (about 0.5 to 1.1 s on MLX). `Qwen3TTSRuntime.speaker_similarity()`
-  is the scoring primitive; `ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK=0` disables the check and
-  `ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY` retunes the opening threshold (default 0.95). Backlog 056.
+Version 0.19.4 was not published; its changes are part of this release.
 
 ### Added
 
 - Per-segment records of a cloned synthesis (Qwen3-TTS): index, characters, first words, model, backend, dtype,
-  reference file, attempts, speaker scores, audio seconds, status (`ok` / `regenerated` / `failed` / `cancelled` /
-  `error`) and error. They are logged at INFO, kept on the engine (`last_segments`, `VoiceCloner.last_segment_records()`),
-  added to the streamed-speech metrics as `segments` (so they reach a gateway artifact's
-  `capability_metadata.terminal_event.metrics`), and carried by `ClonedVoiceNotAppliedError.segments`.
+  reference file, attempts, speaker scores, audio seconds, seconds released before their score (`provisional_s`),
+  status (`ok` / `regenerated` / `failed` / `cancelled` / `error`) and error. They are logged at INFO, kept on the
+  engine (`last_segments`, `VoiceCloner.last_segment_records()`), added to the streamed-speech metrics as `segments`
+  (so they reach a gateway artifact's `capability_metadata.terminal_event.metrics`), and carried by
+  `ClonedVoiceNotAppliedError.segments`.
 - `reference_seconds` on cloned-voice records: the length of the reference recording (`VoiceCloneStore.list_voices()`
-  / `get_voice_dict()`, so the plugin's `get_cloned_voice`), and `tags.reference_seconds` on the plugin's voice listings.
-  None for built-in voices.
+  / `get_voice_dict()`, so the plugin's `get_cloned_voice`), and `tags.reference_seconds` on the plugin's voice
+  listings. None for built-in voices.
+- `Qwen3TTSRuntime.speaker_similarity()`: scores audio against a clone prompt with the checkpoint's own speaker
+  encoder.
+- `NonBlockingAudioPlayer.playback_status()` and `recover_stream(cancelled=...)`: a host can inspect playback and
+  recover a stalled output from a worker thread without replaying the message.
+
+### Changed
+
+- AbstractCore plugin `tts_stream(...)`: each `audio` event carries at most 2 s of audio
+  (`STREAM_LINE_MAX_SECONDS`). A base-engine segment (Piper, Supertonic and the other non-clone engines hand over a
+  whole sentence group, up to about 16 s) is sliced into consecutive standalone WAV segments, so a client on a slow
+  link starts playing before the whole segment has downloaded. Clone chunks (about 1 s) pass unchanged. The slices
+  concatenate to the segment's exact PCM. `done.chunks` counts the `audio` events sent; `done.metrics` keeps the
+  engine's own counts.
+
+### Fixed
+
+- A Qwen3-TTS cloned reply is spoken in one voice or fails loudly. The 0.6B Base checkpoint occasionally samples a
+  whole generation in another voice from the same clone prompt, and a long reply is several generations. Each
+  generation is scored against the clone before its audio is delivered:
+  - the reply's opening is held back (released at 2 s when clearly the clone, else decided at 4 s; first audio of a
+    cloned reply waits for it, about 0.5 to 1.1 s on MLX);
+  - after the opening, delivery is continuous: each chunk is released once the 4 s window starting at it scores as
+    the clone, one chunk per generated chunk, across segment boundaries (the next segment's opening is checked
+    while the previous one plays);
+  - a generation that opens in another voice is discarded and run again once; a second miss, or a voice change
+    part-way through, raises `ClonedVoiceNotAppliedError` naming the text segment; audio verified before a stop is
+    delivered first.
+  - When synthesis is slower than playback and the listener has less than 1.5 s of audio in hand, the oldest chunk
+    is released before its score and still scored (`provisional_s`). Up to one 4 s window of another voice can then
+    be heard before the reply stops; at ordinary speed nothing unverified plays.
+  - `ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK=0` disables the check and `ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY`
+    retunes the opening threshold (default 0.95). The audio itself is identical with and without the check.
+- Audio output recovery preserves the unsubmitted current suffix and queued speech, including when the reopened
+  device negotiates a different sample rate. Recovery never refreshes global PortAudio or invalidates microphone
+  streams. Cancellation during reopening or resampling discards the outgoing generation's pending speech.
 
 ## [0.19.3] - 2026-10-28
 

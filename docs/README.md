@@ -29,6 +29,7 @@ local engines in the same install.
 
 ## User-facing docs
 
+- **Overview (what the package does)**: `docs/overview.md`
 - **FAQ**: `docs/faq.md`
 - **Troubleshooting (symptom → fix)**: `docs/troubleshooting.md`
 - **Known issues**: `docs/known-issues.md`
@@ -41,6 +42,7 @@ local engines in the same install.
 - **Built-in voices (70 ready-made Qwen3-TTS voices in six languages)**: `docs/voice-pack.md`
 - **Benchmarks (TTS-only)**: `docs/benchmark.md`
 - **Preload benchmarks (local TTS/STT)**: `examples/bench_preload_local_models.py`
+- **Acronyms**: `docs/acronyms.md`
 
 ## For integrators
 
@@ -52,6 +54,7 @@ local engines in the same install.
 
 - **Changelog**: `CHANGELOG.md`
 - **Contributing**: `CONTRIBUTING.md`
+- **Development notes (contributors)**: `docs/development.md`
 - **Code of conduct**: `CODE_OF_CONDUCT.md`
 - **Bug reports**: `.github/ISSUE_TEMPLATE/bug_report.yml`
 - **Security**: `SECURITY.md`

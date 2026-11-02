@@ -28,7 +28,7 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
 
-Status: **alpha** (`0.10.x`). The base install and library constructor are
+Status: **alpha**. What's new in each release: [`CHANGELOG.md`](CHANGELOG.md). The base install and library constructor are
 remote-first: `VoiceManager()` and library `auto` select hosted OpenAI audio and require
 `OPENAI_API_KEY` (or `remote_api_key=...`). Local/offline stacks are available
 through `abstractvoice[apple]` / `abstractvoice[gpu]` or granular engine

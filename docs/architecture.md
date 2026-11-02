@@ -66,6 +66,9 @@ flowchart TB
   Cloner --> OtherClone["OmniVoice · OpenF5 · Chroma<br/>AudioDiT · remote"]
   Cloner --> QwenClone["Qwen3 clone engine"]
   QwenClone --> Runtime["Qwen3TTSRuntime<br/>MLX or PyTorch"]
+  QwenClone --> Check["Speaker check<br/>speaker_similarity() per generation,<br/>delay line before delivery"]
+  Check -->|"one voice"| Out["audio chunks"]
+  Check -->|"second miss"| Err["ClonedVoiceNotAppliedError"]
 ```
 
 ### Listening
@@ -263,6 +266,20 @@ When installed alongside `abstractcore`, AbstractVoice exposes a capability plug
 It provides:
 - a voice backend (TTS+STT) that can optionally store generated audio into an `artifact_store`
 - an audio backend (STT) for transcription-only use
+
+The voice backend's `tts_stream(...)` turns `VoiceManager.speak_to_audio_chunks()` into
+transport-safe events: one standalone WAV segment per `audio` event, at most 2 s of
+audio each (`STREAM_LINE_MAX_SECONDS`), then a `done` (or `cancelled`) event with the
+engine's metrics. See `docs/api.md` for the event fields.
+
+```mermaid
+flowchart LR
+  Core["AbstractCore<br/>core.voice.tts_stream()"] --> Cap["_VoiceCapability.tts_stream"]
+  Cap --> VM["VoiceManager<br/>speak_to_audio_chunks()"]
+  VM -->|"(audio, sample_rate)"| Split["slices of at most 2 s"]
+  Split --> Audio["audio events<br/>standalone WAV, sequence 0..n"]
+  Cap --> Done["done / cancelled event<br/>chunks, metrics"]
+```
 
 The local FastAPI web UI (`abstractvoice web`) is a small example wrapper around
 `VoiceManager` for quick browser testing. Its local `/api/*` routes map directly
