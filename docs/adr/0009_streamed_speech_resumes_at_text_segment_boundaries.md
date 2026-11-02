@@ -41,10 +41,13 @@ generation of a known slice of the text, and its audio speaks exactly that slice
   2 s slices of one segment share them) and writes one
   `{"type": "segment_end", "segment", "text_start", "text_end"}` event after a segment's
   last audio. `done` carries `segments`, the number of segments ended.
-- The client retry rule: after a break, request the text from `text_end` of the last
-  `segment_end` received (from the start when there is none), and discard the audio of
-  the segment that had no `segment_end`. Offsets in the retried stream index the retried
-  text.
+- The client retry rule (hybrid): after a break, keep all the audio received; request the
+  text from `text_end` of the last `segment_end` received (from the start when there is
+  none); when the break fell inside a segment, also skip the new stream's first seconds,
+  as many as were received of that unfinished segment. Offsets in the retried stream
+  index the retried text. The seam is exact at a segment boundary and approximate (a few
+  words) inside a segment; a piece is never replayed whole. Clients do not shrink their
+  pieces to get finer segments: one voice per reply (ADR 0008) outranks a finer seam.
 - AbstractVoice is the authoritative producer. Hosts between the plugin and the client
   (AbstractRuntime, AbstractGateway) forward the text and these fields unchanged; they do
   not strip the text, renumber segments, or derive their own offsets.
@@ -53,19 +56,21 @@ generation of a known slice of the text, and its audio speaks exactly that slice
 
 ### Positive
 
-- Resume is exact for every engine, whatever it samples: no word is repeated or missed
-  at the seam.
+- At a segment boundary, resume is exact for every engine, whatever it samples: no word
+  is repeated or missed at the seam.
 - Clients need no timing model of the engine and no text matching; the offsets index
   their own text.
 - The fields are additive: existing clients that ignore them keep working.
 
 ### Negative
 
-- A segment is the resume unit. Audio of a partially received segment is discarded, so a
-  break in a long segment repeats it from its start. On the MLX backend a clone reply of
-  up to 800 characters is one generation (ADR 0008), so a client that sends 600-character
-  pieces restarts the piece it was in. Finer resume would need finer generations, which
-  trades against one voice per reply.
+- Inside a segment the seam stays approximate. On the MLX backend a clone reply of up to
+  800 characters is one generation (ADR 0008), so a client's 600-character piece is often
+  one segment. Discarding its partial audio would replay up to the whole piece, so the
+  client skips the seconds it already has instead; a sampling engine speaks the text with
+  different timing on the retry, so that seam can land a few words early or late. Exact
+  seams inside a generation would need finer generations, which trade against one voice
+  per reply.
 - An emphasis marker that spans two segments (`*first. second.*`) leaves its closing
   marker in the retried text. The contract is exact for plain text; clients that resume
   send plain text.
@@ -91,8 +96,10 @@ generation of a known slice of the text, and its audio speaks exactly that slice
   with punctuation, numbers and emoji; Markdown markers map back; the remainder after any
   segment speaks exactly the rest; base, native and clone paths mark segments in delivery
   order (through a speaker-check regeneration and with the check off); a cancelled
-  segment never ends; the plugin's lines carry the fields on every slice; the client retry
-  rule, applied after every line of a stream, loses and repeats nothing.
+  segment never ends; the plugin's lines carry the fields on every slice; resuming from the
+  last `segment_end`, after every line of a stream in turn, loses and repeats nothing at
+  the boundary. The seconds skip inside the unfinished segment is tested in the clients
+  (abstractassistant `AbstractGatewayClient`).
 - `tests/test_voice_cloner_engine_dispatch.py`: an engine without
   `infer_to_audio_segments` is one segment.
 - AbstractGateway `tests/test_voice_stream_segments.py`: the text reaches the engine as

@@ -799,18 +799,18 @@ integration code:
   - Yields `audio` events (`schema: "abstractvoice.tts_stream.audio.v1"`), each a standalone mono 16-bit WAV segment in `audio` (`content_type: "audio/wav"`, `sample_rate`, `size_bytes`, `sequence` from 0), then one final event: `done` or, when `cancel_event` was set, `cancelled` (`schema: "abstractvoice.tts_stream.done.v1"`, `ok`, `chunks`, `single_chunk`, `metrics`). Only `format="wav"` is streamed; any other format raises `ValueError`.
   - Each `audio` event carries at most 2 s of audio (`STREAM_LINE_MAX_SECONDS` in `abstractvoice.integrations.abstractcore_plugin`): a longer engine segment (base engines hand over a whole sentence group) is sent as consecutive slices that concatenate to the segment's exact PCM, so a client can start playing before the whole segment has downloaded. Qwen3-TTS clone chunks (about 1 s) pass unchanged. `chunks` counts the `audio` events sent; `metrics` carries the engine's own counts (`chunks`, `segments`, per-segment clone records).
   - Text segments (ADR 0009): every `audio` event carries `segment` (its text segment, from 0) and that segment's `text_start` / `text_end` (code-point offsets `[start, end)` into the request `text`, as for `speak_to_audio_segments`); all slices of one segment share them. After a segment's last slice comes `{"type": "segment_end", "schema": "abstractvoice.tts_stream.segment_end.v1", "segment", "text_start", "text_end"}`. `done.segments` counts the segments ended. Skip event types you do not know.
-  - Resuming a broken stream: request the text from `text_end` of the last `segment_end` you received (from the start when there is none), and discard the audio of the segment that had no `segment_end`. The retried stream's offsets index the retried text. Each segment is one synthesis of exactly its text, so nothing is repeated or missed at the seam, whatever the engine samples; a break inside a long segment repeats that segment from its start (a Qwen3-TTS clone reply of up to 800 characters is one generation on MLX). Offsets are exact for plain text; an emphasis marker spanning two segments (`*first. second.*`) leaves its closing marker in the remaining text.
+  - Resuming a broken stream: keep (and play) all the audio you received. Request the text again from `text_end` of the last `segment_end` you received (from the start when there is none); the retried stream's offsets index the retried text. When the break fell inside a segment, also skip the first seconds of the new stream's audio, as many as you already received of that unfinished segment. At a segment boundary the seam is exact: each segment is one synthesis of exactly its text, so no word is repeated or missed, whatever the engine samples. Inside a segment the seam is approximate: a sampling engine (Qwen3-TTS, cloned voices above all) speaks the same text with different timing on the retry, so the seam can land a few words early or late. Nothing is ever replayed whole. The skip matters because one segment can be long: a Qwen3-TTS clone reply of up to 800 characters is one generation on MLX (one voice per reply, ADR 0008). Offsets are exact for plain text; an emphasis marker spanning two segments (`*first. second.*`) leaves its closing marker in the remaining text.
 
   ```python
-  received_end = 0          # text_end of the last segment received whole
-  pending = []              # audio of the segment in progress
+  resume_at = 0         # text_end of the last segment received whole
+  partial_s = 0.0       # seconds received of the segment in progress
   for event in core.voice.tts_stream(text):
       if event["type"] == "audio":
-          pending.append(event["audio"])
+          play(event["audio"])
+          partial_s += seconds_of(event["audio"])
       elif event["type"] == "segment_end":
-          play(pending); pending = []
-          received_end = event["text_end"]
-  # after a break: core.voice.tts_stream(text[received_end:])
+          resume_at, partial_s = event["text_end"], 0.0
+  # after a break: core.voice.tts_stream(text[resume_at:]), skipping its first partial_s seconds of audio
   ```
 - `stt(audio, *, provider=None, model=None, language=None, ...) -> str`
 - `transcribe(audio, *, provider=None, model=None, language=None, ...) -> str`

@@ -254,7 +254,9 @@ def test_stream_lines_carry_the_segment_and_its_span_and_end_marks_follow_the_la
 
 
 def test_the_client_retry_rule_loses_and_repeats_nothing():
-    """Break after every line in turn; resume per the documented rule; the heard text is the whole text."""
+    """Break after every line in turn; resume from the last segment_end: the finished segments plus the retry's
+    are the whole text (the boundary part of the hybrid rule; the seconds skip inside the unfinished segment is
+    the client's)."""
     text = FRENCH + " " + ENGLISH
     lines = _stream(_VM(_Adapter(max_chars=120)), text)
     for cut in range(len(lines) - 1):

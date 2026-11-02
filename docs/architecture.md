@@ -274,7 +274,7 @@ span of the request text; a `segment_end` event after each segment's last audio;
 `done` (or `cancelled`) event with the engine's metrics. The engine marks its own
 generations (Qwen3-TTS through its delivery outbox, base engines per sentence group);
 `SegmentLocator` maps each one back to the caller's text, so a client resumes a broken
-stream at a segment boundary with nothing repeated or missed (ADR 0009). See
+stream from the last segment it received whole, exactly at that boundary (ADR 0009). See
 `docs/api.md` for the event fields and the retry rule.
 
 ```mermaid

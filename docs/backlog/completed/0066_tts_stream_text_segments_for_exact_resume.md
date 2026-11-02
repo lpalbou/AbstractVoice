@@ -8,8 +8,9 @@
 
 ## Main goals
 
-- A client whose speech stream broke resumes with no repeated and no missing word, for every engine, including
-  the sampled Qwen3-TTS clone.
+- A client whose speech stream broke resumes from the last segment it received whole with no repeated and no
+  missing word, for every engine, including the sampled Qwen3-TTS clone; inside a segment it skips the seconds it
+  already has (within a few words), never replaying a piece.
 
 ## Secondary goals
 
@@ -45,7 +46,8 @@ carried only `sequence`, format and sample rate.
 - `tests/test_tts_stream_segments.py` (19 tests): exact spans on French and English text with punctuation, numbers
   and emoji (ZWJ family, skin tone); Markdown mapping; remainder after any segment == the rest; base, native and clone
   (MLX native and torch, through a regeneration, speaker check off) in delivery order; cancelled segment never ends;
-  plugin lines; the client retry rule applied after every line loses and repeats nothing.
+  plugin lines; resuming from the last `segment_end` after every line in turn loses and repeats nothing at the
+  boundary.
 - `tests/test_voice_cloner_engine_dispatch.py`: an engine without `infer_to_audio_segments` is segment 0.
 - Mutations turned red: end marker yielded directly instead of through the outbox; no marker extension in the
   locator (end and start); speaker-check-off chunks bypassing the outbox; base path without `SegmentEnd`.
@@ -60,7 +62,8 @@ carried only `sequence`, format and sample rate.
 
 ## Follow-ups
 
-- Apple clients (`SpeechEvent` in abstractassistant's `AbstractGatewayClient`) decode the fields and apply the retry
-  rule.
+- Apple clients (`SpeechEvent` in abstractassistant's `AbstractGatewayClient`) decode the fields and apply the hybrid
+  retry rule (coordinator decision 2026-11-02): exact at segment boundaries, the existing seconds skip
+  (`SpeechPieceRetry`) inside the unfinished segment.
 - Resume granularity on MLX is one generation (up to 800 characters per reply, ADR 0008): finer resume would need
   shorter generations, a trade against one voice per reply.

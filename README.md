@@ -25,7 +25,7 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
   in one language for the whole reply, with the silence between segments trimmed
   (Qwen3-TTS on Apple silicon streams a reply up to 800 characters as ONE generation, in codec frames);
   `speak_to_audio_segments()` and the plugin's `tts_stream` name each chunk's text segment with exact offsets into
-  your text, so a broken stream resumes with nothing repeated or missed
+  your text, so a broken stream resumes from the last segment received whole, exactly at that boundary
 - **Voice cloning / heavier TTS (optional)**: OmniVoice is the recommended/default local cloning backend; OpenF5, Chroma, and AudioDiT remain explicit alternatives. Supertonic is fixed-profile TTS, not cloning.
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`

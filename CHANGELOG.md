@@ -18,7 +18,8 @@ Older changelog entries may reference historical CLI commands or model choices.
   you passed, with Markdown markers and collapsed whitespace mapped back. The AbstractCore plugin's `tts_stream` puts
   `segment`, `text_start` and `text_end` on every `audio` event, sends a `segment_end` event after each segment's last
   audio, and counts `segments` in `done`. After a break, request the text from `text_end` of the last `segment_end`
-  received and discard the partial segment's audio: nothing is repeated or missed, whatever the engine samples.
+  received and skip the seconds already received of the unfinished segment: the seam is exact at a segment boundary
+  (whatever the engine samples) and within a few words inside a segment.
   Qwen3-TTS clones mark each generation (`infer_to_audio_segments`); base engines mark each sentence group; other
   clone engines and native-streaming engines speak the whole text as segment 0. The fields are additive.
 - `sanitize_markdown_with_index()` (`abstractvoice.text_sanitize`): the speech sanitizer plus the original index of
