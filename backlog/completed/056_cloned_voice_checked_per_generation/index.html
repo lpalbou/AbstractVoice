@@ -1,0 +1,1526 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first TTS/STT, streaming voice output, and optional voice cloning for AI applications.">
+      
+      
+      
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/completed/056_cloned_voice_checked_per_generation/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>056 cloned voice checked per generation - AbstractVoice</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#task-056-a-qwen3-tts-cloned-reply-is-in-one-voice-or-it-fails-loudly" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="AbstractVoice" class="md-header__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AbstractVoice
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              056 cloned voice checked per generation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="AbstractVoice" class="md-nav__button md-logo" aria-label="AbstractVoice" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AbstractVoice
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lpalbou/abstractvoice" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lpalbou/abstractvoice
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../repl_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Local Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../model-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voice_cloning_2026/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Cloning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../multilingual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multilingual Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voice-pack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Voices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../voices-and-licenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voices and Licenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Support
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../known-issues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Issues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../acronyms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acronyms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0001-local_assistant_out_of_box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001 - Local Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0002_barge_in_interruption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0002 - Barge-In
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0003_cloning_reference_text_fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0003 - Reference Text Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0004_streaming_and_cancellation_for_cloned_tts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0004 - Cloned TTS Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0005_torch_device_and_dtype_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0005 - Torch Device and Dtype
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0006_voice_overlays_are_package_owned_not_generic_adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0006 - Voice Overlays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0007_directed_speech_requests_and_planning_are_package_owned/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0007 - Directed Speech Requests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../adr/0008_qwen3_tts_backend_selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0008 - Qwen3-TTS Backend Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#task-056-a-qwen3-tts-cloned-reply-is-in-one-voice-or-it-fails-loudly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 056: a Qwen3-TTS cloned reply is in ONE voice, or it fails loudly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context / problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#not-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not done
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#follow-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Follow-ups
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>056 cloned voice checked per generation</h1>
+
+<h2 id="task-056-a-qwen3-tts-cloned-reply-is-in-one-voice-or-it-fails-loudly">Task 056: a Qwen3-TTS cloned reply is in ONE voice, or it fails loudly<a class="headerlink" href="#task-056-a-qwen3-tts-cloned-reply-is-in-one-voice-or-it-fails-loudly" title="Permanent link">&para;</a></h2>
+<p><strong>Date</strong>: 2026-10-29<br />
+<strong>Status</strong>: Completed (0.19.4)<br />
+<strong>Priority</strong>: P1  </p>
+<hr />
+<h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>One cloned reply is spoken in one voice. A generation that comes out in another voice is regenerated once; if it
+  still does not carry the clone, synthesis stops and names the text segment. Never a silent speaker switch.</li>
+</ul>
+<hr />
+<h2 id="context-problem">Context / problem<a class="headerlink" href="#context-problem" title="Permanent link">&para;</a></h2>
+<p>Operator report, 2026-10-29 ~03:12-03:15 CET: an AbstractCode automation's reply (8 kB of text), read aloud through
+the gateway in the cloned voice "sisko" (<code>qwen3-tts</code>, <code>Qwen/Qwen3-TTS-12Hz-0.6B-Base</code>), was sisko for the first part,
+a stock-sounding male voice for the "middle paragraphs", and sisko again from "It's an attacker that walks in through
+your vendor".</p>
+<p>Evidence (read-only, gateway data dir):</p>
+<ul>
+<li>One artifact holds the reply (<code>df965b6d12e6e9d42c70b4e6491bc5d5</code>, child run <code>7981cef4-…</code>, one attempt, terminal
+  event <code>ok</code>, 452 wav-segment chunks, <code>engine: clone</code>, <code>clone_engine: qwen3-tts</code>, <code>voice_id</code> sisko). One request, one
+  voice, one model, no retry and no error.</li>
+<li>Code path: plugin <code>tts_stream</code> → <code>vm.speak_to_audio_chunks(voice=sisko)</code> → <code>VoiceCloner.speak_to_audio_chunks</code> →
+  <code>Qwen3TTSVoiceCloningEngine.infer_to_audio_chunks</code>. The MLX backend (auto on Apple silicon, 8-bit) splits the
+  sanitized text (8032 chars) into 11 segments of at most 800 chars (<code>NATIVE_STREAM_MAX_CHARS</code>) and runs ONE
+  <code>stream_clone</code> generation per segment with the SAME clone prompt object (built once per reply). No audio cache
+  exists anywhere on the path (abstractvoice, AbstractRuntime <code>stream_voice</code>, gateway stream route).</li>
+<li>The artifact WAV was aligned to those 11 segments with Whisper word timestamps (large-v3-turbo, 1269 of 1338 words
+  matched) and scored in 3 s windows with the 0.6B Base checkpoint's own speaker encoder against sisko's reference
+  clip. Segment 8 (293.5-328.5 s, "The question for your team is no longer…" to "The agent is no longer a tool.")
+  scores 0.930 against the reference and 0.958 against the reply's own sisko audio; every other segment scores
+  0.963-0.983 and 0.982-0.993. The change is exactly at the segment boundaries, and segment 9 starts with "It's an
+  attacker that walks in". Other speakers in the operator's voice library score 0.87-0.944 against the same reference.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>seg</th>
+<th>audio (s)</th>
+<th>chars</th>
+<th>first words</th>
+<th>first 4 s vs ref</th>
+<th>mean vs ref</th>
+<th>mean vs reply's sisko</th>
+<th>voice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0.0-41.0</td>
+<td>786</td>
+<td>Here's your digest, written to be…</td>
+<td>0.979</td>
+<td>0.977</td>
+<td>0.993</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>1</td>
+<td>41.0-78.6</td>
+<td>750</td>
+<td>The agents walked in through the…</td>
+<td>0.986</td>
+<td>0.981</td>
+<td>0.990</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>2</td>
+<td>78.6-116.6</td>
+<td>796</td>
+<td>Now, the other half of the…</td>
+<td>0.990</td>
+<td>0.982</td>
+<td>0.990</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>3</td>
+<td>116.6-154.6</td>
+<td>791</td>
+<td>It's going first to selected cyber…</td>
+<td>0.987</td>
+<td>0.976</td>
+<td>0.988</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>4</td>
+<td>154.6-192.3</td>
+<td>703</td>
+<td>Researchers at Huntress documented the ConnectWise…</td>
+<td>0.969</td>
+<td>0.963</td>
+<td>0.982</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>5</td>
+<td>192.3-227.0</td>
+<td>678</td>
+<td>Microsoft recorded attempted sign-ins against more…</td>
+<td>0.987</td>
+<td>0.983</td>
+<td>0.989</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>6</td>
+<td>227.0-262.4</td>
+<td>755</td>
+<td>The big one: the high-risk regime…</td>
+<td>0.986</td>
+<td>0.982</td>
+<td>0.989</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>7</td>
+<td>262.4-293.5</td>
+<td>699</td>
+<td>First, if you run systems, the…</td>
+<td>0.981</td>
+<td>0.977</td>
+<td>0.991</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>8</td>
+<td>293.5-328.5</td>
+<td>745</td>
+<td>The question for your team is…</td>
+<td>0.941</td>
+<td>0.930</td>
+<td>0.958</td>
+<td><strong>another voice</strong></td>
+</tr>
+<tr>
+<td>9</td>
+<td>328.5-357.5</td>
+<td>596</td>
+<td>It's an attacker that walks in…</td>
+<td>0.969</td>
+<td>0.979</td>
+<td>0.992</td>
+<td>sisko</td>
+</tr>
+<tr>
+<td>10</td>
+<td>357.5-413.5</td>
+<td>702</td>
+<td>Sources for this edition: TechRadar…</td>
+<td>0.968</td>
+<td>0.976</td>
+<td>0.989</td>
+<td>sisko</td>
+</tr>
+</tbody>
+</table>
+<p>Every row: prompt = sisko ICL (ref_0.wav, 3.9 s, manual transcript), model <code>Qwen3-TTS-12Hz-0.6B-Base</code>, backend MLX
+8-bit, native stream; no audio cache exists.</p>
+<p>Cause: the model, not a code path. Real weights, isolated process, same settings: segment 8's exact text came out
+in sisko 6 of 6 times, while segment 0's exact text once came out in another voice (0.932). Over 70+ generations of
+five clones, two (sisko, reference 3.9 s; hal9000-qwen2, 6.4 s) open a generation in a stock voice in roughly 5-15%
+of generations (sisko 0 of 12 to 2 of 8 per batch, hal9000-qwen2 up to 3 of 7); three did not in 8 tries each
+(hal9000-qwen 3.5 s, pavel 2.85 s, pascale-qwen 20.5 s). Reference length does not predict it on this sample.
+Sampling at the "low" quality preset (temperature 0.7) did not prevent it. The
+generation reports success, so nothing upstream could notice.</p>
+<p>Ruled out: (a) an audio cache keyed without the voice (none exists; segment 8's text is unique to this reply);
+(c) routing to another engine, model or backend (one engine, one runtime, one prompt object per reply; the chunk
+count, 452, matches 11 MLX native streams); (b) a swallowed per-chunk clone failure, a dropped prompt or a stock
+speaker fallback (no such path; the prompt is rebuilt for every generation from the same arrays, and segment 8's
+text reproduces fine).</p>
+<h2 id="what-changed">What changed<a class="headerlink" href="#what-changed" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>Qwen3TTSRuntime.speaker_similarity(audio, clone_prompt=, sample_rate=)</code>: cosine between the speaker of <code>audio</code>
+  and the prompt's speaker embedding, with the same Base speaker encoder (MLX and PyTorch). Lock-free: it is called
+  while a clone stream holding the generation lock is suspended between chunks.</li>
+<li><code>Qwen3TTSVoiceCloningEngine</code> checks every generation (chunked, native stream, buffered and one-shot):</li>
+<li>the opening is held back and scored: released at 2 s when &gt;= 0.975, else decided at 4 s against 0.95;</li>
+<li>a miss closes that generation (releasing the model) and runs it again once; a second miss raises
+    <code>ClonedVoiceNotAppliedError</code> (segment index and count, text, scores, threshold);</li>
+<li>after the opening, each 4 s block is scored before release; below 0.93 raises (<code>mid_segment=True</code>), since the
+    start of the segment was already heard;</li>
+<li>audio under 1 s is too short to judge and passes.</li>
+<li>Per-segment records (engine <code>last_segments</code>, <code>VoiceCloner.last_segment_records()</code>, INFO log, stream metrics
+  <code>segments</code>, <code>ClonedVoiceNotAppliedError.segments</code>).</li>
+<li><code>reference_seconds</code> on clone records (store list/get; plugin <code>tags.reference_seconds</code>).</li>
+<li><code>ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK=0</code> disables the check; <code>ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY</code>
+  retunes the opening threshold. Explicit constructor arguments win.</li>
+<li>Cost: first audio of each generation waits for the check, ~0.5 s (2 s release) or ~1.1 s (4 s) at the MLX
+  backend's real-time factor; later generations are checked while the previous one plays.</li>
+</ul>
+<p>Calibration (cosine vs the reference embedding, MLX 8-bit): clone openings &gt;= 0.956 at 4 s (n=43 + the 10 sisko
+segments above), later clone blocks &gt;= 0.948 (n=182); stock-voice openings &lt;= 0.941 at 4 s and none &gt;= 0.975 at 2 s;
+stock-voice and runaway blocks &lt;= 0.92.</p>
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>tests/test_qwen3_tts_clone_speaker_check.py</code> (weight-free): regenerate-once and fail-loudly on both the MLX native
+  stream and the PyTorch segment path, the held opening (2 s early release, 4 s decision), a voice change part-way,
+  buffered and one-shot synthesis, too-short audio, the environment overrides, <code>speaker_similarity</code> itself, and a
+  guard that no per-text audio cache exists. Red with the check bypassed (7 of 9 engine tests fail), with
+  <code>SPEAKER_RETRIES = 0</code> (5 fail), without the mid-segment block check (1 fails) and without the 2 s early release
+  (1 fails).</li>
+<li><code>test_every_segment_leaves_a_traceable_record_and_metrics_carry_them</code> and
+  <code>test_clone_records_carry_the_reference_length</code>: red without the metrics line, without the exception's records,
+  without the store field and without the listing tag, respectively.</li>
+<li>Fast suite (<code>pytest -m "not integration and not model_download"</code>): 893 passed, 4 skipped.</li>
+<li>Real weights (0.6B Base, MLX 8-bit, isolated process, voice store read-only), check ON:</li>
+<li>the exact reply, twice, all 11 segments: no regeneration, no failure, every scored block 0.946-0.989
+    (no false alarm on the incident text);</li>
+<li>28 single-segment replies (420 chars; sisko and hal9000-qwen2, 14 each): hal9000-qwen2 0 interventions; sisko 3:
+    two openings in another voice (0.948 and 0.623 at 4 s) regenerated, the regenerations delivered at 0.943 and
+    0.969 over the whole; one voice change part-way (0.977 → 0.886 after 30 s, past where the text should have
+    ended: a runaway tail) stopped loudly as <code>ClonedVoiceNotAppliedError</code>, segment named. First audio: 0.5-1.0 s
+    (1.3-2.7 s with a regeneration), against 0.14 s before.</li>
+</ul>
+<h2 id="not-done">Not done<a class="headerlink" href="#not-done" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Carrying the previous verified segment forward into the next segment's ICL prompt (to lower the miss rate before
+  detecting it) was proposed but not measured; it is not in this change. The proposal rested on "short references
+  drift", which the data above contradicts.</li>
+<li>No short-reference warning: reference length does not predict the misses on this sample. Only the length is
+  exposed (<code>reference_seconds</code>).</li>
+</ul>
+<h2 id="follow-ups">Follow-ups<a class="headerlink" href="#follow-ups" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The opening threshold sits close to the clone's own lowest opening scores (0.95 vs 0.956). A voice
+  whose clone scores lower against its own reference (noisy clip) would fail loudly; the environment override is the
+  escape hatch. A sturdier anchor is the clone's own synthesized audio (genuine vs genuine &gt;= 0.989, stock vs genuine
+  &lt;= 0.952) rather than the reference recording.</li>
+<li>A regeneration that passes its opening can still sit in the band between the clone's lowest blocks (0.948) and the
+  block stop (0.93): sisko run 7 above was delivered at 0.936-0.953. Not verified by ear.</li>
+<li>The runtime's stream error event (<code>abstractruntime</code> <code>run_facade.stream_voice</code>, the <code>except Exception</code> branch near
+  line 722) records <code>str(exc)</code> only; to put the records of a failed reply in the child run too, it would add
+  <code>getattr(exc, "segments", None)</code> to the event. Not changed here (another package).</li>
+<li>One calibration generation (hal9000-qwen2, temperature 0.7) missed its EOS and ran to the runaway cap (160 s for
+  420 chars); the block check catches its tail (0.88) but the cap itself is generous.</li>
+<li>Which voices are prone is not explained: reference length does not predict it (two of the three clones that never
+  missed have the shortest references).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

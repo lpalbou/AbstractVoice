@@ -1574,7 +1574,10 @@ transcription go through the recognizer. Playback can feed the recognizer for ec
   Store --&gt; Builtin[("built-in voice pack&lt;br/&gt;read-only clone prompts")]
   Cloner --&gt; OtherClone["OmniVoice · OpenF5 · Chroma&lt;br/&gt;AudioDiT · remote"]
   Cloner --&gt; QwenClone["Qwen3 clone engine"]
-  QwenClone --&gt; Runtime["Qwen3TTSRuntime&lt;br/&gt;MLX or PyTorch"]</code></pre>
+  QwenClone --&gt; Runtime["Qwen3TTSRuntime&lt;br/&gt;MLX or PyTorch"]
+  QwenClone --&gt; Check["Speaker check&lt;br/&gt;speaker_similarity() per generation,&lt;br/&gt;delay line before delivery"]
+  Check --&gt;|"one voice"| Out["audio chunks"]
+  Check --&gt;|"second miss"| Err["ClonedVoiceNotAppliedError"]</code></pre>
 <h3 id="listening">Listening<a class="headerlink" href="#listening" title="Permanent link">&para;</a></h3>
 <p>Every speech-to-text engine implements <code>STTAdapter</code>; the recognizer adds the microphone and voice activity detection.</p>
 <pre class="mermaid"><code>flowchart TB
@@ -1695,6 +1698,28 @@ each utterance. If that device cannot be opened, playback falls back to the
 system default only and reports it through <code>on_output_device_problem</code>; a
 stream the OS stopped (sleep, USB interruption) is reopened on the next
 utterance without losing queued audio.</p>
+<p><code>NonBlockingAudioPlayer.playback_status()</code> returns a snapshot of
+<code>frames_written</code>, <code>pending_frames</code>, <code>is_playing</code>, <code>paused</code>, <code>stream_active</code>,
+<code>sample_rate</code>, <code>callback_error</code>, and <code>recovering_output</code>. Frame counts refer
+to samples submitted to the output, not proof of acoustic delivery. A host
+can use progress to suspend stall accounting during pause, and call
+<code>recover_stream(cancelled=...)</code> once from its playback worker when output
+stops progressing. AbstractVoice owns device and queue recovery; the host
+owns the generation, pause policy, retry budget and user reporting.</p>
+<p>Recovery closes the old output before collecting its unsubmitted suffix and
+queued arrays, converts those arrays if the output sample rate changes,
+and preserves pause state. It never refreshes global PortAudio, because that
+would invalidate microphone streams. The cancellation predicate is checked
+before and after opening and resampling so an outgoing generation cannot be
+requeued after cancellation. A disconnected device can still lose frames
+already submitted to its hardware buffer; recovery does not replay those
+frames or restart the message. Optional callback hooks run outside the
+short buffer lock, and progress snapshots use constant-time queue accounting.
+For GUI cancellation, <code>try_stop_stream()</code> first requests cancellation and
+returns <code>False</code> if another control operation owns the output lock. The host
+can detach that player and finish <code>stop_stream()</code> on a worker; the in-flight
+open or recovery observes the cancellation before enqueueing any more audio.
+An uncontended <code>try_stop_stream()</code> performs the normal output stop itself.</p>
 <p>Discovery follows the same policy from the other direction: asking which providers and models are
 available is a filesystem question, answered by <code>abstractvoice/local_models.py</code> without importing an
 engine runtime or loading weights. A local engine is discoverable when its runtime is importable and
@@ -1723,6 +1748,16 @@ loading or downloading the model.</p>
 <p>It provides:
 - a voice backend (TTS+STT) that can optionally store generated audio into an <code>artifact_store</code>
 - an audio backend (STT) for transcription-only use</p>
+<p>The voice backend's <code>tts_stream(...)</code> turns <code>VoiceManager.speak_to_audio_chunks()</code> into
+transport-safe events: one standalone WAV segment per <code>audio</code> event, at most 2 s of
+audio each (<code>STREAM_LINE_MAX_SECONDS</code>), then a <code>done</code> (or <code>cancelled</code>) event with the
+engine's metrics. See <code>docs/api.md</code> for the event fields.</p>
+<pre class="mermaid"><code>flowchart LR
+  Core["AbstractCore&lt;br/&gt;core.voice.tts_stream()"] --&gt; Cap["_VoiceCapability.tts_stream"]
+  Cap --&gt; VM["VoiceManager&lt;br/&gt;speak_to_audio_chunks()"]
+  VM --&gt;|"(audio, sample_rate)"| Split["slices of at most 2 s"]
+  Split --&gt; Audio["audio events&lt;br/&gt;standalone WAV, sequence 0..n"]
+  Cap --&gt; Done["done / cancelled event&lt;br/&gt;chunks, metrics"]</code></pre>
 <p>The local FastAPI web UI (<code>abstractvoice web</code>) is a small example wrapper around
 <code>VoiceManager</code> for quick browser testing. Its local <code>/api/*</code> routes map directly
 to <code>VoiceManager</code> functions and include browser-only conveniences such as
