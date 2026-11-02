@@ -264,7 +264,7 @@ def test_clone_speak_to_audio_chunks_suppresses_unsupported_speed() -> None:
         def get_cloned_voice(self, voice_id: str) -> dict[str, str]:
             return {"engine": "audiodit", "voice_id": voice_id}
 
-        def speak_to_audio_chunks(
+        def speak_to_audio_segments(
             self,
             text: str,
             *,
