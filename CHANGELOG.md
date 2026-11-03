@@ -10,6 +10,8 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-03
+
 ### Added
 
 - Streamed speech names its text segments, for an exact resume (ADR 0009). `VoiceManager.speak_to_audio_segments()`

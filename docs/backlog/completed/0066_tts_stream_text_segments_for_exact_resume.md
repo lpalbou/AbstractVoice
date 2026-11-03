@@ -1,7 +1,7 @@
 ## Task 0066: tts_stream names each audio line's text segment, for an exact resume
 
 **Date**: 2026-11-02  
-**Status**: Completed (unreleased)  
+**Status**: Completed (0.20.0)  
 **Priority**: P1  
 
 ---
