@@ -1195,6 +1195,9 @@ the policy changes.</p>
   Runs Qwen3-TTS on MLX on Apple silicon and on PyTorch elsewhere, behind one
   runtime: explicit backend policy, strict loading of the original weights,
   frame-level streaming of one generation per reply.</li>
+<li><a href="0009_streamed_speech_resumes_at_text_segment_boundaries/">ADR 0009</a> — Accepted.
+  Streamed speech names each audio chunk's text segment with exact offsets into
+  the caller's text; a client resumes a broken stream at a segment boundary.</li>
 </ul>
 <h2 id="working-rules">Working rules<a class="headerlink" href="#working-rules" title="Permanent link">&para;</a></h2>
 <ul>

@@ -1748,16 +1748,24 @@ loading or downloading the model.</p>
 <p>It provides:
 - a voice backend (TTS+STT) that can optionally store generated audio into an <code>artifact_store</code>
 - an audio backend (STT) for transcription-only use</p>
-<p>The voice backend's <code>tts_stream(...)</code> turns <code>VoiceManager.speak_to_audio_chunks()</code> into
+<p>The voice backend's <code>tts_stream(...)</code> turns <code>VoiceManager.speak_to_audio_segments()</code> into
 transport-safe events: one standalone WAV segment per <code>audio</code> event, at most 2 s of
-audio each (<code>STREAM_LINE_MAX_SECONDS</code>), then a <code>done</code> (or <code>cancelled</code>) event with the
-engine's metrics. See <code>docs/api.md</code> for the event fields.</p>
+audio each (<code>STREAM_LINE_MAX_SECONDS</code>), each naming its text segment and that segment's
+span of the request text; a <code>segment_end</code> event after each segment's last audio; then a
+<code>done</code> (or <code>cancelled</code>) event with the engine's metrics. The engine marks its own
+generations (Qwen3-TTS through its delivery outbox, base engines per sentence group);
+<code>SegmentLocator</code> maps each one back to the caller's text, so a client resumes a broken
+stream from the last segment it received whole, exactly at that boundary (ADR 0009). See
+<code>docs/api.md</code> for the event fields and the retry rule.</p>
 <pre class="mermaid"><code>flowchart LR
   Core["AbstractCore&lt;br/&gt;core.voice.tts_stream()"] --&gt; Cap["_VoiceCapability.tts_stream"]
-  Cap --&gt; VM["VoiceManager&lt;br/&gt;speak_to_audio_chunks()"]
-  VM --&gt;|"(audio, sample_rate)"| Split["slices of at most 2 s"]
-  Split --&gt; Audio["audio events&lt;br/&gt;standalone WAV, sequence 0..n"]
-  Cap --&gt; Done["done / cancelled event&lt;br/&gt;chunks, metrics"]</code></pre>
+  Cap --&gt; VM["VoiceManager&lt;br/&gt;speak_to_audio_segments()"]
+  Eng["engine generations&lt;br/&gt;SegmentStart, audio, SegmentEnd"] --&gt; VM
+  VM --&gt;|"SegmentLocator: text_start, text_end"| Cap
+  Cap --&gt; Split["slices of at most 2 s"]
+  Split --&gt; Audio["audio events&lt;br/&gt;sequence 0..n, segment, text_start, text_end"]
+  Cap --&gt; End["segment_end event&lt;br/&gt;after each segment's last slice"]
+  Cap --&gt; Done["done / cancelled event&lt;br/&gt;chunks, segments, metrics"]</code></pre>
 <p>The local FastAPI web UI (<code>abstractvoice web</code>) is a small example wrapper around
 <code>VoiceManager</code> for quick browser testing. Its local <code>/api/*</code> routes map directly
 to <code>VoiceManager</code> functions and include browser-only conveniences such as
