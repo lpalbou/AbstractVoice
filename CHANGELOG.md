@@ -10,6 +10,12 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Fixed
+
+- Microphone visual levels follow the recent voice range, matching the Apple
+  client’s adaptive dB scaling. Quiet speech now moves the meter; near-silent
+  integer PCM is scaled correctly and silence decays back to zero.
+
 ## [0.20.0] - 2026-11-03
 
 ### Added

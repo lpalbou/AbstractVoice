@@ -12,6 +12,7 @@ import re
 
 from .stop_phrase import is_stop_phrase
 from .audio.resample import linear_resample_mono
+from .audio.levels import VoiceLevelNormalizer
 
 # Lazy imports for heavy dependencies
 def _import_audio_deps():
@@ -175,6 +176,7 @@ class VoiceRecognizer:
         self.listening_paused = False  # Can be paused to completely stop processing audio
         self.audio_level_callback = audio_level_callback
         self._audio_level_ema = 0.0
+        self._audio_level_normalizer = VoiceLevelNormalizer()
         # While TTS is playing (esp. without AEC), we often want to suppress normal
         # transcriptions to avoid self-feedback loops, but still allow stop phrase.
         self.transcriptions_paused = False
@@ -273,7 +275,7 @@ class VoiceRecognizer:
             self.last_stt_metrics = metrics
             self._invoke_callback("transcription_callback", self.transcription_callback, text)
 
-    def _emit_audio_level(self, chunk) -> None:
+    def _emit_audio_level(self, chunk, *, speech: Optional[bool] = None) -> None:
         """Emit normalized mic level (0..1) from the current input chunk."""
         cb = self.audio_level_callback
         if cb is None:
@@ -283,19 +285,26 @@ class VoiceRecognizer:
                 raw = float(chunk)
                 level = max(0.0, min(1.0, raw))
             else:
-                arr = np.asarray(chunk, dtype=np.float32)
+                raw = np.asarray(chunk)
+                arr = raw.astype(np.float32)
                 if arr.size <= 0:
                     level = 0.0
                 else:
                     if arr.ndim > 1:
                         arr = arr.mean(axis=1)
                     max_abs = float(np.max(np.abs(arr))) if arr.size > 0 else 0.0
-                    if max_abs > 1.5:
+                    if np.issubdtype(raw.dtype, np.integer) or max_abs > 1.5:
                         arr = arr / 32768.0
                     rms = float(np.sqrt(np.mean(np.square(arr)))) if arr.size > 0 else 0.0
-                    # Gentle noise floor + gain tuned for speech in typical laptop mics.
-                    level = (rms - 0.004) / 0.18
-                    level = max(0.0, min(1.0, level))
+                    normalizer = getattr(self, "_audio_level_normalizer", None)
+                    if normalizer is None:
+                        normalizer = self._audio_level_normalizer = VoiceLevelNormalizer()
+                    level = normalizer.push(rms, peak=float(np.max(np.abs(arr))),
+                                            seconds=len(arr) / float(getattr(self, "sample_rate", 16000)),
+                                            speech=speech)
+                    self._audio_level_ema = level
+                    cb(level)
+                    return
             self._audio_level_ema = (0.65 * float(self._audio_level_ema)) + (0.35 * float(level))
             cb(float(max(0.0, min(1.0, self._audio_level_ema))))
         except Exception:
@@ -666,7 +675,6 @@ class VoiceRecognizer:
                     if overflowed and self.debug_mode:
                         print(" > Mic input overflow")
                     audio_data = audio_chunk.tobytes()
-                    self._emit_audio_level(audio_chunk)
 
                     # Optional AEC: remove speaker echo from mic input before VAD/STT.
                     if self.aec_enabled and self._aec:
@@ -681,6 +689,7 @@ class VoiceRecognizer:
 
                     # Check for speech
                     is_speech = self.voice_detector.is_speech(audio_data)
+                    self._emit_audio_level(audio_chunk, speech=is_speech)
 
                     if is_speech:
                         speech_buffer.append(audio_data)
