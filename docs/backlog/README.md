@@ -4,11 +4,18 @@ This folder is the **single source of truth** for planned and completed work in 
 
 ## Current snapshot
 
-- Updated: 2026-11-02
+- Updated: 2026-11-06
 - Planned: 16
-- Proposed: 11
+- Proposed: 12
 - Completed: 44
+- Deprecated: 0
 - Recurrent: 1
+
+Counts include topic folders. Intake 0067 found existing duplicate legacy numeric
+IDs 0001, 0032, 0043, 0055, 0056, 0057 and 0058 (including three-digit spellings),
+plus legacy date-named/three-digit files. They are flagged for dedicated hygiene;
+this intake preserves their paths and assigns the unused global ID 0067.
+Agora was unavailable at intake; 0067's hub mirror remains pending.
 
 ### Principles
 
@@ -88,6 +95,10 @@ Rationale:
 
 ## Other current proposed items
 
+- [0067 Explicit clone validation and segment retry policy](proposed/0067_explicit_clone_validation_and_segment_retry_policy.md):
+  P2; make extra same-clone computation optional and calibrate borderline scores.
+  Promote after operator scheduling and agreement on package-owned policy/defaults;
+  Gateway follow-up 1010 depends on that contract.
 - `docs/backlog/proposed/0055_elevenlabs_music_backend_boundary_learnings.md`: captures lessons
   from AbstractMusic's ElevenLabs Music backend so any future ElevenLabs voice work stays scoped to
   AbstractVoice and does not couple to music runtime code.
