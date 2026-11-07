@@ -70,7 +70,8 @@ flowchart TB
   Check -->|"the clone"| Out["audio chunks"]
   Check -->|"opening under the bar"| Retry["regenerate once,<br/>then keep that take"]
   Retry --> Out
-  Check -->|"voice changes part-way"| Err["ClonedVoiceNotAppliedError"]
+  Check -->|"later window under the block bar"| Rec["recorded in low_windows,<br/>playback continues"]
+  Rec --> Out
 ```
 
 ### Listening

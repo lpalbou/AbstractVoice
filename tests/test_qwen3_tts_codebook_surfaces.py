@@ -335,3 +335,48 @@ def test_plugin_backend_setting_typo_fails_loudly(monkeypatch):
     with pytest.raises(ValueError, match="backend"):
         cap._get_vm()
     assert built == []
+
+
+# --- clone speaker check: a setting on every surface, never an environment variable ----------
+
+
+def test_speaker_check_settings_reach_the_clone_engine(monkeypatch):
+    from abstractvoice.cloning.manager import VoiceCloner
+    import abstractvoice.vm.manager as manager
+
+    engine = VoiceCloner(
+        allow_downloads=False, qwen3_tts_speaker_check=False, qwen3_tts_min_speaker_similarity=0.9
+    )._get_engine("qwen3-tts")
+    assert (engine.speaker_check, engine.min_speaker_similarity) == (False, 0.9)
+    assert VoiceCloner(allow_downloads=False)._get_engine("qwen3-tts").speaker_check is True  # the default
+
+    monkeypatch.setattr(manager, "create_tts_adapter", lambda **kwargs: (None, kwargs["engine"]))
+    vm = manager.VoiceManager(
+        tts_engine="qwen3-tts", stt_engine="openai", qwen3_tts_speaker_check=False, qwen3_tts_min_speaker_similarity=0.9
+    )
+    assert (vm.qwen3_tts_speaker_check, vm.qwen3_tts_min_speaker_similarity) == (False, 0.9)
+    engine = vm._get_voice_cloner()._get_engine("qwen3-tts")
+    assert (engine.speaker_check, engine.min_speaker_similarity) == (False, 0.9)
+    with pytest.raises(ValueError, match="qwen3_tts_min_speaker_similarity"):
+        manager.VoiceManager(tts_engine="qwen3-tts", stt_engine="openai", qwen3_tts_min_speaker_similarity=1.5)
+
+
+def test_plugin_speaker_check_settings_reach_the_voice_manager(monkeypatch):
+    plugin, built = _recording_voice_manager(monkeypatch)
+    cap = plugin._VoiceCapability(
+        _Owner({"voice_qwen3_tts_speaker_check": "false", "voice_qwen3_tts_min_speaker_similarity": "0.9"})
+    )
+    cap._get_vm()
+    assert (built[0]["qwen3_tts_speaker_check"], built[0]["qwen3_tts_min_speaker_similarity"]) == (False, 0.9)
+    plugin, built = _recording_voice_manager(monkeypatch)
+    plugin._VoiceCapability(_Owner({}))._get_vm()
+    assert (built[0]["qwen3_tts_speaker_check"], built[0]["qwen3_tts_min_speaker_similarity"]) == (None, None)
+
+
+def test_plugin_speaker_check_setting_typo_fails_loudly(monkeypatch):
+    plugin, built = _recording_voice_manager(monkeypatch)
+    with pytest.raises(ValueError, match="speaker_check"):
+        plugin._VoiceCapability(_Owner({"voice_qwen3_tts_speaker_check": "maybe"}))._get_vm()
+    with pytest.raises(ValueError, match="min_speaker_similarity"):
+        plugin._VoiceCapability(_Owner({"voice_qwen3_tts_min_speaker_similarity": "high"}))._get_vm()
+    assert built == []

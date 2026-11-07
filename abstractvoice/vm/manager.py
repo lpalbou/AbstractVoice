@@ -55,6 +55,8 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         qwen3_tts_sampler: str | None = None,
         qwen3_tts_backend: str | None = None,  # auto | mlx | torch (ADR 0008)
         qwen3_tts_mlx_quantization: str | None = None,  # auto | bf16 | 8bit | 4bit
+        qwen3_tts_speaker_check: bool | None = None,  # clone speaker check on (default) / off
+        qwen3_tts_min_speaker_similarity: float | None = None,  # clone bar for a segment's opening (default 0.95)
         voice_store_dir: str | None = None,
         voice_library_dirs: list[str] | None = None,
     ):
@@ -100,6 +102,15 @@ class VoiceManager(VoiceManagerCore, TtsMixin, SttMixin):
         # Validated before any engine is built: a typo is a ValueError, not a silent default.
         self.qwen3_tts_backend = normalize_backend(qwen3_tts_backend)
         self.qwen3_tts_mlx_quantization = normalize_mlx_quantization(qwen3_tts_mlx_quantization)
+        # The Qwen3-TTS clone speaker check (cloning/engine_qwen3_tts.py): a setting on every surface,
+        # never an environment variable. None = the engine's defaults.
+        self.qwen3_tts_speaker_check = None if qwen3_tts_speaker_check is None else bool(qwen3_tts_speaker_check)
+        self.qwen3_tts_min_speaker_similarity = None
+        if qwen3_tts_min_speaker_similarity is not None:
+            bar = float(qwen3_tts_min_speaker_similarity)
+            if not (0.0 < bar <= 1.0):
+                raise ValueError(f"qwen3_tts_min_speaker_similarity must be in (0, 1], got {bar!r}")
+            self.qwen3_tts_min_speaker_similarity = bar
 
         requested_engine = str(tts_engine or "openai").strip().lower().replace("_", "-") or "openai"
 

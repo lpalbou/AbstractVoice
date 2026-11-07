@@ -3,15 +3,16 @@
 A Qwen3-TTS clone generation whose audio does not carry the cloned speaker is
 never delivered on its first take: a generation that opens under the clone bar is
 regenerated once, a second miss is spoken anyway in the cloned voice (operator ruling
-2026-11-05/07), and a generation whose voice changes part-way raises before the changed
-block plays.
+2026-11-05/07), and a window that dips under the block bar after the opening is recorded
+(``low_windows``) while the reply keeps playing: nothing stops a reply after its opening
+(operator ruling 2026-11-07: a hard failure is worse than a small difference).
 """
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from abstractvoice.cloning.engine_qwen3_tts import ClonedVoiceNotAppliedError, Qwen3TTSVoiceCloningEngine
+from abstractvoice.cloning.engine_qwen3_tts import Qwen3TTSVoiceCloningEngine
 from abstractvoice.qwen3_tts.runtime import Qwen3TTSSettings
 
 SR = 24000
@@ -156,16 +157,19 @@ def test_an_unsure_opening_is_held_until_the_full_check_window():
     assert rt.gens[0].closed  # a consumer that stops reading releases the model
 
 
-def test_a_voice_change_part_way_raises_before_the_changed_block_plays():
-    # The opening is the clone; from chunk 5 on (the second 4 s block) the voice is another one.
+def test_a_voice_change_part_way_is_recorded_and_the_reply_keeps_playing():
+    # The opening is the clone; from chunk 5 on (the second 4 s block) the voice scores as another one.
+    # Nothing stops: the whole segment is heard, and the record says where it dipped and how far.
     rt = _RT(lambda seg, att, k: STOCK if (seg == 0 and k >= 5) else CLONE, native=True, seconds=12.0)
-    delivered = []
-    with pytest.raises(ClonedVoiceNotAppliedError) as info:
-        for audio, sr in _speak(_engine(rt)):
-            delivered.append(audio)
-    assert info.value.mid_segment and info.value.segment_index == 0
-    assert "changed part-way" in str(info.value)
-    assert max(_untag(a[0])[2] for a in delivered) < 5  # no audio of the changed block was delivered
+    engine = _engine(rt)
+    delivered = [audio for audio, _ in _speak(engine)]
+    assert rt.attempts[rt.texts[0]] == 1  # the opening was the clone: never regenerated
+    assert max(_untag(a[0])[2] for a in delivered if _untag(a[0])[0] == 0) == 12  # every chunk of segment 0 played
+    rec = engine.last_segments[0]
+    assert rec["status"] == "ok" and rec["attempts"] == 1
+    assert rec["low_windows"] and all(abs(w["score"] - STOCK) < 1e-3 and w["score"] < w["limit"] for w in rec["low_windows"])
+    assert rec["low_windows"][0]["at_s"] == pytest.approx(3 * STEP / SR, abs=0.01)  # first window holding chunk 5
+    assert all(r["low_windows"] == [] for r in engine.last_segments[1:])  # the other segments were the clone
 
 
 def test_buffered_and_one_shot_synthesis_are_checked_too():
@@ -229,21 +233,16 @@ def test_runtime_speaker_similarity_compares_against_the_prompt_embedding():
             ref_codes=None, speaker_embedding=np.ones(5, dtype=np.float32), x_vector_only_mode=True, ref_text=None))
 
 
-def test_the_environment_can_disable_or_retune_the_check(monkeypatch):
-    from abstractvoice.cloning import engine_qwen3_tts as mod
-
-    monkeypatch.setenv(mod.SPEAKER_CHECK_ENV, "0")
-    monkeypatch.setenv(mod.MIN_SPEAKER_SIMILARITY_ENV, "0.9")
-    engine = Qwen3TTSVoiceCloningEngine(allow_downloads=False)
-    assert engine.speaker_check is False and engine.min_speaker_similarity == 0.9
-    assert Qwen3TTSVoiceCloningEngine(allow_downloads=False, speaker_check=True).speaker_check is True  # argument wins
-    monkeypatch.setenv(mod.SPEAKER_CHECK_ENV, "maybe")
-    with pytest.raises(ValueError, match="SPEAKER_CHECK"):
-        Qwen3TTSVoiceCloningEngine(allow_downloads=False)
-    monkeypatch.delenv(mod.SPEAKER_CHECK_ENV)
-    monkeypatch.delenv(mod.MIN_SPEAKER_SIMILARITY_ENV)
+def test_the_check_is_a_constructor_setting_never_the_environment(monkeypatch):
+    # Root backlog 1066: settings, not environment variables. The variables of 0.20.x are ignored.
+    monkeypatch.setenv("ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK", "0")
+    monkeypatch.setenv("ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY", "0.5")
     engine = Qwen3TTSVoiceCloningEngine(allow_downloads=False)
     assert engine.speaker_check is True and engine.min_speaker_similarity == Qwen3TTSVoiceCloningEngine.MIN_SPEAKER_SIMILARITY
+    engine = Qwen3TTSVoiceCloningEngine(allow_downloads=False, speaker_check=False, min_speaker_similarity=0.9)
+    assert engine.speaker_check is False and engine.min_speaker_similarity == 0.9
+    with pytest.raises(ValueError, match="min_speaker_similarity"):
+        Qwen3TTSVoiceCloningEngine(allow_downloads=False, min_speaker_similarity=1.5)
 
 
 def test_every_segment_leaves_a_traceable_record_and_metrics_carry_them():
@@ -258,12 +257,14 @@ def test_every_segment_leaves_a_traceable_record_and_metrics_carry_them():
     assert all(r["model"].endswith("-Base") and r["backend"] == "mlx" and r["reference"] == "ref.wav" for r in recs)
     assert all(r["audio_s"] > 0 and r["chars"] > 0 and r["first_words"].startswith("Paragraph") for r in recs)
 
-    # The loud failure (a voice change part-way, the one case that still stops) carries the records too.
+    # A voice change part-way is recorded, never a stop: every segment is spoken, the record says where it dipped.
     rt = _RT(lambda seg, att, k: STOCK if (seg == 1 and k >= 5) else CLONE, native=True, seconds=12.0)
     engine = _engine(rt)
-    with pytest.raises(ClonedVoiceNotAppliedError) as info:
-        list(_speak(engine))
-    assert [r["status"] for r in info.value.segments] == ["ok", "failed"]
+    list(_speak(engine))
+    recs = engine.last_segments
+    assert len(recs) == len(rt.texts) == 3 and [r["status"] for r in recs] == ["ok", "ok", "ok"]
+    assert recs[1]["low_windows"] and all(w["score"] < w["limit"] for w in recs[1]["low_windows"])
+    assert recs[0]["low_windows"] == [] and recs[2]["low_windows"] == []
 
     # VoiceManager stream metrics (what lands in the artifact's terminal_event.metrics) include them.
     from abstractvoice.cloning.manager import VoiceCloner

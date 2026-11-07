@@ -17,8 +17,18 @@ Older changelog entries may reference historical CLI commands or model choices.
   better than to default to a random voice"). A segment whose opening scores under `MIN_SPEAKER_SIMILARITY` is still
   regenerated once while nothing of it was heard; if the second take also scores under it, that take is spoken in the
   cloned voice (logged, and recorded with status `kept_below_threshold`) instead of raising
-  `ClonedVoiceNotAppliedError` and leaving the rest of the reply unspoken. A kept take is judged against its own opening
-  afterwards (`KEPT_TAKE_DRIFT_MARGIN`), so only a real voice change part-way still stops the reply.
+  `ClonedVoiceNotAppliedError` and leaving the rest of the reply unspoken. After the opening, every 4 s window is
+  scored for the record only: one under the block bar (`MIN_BLOCK_SPEAKER_SIMILARITY`, or a kept take's own bar,
+  `KEPT_TAKE_DRIFT_MARGIN`) is logged and listed in the segment record's `low_windows` (time, score, limit) while
+  playback continues (operator ruling 2026-11-07: "a hard failure is worse than playing the voice with a small
+  delta"). The Qwen3 clone engine no longer raises `ClonedVoiceNotAppliedError`; the class stays importable for callers
+  that catch it.
+- **The clone speaker check is a setting, never an environment variable** (root backlog 1066). The
+  `ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK` and `ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY` reads are gone;
+  `VoiceManager(qwen3_tts_speaker_check=..., qwen3_tts_min_speaker_similarity=...)`, the AbstractCore plugin settings
+  `voice_qwen3_tts_speaker_check` / `voice_qwen3_tts_min_speaker_similarity`, `VoiceCloner(...)` and
+  `Qwen3TTSVoiceCloningEngine(speaker_check=..., min_speaker_similarity=...)` carry the choice; a bar outside (0, 1]
+  is a `ValueError` at construction.
 
 ## [0.20.1] - 2026-11-07
 

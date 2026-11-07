@@ -69,6 +69,8 @@ class VoiceCloner:
         qwen3_tts_sampler: str | None = None,
         qwen3_tts_backend: str | None = None,
         qwen3_tts_mlx_quantization: str | None = None,
+        qwen3_tts_speaker_check: bool | None = None,
+        qwen3_tts_min_speaker_similarity: float | None = None,
         openai_base_url: str | None = None,
         openai_api_key: str | None = None,
     ):
@@ -90,6 +92,9 @@ class VoiceCloner:
         self._qwen3_tts_sampler = qwen3_tts_sampler
         self._qwen3_tts_backend = qwen3_tts_backend
         self._qwen3_tts_mlx_quantization = qwen3_tts_mlx_quantization
+        # The clone speaker check (engine_qwen3_tts): settings, never environment variables.
+        self._qwen3_tts_speaker_check = qwen3_tts_speaker_check
+        self._qwen3_tts_min_speaker_similarity = qwen3_tts_min_speaker_similarity
         self._engines: Dict[str, Any] = {}
         self._quality_preset = "standard"
 
@@ -169,6 +174,8 @@ class VoiceCloner:
                 sampler=self._qwen3_tts_sampler,
                 backend=self._qwen3_tts_backend,
                 mlx_quantization=self._qwen3_tts_mlx_quantization,
+                speaker_check=self._qwen3_tts_speaker_check,
+                min_speaker_similarity=self._qwen3_tts_min_speaker_similarity,
             )
         elif name in _REMOTE_CLONING_ENGINES:
             from .engine_remote import RemoteVoiceCloningEngine

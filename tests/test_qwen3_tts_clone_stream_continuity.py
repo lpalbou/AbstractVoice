@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from abstractvoice.cloning.engine_qwen3_tts import ClonedVoiceNotAppliedError, Qwen3TTSVoiceCloningEngine
+from abstractvoice.cloning.engine_qwen3_tts import Qwen3TTSVoiceCloningEngine
 from abstractvoice.qwen3_tts.runtime import Qwen3TTSSettings
 
 SR = 24000

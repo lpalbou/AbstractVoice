@@ -1768,6 +1768,7 @@ class _BaseVoice:
         # fail loudly (ValueError), not silently fall back to the defaults.
         qwen3_tts_predictor, qwen3_tts_sampler = self._qwen3_tts_codebook_settings()
         qwen3_tts_backend, qwen3_tts_mlx_quantization = self._qwen3_tts_backend_settings()
+        qwen3_tts_speaker_check, qwen3_tts_min_speaker_similarity = self._qwen3_tts_speaker_check_settings()
 
         key = (
             str(language),
@@ -1789,6 +1790,8 @@ class _BaseVoice:
             qwen3_tts_sampler,
             qwen3_tts_backend,
             qwen3_tts_mlx_quantization,
+            qwen3_tts_speaker_check,
+            qwen3_tts_min_speaker_similarity,
             str(openai_api_key or ""),
             str(openai_base_url or ""),
         )
@@ -1816,6 +1819,8 @@ class _BaseVoice:
                     qwen3_tts_sampler=qwen3_tts_sampler,
                     qwen3_tts_backend=qwen3_tts_backend,
                     qwen3_tts_mlx_quantization=qwen3_tts_mlx_quantization,
+                    qwen3_tts_speaker_check=qwen3_tts_speaker_check,
+                    qwen3_tts_min_speaker_similarity=qwen3_tts_min_speaker_similarity,
                     openai_api_key=openai_api_key,
                     openai_base_url=openai_base_url,
                 )
@@ -1854,6 +1859,38 @@ class _BaseVoice:
             normalize_backend(cfg.get("voice_qwen3_tts_backend")),
             normalize_mlx_quantization(cfg.get("voice_qwen3_tts_mlx_quantization")),
         )
+
+    def _qwen3_tts_speaker_check_settings(self) -> tuple[bool | None, float | None]:
+        """The owner's `voice_qwen3_tts_speaker_check` (true | false) and
+        `voice_qwen3_tts_min_speaker_similarity` (the clone bar for a segment's opening, in (0, 1])
+        settings for Qwen3-TTS clones. Settings only, never environment variables (root backlog
+        1066). Unset = the engine's defaults; a typo is a ValueError, not a silent default."""
+        cfg = getattr(self._owner, "config", None)
+        cfg = cfg if isinstance(cfg, dict) else {}
+        check: bool | None
+        raw = cfg.get("voice_qwen3_tts_speaker_check")
+        if raw in (None, ""):
+            check = None
+        elif isinstance(raw, bool):
+            check = raw
+        else:
+            text = str(raw).strip().lower()
+            if text in ("1", "true", "on", "yes"):
+                check = True
+            elif text in ("0", "false", "off", "no"):
+                check = False
+            else:
+                raise ValueError(f"voice_qwen3_tts_speaker_check must be true or false, got {raw!r}")
+        bar: float | None = None
+        raw = cfg.get("voice_qwen3_tts_min_speaker_similarity")
+        if raw not in (None, ""):
+            try:
+                bar = float(raw)
+            except (TypeError, ValueError) as e:
+                raise ValueError(
+                    f"voice_qwen3_tts_min_speaker_similarity must be a number in (0, 1], got {raw!r}"
+                ) from e
+        return check, bar
 
     def _iter_known_vms(self):
         seen: set[int] = set()

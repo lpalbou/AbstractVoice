@@ -186,6 +186,8 @@ class TtsMixin:
                 qwen3_tts_sampler=getattr(self, "qwen3_tts_sampler", None),
                 qwen3_tts_backend=getattr(self, "qwen3_tts_backend", None),
                 qwen3_tts_mlx_quantization=getattr(self, "qwen3_tts_mlx_quantization", None),
+                qwen3_tts_speaker_check=getattr(self, "qwen3_tts_speaker_check", None),
+                qwen3_tts_min_speaker_similarity=getattr(self, "qwen3_tts_min_speaker_similarity", None),
             )
         return self._voice_cloner
 
