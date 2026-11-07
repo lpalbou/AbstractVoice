@@ -1285,12 +1285,18 @@
 <p>This folder is the <strong>single source of truth</strong> for planned and completed work in AbstractVoice.</p>
 <h2 id="current-snapshot">Current snapshot<a class="headerlink" href="#current-snapshot" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Updated: 2026-11-02</li>
+<li>Updated: 2026-11-06</li>
 <li>Planned: 16</li>
-<li>Proposed: 11</li>
+<li>Proposed: 12</li>
 <li>Completed: 44</li>
+<li>Deprecated: 0</li>
 <li>Recurrent: 1</li>
 </ul>
+<p>Counts include topic folders. Intake 0067 found existing duplicate legacy numeric
+IDs 0001, 0032, 0043, 0055, 0056, 0057 and 0058 (including three-digit spellings),
+plus legacy date-named/three-digit files. They are flagged for dedicated hygiene;
+this intake preserves their paths and assigns the unused global ID 0067.
+Agora was unavailable at intake; 0067's hub mirror remains pending.</p>
 <h3 id="principles">Principles<a class="headerlink" href="#principles" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Backlog items are self-contained</strong>: each task includes the outcome of research, key constraints, design choices, and the reasons for those choices (with references).</li>
@@ -1365,6 +1371,10 @@ the main stop/go gate. Recommended reading order:</p>
 </ul>
 <h2 id="other-current-proposed-items">Other current proposed items<a class="headerlink" href="#other-current-proposed-items" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="proposed/0067_explicit_clone_validation_and_segment_retry_policy/">0067 Explicit clone validation and segment retry policy</a>:
+  P2; make extra same-clone computation optional and calibrate borderline scores.
+  Promote after operator scheduling and agreement on package-owned policy/defaults;
+  Gateway follow-up 1010 depends on that contract.</li>
 <li><code>docs/backlog/proposed/0055_elevenlabs_music_backend_boundary_learnings.md</code>: captures lessons
   from AbstractMusic's ElevenLabs Music backend so any future ElevenLabs voice work stays scoped to
   AbstractVoice and does not couple to music runtime code.</li>
