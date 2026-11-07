@@ -3,6 +3,9 @@
 
 This is an expanded, agent-oriented repo index. For the short version, see `llms.txt`.
 
+Microphone visual feedback adapts to the recent speech range; quiet speech stays visible
+and silence decays to zero. The feedback does not change recorded audio or speech detection.
+
 Sources of truth:
 - Human entry flow: `README.md`
 - Supported integrator contract: `docs/api.md`
