@@ -1,5 +1,24 @@
 # Multilingual support
 
+## STT (speech → text)
+
+Every STT method takes `language`: `None` (the default) lets the engine detect the spoken
+language; a code such as `"fr"` fixes it and skips detection. The supported codes are the one list
+in `abstractvoice.stt.languages` (`en`, `fr`, `de`, `es`, `ru`, `zh`, `it`, `pt`, `ja`, `ko`, `ar`,
+`hi`, `nl`, `pl`, `vi`, `el`); `normalize_language("FR")` gives `"fr"` and refuses an unknown code
+with a sentence. `transcribe_detailed(...)` tells you what the engine was told and what it detected
+(see [api.md](./api.md#spoken-languages-and-the-engines-report)).
+
+```python
+from abstractvoice import VoiceManager
+from abstractvoice.stt import languages
+
+vm = VoiceManager(stt_engine="faster-whisper", whisper_model="base", allow_downloads=False)
+print(vm.transcribe_file("clip.wav"))                 # auto: the engine detects the language
+print(vm.transcribe_file("clip.wav", language="fr"))  # fixed: detection skipped
+print(languages.choices()[0])                        # {'value': 'auto', 'label': 'Auto (detected)'}
+```
+
 ## TTS (remote default, Piper and Supertonic local)
 
 `VoiceManager()` uses OpenAI remote audio by default and treats `language` as a

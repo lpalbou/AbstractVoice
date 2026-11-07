@@ -22,6 +22,7 @@ from typing import Optional, Dict, Any
 import wave
 
 from .base import STTAdapter
+from ..stt.languages import SUPPORTED_LANGUAGES
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +65,8 @@ class FasterWhisperAdapter(STTAdapter):
         return list(dict.fromkeys([*cls.MODELS.keys(), *cls._MODEL_ALIASES.keys()]))
     
     # Supported languages
-    LANGUAGES = [
-        'en', 'fr', 'de', 'es', 'ru', 'zh',  # Required 6
-        'it', 'pt', 'ja', 'ko', 'ar', 'hi',  # Additional common languages
-    ]
+    #: THE list (abstractvoice.stt.languages): every local STT engine advertises the same codes.
+    LANGUAGES = list(SUPPORTED_LANGUAGES)
     
     def __init__(
         self,
@@ -362,7 +361,9 @@ class FasterWhisperAdapter(STTAdapter):
             
             # Combine all segments
             text = " ".join([segment.text.strip() for segment in segments])
-            
+            # faster-whisper reports the language it used: the detected one under auto, the
+            # requested one otherwise. Kept for transcribe_detailed (the gateway's detected_language).
+            self._note_detected_language(getattr(info, "language", None))
             if language is None:
                 logger.debug(f"Detected language: {info.language} (confidence: {info.language_probability:.2f})")
             
@@ -470,6 +471,7 @@ class FasterWhisperAdapter(STTAdapter):
                     without_timestamps=True,
                 )
             text = " ".join([segment.text.strip() for segment in segments])
+            self._note_detected_language(getattr(info, "language", None))
             if language is None:
                 logger.debug(f"Detected language: {info.language} (confidence: {info.language_probability:.2f})")
             return text.strip()

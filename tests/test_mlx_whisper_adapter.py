@@ -196,7 +196,9 @@ def test_voice_manager_builds_the_mlx_adapter_for_the_mlx_whisper_engine(fake_ml
 
     adapter = VM()._get_stt_adapter()
     assert adapter.engine_id == "mlx-whisper" and adapter.model_id == "large-v3"
-    assert adapter._current_language == "fr"
+    # Round 18: the manager's `language` is the TTS voice's; the STT adapter starts on AUTO
+    # (None) so a transcription without a language hint is detected, never forced to "fr".
+    assert adapter._current_language is None
 
 
 _REAL = (

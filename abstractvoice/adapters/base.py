@@ -7,6 +7,7 @@ must implement, ensuring consistent API across different backends.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, Iterable, Tuple
 import numpy as np
 import io
@@ -229,13 +230,58 @@ class TTSAdapter(ABC):
         return None
 
 
+@dataclass
+class Transcription:
+    """What one transcription produced (round 18, the spoken-language setting).
+
+    ``language`` is the language the engine was told (``None`` = it detected the language itself);
+    ``detected_language`` is the ISO 639-1 code the engine reported, or ``None`` when it reports
+    none (a remote endpoint answering ``{"text": ...}`` only, a pipeline without that field).
+    """
+
+    text: str
+    language: Optional[str] = None
+    detected_language: Optional[str] = None
+
+
 class STTAdapter(ABC):
     """Abstract base class for Speech-to-Text adapters.
     
     All STT engines must implement this interface to be compatible with
     the VoiceManager.
+
+    ``language=None`` on every transcribe method means AUTO: the engine detects the spoken
+    language. An adapter never substitutes a default of its own for ``None``; only an explicit
+    ``set_language(code)`` installs one. The engine's own report of the language reaches the
+    caller through ``transcribe_detailed`` / ``transcribe_from_bytes_detailed`` (an adapter records
+    it with ``_note_detected_language`` while transcribing).
     """
-    
+
+    #: The language the engine reported during the LAST transcribe call (``None`` = not reported).
+    _detected_language: Optional[str] = None
+
+    def _note_detected_language(self, code: Any) -> None:
+        text = str(code).strip().lower() if isinstance(code, str) else ""
+        self._detected_language = text or None
+
+    def pop_detected_language(self) -> Optional[str]:
+        """The language the last transcribe call reported, cleared on read."""
+        out = self._detected_language
+        self._detected_language = None
+        return out
+
+    def transcribe_detailed(self, audio_path: str, language: Optional[str] = None, **kwargs: Any) -> Transcription:
+        """``transcribe`` plus the language the engine was told and the one it reported."""
+        self._detected_language = None
+        text = self.transcribe(audio_path, language=language, **kwargs)
+        return Transcription(text=str(text or ""), language=language, detected_language=self.pop_detected_language())
+
+    def transcribe_from_bytes_detailed(self, audio_bytes: bytes, language: Optional[str] = None, **kwargs: Any) -> Transcription:
+        """``transcribe_from_bytes`` plus the language the engine was told and the one it reported."""
+        self._detected_language = None
+        text = self.transcribe_from_bytes(audio_bytes, language=language, **kwargs)
+        return Transcription(text=str(text or ""), language=language, detected_language=self.pop_detected_language())
+
     @abstractmethod
     def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
         """Transcribe audio file to text.

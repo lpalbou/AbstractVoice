@@ -17,6 +17,7 @@ from .openai_compatible_http import (
     RemoteAudioHTTPClient,
     coerce_timeout_s,
     env_first,
+    extract_transcription_language,
     extract_transcription_text,
     guess_audio_content_type,
     normalize_remote_provider,
@@ -128,6 +129,7 @@ class OpenAICompatibleSTTAdapter(STTAdapter):
             data=self._fields(language),
             files={"file": (filename, bytes(audio_bytes), content_type or "application/octet-stream")},
         )
+        self._note_detected_language(extract_transcription_language(response))
         return extract_transcription_text(response)
 
     def transcribe_from_bytes(self, audio_bytes: bytes, language: Optional[str] = None) -> str:
