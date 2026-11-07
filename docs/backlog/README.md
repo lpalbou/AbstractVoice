@@ -4,11 +4,11 @@ This folder is the **single source of truth** for planned and completed work in 
 
 ## Current snapshot
 
-- Updated: 2026-11-06
+- Updated: 2026-11-07
 - Planned: 16
-- Proposed: 12
+- Proposed: 11
 - Completed: 44
-- Deprecated: 0
+- Deprecated: 1
 - Recurrent: 1
 
 Counts include topic folders. Intake 0067 found existing duplicate legacy numeric
@@ -95,10 +95,9 @@ Rationale:
 
 ## Other current proposed items
 
-- [0067 Explicit clone validation and segment retry policy](proposed/0067_explicit_clone_validation_and_segment_retry_policy.md):
-  P2; make extra same-clone computation optional and calibrate borderline scores.
-  Promote after operator scheduling and agreement on package-owned policy/defaults;
-  Gateway follow-up 1010 depends on that contract.
+- [0067 Explicit clone validation and segment retry policy](deprecated/0067_explicit_clone_validation_and_segment_retry_policy.md):
+  DEPRECATED 2026-11-07, superseded by the operator's ruling (retry once, then speak the cloned voice; later windows
+  recorded, never a stop) implemented on main (14da7d3, d0abd24); the check is a setting, not an environment variable.
 - `docs/backlog/proposed/0055_elevenlabs_music_backend_boundary_learnings.md`: captures lessons
   from AbstractMusic's ElevenLabs Music backend so any future ElevenLabs voice work stays scoped to
   AbstractVoice and does not couple to music runtime code.

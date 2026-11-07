@@ -1,4 +1,11 @@
 # 0067-abstractvoice: [IMPROVEMENT] Make clone validation and segment retries explicit
+> Deprecated: 2026-11-07 — superseded by the operator's ruling and its implementation. Ruling (2026-11-05/07): "retry once,
+> and if it failed again, still use that voice because a small delta is better than to default to a random voice";
+> "a hard failure is worse than playing the voice with a small delta". Implemented on main (14da7d3, d0abd24): an opening
+> under the bar is regenerated once and then spoken anyway; later windows are scored for the record only (`low_windows`);
+> the engine never raises `ClonedVoiceNotAppliedError`; the check and its bar are constructor/plugin settings
+> (`qwen3_tts_speaker_check`, `qwen3_tts_min_speaker_similarity`), never environment variables. No request-scoped
+> retry policy is wanted ("do not over complexify"). Calibration of short-utterance scores remains a research note only.
 
 > Created: 2026-11-06
 > Type: improvement
@@ -6,7 +13,7 @@
 > Labels: voice, cloning, latency
 
 **Date**: 2026-11-06  
-**Status**: Proposed  
+**Status**: Deprecated (2026-11-07)  
 **Priority**: P2
 
 - Work-item id: abstractvoice-0067
