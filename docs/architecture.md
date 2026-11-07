@@ -67,8 +67,10 @@ flowchart TB
   Cloner --> QwenClone["Qwen3 clone engine"]
   QwenClone --> Runtime["Qwen3TTSRuntime<br/>MLX or PyTorch"]
   QwenClone --> Check["Speaker check<br/>speaker_similarity() per generation,<br/>delay line before delivery"]
-  Check -->|"one voice"| Out["audio chunks"]
-  Check -->|"second miss"| Err["ClonedVoiceNotAppliedError"]
+  Check -->|"the clone"| Out["audio chunks"]
+  Check -->|"opening under the bar"| Retry["regenerate once,<br/>then keep that take"]
+  Retry --> Out
+  Check -->|"voice changes part-way"| Err["ClonedVoiceNotAppliedError"]
 ```
 
 ### Listening

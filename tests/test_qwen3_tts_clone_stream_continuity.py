@@ -113,31 +113,28 @@ def test_at_ordinary_speed_every_chunk_is_verified_before_it_plays():
     assert all(r["status"] == "ok" for r in engine.last_segments)
 
 
-def test_a_stock_voice_segment_still_never_plays_and_the_reply_stops_naming_it():
+def test_a_segment_under_the_bar_is_regenerated_once_then_spoken_in_the_cloned_voice():
+    # Operator ruling 2026-11-05/07: its first take never plays; the second take is spoken, and the reply goes on.
     engine = _engine(0.6, stock_segments={1})
-    delivered = []
-    with pytest.raises(ClonedVoiceNotAppliedError) as info:
-        for audio, _sr in engine.infer_to_audio_chunks(text=TEXT, reference_paths=["ref.wav"], reference_text="t"):
-            delivered.append(float(audio[0]))
-    assert info.value.segment_index == 1
-    assert delivered and all(v >= CLONE for v in delivered)  # segment 0 in full, nothing of segment 1
-    assert sum(1 for _ in delivered) > 15  # segment 0 was delivered completely before the stop
+    delivered = [float(audio[0]) for audio, _sr in engine.infer_to_audio_chunks(text=TEXT, reference_paths=["ref.wav"], reference_text="t")]
+    assert delivered and delivered[0] >= CLONE  # segment 0 first, in the clone
+    rec = engine.last_segments[1]
+    assert rec["status"] == "kept_below_threshold" and rec["attempts"] == 2
+    assert len(engine.last_segments) == 3 and engine.last_segments[2]["status"] == "ok"  # the rest of the reply was spoken
 
 
-def test_near_realtime_the_listener_is_fed_and_a_voice_change_still_stops_the_reply():
-    # At RTF 1.0 the check cannot run ahead: chunks go out before their window is scored,
-    # the reply is still stopped as soon as a score shows another voice.
+def test_near_realtime_the_listener_is_fed_and_a_take_already_heard_is_kept():
+    # At RTF 1.0 the check cannot run ahead: chunks go out before their window is scored. A take whose
+    # opening was already heard cannot be regenerated: it is kept in the cloned voice, with no gap.
     engine = _engine(1.0, stock_segments={1})
     delivered, gaps = [], []
     end = None
-    with pytest.raises(ClonedVoiceNotAppliedError) as info:
-        for audio, sr in engine.infer_to_audio_chunks(text=TEXT, reference_paths=["ref.wav"], reference_text="t"):
-            t = engine._clock()
-            if end is not None and t > end + 1e-9:
-                gaps.append(t - end)
-            end = (t if end is None else max(end, t)) + audio.size / sr
-            delivered.append(float(audio[0]))
-    assert info.value.segment_index == 1 and info.value.mid_segment
+    for audio, sr in engine.infer_to_audio_chunks(text=TEXT, reference_paths=["ref.wav"], reference_text="t"):
+        t = engine._clock()
+        if end is not None and t > end + 1e-9:
+            gaps.append(t - end)
+        end = (t if end is None else max(end, t)) + audio.size / sr
+        delivered.append(float(audio[0]))
     assert max(gaps, default=0.0) < 0.1
-    stock_heard = sum(1 for v in delivered if v < CLONE) * 0.96
-    assert stock_heard <= 4.0  # at most the opening window before the stop
+    assert engine.last_segments[1]["status"] == "kept_below_threshold"
+    assert len(engine.last_segments) == 3

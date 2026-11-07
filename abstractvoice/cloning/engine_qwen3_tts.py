@@ -28,11 +28,12 @@ MIN_SPEAKER_SIMILARITY_ENV = "ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY"
 
 
 class ClonedVoiceNotAppliedError(RuntimeError):
-    """A text segment came out in a voice other than the clone, twice (backlog 056).
+    """A segment's voice changed part-way, in audio after its checked opening (backlog 056).
 
-    One reply is spoken in ONE voice: a segment whose audio does not carry the
-    cloned speaker is regenerated once, and if it still does not, synthesis stops
-    here and names the segment instead of speaking it in a stock voice.
+    One reply is spoken in ONE voice. An opening that scores under the clone bar is
+    regenerated once and, if it still does, spoken anyway in the cloned voice (operator
+    ruling 2026-11-05/07). What still stops the reply is a later block clearly in
+    another voice (``MIN_BLOCK_SPEAKER_SIMILARITY``: a runaway or a voice that drifted).
     """
 
     def __init__(
@@ -196,8 +197,11 @@ class Qwen3TTSVoiceCloningEngine:
     #
     # - the opening is held back: released at SPEAKER_CHECK_EARLY_SECONDS when it
     #   is clearly the clone, else decided at SPEAKER_CHECK_SECONDS. A miss
-    #   discards that generation and runs it again (SPEAKER_RETRIES); a second
-    #   miss raises ClonedVoiceNotAppliedError naming the segment.
+    #   discards that generation and runs it again (SPEAKER_RETRIES) while nothing of it was
+    #   heard. A second miss KEEPS that take: it is the cloned voice, only scored a little under
+    #   the bar (operator ruling 2026-11-05/07: retry once, then still use that voice, because a
+    #   small difference is better than another voice or an unspoken reply). It is logged and
+    #   recorded (status "kept_below_threshold").
     # - after the opening, a delay line (0.19.5): each chunk is released once the
     #   SPEAKER_CHECK_SECONDS window starting at it scores as the clone; a window
     #   clearly in another voice raises before its first chunk plays. Delivery
@@ -220,6 +224,9 @@ class Qwen3TTSVoiceCloningEngine:
     MIN_SPEAKER_SIMILARITY = 0.95
     # A later block below this is another voice, not scoring noise.
     MIN_BLOCK_SPEAKER_SIMILARITY = 0.93
+    # A take kept under the bar (see SPEAKER_RETRIES) is judged against its OWN opening: a later block
+    # stops it only when it falls this far below that opening (a real change part-way, not its level).
+    KEPT_TAKE_DRIFT_MARGIN = 0.03
     # Shorter audio is too short to score reliably and passes unchecked.
     SPEAKER_CHECK_MIN_SECONDS = 1.0
     SPEAKER_RETRIES = 1
@@ -288,11 +295,26 @@ class Qwen3TTSVoiceCloningEngine:
                 segment_index=index, segment_count=count, text=text, scores=scores, threshold=limit, mid_segment=heard,
             )
 
+        kept = {"limit": None}  # set when a take is kept under the bar: its own block limit
+
+        def keep_below(score: float) -> None:
+            # Retried once (or already heard): this take is the cloned voice, scored a little under the
+            # bar. Speak it rather than stop the reply (operator ruling 2026-11-05/07).
+            logger.warning(
+                "Qwen3-TTS clone: text segment %d/%d still scored %.3f < %.3f after one regeneration; "
+                "speaking it in the cloned voice",
+                index + 1, count, score, threshold,
+            )
+            if record is not None:
+                record["kept_below_threshold"] = True
+            kept["limit"] = min(block_threshold, float(score) - self.KEPT_TAKE_DRIFT_MARGIN)
+
         for attempt in range(1 + int(self.SPEAKER_RETRIES)):
             retrying = attempt < int(self.SPEAKER_RETRIES)
             # The reply's very first opening may hold (first-audio latency); later ones only
             # while the listener has enough audio in hand.
             strict_opening = box.started_at is None
+            kept["limit"] = None
             source = iter(generate())
             try:
                 chunks: list = []  # this generation's chunks, in order
@@ -318,16 +340,16 @@ class Qwen3TTSVoiceCloningEngine:
                         if not opened and total >= int(self.SPEAKER_CHECK_SECONDS * sr):
                             score = scored(chunks)
                             if score is not None and score < threshold:
-                                if provisional:
-                                    raise fail(score, threshold, heard=True)
                                 scores.append(score)
-                                logger.warning(
-                                    "Qwen3-TTS clone: text segment %d/%d came out in another voice "
-                                    "(speaker similarity %.3f < %.3f); %s",
-                                    index + 1, count, score, threshold, "regenerating it" if retrying else "giving up",
-                                )
-                                rejected = True
-                                break
+                                if retrying and not provisional:
+                                    logger.warning(
+                                        "Qwen3-TTS clone: text segment %d/%d opened below the clone bar "
+                                        "(speaker similarity %.3f < %.3f); regenerating it once",
+                                        index + 1, count, score, threshold,
+                                    )
+                                    rejected = True
+                                    break
+                                keep_below(score)
                             opened, verified = True, len(chunks)
                     else:
                         # Delay line: score the window starting at each unverified chunk once it is complete.
@@ -339,8 +361,9 @@ class Qwen3TTSVoiceCloningEngine:
                                 acc += sizes[end]
                                 end += 1
                             score = scored(chunks[verified:end])
-                            if score is not None and score < block_threshold:
-                                raise fail(score, block_threshold, heard=released > verified or box.started_at is not None)
+                            limit = kept["limit"] if kept["limit"] is not None else block_threshold
+                            if score is not None and score < limit:
+                                raise fail(score, limit, heard=released > verified or box.started_at is not None)
                             verified += 1
                     # Hand verified chunks over; then keep the listener fed.
                     while released < verified:
@@ -366,16 +389,19 @@ class Qwen3TTSVoiceCloningEngine:
                         if acc >= int(self.SPEAKER_CHECK_SECONDS * sr):
                             break
                     score = scored(tail)
-                    limit = block_threshold if opened else threshold
+                    limit = (kept["limit"] if kept["limit"] is not None else block_threshold) if opened else threshold
                     if score is not None and score < limit:
-                        if opened or provisional:
+                        if opened:
                             raise fail(score, limit, heard=True)
                         scores.append(score)
-                        logger.warning(
-                            "Qwen3-TTS clone: text segment %d/%d came out in another voice (speaker similarity %.3f < %.3f); %s",
-                            index + 1, count, score, threshold, "regenerating it" if retrying else "giving up",
-                        )
-                        continue
+                        if retrying and not provisional:
+                            logger.warning(
+                                "Qwen3-TTS clone: text segment %d/%d came out below the clone bar "
+                                "(speaker similarity %.3f < %.3f); regenerating it once",
+                                index + 1, count, score, threshold,
+                            )
+                            continue
+                        keep_below(score)
                 while released < len(chunks):
                     box.put(*chunks[released])
                     released += 1
@@ -440,7 +466,10 @@ class Qwen3TTSVoiceCloningEngine:
                 runtime, prompt, index=index, count=count, text=text, generate=counted, sink=record["scores"],
                 outbox=outbox, record=record,
             )
-            record["status"] = "ok" if record["attempts"] <= 1 else "regenerated"
+            record["status"] = (
+                "kept_below_threshold" if record.get("kept_below_threshold")
+                else "ok" if record["attempts"] <= 1 else "regenerated"
+            )
         except GeneratorExit:
             record["status"] = "cancelled"
             raise

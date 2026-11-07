@@ -10,6 +10,16 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+### Changed
+
+- **A cloned reply is never dropped for scoring a little under the clone bar** (`cloning/engine_qwen3_tts.py`;
+  operator ruling 2026-11-05/07: "retry once, and if it failed again, still use that voice because a small delta is
+  better than to default to a random voice"). A segment whose opening scores under `MIN_SPEAKER_SIMILARITY` is still
+  regenerated once while nothing of it was heard; if the second take also scores under it, that take is spoken in the
+  cloned voice (logged, and recorded with status `kept_below_threshold`) instead of raising
+  `ClonedVoiceNotAppliedError` and leaving the rest of the reply unspoken. A kept take is judged against its own opening
+  afterwards (`KEPT_TAKE_DRIFT_MARGIN`), so only a real voice change part-way still stops the reply.
+
 ## [0.20.1] - 2026-11-07
 
 ### Fixed

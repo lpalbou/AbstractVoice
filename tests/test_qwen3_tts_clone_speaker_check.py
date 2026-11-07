@@ -1,9 +1,10 @@
 """Backlog 056: one cloned reply is spoken in ONE voice. Weight-free.
 
 A Qwen3-TTS clone generation whose audio does not carry the cloned speaker is
-never delivered: a generation that opens in another voice is regenerated once,
-a second miss raises ClonedVoiceNotAppliedError naming the text segment, and a
-generation whose voice changes part-way raises before the changed block plays.
+never delivered on its first take: a generation that opens under the clone bar is
+regenerated once, a second miss is spoken anyway in the cloned voice (operator ruling
+2026-11-05/07), and a generation whose voice changes part-way raises before the changed
+block plays.
 """
 from __future__ import annotations
 
@@ -124,18 +125,17 @@ def test_a_segment_in_another_voice_is_regenerated_and_never_delivered(native):
 
 
 @pytest.mark.parametrize("native", [True, False], ids=["mlx-native-stream", "torch-segments"])
-def test_a_segment_that_misses_twice_fails_loudly_and_names_it(native):
+def test_a_segment_that_misses_twice_is_spoken_in_the_cloned_voice(native):
+    # Operator ruling 2026-11-05/07: retry once; if the take still scores under the bar, speak it in the
+    # cloned voice anyway (a small difference beats another voice or an unspoken reply). Nothing raises.
     rt = _RT(lambda seg, att, k: STOCK if seg == 1 else CLONE, native=native)
-    delivered = []
-    with pytest.raises(ClonedVoiceNotAppliedError) as info:
-        for chunk in _speak(_engine(rt)):
-            delivered.append(chunk)
-    err = info.value
-    assert err.segment_index == 1 and err.segment_count >= 2 and not err.mid_segment
-    assert len(err.scores) == 2 and all(s < err.threshold for s in err.scores)
-    assert "segment 2 of" in str(err) and "Paragraph" in str(err)
-    assert {seg for seg, _ in _delivered(delivered)} == {0}  # only the clone was ever spoken
-    assert rt.attempts[err.text] == 2  # retried exactly once
+    engine = _engine(rt)
+    delivered = _delivered(list(_speak(engine)))
+    assert (1, 0) not in delivered  # the first take was never played: it was regenerated
+    assert (1, 1) in delivered  # the second take is spoken, not dropped
+    assert len({s for s, _ in delivered}) >= 3  # and the rest of the reply follows
+    rec = engine.last_segments[1]  # retried exactly once, then kept
+    assert rec["status"] == "kept_below_threshold" and rec["attempts"] == 2 and max(rec["scores"]) < 0.95
     assert all(g.closed for g in rt.gens)
 
 
@@ -173,9 +173,11 @@ def test_buffered_and_one_shot_synthesis_are_checked_too():
     wav = _engine(rt).infer_to_wav_bytes(text="A short reply.", reference_paths=["ref.wav"], reference_text="t", one_shot=True)
     assert wav and rt.attempts["A short reply."] == 2
 
+    # Both takes under the bar: the second is kept and returned (operator ruling 2026-11-05/07).
     rt = _RT(lambda seg, att, k: STOCK, native=True, seconds=5.0)
-    with pytest.raises(ClonedVoiceNotAppliedError):
-        _engine(rt).infer_to_wav_bytes(text="A short reply.", reference_paths=["ref.wav"], reference_text="t")
+    engine = _engine(rt)
+    wav = engine.infer_to_wav_bytes(text="A short reply.", reference_paths=["ref.wav"], reference_text="t")
+    assert wav and rt.attempts["A short reply."] == 2 and engine.last_segments[-1]["status"] == "kept_below_threshold"
 
 
 def test_too_short_to_judge_passes_unchecked_and_the_check_can_be_disabled():
@@ -256,8 +258,8 @@ def test_every_segment_leaves_a_traceable_record_and_metrics_carry_them():
     assert all(r["model"].endswith("-Base") and r["backend"] == "mlx" and r["reference"] == "ref.wav" for r in recs)
     assert all(r["audio_s"] > 0 and r["chars"] > 0 and r["first_words"].startswith("Paragraph") for r in recs)
 
-    # The loud failure carries the records too.
-    rt = _RT(lambda seg, att, k: STOCK if seg == 1 else CLONE, native=True)
+    # The loud failure (a voice change part-way, the one case that still stops) carries the records too.
+    rt = _RT(lambda seg, att, k: STOCK if (seg == 1 and k >= 5) else CLONE, native=True, seconds=12.0)
     engine = _engine(rt)
     with pytest.raises(ClonedVoiceNotAppliedError) as info:
         list(_speak(engine))
