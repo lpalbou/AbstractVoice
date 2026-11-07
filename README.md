@@ -30,6 +30,9 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 - **Local web example (optional)**: `abstractvoice web`
 - **AbstractCore plugin**: discovered through `abstractcore.capabilities_plugins`
 
+Microphone visual feedback adapts to the recent speech range: quiet speech remains visible,
+and silence settles back to zero without changing the recorded audio or speech detection.
+
 Status: **alpha**. What's new in each release: [`CHANGELOG.md`](CHANGELOG.md). The base install and library constructor are
 remote-first: `VoiceManager()` and library `auto` select hosted OpenAI audio and require
 `OPENAI_API_KEY` (or `remote_api_key=...`). Local/offline stacks are available
