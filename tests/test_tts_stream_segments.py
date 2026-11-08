@@ -73,9 +73,10 @@ def test_segment_spans_are_exact_slices_of_the_original_text(text, split):
 def test_markdown_markers_map_back_to_the_original_text():
     text = "## Plan du jour\n\n**Première étape.** Lire le *rapport*. Puis **écrire la suite**, enfin dormir."
     spoken = _spoken(text)
-    assert spoken == "Plan du jour Première étape. Lire le rapport. Puis écrire la suite, enfin dormir."
+    # The heading is its own sentence: its full stop is inserted, and stands for its last character.
+    assert spoken == "Plan du jour. Première étape. Lire le rapport. Puis écrire la suite, enfin dormir."
     locator = SegmentLocator(text, sanitize=True)
-    first = locator.locate("Plan du jour Première étape.")
+    first = locator.locate("Plan du jour. Première étape.")
     assert text[first[0]:first[1]] == "Plan du jour\n\n**Première étape.**"  # the markers around it belong to it
     second = locator.locate("Lire le rapport.")
     assert text[second[0]:second[1]] == "Lire le *rapport*."

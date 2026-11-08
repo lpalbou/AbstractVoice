@@ -90,10 +90,11 @@ def _collapse_whitespace(text: str, index: list[int]) -> tuple[str, list[int]]:
 class SegmentLocator:
     """Locates the segments of one synthesis, in order, in the caller's text.
 
-    The text an engine speaks is the caller's text with Markdown markers removed
-    (``sanitize``) and whitespace collapsed; segments are consecutive slices of it.
-    Both transforms only delete characters, so each segment maps back to an exact
-    span of the caller's text. A span covers the segment's first to last spoken
+    The text an engine speaks is the caller's text prepared for speech (``sanitize``:
+    Markdown syntax and code removed, a few marks inserted) and whitespace collapsed;
+    segments are consecutive slices of it. Every spoken character carries the index of
+    the caller's character it stands for (never decreasing), so each segment maps back
+    to an exact span of the caller's text. A span covers the segment's first to last spoken
     character plus the markers directly around them (``**`` before ``Word`` and after
     ``word.``), so the text after ``text_end`` starts where the next segment's speech
     starts.

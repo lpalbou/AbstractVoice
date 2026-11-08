@@ -29,6 +29,15 @@ Older changelog entries may reference historical CLI commands or model choices.
   playback continues (operator ruling 2026-11-07: "a hard failure is worse than playing the voice with a small
   delta"). The Qwen3 clone engine no longer raises `ClonedVoiceNotAppliedError`; the class stays importable for callers
   that catch it.
+- **Markdown is read as its words, never its syntax or its code** (`text_sanitize.py`, every speech surface;
+  2026-11-08 incident: a read-aloud of a Code reply fed a fenced Python call to the Qwen3-TTS clone, which slurred into a
+  repeated syllable, missed its end of speech and played silence for two minutes). Fenced code blocks are not read;
+  inline code is read as its literal text without backticks; headings, list items, table rows and paragraphs are
+  blocks, and a block followed by another ends with a full stop when it has none (a heading is its own sentence);
+  bullet, quote and task-box markers, rules and table delimiters are dropped, `3.` is read `3:`, table cells are
+  separated by commas; links/images read as their text; `__x__`, `_x_` and `~~x~~` join `**x**`/`*x*`; arrows are a
+  pause. One line of plain text is unchanged. `SegmentLocator` still maps every segment to an exact span: the index
+  map now also covers inserted punctuation.
 - **The clone speaker check is a setting, never an environment variable** (root backlog 1066). The
   `ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK` and `ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY` reads are gone;
   `VoiceManager(qwen3_tts_speaker_check=..., qwen3_tts_min_speaker_similarity=...)`, the AbstractCore plugin settings

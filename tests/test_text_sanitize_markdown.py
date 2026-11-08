@@ -20,10 +20,12 @@ def test_sanitize_removes_italic_multiple_words() -> None:
 
 
 def test_sanitize_strips_markdown_headers_keep_text() -> None:
+    # Each heading is its own sentence; "###" alone is an empty heading (nothing to say).
     txt = "# Title\n## Subtitle\n##### Small header\nNot a header\n###"
-    assert sanitize_markdown_for_speech(txt) == "Title\nSubtitle\nSmall header\nNot a header\n###"
+    assert sanitize_markdown_for_speech(txt) == "Title.\nSubtitle.\nSmall header.\nNot a header"
 
 
-def test_sanitize_does_not_touch_bullet_marker_without_closing_star() -> None:
-    assert sanitize_markdown_for_speech("* item") == "* item"
+def test_sanitize_drops_a_bullet_marker_and_keeps_a_lone_star() -> None:
+    assert sanitize_markdown_for_speech("* item") == "item"
+    assert sanitize_markdown_for_speech("2 * 3 * 4") == "2 * 3 * 4"
 
