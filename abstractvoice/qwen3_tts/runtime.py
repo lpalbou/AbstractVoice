@@ -718,6 +718,7 @@ class Qwen3TTSRuntime:
             fader = _EdgeFader(sample_rate=sr)
             watch = _QuietRunaway(sr)
             runaway = False
+            delivered = 0  # samples handed on (a runaway's cut tail is not)
             frames = model.stream(
                 prompt,
                 sampling,
@@ -731,6 +732,7 @@ class Qwen3TTSRuntime:
                     if keep is not None:
                         runaway = True
                         chunk = np.asarray(chunk, dtype=np.float32).reshape(-1)[:keep]
+                    delivered += int(np.asarray(chunk).size)
                     out = fader.push(chunk)
                     if out is not None:
                         yield out, sr
@@ -741,15 +743,17 @@ class Qwen3TTSRuntime:
             tail = fader.flush()
             if tail is not None:
                 yield tail, sr
-            end = self._generation_end(text, watch, sr, max_new_tokens, runaway=runaway)
+            end = self._generation_end(text, watch, sr, max_new_tokens, runaway=runaway, delivered=delivered)
             if report is not None:
                 report.update(end)
 
     @staticmethod
-    def _generation_end(text: str, watch: "_QuietRunaway", sr: int, max_new_tokens: int, *, runaway: bool) -> dict:
-        """How a completed generation ended: ``{"ended": "eos" | "quiet_runaway" | "cap", "audio_s",
-        "max_new_tokens"}``, plus ``"quiet_from_s"`` for a runaway ended at its quiet window."""
-        audio_s = watch.seen / float(sr)
+    def _generation_end(
+        text: str, watch: "_QuietRunaway", sr: int, max_new_tokens: int, *, runaway: bool, delivered: int
+    ) -> dict:
+        """How a completed generation ended: ``{"ended": "eos" | "quiet_runaway" | "cap", "audio_s"`` (the
+        audio delivered) ``, "max_new_tokens"}``, plus ``"quiet_from_s"`` for a runaway ended at its quiet window."""
+        audio_s = delivered / float(sr)
         end = {"ended": "eos", "audio_s": round(audio_s, 2), "max_new_tokens": int(max_new_tokens)}
         if runaway:
             end["ended"] = "quiet_runaway"
@@ -777,7 +781,7 @@ class Qwen3TTSRuntime:
         if keep is not None:
             mono = mono[:keep]
         cap = int(max_new_tokens or estimate_max_new_tokens(text))
-        end = self._generation_end(text, watch, int(sample_rate), cap, runaway=keep is not None)
+        end = self._generation_end(text, watch, int(sample_rate), cap, runaway=keep is not None, delivered=mono.size)
         if report is not None:
             report.update(end)
         return _finish_utterance(mono, sample_rate)

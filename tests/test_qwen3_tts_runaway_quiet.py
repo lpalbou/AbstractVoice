@@ -129,6 +129,7 @@ def test_the_live_runaway_ends_about_four_seconds_after_its_quiet_began(monkeypa
     heard, report = _speak(rt)
     assert report["ended"] == "quiet_runaway" and 24.0 <= report["quiet_from_s"] <= 33.0
     assert heard <= report["quiet_from_s"] + RUNAWAY_WINDOW_SECONDS + 1.0  # was 163.84 s
+    assert report["audio_s"] == pytest.approx(heard, abs=0.01)  # what was delivered, not what was made
     assert rt._mlx.closed and rt._mlx.frames_made < 2048  # the generation itself stopped
     assert rt._lock.acquire(timeout=0.1)  # and released the model
 
