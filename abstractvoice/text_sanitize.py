@@ -10,14 +10,18 @@ segment with silence up to the runaway cap (2 min 10 s), before the next heading
 The rules follow CommonMark/GFM syntax only; they never guess what plain prose means:
 
 - A fenced code block (``` or ~~~, at any indent, closed by the same fence or by the end
-  of the text) is not read.
+  of the text) is not read, nor is an indented one (4 spaces, not inside a list item).
 - Inline code is read as its literal text without the backticks; nothing inside it is
-  rewritten. A stray backtick is dropped, and so is an unpaired emphasis star touching a word
-  (``talk*,``), so a text resumed inside an emphasis reads like the whole.
+  rewritten. A stray backtick is dropped, and so are the unpaired markers a text resumed in the
+  middle of an inline element starts with (``talk*,``, ``here._``, ``~~``, ``](url)``, the
+  edge pipes of a table row), so it reads like the rest of the whole.
+- A text that starts inside a line (a leading space or tab: a resumed text) has no list
+  marker on that line; an ordered marker other than ``1.`` does not interrupt a paragraph
+  (CommonMark).
 - Headings (ATX ``#``..``######`` and setext), list items, table rows and paragraphs are
   blocks. A block followed by another one ends with a full stop when its text has no closing
   punctuation, so a heading is its own sentence and blocks never run together (the last
-  block is left as it is: one line of plain text is spoken exactly as written).
+  block is left as it is: one line of plain prose is spoken exactly as written).
 - Bullet (``-``, ``*``, ``+``) and blockquote (``>``) markers, task boxes (``[ ]``,
   ``[x]``), thematic breaks and table delimiter rows are dropped. An ordered marker ``3.`` or
   ``3)`` is read as ``3:`` (replies refer to "option 2"; a full stop there would end a
@@ -55,7 +59,7 @@ _TABLE_DELIM_CHARS = frozenset("|:- \t")
 # ---------------------------------------------------------------------------- inline syntax
 
 # A code span: a backtick run, then the shortest content closed by a run of the SAME length.
-_CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.DOTALL)
+_CODE_SPAN = re.compile(r"(?<![`\\])(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.DOTALL)
 _ESCAPE = re.compile(r"\\([!-/:-@\[-`{-~])")
 _IMAGE = re.compile(r"!\[([^\]\n]*)\]\([^)\n]*\)")
 _LINK = re.compile(r"\[([^\]\n]+)\]\((?:[^()\n]|\([^()\n]*\))*\)")
@@ -68,10 +72,15 @@ _ITALIC_STAR = re.compile(r"(?<![*\w])\*(?=[^\s*])([^*\n]+?)(?<=[^\s*])\*(?![*\w
 _ITALIC_UNDER = re.compile(r"(?<![\w_])_(?=[^\s_])([^_\n]+?)(?<=[^\s_])_(?![\w_])")
 _STRAY_BACKTICKS = re.compile(r"`+")
 # An unpaired emphasis star (its pair is in another block, or before a resume point: "talk*,"): a star
-# run touching a word on one side only. "2 * 3" and "a*b" are left alone.
+# run touching a word on one side only, or a lone "**"/"__". "2 * 3" and "a*b" are left alone.
 _STRAY_STARS = re.compile(
-    r"(?<=[^\s*])\*+(?=[\s.,;:!?)\]}\"'»”’]|$)|(?:^|(?<=[\s(\[{\"'«“‘]))\*+(?=[^\s*])"
+    r"(?<=[^\s*])\*+(?=[\s.,;:!?)\]}\"'»”’]|$)|(?:^|(?<=[\s(\[{\"'«“‘]))\*+(?=[^\s*])|(?<!\S)(?:\*\*+|__+)(?!\S)"
 )
+# The same for the other inline markers whose pair or head lies before a resume point: an underscore
+# touching a word on one side only ("here._ After", never "snake_case"), "~~", and a link's "](url)".
+_STRAY_UNDERSCORES = re.compile(r"(?<=[^\s_])_+(?=[\s.,;:!?)\]}\"'»”’]|$)|(?:^|(?<=[\s(\[{\"'«“‘]))_+(?=[^\s_])")
+_STRAY_TILDES = re.compile(r"~~")
+_STRAY_LINK_TAIL = re.compile(r"\]\((?:[^()\s]|\([^()\s]*\))*\)")
 _ARROW = re.compile(
     r"[ \t]*(?:[\u2190-\u21ff\u27f0-\u27ff\u2900-\u297f\u2794\u2798-\u27af\u2b05-\u2b07\u2b60-\u2b6f]"
     r"|(?<!\S)(?:-->|==>|->|=>|<-)(?!\S))[ \t]*"
@@ -152,6 +161,7 @@ def _blocks(source: str) -> List[Mapped]:
     tables = _table_rows(lines)
     blocks: List[Mapped] = []
     current: Optional[Tuple[List[str], List[int]]] = None  # the paragraph or list item being built
+    kind = ""  # what ``current`` is ("paragraph" | "item"), or what the last block was once closed
     fence: Optional[Tuple[str, int]] = None  # (fence character, length) while inside a code block
 
     def close() -> None:
@@ -177,8 +187,15 @@ def _blocks(source: str) -> List[Mapped]:
         if not line.strip():
             close()
             continue
-        if number in tables:
+        indent = len(line) - len(line.lstrip(" \t"))
+        if current is None and kind != "item" and (indent >= 4 or line[:1] == "\t"):
+            continue  # an indented code block (it cannot interrupt a paragraph, nor follow a list item)
+        stripped = line.strip()
+        if number in tables or (stripped[:1] == "|" and stripped.count("|") >= 2):
+            # A table row; one that starts with a pipe is a row even when its header is not in this
+            # text (a text resumed inside a table).
             close()
+            kind = "row"
             if not _is_table_delimiter(line):
                 blocks.append(_table_row(source, offset, line))
             continue
@@ -187,6 +204,7 @@ def _blocks(source: str) -> List[Mapped]:
             continue
         if _THEMATIC.match(line):
             close()
+            kind = "rule"
             continue
         start = 0
         while True:  # blockquote markers, possibly nested
@@ -200,12 +218,18 @@ def _blocks(source: str) -> List[Mapped]:
         heading = _ATX.match(line, start)
         if heading:
             close()
+            kind = "heading"
             if heading.group(2):
                 blocks.append(span(offset, heading.start(2), heading.end(2)))
             continue
         item = _LIST.match(line, start)
+        if item and number == 0 and indent and not start:
+            item = None  # the text starts inside a line (a resumed text): "2. " there is prose, as it was
+        if item and item.group(2) and item.group(2) != "1" and current is not None and kind == "paragraph":
+            item = None  # CommonMark: only "1." may interrupt a paragraph ("The year was\n2026. Done")
         if item:
             close()
+            kind = "item"
             chars: List[str] = []
             idx: List[int] = []
             if item.group(2):  # ordered: the number is read, its delimiter as a colon
@@ -221,9 +245,18 @@ def _blocks(source: str) -> List[Mapped]:
             idx.extend(rest_idx)
             current = (chars, idx)
             continue
-        text, idx = span(offset, start, len(line))
+        end = len(line)
+        if line.rstrip().endswith("|") and not line.rstrip().endswith("\\|"):
+            end = len(line.rstrip()) - 1  # the edge pipe of a table row whose start is before this text
+        if line[start:end].lstrip(" \t")[:1] == "|":
+            start += len(line[start:end]) - len(line[start:end].lstrip(" \t")) + 1
+        text, idx = span(offset, start, end)
+        if not text.strip():
+            continue
         if current is None:
             current = ([text], idx)
+            # The rest of a line (a resumed text) may be the rest of a list item: items may follow it.
+            kind = "item" if number == 0 and indent else "paragraph"
         else:  # a continuation line of the same paragraph or list item
             current[0].append("\n" + text)
             current[1].append(offset - 1)
@@ -299,6 +332,9 @@ _PROSE_PASSES = (
     (_ITALIC_UNDER, _group(1)),
     (_STRAY_BACKTICKS, lambda m: []),
     (_STRAY_STARS, lambda m: []),
+    (_STRAY_UNDERSCORES, lambda m: []),
+    (_STRAY_TILDES, lambda m: []),
+    (_STRAY_LINK_TAIL, lambda m: []),
     (_ARROW, _arrow),
 )
 

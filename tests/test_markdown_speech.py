@@ -124,6 +124,32 @@ def test_every_segment_maps_back_to_the_reply_and_resumes_exactly(split, max_cha
     assert _spoken(REPLY[previous:]) == ""
 
 
+# Texts a resume point can cut inside an inline element, a table row or a line (adversarial review).
+RESUME_CASES = [
+    "| Name | Notes |\n|---|---|\n| Ada | First programmer. Wrote the notes. Beloved. |\n| Bob | Dev |\n\nDone.",
+    "You can choose 1. Alpha plan. 2. Beta plan. 3. Gamma plan.",
+    "First _one. Second sentence here._ After.",
+    "Plan ~~old. Dropped now.~~ New plan.",
+    "See [the plan. Then that](https://x.y/z) and more.",
+    "Use *work vs. walk vs. talk* now. Say - nothing was found. Yes.",
+]
+
+
+@pytest.mark.parametrize("text", RESUME_CASES)
+@pytest.mark.parametrize("max_chars", [20, 30, 40])
+def test_a_text_resumed_inside_an_element_speaks_like_the_rest_of_the_whole(text, max_chars):
+    segments = split_text_batches(_spoken(text), max_chars=max_chars)
+    locator = SegmentLocator(text, sanitize=True)
+    previous = 0
+    for k, seg in enumerate(segments):
+        start, end = locator.locate(seg)
+        assert _spoken(text[previous:start]) == ""
+        rest = _spoken(text[end:])
+        # Spaces aside (a hard cut inside a word joins back with one), no marker may survive.
+        assert rest.replace(" ", "") == "".join(segments[k + 1:]).replace(" ", ""), (seg, rest)
+        previous = end
+
+
 def test_the_index_never_decreases_and_kept_characters_are_the_source_characters():
     for text in (REPLY, "Plain text, spoken exactly as written", "| a | b |\n|---|---|\n| 1 | 2 |\n\n> - [x] **done** → next"):
         out, index = sanitize_markdown_with_index(text)
@@ -147,6 +173,8 @@ def test_the_index_never_decreases_and_kept_characters_are_the_source_characters
         ("Before\n~~~\ncode\n~~~\nAfter", "Before.\nAfter"),
         ("- item:\n    ```\n    x = 1\n    ````\n- next", "item:\nnext"),
         ("Here:\n```python\nprint(1)\nno closing fence", "Here:"),
+        ("Example:\n\n    indented code\n    x = 1\n\nprose", "Example:\nprose"),
+        ("- item\n\n    continued item text", "item.\ncontinued item text"),
         ("``` not a fence ` because of this backtick", "not a fence  because of this backtick"),
         # Inline code: literal, backticks dropped; nothing inside is rewritten; emphasis around it pairs up.
         ("Call `__init__` with `a*b*c`", "Call __init__ with a*b*c"),
@@ -161,6 +189,8 @@ def test_the_index_never_decreases_and_kept_characters_are_the_source_characters
         # Lists: bullets dropped, numbers kept as "N:", task boxes dropped.
         ("- one\n- two\n- three", "one.\ntwo.\nthree"),
         ("1. first\n2) second", "1: first.\n2: second"),
+        ("The year was\n2026. Done", "The year was\n2026. Done"),  # only "1." interrupts a paragraph
+        (" 2. Beta plan.", "2. Beta plan."),  # a text that starts inside a line (resumed): prose
         ("- [x] shipped\n- [ ] pending", "shipped.\npending"),
         # Quotes, rules, tables.
         ("> quoted *text*\n>\n> second", "quoted text.\nsecond"),
@@ -170,6 +200,7 @@ def test_the_index_never_decreases_and_kept_characters_are_the_source_characters
         ("See [the docs](https://x.y/a_(b) \"t\") and ![a chart](c.png)", "See the docs and a chart"),
         ("Mail <mailto:a@b.co> or <https://x.y>", "Mail mailto:a@b.co or https://x.y"),
         (r"\*not italic\* and ~~gone~~ text", "not italic and gone text"),
+        (r"\`not code\` here", "not code here"),
         ("snake_case_name stays, _this_ is emphasis", "snake_case_name stays, this is emphasis"),
         # Arrows are a pause; a lone star or a dash between spaces is prose.
         ("A → B ⇒ C -> D", "A, B, C, D"),
