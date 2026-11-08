@@ -14,8 +14,10 @@ Everything policy-facing lives here.
 
 from __future__ import annotations
 
+import collections
 import contextlib
 import copy
+import logging
 import os
 import threading
 from dataclasses import dataclass, field
@@ -37,6 +39,8 @@ from .backend import (
 )
 
 DEFAULT_MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+logger = logging.getLogger(__name__)
+
 DEFAULT_BASE_MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
 
 # The five 12Hz repos this integration understands. Others load too — the gate
@@ -258,6 +262,69 @@ class _EdgeFader:
         out = apply_edge_fades(self.held, sample_rate=self.sample_rate, fade_ms=_EDGE_FADE_MS, fade_in=False)
         self.held = np.zeros(0, dtype=np.float32)
         return out
+
+
+# A generation that misses its end of speech (EOS) keeps emitting codec frames -- a repeated
+# syllable, then near-silence with stray bursts -- until max_new_tokens, which is sized for the
+# slowest voice (estimate_max_new_tokens: up to 2048 frames, 164 s). Seen live on 2026-11-08: a
+# 619-character segment ran to the 163.84 s cap; its speech stopped at 25 s and the listener heard
+# a syllable, then 2 minutes of silence, then the next segment. Real speech never keeps a 4 s
+# window 90 % quiet: over 52 real takes of that reply (Qwen3-TTS 0.6B Base clone, MLX 8-bit) the
+# quietest 4 s window was 34 % quiet; the runaway reached 90 % 15 s after its speech stopped.
+# Such a window ends the generation as its EOS would have: the reply goes on with its next segment.
+RUNAWAY_WINDOW_SECONDS = 4.0
+RUNAWAY_QUIET_FRACTION = 0.9
+_QUIET_FRAME_SECONDS = 0.05
+_QUIET_FRAME_RMS = 0.01  # -40 dBFS: a 50 ms frame below this is quiet (speech frames sit near -17 dBFS)
+
+
+class _QuietRunaway:
+    """Finds where one generation went quiet for good (it missed its EOS).
+
+    Fed the generation's audio in order, in chunks of any size. Counting starts at the first
+    audible frame; once ``RUNAWAY_QUIET_FRACTION`` of the frames of the last
+    ``RUNAWAY_WINDOW_SECONDS`` are quiet, ``push`` returns how many samples of that chunk come
+    before the quiet window (keep those, end the generation) and ``quiet_from`` is where the
+    window began, in samples from the start of the generation.
+    """
+
+    def __init__(self, sample_rate: int) -> None:
+        self.sample_rate = int(sample_rate) or 24000
+        self.hop = max(1, int(round(self.sample_rate * _QUIET_FRAME_SECONDS)))
+        self.window = max(1, int(round(RUNAWAY_WINDOW_SECONDS / _QUIET_FRAME_SECONDS)))
+        self._frames: collections.deque = collections.deque()
+        self._quiet = 0
+        self._heard = False
+        self._pending = np.zeros(0, dtype=np.float32)  # the start of a frame not yet complete
+        self.seen = 0  # samples pushed so far
+        self.quiet_from: Optional[int] = None
+
+    def push(self, chunk: np.ndarray) -> Optional[int]:
+        mono = np.asarray(chunk, dtype=np.float32).reshape(-1)
+        chunk_start = self.seen
+        self.seen += mono.size
+        joined = np.concatenate([self._pending, mono]) if self._pending.size else mono
+        joined_start = chunk_start - self._pending.size
+        n = joined.size // self.hop
+        self._pending = joined[n * self.hop:].copy()
+        if not n:
+            return None
+        frames = joined[: n * self.hop].astype(np.float64).reshape(n, self.hop)
+        quiet = np.sqrt(np.mean(frames * frames, axis=1)) < _QUIET_FRAME_RMS
+        for k, is_quiet in enumerate(quiet):
+            if not is_quiet:
+                self._heard = True
+            if not self._heard:
+                continue
+            self._frames.append(bool(is_quiet))
+            self._quiet += int(is_quiet)
+            if len(self._frames) > self.window:
+                self._quiet -= int(self._frames.popleft())
+            if len(self._frames) == self.window and self._quiet >= RUNAWAY_QUIET_FRACTION * self.window:
+                window_end = joined_start + (k + 1) * self.hop
+                self.quiet_from = window_end - self.window * self.hop
+                return max(0, self.quiet_from - chunk_start)
+        return None
 
 
 class Qwen3TTSRuntime:
@@ -633,7 +700,9 @@ class Qwen3TTSRuntime:
         kwargs.update({k: v for k, v in overrides.items() if k != "max_new_tokens"})
         return SamplingParams.from_generate_kwargs(kwargs)
 
-    def _mlx_stream(self, text: str, build_prompt, overrides: dict) -> Iterator[Tuple[np.ndarray, int]]:
+    def _mlx_stream(
+        self, text: str, build_prompt, overrides: dict, report: Optional[dict] = None
+    ) -> Iterator[Tuple[np.ndarray, int]]:
         """One generation, yielded as contiguous chunks faded only at the utterance edges.
 
         The lock is held for the whole generation (the MLX model has one
@@ -645,20 +714,73 @@ class Qwen3TTSRuntime:
         with self._owned():
             model = self._mlx_or_raise()
             prompt = build_prompt(model)
-            fader = _EdgeFader(sample_rate=int(model.sample_rate))
-            for chunk in model.stream(
+            sr = int(model.sample_rate)
+            fader = _EdgeFader(sample_rate=sr)
+            watch = _QuietRunaway(sr)
+            runaway = False
+            frames = model.stream(
                 prompt,
                 sampling,
                 max_new_tokens=max_new_tokens,
                 chunk_frames=int(self.settings.stream_chunk_frames),
                 first_chunk_frames=int(self.settings.stream_first_chunk_frames),
-            ):
-                out = fader.push(chunk)
-                if out is not None:
-                    yield out, int(model.sample_rate)
+            )
+            try:
+                for chunk in frames:
+                    keep = watch.push(chunk)
+                    if keep is not None:
+                        runaway = True
+                        chunk = np.asarray(chunk, dtype=np.float32).reshape(-1)[:keep]
+                    out = fader.push(chunk)
+                    if out is not None:
+                        yield out, sr
+                    if runaway:
+                        break
+            finally:
+                frames.close()  # ends the generation (and frees the decoder) before the lock is released
             tail = fader.flush()
             if tail is not None:
-                yield tail, int(model.sample_rate)
+                yield tail, sr
+            end = self._generation_end(text, watch, sr, max_new_tokens, runaway=runaway)
+            if report is not None:
+                report.update(end)
+
+    @staticmethod
+    def _generation_end(text: str, watch: "_QuietRunaway", sr: int, max_new_tokens: int, *, runaway: bool) -> dict:
+        """How a completed generation ended: ``{"ended": "eos" | "quiet_runaway" | "cap", "audio_s",
+        "max_new_tokens"}``, plus ``"quiet_from_s"`` for a runaway ended at its quiet window."""
+        audio_s = watch.seen / float(sr)
+        end = {"ended": "eos", "audio_s": round(audio_s, 2), "max_new_tokens": int(max_new_tokens)}
+        if runaway:
+            end["ended"] = "quiet_runaway"
+            end["quiet_from_s"] = round(float(watch.quiet_from or 0) / float(sr), 2)
+            logger.warning(
+                "Qwen3-TTS: a generation of %d characters missed its end of speech and went quiet at %.1f s; "
+                "ended there instead of at its %.1f s cap, the reply goes on",
+                len(str(text)), end["quiet_from_s"], max_new_tokens / _CODES_PER_SECOND,
+            )
+        elif watch.seen >= int(max_new_tokens * sr / _CODES_PER_SECOND):
+            end["ended"] = "cap"
+            logger.warning(
+                "Qwen3-TTS: a generation of %d characters missed its end of speech and ran to its cap (%.1f s)",
+                len(str(text)), audio_s,
+            )
+        return end
+
+    def _finish_generation(
+        self, audio: np.ndarray, sample_rate: int, text: str, max_new_tokens: Any, report: Optional[dict] = None
+    ) -> tuple[np.ndarray, int]:
+        """A whole PyTorch generation, cut where it went quiet for good (``_QuietRunaway``), then de-clicked."""
+        mono = np.asarray(audio, dtype=np.float32).reshape(-1)
+        watch = _QuietRunaway(int(sample_rate))
+        keep = watch.push(mono)
+        if keep is not None:
+            mono = mono[:keep]
+        cap = int(max_new_tokens or estimate_max_new_tokens(text))
+        end = self._generation_end(text, watch, int(sample_rate), cap, runaway=keep is not None)
+        if report is not None:
+            report.update(end)
+        return _finish_utterance(mono, sample_rate)
 
     @staticmethod
     def _collect(chunks: Iterator[Tuple[np.ndarray, int]]) -> tuple[np.ndarray, int]:
@@ -697,7 +819,7 @@ class Qwen3TTSRuntime:
                 instruct=instruct or None,
                 **kwargs,
             )
-        return _finish_utterance(wavs[0], sr)
+        return self._finish_generation(wavs[0], sr, text, kwargs.get("max_new_tokens"))
 
     def stream_custom_voice(
         self,
@@ -753,7 +875,7 @@ class Qwen3TTSRuntime:
                 language=language or "Auto",
                 **kwargs,
             )
-        return _finish_utterance(wavs[0], sr)
+        return self._finish_generation(wavs[0], sr, text, kwargs.get("max_new_tokens"))
 
     def stream_voice_design(
         self,
@@ -933,12 +1055,18 @@ class Qwen3TTSRuntime:
         *,
         clone_prompt: Any,
         language: Optional[str] = None,
+        report: Optional[dict] = None,
         **overrides: Any,
     ) -> tuple[np.ndarray, int]:
-        """One utterance in a cloned voice, from a prebuilt prompt (Base models)."""
+        """One utterance in a cloned voice, from a prebuilt prompt (Base models).
+
+        ``report``, a dict, is filled with how the generation ended (``_generation_end``).
+        """
         self._ensure_loaded()
         if self._backend == "mlx":
-            return self._collect(self.stream_clone(text, clone_prompt=clone_prompt, language=language, **overrides))
+            return self._collect(
+                self.stream_clone(text, clone_prompt=clone_prompt, language=language, report=report, **overrides)
+            )
         kwargs = self.settings.generate_kwargs()
         kwargs["max_new_tokens"] = estimate_max_new_tokens(text)
         kwargs.update(overrides)
@@ -949,7 +1077,7 @@ class Qwen3TTSRuntime:
                 voice_clone_prompt=clone_prompt,
                 **kwargs,
             )
-        return _finish_utterance(wavs[0], sr)
+        return self._finish_generation(wavs[0], sr, text, kwargs.get("max_new_tokens"), report=report)
 
     def stream_clone(
         self,
@@ -957,11 +1085,13 @@ class Qwen3TTSRuntime:
         *,
         clone_prompt: Any,
         language: Optional[str] = None,
+        report: Optional[dict] = None,
         **overrides: Any,
     ) -> Iterator[Tuple[np.ndarray, int]]:
+        """``synthesize_clone`` as contiguous chunks (one chunk off the MLX backend); ``report`` likewise."""
         self._ensure_loaded()
         if self._backend != "mlx":
-            yield self.synthesize_clone(text, clone_prompt=clone_prompt, language=language, **overrides)
+            yield self.synthesize_clone(text, clone_prompt=clone_prompt, language=language, report=report, **overrides)
             return
         from .mlx.model import MLXClonePrompt
 
@@ -973,6 +1103,7 @@ class Qwen3TTSRuntime:
             text,
             lambda model: model.clone_prompt(str(text), clone=clone_prompt, language=(language or "auto")),
             overrides,
+            report=report,
         )
 
 

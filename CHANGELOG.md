@@ -38,6 +38,11 @@ Older changelog entries may reference historical CLI commands or model choices.
   separated by commas; links/images read as their text; `__x__`, `_x_` and `~~x~~` join `**x**`/`*x*`; arrows are a
   pause. One line of plain text is unchanged. `SegmentLocator` still maps every segment to an exact span: the index
   map now also covers inserted punctuation.
+- **A Qwen3-TTS generation that misses its end of speech is ended where it went quiet** (`qwen3_tts/runtime.py`): once
+  90 % of its last 4 s are quiet (-40 dBFS frames), the generation stops as its EOS would have and the reply goes on
+  with its next segment, instead of running to its cap (up to 164 s; real speech: at most 34 % quiet over 52 real
+  takes). The MLX stream and whole PyTorch takes both; logged, and reported per clone segment (`ended`: `eos` |
+  `quiet_runaway` | `cap`, `quiet_from_s`). `stream_clone` / `synthesize_clone` take an optional `report` dict.
 - **The clone speaker check is a setting, never an environment variable** (root backlog 1066). The
   `ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK` and `ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY` reads are gone;
   `VoiceManager(qwen3_tts_speaker_check=..., qwen3_tts_min_speaker_similarity=...)`, the AbstractCore plugin settings

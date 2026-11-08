@@ -298,7 +298,7 @@ def test_cloning_engine_streams_the_whole_text_on_a_native_runtime(tmp_path):
         def build_clone_prompt(self, **kwargs):
             return "prompt"
 
-        def stream_clone(self, text, *, clone_prompt, language):
+        def stream_clone(self, text, *, clone_prompt, language, report=None):
             Runtime.calls.append((text, clone_prompt, language))
             yield np.full(1920, 0.1, dtype=np.float32), 24000
             yield np.full(1920, 0.1, dtype=np.float32), 24000

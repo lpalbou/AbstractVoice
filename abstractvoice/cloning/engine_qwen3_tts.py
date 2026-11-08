@@ -455,9 +455,12 @@ class Qwen3TTSVoiceCloningEngine:
         }
         self.last_segments.append(record)
 
+        ends: dict = {}  # how the latest attempt's generation ended (the runtime fills it in)
+
         def counted():
             record["attempts"] += 1
-            return generate()
+            ends["last"] = report = {}
+            return generate(report)
 
         try:
             # Audio chunks, and the segment markers queued in the reply's outbox.
@@ -469,6 +472,12 @@ class Qwen3TTSVoiceCloningEngine:
                 "kept_below_threshold" if record.get("kept_below_threshold")
                 else "ok" if record["attempts"] <= 1 else "regenerated"
             )
+            # "eos", or a generation that missed its end of speech: "quiet_runaway" (ended where it went
+            # quiet, quiet_from_s) or "cap" (ran to max_new_tokens). Traceable per segment, like low_windows.
+            if ends.get("last"):
+                record["ended"] = ends["last"].get("ended")
+                if "quiet_from_s" in ends["last"]:
+                    record["quiet_from_s"] = ends["last"]["quiet_from_s"]
         except GeneratorExit:
             record["status"] = "cancelled"
             raise
@@ -477,9 +486,10 @@ class Qwen3TTSVoiceCloningEngine:
             raise
         finally:
             logger.info(
-                "Qwen3-TTS clone segment %d/%d: %s, %d chars, %.1f s audio, %d attempt(s), scores %s, %s/%s, ref %s%s",
+                "Qwen3-TTS clone segment %d/%d: %s, %d chars, %.1f s audio, %d attempt(s), scores %s, %s/%s, ref %s%s%s",
                 index + 1, count, record["status"], record["chars"], record["audio_s"], record["attempts"],
                 record["scores"], record["model"], record["backend"], record["reference"],
+                f", ended: {record['ended']}" if record.get("ended") not in (None, "eos") else "",
                 f", error: {record['error']}" if record["error"] else "",
             )
 
@@ -574,8 +584,8 @@ class Qwen3TTSVoiceCloningEngine:
         self.last_segments = []
         yield from self._recorded_segment(
             runtime, prompt, index=0, count=1, text=str(text), ref_path=str(ref_paths[0]),
-            generate=lambda: [runtime.synthesize_clone(
-                str(text), clone_prompt=prompt, language=language_arg, max_new_tokens=max_new_tokens
+            generate=lambda report: [runtime.synthesize_clone(
+                str(text), clone_prompt=prompt, language=language_arg, max_new_tokens=max_new_tokens, report=report
             )],
         )
 
@@ -658,9 +668,13 @@ class Qwen3TTSVoiceCloningEngine:
         for index, chunk in enumerate(segments):
             outbox.mark(SegmentStart(index, chunk))
             if native:
-                generate = lambda chunk=chunk: runtime.stream_clone(chunk, clone_prompt=prompt, language=language_arg)  # noqa: E731
+                generate = lambda report, chunk=chunk: runtime.stream_clone(  # noqa: E731
+                    chunk, clone_prompt=prompt, language=language_arg, report=report
+                )
             else:
-                generate = lambda chunk=chunk: [runtime.synthesize_clone(chunk, clone_prompt=prompt, language=language_arg)]  # noqa: E731
+                generate = lambda report, chunk=chunk: [runtime.synthesize_clone(  # noqa: E731
+                    chunk, clone_prompt=prompt, language=language_arg, report=report
+                )]
             yield from self._recorded_segment(
                 runtime, prompt, index=index, count=len(segments), text=chunk, ref_path=str(ref_paths[0]),
                 generate=generate, outbox=outbox,
