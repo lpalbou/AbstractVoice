@@ -10,45 +10,20 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-09
+
 ### Added
 
-- Spoken languages, one list: `abstractvoice.stt.languages` (`SUPPORTED_LANGUAGES`, `LANGUAGE_LABELS`, `normalize_language` with its refusal sentence, `choices`, `language_label`) — faster-whisper, mlx-whisper and Transformers ASR all advertise it through `get_supported_languages()`, so a client never keeps a list of its own.
+- Spoken languages, one list: `abstractvoice.stt.languages` (`SUPPORTED_LANGUAGES`, `LANGUAGE_LABELS`, `normalize_language` with its refusal sentence, `choices`, `language_label`). faster-whisper, mlx-whisper and Transformers ASR all advertise it through `get_supported_languages()`, so a client never keeps a list of its own.
 - `STTAdapter.transcribe_detailed` / `transcribe_from_bytes_detailed` → `Transcription(text, language, detected_language)`: what the engine was told (`None` = auto) and the language it reported (faster-whisper from its segment info, mlx-whisper from its result, OpenAI-compatible endpoints from a verbose answer). The AbstractCore audio plugin gains `transcribe_detailed` → `{"text", "language", "detected_language"}`.
 
 ### Changed
 
-- `language=None` is auto on every STT engine: the VoiceManager no longer seeds the mlx-whisper and OpenAI-compatible STT adapters with its TTS `language`, which had made a transcription without a language hint fixed to the voice's language instead of detected. Only an explicit `set_language(code)` or a call's `language` fixes it.
-- **A cloned reply is never dropped for scoring a little under the clone bar** (`cloning/engine_qwen3_tts.py`;
-  operator ruling 2026-11-05/07: "retry once, and if it failed again, still use that voice because a small delta is
-  better than to default to a random voice"). A segment whose opening scores under `MIN_SPEAKER_SIMILARITY` is still
-  regenerated once while nothing of it was heard; if the second take also scores under it, that take is spoken in the
-  cloned voice (logged, and recorded with status `kept_below_threshold`) instead of raising
-  `ClonedVoiceNotAppliedError` and leaving the rest of the reply unspoken. After the opening, every 4 s window is
-  scored for the record only: one under the block bar (`MIN_BLOCK_SPEAKER_SIMILARITY`, or a kept take's own bar,
-  `KEPT_TAKE_DRIFT_MARGIN`) is logged and listed in the segment record's `low_windows` (time, score, limit) while
-  playback continues (operator ruling 2026-11-07: "a hard failure is worse than playing the voice with a small
-  delta"). The Qwen3 clone engine no longer raises `ClonedVoiceNotAppliedError`; the class stays importable for callers
-  that catch it.
-- **Markdown is read as its words, never its syntax or its code** (`text_sanitize.py`, every speech surface;
-  2026-11-08 incident: a read-aloud of a Code reply fed a fenced Python call to the Qwen3-TTS clone, which slurred into a
-  repeated syllable, missed its end of speech and played silence for two minutes). Fenced code blocks are not read;
-  inline code is read as its literal text without backticks; headings, list items, table rows and paragraphs are
-  blocks, and a block followed by another ends with a full stop when it has none (a heading is its own sentence);
-  bullet, quote and task-box markers, rules and table delimiters are dropped, `3.` is read `3:`, table cells are
-  separated by commas; links/images read as their text; `__x__`, `_x_` and `~~x~~` join `**x**`/`*x*`; arrows are a
-  pause. One line of plain text is unchanged. `SegmentLocator` still maps every segment to an exact span: the index
-  map now also covers inserted punctuation.
-- **A Qwen3-TTS generation that misses its end of speech is ended where it went quiet** (`qwen3_tts/runtime.py`): once
-  90 % of its last 4 s are quiet (-40 dBFS frames), the generation stops as its EOS would have and the reply goes on
-  with its next segment, instead of running to its cap (up to 164 s; real speech: at most 34 % quiet over 52 real
-  takes). The MLX stream and whole PyTorch takes both; logged, and reported per clone segment (`ended`: `eos` |
-  `quiet_runaway` | `cap`, `quiet_from_s`). `stream_clone` / `synthesize_clone` take an optional `report` dict.
-- **The clone speaker check is a setting, never an environment variable** (root backlog 1066). The
-  `ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK` and `ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY` reads are gone;
-  `VoiceManager(qwen3_tts_speaker_check=..., qwen3_tts_min_speaker_similarity=...)`, the AbstractCore plugin settings
-  `voice_qwen3_tts_speaker_check` / `voice_qwen3_tts_min_speaker_similarity`, `VoiceCloner(...)` and
-  `Qwen3TTSVoiceCloningEngine(speaker_check=..., min_speaker_similarity=...)` carry the choice; a bar outside (0, 1]
-  is a `ValueError` at construction.
+- `language=None` is auto on every STT engine. The VoiceManager no longer seeds the mlx-whisper and OpenAI-compatible STT adapters with its TTS `language`; only an explicit `set_language(code)` or a call's `language` fixes the transcription language.
+- **A cloned reply is never dropped for scoring a little under the clone bar** (`cloning/engine_qwen3_tts.py`). A segment whose opening scores under `MIN_SPEAKER_SIMILARITY` is regenerated once while nothing of it was heard; if the second take also scores under it, that take is spoken in the cloned voice (logged, and recorded with status `kept_below_threshold`): a small difference beats another voice or an unspoken reply. After the opening, every 4 s window is scored for the record only: one under the block bar (`MIN_BLOCK_SPEAKER_SIMILARITY`, or a kept take's own bar, `KEPT_TAKE_DRIFT_MARGIN`) is logged and listed in the segment record's `low_windows` (time, score, limit) while playback continues. Migration: the Qwen3 clone engine no longer raises `ClonedVoiceNotAppliedError`; the class stays importable for callers that catch it.
+- **Markdown is read as its words, never its syntax or its code** (`text_sanitize.py`, every speech surface). Fenced code blocks are not read; inline code is read as its literal text without backticks; headings, list items, table rows and paragraphs are blocks, and a block followed by another ends with a full stop when it has none (a heading is its own sentence); bullet, quote and task-box markers, rules and table delimiters are dropped, `3.` is read `3:`, table cells are separated by commas; links and images read as their text; `__x__`, `_x_` and `~~x~~` join `**x**` / `*x*`; arrows are a pause. One line of plain text is unchanged. `SegmentLocator` still maps every segment to an exact span: the index map also covers inserted punctuation.
+- **A Qwen3-TTS generation that misses its end of speech is ended where it went quiet** (`qwen3_tts/runtime.py`). Once 90 % of its last 4 s are quiet (-40 dBFS frames), the generation stops as its EOS would have and the reply goes on with its next segment, instead of running to its cap (up to 164 s). MLX streams and whole PyTorch takes both; logged, and reported per clone segment (`ended`: `eos` | `quiet_runaway` | `cap`, `quiet_from_s`). `stream_clone` / `synthesize_clone` take an optional `report` dict.
+- **The clone speaker check is a setting, never an environment variable.** The `ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK` and `ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY` reads are gone; `VoiceManager(qwen3_tts_speaker_check=..., qwen3_tts_min_speaker_similarity=...)`, the AbstractCore plugin settings `voice_qwen3_tts_speaker_check` / `voice_qwen3_tts_min_speaker_similarity`, `VoiceCloner(...)` and `Qwen3TTSVoiceCloningEngine(speaker_check=..., min_speaker_similarity=...)` carry the choice; a bar outside (0, 1] is a `ValueError` at construction.
 
 ## [0.20.1] - 2026-11-07
 

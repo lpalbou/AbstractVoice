@@ -4,9 +4,9 @@ This folder is the **single source of truth** for planned and completed work in 
 
 ## Current snapshot
 
-- Updated: 2026-11-07
+- Updated: 2026-11-09
 - Planned: 16
-- Proposed: 11
+- Proposed: 12
 - Completed: 44
 - Deprecated: 1
 - Recurrent: 1
@@ -95,6 +95,10 @@ Rationale:
 
 ## Other current proposed items
 
+- [0068 Qwen3-TTS predictor parity test on Apple silicon](proposed/0068_qwen3_tts_predictor_parity_test_on_apple_silicon.md):
+  P2; the opt-in real-checkpoint predictor test assumes the PyTorch backend (fails on the MLX default) and its
+  whole-utterance exact-parity check is not reproducible on MPS with Transformers 5.20 (also on v0.20.1); make it
+  select its backend and measure before asserting.
 - [0067 Explicit clone validation and segment retry policy](deprecated/0067_explicit_clone_validation_and_segment_retry_policy.md):
   DEPRECATED 2026-11-07, superseded by the operator's ruling (retry once, then speak the cloned voice; later windows
   recorded, never a stop) implemented on main (14da7d3, d0abd24); the check is a setting, not an environment variable.
