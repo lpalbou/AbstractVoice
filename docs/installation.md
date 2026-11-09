@@ -124,6 +124,11 @@ Python-version notes:
   build does not succeed on x86_64, so a Linux server installs the profile without echo
   cancellation (a server has no microphone to cancel for).
 
+Note (Qwen3-TTS on PyTorch): the platform profiles and `abstractvoice[qwen3-tts]` keep
+`transformers` below 5.21. Transformers 5.21 split its Mimi codec into encoder and decoder
+sub-models, and the Qwen3-TTS speech tokenizer that AbstractVoice ships (a subclass of that codec)
+does not construct on it. The pin lifts when the tokenizer is ported.
+
 Note (OmniVoice): OmniVoice uses the torch/torchaudio/torchvision stack. If you
 already have an incompatible `torchvision` installed (common after changing
 torch-backed extras), you may see import errors like:

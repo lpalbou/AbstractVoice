@@ -19,6 +19,7 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ### Fixed
 
+- **Qwen3-TTS loads on a fresh PyTorch install.** The platform profiles and `abstractvoice[qwen3-tts]` keep `transformers` below 5.21: Transformers 5.21 split `MimiModel` into encoder and decoder sub-models, and the Qwen3-TTS speech tokenizer AbstractVoice ships (a `MimiModel` subclass) failed to construct on 5.21 and 5.22 (`property 'upsample' ... has no setter`), so a fresh Linux or Windows install had no Qwen3-TTS at all. A new test constructs the tokenizer from its checkpoint configuration without weights, so the CI job that runs against the newest Transformers turns red on this kind of drift. Porting the tokenizer to the new Mimi layout is voice backlog 0069.
 - **`pip install "abstractvoice[gpu]"` installs on a clean Linux host.** The platform profiles (`apple`, `gpu`, `all-apple`, `all-gpu`) now require `aec-audio-processing` on macOS and Windows only: it publishes no Linux wheel and its source build fails on x86_64 Linux, which made the whole GPU profile uninstallable on an Ubuntu 24.04 NVIDIA server. `abstractvoice[aec]` stays available everywhere for an explicit opt-in.
 
 ### Changed

@@ -6,7 +6,7 @@ This folder is the **single source of truth** for planned and completed work in 
 
 - Updated: 2026-11-09
 - Planned: 16
-- Proposed: 12
+- Proposed: 13
 - Completed: 44
 - Deprecated: 1
 - Recurrent: 1
@@ -95,6 +95,10 @@ Rationale:
 
 ## Other current proposed items
 
+- [0069 Port the Qwen3-TTS speech tokenizer to Transformers 5.21's Mimi layout](proposed/0069_port_qwen3_tts_speech_tokenizer_to_transformers_5_21_mimi.md):
+  P1; Transformers 5.21 split `MimiModel` and made `upsample` read-only, so the vendored tokenizer (a subclass) no
+  longer constructs and no Qwen3-TTS loads on PyTorch; 0.21.0 pins `transformers<5.21`, this item lifts it by
+  composing the encoder from Mimi blocks instead of subclassing.
 - [0068 Qwen3-TTS predictor parity test on Apple silicon](proposed/0068_qwen3_tts_predictor_parity_test_on_apple_silicon.md):
   P2; the opt-in real-checkpoint predictor test assumes the PyTorch backend (fails on the MLX default) and its
   whole-utterance exact-parity check is not reproducible on MPS with Transformers 5.20 (also on v0.20.1); make it
