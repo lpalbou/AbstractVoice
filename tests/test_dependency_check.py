@@ -257,8 +257,15 @@ def test_python39_optional_engine_markers_are_resolver_safe() -> None:
     assert all("python_version >= '3.10'" in dep for dep in extras["chroma"])
     assert all("python_version >= '3.10'" in dep for dep in extras["omnivoice"])
     assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["aec"]
-    assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["apple"]
-    assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" in extras["gpu"]
+    # The platform profiles take echo cancellation only where it installs: no Linux wheel, and
+    # its source build fails on x86_64 Linux (a clean Ubuntu GPU server, 2026-11-09).
+    aec_where_it_installs = (
+        "aec-audio-processing>=1.0.1; python_version >= '3.11' and "
+        "(sys_platform == 'darwin' or sys_platform == 'win32')"
+    )
+    for name in ("apple", "gpu", "all-apple", "all-gpu"):
+        assert aec_where_it_installs in extras[name], name
+        assert "aec-audio-processing>=1.0.1; python_version >= '3.11'" not in extras[name], name
 
 
 def test_f5_runtime_guard_explains_python39(monkeypatch: pytest.MonkeyPatch) -> None:

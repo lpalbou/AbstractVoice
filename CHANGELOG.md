@@ -17,6 +17,10 @@ Older changelog entries may reference historical CLI commands or model choices.
 - Spoken languages, one list: `abstractvoice.stt.languages` (`SUPPORTED_LANGUAGES`, `LANGUAGE_LABELS`, `normalize_language` with its refusal sentence, `choices`, `language_label`). faster-whisper, mlx-whisper and Transformers ASR all advertise it through `get_supported_languages()`, so a client never keeps a list of its own.
 - `STTAdapter.transcribe_detailed` / `transcribe_from_bytes_detailed` → `Transcription(text, language, detected_language)`: what the engine was told (`None` = auto) and the language it reported (faster-whisper from its segment info, mlx-whisper from its result, OpenAI-compatible endpoints from a verbose answer). The AbstractCore audio plugin gains `transcribe_detailed` → `{"text", "language", "detected_language"}`.
 
+### Fixed
+
+- **`pip install "abstractvoice[gpu]"` installs on a clean Linux host.** The platform profiles (`apple`, `gpu`, `all-apple`, `all-gpu`) now require `aec-audio-processing` on macOS and Windows only: it publishes no Linux wheel and its source build fails on x86_64 Linux, which made the whole GPU profile uninstallable on an Ubuntu 24.04 NVIDIA server. `abstractvoice[aec]` stays available everywhere for an explicit opt-in.
+
 ### Changed
 
 - `language=None` is auto on every STT engine. The VoiceManager no longer seeds the mlx-whisper and OpenAI-compatible STT adapters with its TTS `language`; only an explicit `set_language(code)` or a call's `language` fixes the transcription language.

@@ -79,7 +79,9 @@ apple = [
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
     "omnivoice>=0.1.5; python_version >= '3.10'",
-    "aec-audio-processing>=1.0.1; python_version >= '3.11'",
+    # Echo cancellation where it installs: macOS builds from source, Windows has wheels; on Linux
+    # the package has no wheel and its source build fails on x86_64, so a GPU server skips it.
+    "aec-audio-processing>=1.0.1; python_version >= '3.11' and (sys_platform == 'darwin' or sys_platform == 'win32')",
 ]
 
 gpu = [
@@ -121,7 +123,9 @@ gpu = [
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
     "omnivoice>=0.1.5; python_version >= '3.10'",
-    "aec-audio-processing>=1.0.1; python_version >= '3.11'",
+    # Echo cancellation where it installs: macOS builds from source, Windows has wheels; on Linux
+    # the package has no wheel and its source build fails on x86_64, so a GPU server skips it.
+    "aec-audio-processing>=1.0.1; python_version >= '3.11' and (sys_platform == 'darwin' or sys_platform == 'win32')",
 ]
 
 # Granular local engine extras remain available for smaller custom installs.
@@ -208,7 +212,8 @@ omnivoice = [
 ]
 
 # Optional AEC (Acoustic Echo Cancellation) for true barge-in.
-# This is intentionally opt-in because platform support/toolchain requirements vary.
+# Opt-in on every platform: macOS builds it from source, Windows has wheels, Linux has neither
+# (no wheel; the source build fails on x86_64), which is why the platform profiles skip it there.
 aec = [
     "aec-audio-processing>=1.0.1; python_version >= '3.11'",
 ]
@@ -284,7 +289,9 @@ all-apple = [
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
     "omnivoice>=0.1.5; python_version >= '3.10'",
-    "aec-audio-processing>=1.0.1; python_version >= '3.11'",
+    # Echo cancellation where it installs: macOS builds from source, Windows has wheels; on Linux
+    # the package has no wheel and its source build fails on x86_64, so a GPU server skips it.
+    "aec-audio-processing>=1.0.1; python_version >= '3.11' and (sys_platform == 'darwin' or sys_platform == 'win32')",
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-multipart>=0.0.9",
@@ -329,7 +336,9 @@ all-gpu = [
     "einops>=0.8.0",
     "sentencepiece>=0.1.99",
     "omnivoice>=0.1.5; python_version >= '3.10'",
-    "aec-audio-processing>=1.0.1; python_version >= '3.11'",
+    # Echo cancellation where it installs: macOS builds from source, Windows has wheels; on Linux
+    # the package has no wheel and its source build fails on x86_64, so a GPU server skips it.
+    "aec-audio-processing>=1.0.1; python_version >= '3.11' and (sys_platform == 'darwin' or sys_platform == 'win32')",
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-multipart>=0.0.9",

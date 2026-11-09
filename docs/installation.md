@@ -42,7 +42,7 @@ AbstractVoice is discovered as the voice/audio capability backend.
 
 ```bash
 pip install "abstractvoice[apple]"     # Apple Silicon local stack: Piper, Supertonic, faster-whisper + mlx-whisper (Apple GPU), AEC, cloning/TTS engines
-pip install "abstractvoice[gpu]"       # GPU local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines
+pip install "abstractvoice[gpu]"       # GPU local stack: Piper, Supertonic, faster-whisper, cloning/TTS engines (AEC on macOS and Windows)
 pip install "abstractvoice[all-apple]" # Apple stack + local FastAPI browser example
 pip install "abstractvoice[all-gpu]"   # GPU stack + local FastAPI browser example
 pip install "abstractvoice[piper]"     # Local Piper TTS only
@@ -119,7 +119,10 @@ Python-version notes:
   OpenF5/F5-TTS only on Python 3.11+, because on 3.10 `f5-tts` pins
   `numpy<=1.26.4` and would block NumPy 2 stacks (AbstractVision, MLX). On 3.10,
   install `abstractvoice[cloning]` separately if you need F5-TTS.
-- AEC requires Python 3.11+ because `aec-audio-processing` declares that floor.
+- AEC requires Python 3.11+ because `aec-audio-processing` declares that floor. The platform
+  profiles include it on macOS and Windows only: on Linux the package has no wheel and its source
+  build does not succeed on x86_64, so a Linux server installs the profile without echo
+  cancellation (a server has no microphone to cancel for).
 
 Note (OmniVoice): OmniVoice uses the torch/torchaudio/torchvision stack. If you
 already have an incompatible `torchvision` installed (common after changing
@@ -201,6 +204,11 @@ sudo apt-get install -y portaudio19-dev
 Usually works out of the box. If device access fails, check OS microphone permissions and installed audio drivers.
 
 AEC (`aec-audio-processing`) has Windows wheels for Python 3.11 to 3.13.
+
+### Linux
+
+`abstractvoice[gpu]` and `[all-gpu]` install without echo cancellation on Linux (see the AEC note
+above); everything else in the profile has Linux wheels, so a clean Ubuntu host needs no compiler.
 
 ### NVIDIA GPUs (Linux and Windows)
 
