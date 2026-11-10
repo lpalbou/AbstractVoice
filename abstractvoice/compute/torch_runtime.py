@@ -187,7 +187,8 @@ def resolve_torch_runtime(
         best = best_torch_dtype_choice(device=str(resolved))
         chosen_dtype, dtype_reason = best.name, best.reason
     try:
-        resolved_dtype = resolve_torch_dtype(device=str(resolved), dtype_name=chosen_dtype)
+        # The automatic path passes no name: resolve_torch_dtype then knows the request was not explicit.
+        resolved_dtype = resolve_torch_dtype(device=str(resolved), dtype_name=dtype_choice)
         resolved_dtype_name = str(resolved_dtype).replace("torch.", "")
         if resolved_dtype_name != chosen_dtype:
             dtype_reason = f"{chosen_dtype} is not supported on {resolved}"

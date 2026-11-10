@@ -28,7 +28,12 @@ from unicodedata import category, normalize
 
 import numpy as np
 
-from ..compute.onnx_cuda import REINSTALL_CUDA_BUILD, onnxruntime_gpu_installed, preload_cuda_libraries
+from ..compute.onnx_cuda import (
+    REINSTALL_CUDA_BUILD,
+    no_cuda_device_reason,
+    onnxruntime_gpu_installed,
+    preload_cuda_libraries,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -439,7 +444,8 @@ class SupertonicRuntime:
             if "CUDAExecutionProvider" in providers:
                 reason = self.CUDA_FAILED_REASON
             elif "CUDAExecutionProvider" in available:
-                reason = self.CPU_REQUESTED_REASON
+                no_device = no_cuda_device_reason()
+                reason = f"CPU: {no_device}" if no_device else self.CPU_REQUESTED_REASON
             elif sys.platform == "darwin":
                 reason = self.CPU_REASON
             elif onnxruntime_gpu_installed():
@@ -468,6 +474,9 @@ class SupertonicRuntime:
             requested = [p.strip() for p in raw.split(",") if p.strip()] if raw else list(self.DEFAULT_PROVIDERS)
         available = set(ort.get_available_providers() or [])
         selected = [p for p in list(requested or []) if p in available]
+        if "CUDAExecutionProvider" in selected and no_cuda_device_reason():
+            # Never let ONNX Runtime's wrapper fall back: it prints to stdout (see onnx_cuda).
+            selected = [p for p in selected if p != "CUDAExecutionProvider"]
         return selected or ["CPUExecutionProvider"]
 
     def _ensure_loaded(self) -> None:

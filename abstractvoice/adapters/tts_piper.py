@@ -20,7 +20,7 @@ from typing import Optional, Dict, Any
 import wave
 import struct
 
-from ..compute.onnx_cuda import preload_cuda_libraries
+from ..compute.onnx_cuda import no_cuda_device_reason, preload_cuda_libraries
 from ..voice_profiles import VoiceProfile
 from .base import TTSAdapter
 
@@ -157,6 +157,8 @@ class PiperTTSAdapter(TTSAdapter):
         # What the loaded voice's ONNX session actually runs on (None before a load): ONNX
         # Runtime falls back to the CPU, with a log line only, when CUDA cannot load.
         self._execution_providers: Optional[list[str]] = None
+        # Why the voice runs on the CPU although CUDA was wanted (None otherwise).
+        self._execution_reason: Optional[str] = None
         
         # Set model directory
         if model_dir is None:
@@ -225,11 +227,20 @@ class PiperTTSAdapter(TTSAdapter):
         Control:
         - ABSTRACTVOICE_PIPER_USE_CUDA=1/0 forces on/off
         - default: enable when CUDAExecutionProvider is available
+
+        Either way, never without a usable CUDA device: ONNX Runtime's wrapper
+        would print its fallback banner to stdout (see compute/onnx_cuda.py).
         """
+        self._execution_reason = None
         forced = self._coerce_bool_env("ABSTRACTVOICE_PIPER_USE_CUDA")
-        if forced is not None:
-            return bool(forced)
-        return bool(self._onnx_cuda_available())
+        wanted = bool(forced) if forced is not None else bool(self._onnx_cuda_available())
+        if not wanted:
+            return False
+        no_device = no_cuda_device_reason()
+        if no_device:
+            self._execution_reason = f"CPU: {no_device}"
+            return False
+        return True
 
     @staticmethod
     def _voice_id_from_hf_path(hf_path: str) -> str:
@@ -779,6 +790,7 @@ class PiperTTSAdapter(TTSAdapter):
             'cross_platform': True,
             'use_cuda': bool(getattr(self, "_use_cuda", False)),
             'execution_providers': getattr(self, "_execution_providers", None),
+            'execution_reason': getattr(self, "_execution_reason", None),
         })
         # Best-effort: expose available ONNX Runtime providers for debugging.
         try:

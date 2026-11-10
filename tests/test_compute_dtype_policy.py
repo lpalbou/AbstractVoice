@@ -126,3 +126,45 @@ def test_cuda_without_any_bfloat16_falls_back_to_float32_not_float16(monkeypatch
     assert resolve_torch_dtype(device="cuda", dtype_name="bfloat16") == "torch.float32"
     _fake_torch(monkeypatch, (7, 5), bf16_supported=True)  # emulated: an explicit request is kept
     assert resolve_torch_dtype(device="cuda", dtype_name="bfloat16") == "torch.bfloat16"
+
+
+def _bf16_warnings(caplog):
+    return [r for r in caplog.records if r.name == "abstractvoice.compute.dtype" and "bfloat16 requested" in r.getMessage()]
+
+
+def test_an_explicit_bfloat16_rewritten_to_float32_warns_once(monkeypatch: pytest.MonkeyPatch, caplog):
+    # ADR 0005: explicit knobs are first-class; the rewrite stays, but it is never silent.
+    from abstractvoice.compute.dtype import resolve_torch_dtype
+
+    caplog.set_level("WARNING", logger="abstractvoice.compute.dtype")
+    _fake_torch(monkeypatch, (6, 1), bf16_supported=False)
+
+    assert resolve_torch_dtype(device="cuda:0", dtype_name="bfloat16") == "torch.float32"
+    (record,) = _bf16_warnings(caplog)
+    assert "dtype_name='bfloat16'" in record.getMessage() and "using float32" in record.getMessage()
+
+    caplog.clear()
+    monkeypatch.setenv("ABSTRACTVOICE_TORCH_DTYPE", "bf16")
+    assert resolve_torch_dtype(device="cuda", dtype_name=None) == "torch.float32"
+    (record,) = _bf16_warnings(caplog)
+    assert "ABSTRACTVOICE_TORCH_DTYPE=bf16" in record.getMessage()
+
+
+def test_the_automatic_path_never_warns(monkeypatch: pytest.MonkeyPatch, caplog):
+    from abstractvoice.compute import resolve_torch_runtime
+    from abstractvoice.compute import torch_runtime as runtime_module
+    from abstractvoice.compute.dtype import resolve_torch_dtype
+
+    caplog.set_level("WARNING", logger="abstractvoice.compute.dtype")
+    # A device the policy would give bfloat16 that cannot run it: rewritten without a word.
+    _fake_torch(monkeypatch, (8, 9), bf16_supported=False)
+    monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
+
+    assert resolve_torch_dtype(device="cuda", dtype_name=None) == "torch.float32"
+    assert resolve_torch_dtype(device="cuda", dtype_name="auto") == "torch.float32"
+    assert resolve_torch_runtime(device="cuda").resolved_dtype_name == "float32"
+    assert _bf16_warnings(caplog) == []
+
+    # Through the shared runtime resolution, an explicit request still warns, once.
+    assert resolve_torch_runtime(device="cuda", dtype_name="bfloat16").resolved_dtype_name == "float32"
+    assert len(_bf16_warnings(caplog)) == 1

@@ -16,6 +16,16 @@ CUDA = "CUDAExecutionProvider"
 CPU = "CPUExecutionProvider"
 
 
+def _wrapper_fallback_if_no_device(providers):
+    """What ONNX Runtime's Python wrapper does when CUDA is requested without a device: an "EP Error"
+    banner on STDOUT, then the CPU. The engines must never get here."""
+    torch = sys.modules.get("torch")
+    if CUDA in providers and not (torch is not None and torch.cuda.is_available()):
+        print("*************** EP Error ***************\nEP Error cudaErrorNoDevice when using [CUDA]")
+        return [CPU]
+    return None
+
+
 def _fake_ort(available, *, loadable=None):
     ort = types.ModuleType("onnxruntime")
     ort.__spec__ = importlib.machinery.ModuleSpec("onnxruntime", None)
@@ -28,7 +38,7 @@ def _fake_ort(available, *, loadable=None):
             # Piper asks for [("CUDAExecutionProvider", {options})] or ["CPUExecutionProvider"].
             self.requested = [p[0] if isinstance(p, tuple) else p for p in providers or []]
             got = [p for p in self.requested if p in loads and p != CPU]
-            self._providers = got + [CPU]  # ONNX Runtime always keeps the CPU provider
+            self._providers = _wrapper_fallback_if_no_device(self.requested) or (got + [CPU])  # CPU always kept
             ort.sessions.append(self)
 
         def get_providers(self):
@@ -41,6 +51,27 @@ def _fake_ort(available, *, loadable=None):
     ort.InferenceSession = InferenceSession
     ort.preload_dlls = preload_dlls
     return ort
+
+
+@pytest.fixture(autouse=True)
+def cuda_device(monkeypatch):
+    """A fresh process (CUDA libraries never preloaded, device never asked) with a usable CUDA
+    device as torch sees it; `cuda_device(False)` hides it (CUDA_VISIBLE_DEVICES= , no driver)."""
+    from abstractvoice.compute import onnx_cuda
+
+    monkeypatch.setattr(onnx_cuda, "_preload_done", False)
+    monkeypatch.setattr(onnx_cuda, "_preload_note", None)
+    onnx_cuda.usable_cuda_device.cache_clear()
+
+    def set_device(present: bool = True):
+        torch = types.ModuleType("torch")
+        torch.cuda = SimpleNamespace(is_available=lambda: present)
+        monkeypatch.setitem(sys.modules, "torch", torch)
+        onnx_cuda.usable_cuda_device.cache_clear()
+
+    set_device(True)
+    yield set_device
+    onnx_cuda.usable_cuda_device.cache_clear()
 
 
 @pytest.fixture
@@ -122,3 +153,47 @@ def test_cuda_switched_off_by_the_environment(piper_adapter, monkeypatch) -> Non
     assert ort.preload_calls == 0
     assert ort.sessions[0].requested == [CPU]
     assert adapter.get_info()["execution_providers"] == [CPU]
+
+
+def test_each_voice_load_does_not_preload_again(piper_adapter) -> None:
+    ort = _fake_ort([CUDA, CPU])
+    adapter = piper_adapter(ort)
+
+    assert adapter._load_voice("en") is True
+    assert adapter._load_voice("en") is True  # a language switch reloads the voice
+
+    assert ort.preload_calls == 1
+    assert [s.requested for s in ort.sessions] == [[CUDA], [CUDA]]
+
+
+@pytest.mark.parametrize("forced", [None, "1"])
+def test_provider_listed_but_no_device_runs_on_the_cpu_and_keeps_stdout_clean(
+    piper_adapter, cuda_device, monkeypatch, capsys, forced
+) -> None:
+    ort = _fake_ort([CUDA, CPU])
+    adapter = piper_adapter(ort)
+    cuda_device(False)
+    if forced:
+        monkeypatch.setenv("ABSTRACTVOICE_PIPER_USE_CUDA", forced)
+
+    assert adapter._load_voice("en") is True
+
+    assert capsys.readouterr().out == ""  # the wrapper's fallback banner never ran
+    assert ort.sessions[0].requested == [CPU]
+    info = adapter.get_info()
+    assert info["use_cuda"] is False
+    assert info["execution_providers"] == [CPU]
+    assert info["execution_reason"] == (
+        "CPU: ONNX Runtime has the CUDA provider but no usable CUDA device: torch.cuda.is_available() is False"
+    )
+
+
+def test_provider_listed_and_a_device_runs_on_cuda(piper_adapter, capsys) -> None:
+    ort = _fake_ort([CUDA, CPU])
+    adapter = piper_adapter(ort)
+
+    assert adapter._load_voice("en") is True
+
+    assert capsys.readouterr().out == ""
+    assert ort.sessions[0].requested == [CUDA]
+    assert adapter.get_info()["execution_reason"] is None

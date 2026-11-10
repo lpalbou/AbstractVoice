@@ -6,8 +6,11 @@ behave consistently across platforms.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 # NVIDIA GPUs compute natively in bfloat16 from Ampere (compute capability 8.0)
 # on. Older cards (Turing 7.5, Volta 7.0, Pascal 6.x) run bfloat16 emulated:
@@ -24,6 +27,8 @@ class TorchDtypeChoice:
 
     name: str
     reason: str
+    # True when ABSTRACTVOICE_TORCH_DTYPE chose it: an explicit knob, not the device default.
+    explicit: bool = False
 
 
 def _device_base(device: str) -> str:
@@ -87,12 +92,12 @@ def best_torch_dtype_choice(*, device: str) -> TorchDtypeChoice:
         reason = f"set by ABSTRACTVOICE_TORCH_DTYPE={raw}"
         # normalize common spellings
         if forced in ("fp16", "float16", "half"):
-            return TorchDtypeChoice("float16", reason)
+            return TorchDtypeChoice("float16", reason, explicit=True)
         if forced in ("bf16", "bfloat16"):
-            return TorchDtypeChoice("bfloat16", reason)
+            return TorchDtypeChoice("bfloat16", reason, explicit=True)
         if forced in ("fp32", "float32"):
-            return TorchDtypeChoice("float32", reason)
-        return TorchDtypeChoice(forced, reason)
+            return TorchDtypeChoice("float32", reason, explicit=True)
+        return TorchDtypeChoice(forced, reason, explicit=True)
 
     dev = _device_base(str(device or ""))
     if dev == "cuda":
@@ -122,9 +127,10 @@ def resolve_torch_dtype(*, device: str, dtype_name: str | None = None):
 
     raw_name = (dtype_name or "").strip().lower()
     if not raw_name or raw_name == "auto":
-        name = best_torch_dtype_name(device=device)
+        choice = best_torch_dtype_choice(device=device)
+        name, request = choice.name, (choice.reason if choice.explicit else None)
     else:
-        name = raw_name
+        name, request = raw_name, f"dtype_name={dtype_name!r}"
     mapping = {
         "float16": torch.float16,
         "bfloat16": torch.bfloat16,
@@ -136,10 +142,13 @@ def resolve_torch_dtype(*, device: str, dtype_name: str | None = None):
     dt = mapping[name]
 
     # A CUDA device that cannot run bfloat16 at all (not even emulated) gets
-    # float32: float16 is unstable for these models (see above).
+    # float32: float16 is unstable for these models (see above). An explicit
+    # request rewritten this way says so (ADR 0005: explicit knobs come first).
     if _device_base(str(device)) == "cuda" and dt == torch.bfloat16:
         try:
             if hasattr(torch.cuda, "is_bf16_supported") and not torch.cuda.is_bf16_supported():
+                if request:
+                    logger.warning("bfloat16 requested (%s) but %s cannot run bfloat16; using float32", request, device)
                 return torch.float32
         except Exception:
             # Best-effort; keep requested dtype.
