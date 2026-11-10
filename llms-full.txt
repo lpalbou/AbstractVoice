@@ -34,7 +34,14 @@ and `device: metal`. Text arriving incrementally (`open_tts_text_stream`) is sti
 segment. See [Qwen backends](docs/api.md#qwen-backends-mlx-on-apple-silicon-pytorch-elsewhere).
 
 Qwen performance (PyTorch backend): a guarded specialized codebook predictor with stock
-multinomial sampling is enabled by default. Opt in to the exponential-race
+multinomial sampling is enabled by default. On CUDA that predictor captures its fixed-depth
+15-step frame as a CUDA graph once per input shape and sampling setting and replays it per frame;
+the replay records the eager loop's own kernels, so logits, IDs, RNG consumption and the audio are
+bitwise identical to the eager loop for the same seed (Quadro RTX 5000, float32, model warm: 0.8 of
+real time, 1.6 before; the first utterance after a load pays the 0.2-0.4 s capture; hooks, a
+weights move, a nested or failed capture fall back to the eager loop with one `#FALLBACK` line).
+The CUDA dtype follows the card: bfloat16 on compute capability 8.0 (Ampere) and newer, float32
+before that, where bfloat16 is emulated; `runtime_info()["dtype"]` / `["dtype_reason"]` say why. Opt in to the exponential-race
 sampler with `--qwen3-tts-sampler exponential`, or use the original Transformers
 path (which overrides sampler selection) with `--qwen3-tts-predictor reference`
 (CLI, REPL, web example). The same choice is `VoiceManager(qwen3_tts_sampler=...,
@@ -165,6 +172,7 @@ Optional dependency groups (see `pyproject.toml`):
 - `abstractvoice[audiodit]`: LongCat-AudioDiT TTS + prompt-audio cloning backend (heavy; artifacts still prefetched explicitly)
 - `abstractvoice[omnivoice]`: OmniVoice omnilingual TTS + recommended/default cloning backend (very heavy; artifacts still prefetched explicitly)
 - `abstractvoice[aec]`: optional acoustic echo cancellation (true barge-in)
+- `abstractvoice[onnx-cuda]`: after a profile, on Linux/Windows with an NVIDIA card: onnxruntime-gpu + nvidia-curand, so Supertonic and Piper run on the GPU (the profiles keep the CPU onnxruntime that piper-tts and faster-whisper require; the two builds share files, so this is a second, explicit step; repair when the CPU build lands on top later: `pip install --force-reinstall --no-deps onnxruntime-gpu`). Supertonic requests CUDA then CPU; both engines preload the pip CUDA libraries and report `execution_providers`.
 - `abstractvoice[audio-fx]`: speed change without pitch change (librosa)
 - `abstractvoice[openai]`: no-op intent extra for remote OpenAI/OpenAI-compatible audio (uses core requests)
 - `abstractvoice[openai-compatible]`: no-op intent extra for remote compatible audio

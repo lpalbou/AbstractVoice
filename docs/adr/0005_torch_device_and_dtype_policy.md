@@ -20,6 +20,13 @@ authoritative.
 - Automatic torch dtype selection starts from
   `abstractvoice/compute/dtype.py` and its `best_torch_dtype_name()` /
   `resolve_torch_dtype()` helpers.
+- On CUDA the automatic dtype follows the card's native support, never the
+  vendor name: bfloat16 on compute capability 8.0 (Ampere) and newer, float32
+  before that, where bfloat16 is emulated (matmuls through a fallback library,
+  attention on the math path) and float16 is unstable for the vendored models
+  (amended 2026-11-10 after measuring a Turing card: bfloat16 1.2x slower than
+  float32 on Qwen3-TTS, float16 crashing). The resolved dtype carries its reason
+  (`dtype_reason`) in the runtime resolution and in engine `runtime_info()`.
 - Environment overrides remain first-class:
   - `ABSTRACTVOICE_TORCH_DEVICE`
   - `ABSTRACTVOICE_TORCH_DTYPE`

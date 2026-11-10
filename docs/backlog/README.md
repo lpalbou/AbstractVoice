@@ -6,8 +6,8 @@ This folder is the **single source of truth** for planned and completed work in 
 
 - Updated: 2026-11-09
 - Planned: 16
-- Proposed: 13
-- Completed: 44
+- Proposed: 14
+- Completed: 45
 - Deprecated: 1
 - Recurrent: 1
 
@@ -88,6 +88,9 @@ Rationale:
 
 ## Recently completed
 
+- `docs/backlog/completed/0070_qwen3_tts_cuda_decode_loop_launch_bound.md` (0.21.0): Qwen3-TTS on
+  CUDA replays its codebook predictor as a CUDA graph; Quadro RTX 5000 at float32 from 1.6 to 0.8 of
+  real time, audio bitwise identical to the eager loop. (The `proposed/` copy is a redirect to delete.)
 - `docs/backlog/completed/0063_cloned_voices_record_no_language.md` (0.19.0): a cloned voice records
   its language, stated or identified from its transcript.
 - `docs/backlog/completed/0065_personal_voice_stores_and_a_shared_library.md` (0.19.0): personal
@@ -95,6 +98,9 @@ Rationale:
 
 ## Other current proposed items
 
+- [0071 Qwen3-TTS raises on a full GPU where faster-whisper falls back and says why](proposed/0071_qwen3_tts_cuda_out_of_memory_has_no_fallback.md):
+  P2; one behaviour for the local torch engines when the card has no free memory (reason recorded, explicit device
+  keeps raising).
 - [0069 Port the Qwen3-TTS speech tokenizer to Transformers 5.21's Mimi layout](proposed/0069_port_qwen3_tts_speech_tokenizer_to_transformers_5_21_mimi.md):
   P1; Transformers 5.21 split `MimiModel` and made `upsample` read-only, so the vendored tokenizer (a subclass) no
   longer constructs and no Qwen3-TTS loads on PyTorch; 0.21.0 pins `transformers<5.21`, this item lifts it by

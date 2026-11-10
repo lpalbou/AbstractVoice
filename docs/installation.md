@@ -59,6 +59,7 @@ pip install "abstractvoice[qwen3-tts]" # Qwen3-TTS: preset speakers, cloning, vo
 pip install "abstractvoice[openai]"    # Hosted OpenAI intent extra (no extra deps today)
 pip install "abstractvoice[openai-compatible]" # Generic compatible provider intent extra
 pip install "abstractvoice[aec]"       # Optional echo cancellation (true barge-in)
+pip install "abstractvoice[onnx-cuda]" # After a profile, on Linux/Windows with an NVIDIA card: Supertonic and Piper on the GPU
 pip install "abstractvoice[audio-fx]"  # Speed change without pitch change (librosa)
 pip install "abstractvoice[web]"       # Local FastAPI browser example
 pip install "abstractvoice[web,supertonic]" # Web example + Supertonic dependency
@@ -216,6 +217,30 @@ AEC (`aec-audio-processing`) has Windows wheels for Python 3.11 to 3.13.
 above); everything else in the profile has Linux wheels, so a clean Ubuntu host needs no compiler.
 
 ### NVIDIA GPUs (Linux and Windows)
+
+The torch engines (Qwen3-TTS, OmniVoice, AudioDiT, F5, Transformers ASR) pick the card's native
+dtype: bfloat16 on compute capability 8.0 (Ampere) and newer, float32 on older cards such as
+Turing, where bfloat16 is emulated and slower; each engine's `runtime_info()` reports `dtype` and
+`dtype_reason`. Qwen3-TTS on CUDA replays its codebook predictor as a CUDA graph and speaks faster
+than real time on a mid-range card (Quadro RTX 5000: 0.8 of real time at float32, model warm).
+
+Supertonic and Piper run on ONNX Runtime. Its CUDA build (`onnxruntime-gpu`) and its CPU build
+(`onnxruntime`, which piper-tts and faster-whisper require) are two packages that write the same
+files, so the profiles install the CPU build and the card is a second, explicit step:
+
+```bash
+pip install "abstractvoice[gpu]"
+pip install "abstractvoice[onnx-cuda]"   # onnxruntime-gpu + nvidia-curand; empty on macOS
+```
+
+The second command writes the CUDA build over the CPU one. Supertonic then requests the CUDA
+provider first (then the CPU) and Piper enables CUDA when the provider exists; both preload the
+pip-installed CUDA libraries before opening a session and report the providers the session runs
+on (`execution_device()` / `get_info()`). If the CPU build is installed on top later, the CUDA
+provider disappears and Supertonic's reason names the repair: `pip install --force-reinstall
+--no-deps onnxruntime-gpu`. Measured on the Quadro RTX 5000, 8 s of speech: Supertonic 0.85 s then
+0.09 s warm on CUDA against 1.6 s on the CPU; Piper's model is small enough that CUDA and the CPU
+are within a few tenths of a second.
 
 On Linux and Windows, `abstractvoice[gpu]` and `[all-gpu]` also install NVIDIA's CUDA 12 cuBLAS,
 runtime and cuDNN 9 wheels (`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`, `nvidia-cudnn-cu12`).

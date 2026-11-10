@@ -140,7 +140,7 @@ servers, or `--tts-engine <local-provider>` for installed local engines.
   - **Remote OpenAI note**: hosted built-in voices are always exposed as profiles (for example `vm.set_profile("alloy")`), and the adapter also tries OpenAI voice discovery for account/org-specific voices such as `voice_...`. `tts_engine="openai"` defaults to `https://api.openai.com/v1` and reads `OPENAI_API_KEY`.
   - **Remote compatible note**: compatible endpoints may expose `GET /v1/audio/voices` (adapter path: `GET /audio/voices`) returning `profiles`, `voices`, `cloned_voices`, or OpenAI-style `data`. Returned ids are exposed as `VoiceProfile`s and used as the request `voice` for `/audio/speech`.
   - The `voice=` argument on `speak_to_bytes(...)` remains the cloned-voice handle path for backward compatibility; select base-provider voices with `set_profile(...)`.
-  - **Supertonic note**: `tts_engine="supertonic"` exposes fixed local profiles `M1`-`M5` and `F1`-`F5`. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or `allow_downloads=True`. By default Supertonic runs on ONNX Runtime's CPU provider with 4 intra-op threads (fewer on smaller machines), which keeps a busy host responsive; on Apple Silicon the CoreML provider measured slower than the CPU for this model. `SupertonicRuntime(intra_op_num_threads=...)` sets another thread count, and the adapter's `execution_device()` (also in `get_info()`) reports `device`, `reason`, `providers` and `threads`.
+  - **Supertonic note**: `tts_engine="supertonic"` exposes fixed local profiles `M1`-`M5` and `F1`-`F5`. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or `allow_downloads=True`. Supertonic requests ONNX Runtime's CUDA provider first and the CPU provider second when a usable CUDA device exists (`torch.cuda.is_available()`, or the CUDA runtime's device count without torch; a CUDA build with no device runs on the CPU and says so, and nothing is ever printed to standard output): on an NVIDIA host with `abstractvoice[onnx-cuda]` installed after the profile (see Installation) it runs on the card (Quadro RTX 5000: 8 s of speech in 0.85 s, 0.09 s warm), otherwise on the CPU with 4 intra-op threads (fewer on smaller machines), which keeps a busy host responsive; on Apple Silicon the CoreML provider measured slower than the CPU for this model. The CUDA libraries pip installed are preloaded before a session opens. `SupertonicRuntime(providers=[...], intra_op_num_threads=...)` chooses otherwise, and the adapter's `execution_device()` (also in `get_info()`) reports `device`, `reason` (including the repair when the CPU build of ONNX Runtime replaced the CUDA one), `execution_providers` the sessions actually run on, and `threads`. Piper does the same: CUDA when the provider exists, `get_info()["execution_providers"]` from its session.
   - **OmniVoice notes**:
     - Some profiles may enable **persistent prompt caching** (a tokenized `voice_clone_prompt`). The first `set_profile(...)` can pay a one-time build cost; later synthesis reuses cached tokens for stable voice identity. Prompt-conditioned synthesis can be heavier than pure voice design; use `/tts quality low|standard|high` (or `VoiceManager.set_tts_quality_preset(...)`) to tune the trade-off.
     - On macOS / Apple Silicon, OmniVoice uses **MPS (Metal)** by default when `device="auto"`.
@@ -308,6 +308,28 @@ specialized codebook predictor by default, retaining PyTorch's multinomial
 sampler. No additional vendor SDK is required. Unsupported generation settings
 use the original Transformers path with a `#FALLBACK` warning. The MLX backend
 accepts these two settings and ignores them (see above).
+
+Dtype on CUDA follows the card: bfloat16 on GPUs that compute it natively
+(compute capability 8.0, Ampere, and newer), float32 before that, where bfloat16
+is emulated and slower (a Turing Quadro RTX 5000: 0.6B custom voice at 0.94 of
+real time in bfloat16 against 0.81 in float32). `runtime_info()["dtype"]` and
+`["dtype_reason"]` say what was chosen and why; `ABSTRACTVOICE_TORCH_DTYPE` or an
+explicit `dtype_name=` override it.
+
+On CUDA the specialized predictor captures its fixed-depth frame (the 15-step
+codebook loop) as a CUDA graph once per input shape and sampling setting and
+replays it for every frame. The replay records the eager loop's own kernels, so
+logits, IDs and random-number consumption are unchanged and the audio is
+bitwise identical to the eager loop with the same seed; probabilities are still
+validated once per frame before any ID is used. Measured on a Quadro RTX 5000 in
+float32, 9 s of speech, model warm: 0.8 of real time (1.6 before), the predictor
+at 26 ms per frame (89 before). The first utterance after a load pays the
+capture (0.2-0.4 s). The graph is skipped, with one `#FALLBACK` line, when
+hooks are registered on the model, when the weights move or change dtype (then
+recaptured), inside another capture, or when the capture fails; CPU and MPS keep
+the eager loop; `reference` is untouched. `runtime_info()["cuda_graphs"]` reads
+`captured`, `failed: <reason>` or `unused` (`None` off PyTorch), and `["sampler"]`
+names the effective sampler while a graph replays.
 
 Every surface can choose both settings; the runtime reads them when it loads the
 model:
