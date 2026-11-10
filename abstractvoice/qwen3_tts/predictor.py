@@ -7,6 +7,12 @@ Other generation contracts retain the original path, before consuming any RNG.
 
 from __future__ import annotations
 
+import gc
+import itertools
+import threading
+import weakref
+from collections import OrderedDict
+
 import torch
 from transformers.cache_utils import DynamicCache
 from transformers.generation.logits_process import (
@@ -103,6 +109,185 @@ def _sample_exponential_unchecked(probabilities):
     return noise.argmax(dim=-1, keepdim=True)
 
 
+def _frame(predictor, inputs_embeds, count, processors, do_sample, sampler):
+    """One fixed-depth frame: ``count`` residual IDs from a two-embedding prefill.
+
+    Returns the IDs, the probabilities still to validate (exponential race
+    only) and the raw last-position logits of every step. The eager path and
+    the CUDA graph capture run this same function, so both issue the same
+    kernels in the same order.
+    """
+    cache = DynamicCache(config=predictor.config)
+    token = None
+    tokens = []
+    pending_probabilities = []
+    step_logits = []
+    for step in range(count):
+        result = predictor(
+            input_ids=token, inputs_embeds=inputs_embeds if step == 0 else None,
+            past_key_values=cache, generation_steps=step, use_cache=True,
+            output_hidden_states=False, output_attentions=False, return_dict=True,
+        )
+        cache = result.past_key_values
+        logits = result.logits[:, -1, :]
+        step_logits.append(logits)
+        scores = processors(None, logits.float())
+        if do_sample:
+            probabilities = scores.softmax(dim=-1)
+            if sampler == "exponential":
+                token = _sample_exponential_unchecked(probabilities)
+                pending_probabilities.append(probabilities)
+            else:
+                token = torch.multinomial(probabilities, num_samples=1)
+        else:
+            token = scores.argmax(dim=-1, keepdim=True)
+        tokens.append(token)
+    return torch.cat(tokens, dim=-1), pending_probabilities, step_logits
+
+
+def _raise_invalid_probabilities():
+    raise RuntimeError("Qwen codebook sampling failed: probability tensor contains inf, nan, "
+                       "a negative value, or a zero-probability distribution")
+
+
+# ------------------------------------------------------------------ CUDA graphs
+#
+# On CUDA the frame is launch-bound: 15 steps of a 5-layer model are hundreds
+# of tiny kernels, and the GPU idles while Python issues them (0.6B, float32,
+# Quadro RTX 5000: 89 ms per frame eager, 25 ms replayed). Every frame has
+# the same shapes (a prefill of two embeddings, then one token at KV lengths 3
+# to 16), so the whole frame is captured once per shape and sampling setting
+# and replayed. A replay runs the captured kernels of the eager loop on the
+# same weights: the same arithmetic, so the same logits, IDs and RNG offsets
+# (CUDA graphs advance the Philox generator exactly as eager launches do).
+# The draw inside the graph is the exponential race, which is torch's own
+# n=1 multinomial construction minus its two host synchronizations per step;
+# the probabilities are validated once per frame, before any ID escapes, as
+# for the opt-in exponential sampler.
+
+_GRAPHS = weakref.WeakKeyDictionary()  # predictor -> _Graphs
+_GRAPH_FAILURES = weakref.WeakKeyDictionary()  # predictor -> reason the capture failed
+_GRAPHS_PER_PREDICTOR = 4
+
+
+def _weights_fingerprint(predictor):
+    # A replay reads the weights at their captured addresses: a moved or
+    # re-cast model must never replay an old graph.
+    return tuple(t.data_ptr() for t in itertools.chain(predictor.parameters(), predictor.buffers()))
+
+
+def _has_hooks(predictor):
+    # Hooks are Python: a replay would skip them, so an observed model (forward
+    # hooks, or an Accelerate offload hook that moves weights) stays eager.
+    from torch.nn.modules import module as nn_module
+
+    if any(getattr(nn_module, name, None) for name in ("_global_forward_hooks", "_global_forward_pre_hooks")):
+        return True
+    return any(m._forward_hooks or m._forward_pre_hooks or hasattr(m, "_hf_hook") for m in predictor.modules())
+
+
+class _Graphs(OrderedDict):
+    """A model's captured frames (key -> _CodebookGraph), all for one weights fingerprint."""
+
+    fingerprint = None
+
+
+class _CodebookGraph:
+    """One captured frame for one input shape and sampling setting."""
+
+    def __init__(self, predictor, inputs_embeds, count, processors, do_sample):
+        device = inputs_embeds.device
+        self.lock = threading.Lock()  # one replay at a time: the input and outputs are static
+        with torch.inference_mode(False):  # writable by later calls in any grad mode
+            self.embeds = inputs_embeds.detach().clone()  # the static input every replay reads
+        rng = torch.cuda.get_rng_state(device)
+        stream = torch.cuda.Stream(device=device)
+        try:
+            # One eager pass on the capture stream initializes lazy library
+            # state outside the capture; its random draws are rolled back.
+            stream.wait_stream(torch.cuda.current_stream(device))
+            with torch.cuda.stream(stream):
+                _frame(predictor, self.embeds, count, processors, do_sample, "exponential")
+            torch.cuda.current_stream(device).wait_stream(stream)
+            torch.cuda.set_rng_state(rng, device)
+            self.graph = torch.cuda.CUDAGraph()
+            # No cyclic garbage collection while capturing: collecting another
+            # model's graphs frees device memory, which invalidates a capture.
+            # (torch.cuda.graph collects once before the capture begins.)
+            collecting = gc.isenabled()
+            gc.disable()
+            try:
+                with torch.cuda.graph(self.graph, stream=stream, capture_error_mode="thread_local"):
+                    self.ids, pending, self.logits = _frame(
+                        predictor, self.embeds, count, processors, do_sample, "exponential",
+                    )
+                    self.valid = _valid_probabilities(torch.stack(pending)) if pending else None
+            finally:
+                if collecting:
+                    gc.enable()
+        finally:
+            # A capture launches nothing; this undoes the warm-up's draws (and
+            # anything a failed capture might have consumed).
+            torch.cuda.set_rng_state(rng, device)
+
+    def __call__(self, inputs_embeds):
+        with self.lock:
+            self.embeds.copy_(inputs_embeds)
+            self.graph.replay()
+            if self.valid is not None and not bool(self.valid):
+                _raise_invalid_probabilities()
+            return self.ids.clone()  # the next replay overwrites the static output
+
+
+def _sampling_key(config):
+    if not config.do_sample:
+        return (False,)
+    return (True, config.temperature, config.top_k, config.top_p)
+
+
+def _graphed_frame(predictor, inputs_embeds, count, processors, config):
+    """The frame's IDs from a CUDA graph replay, or None to run the eager loop.
+
+    None is returned before anything runs (RNG untouched): when graphs are off
+    for this model, when something observes it through hooks, inside another
+    capture, or after a capture failed once for this model (logged once).
+    """
+    if inputs_embeds.device.type != "cuda" or not getattr(predictor, "_abstractvoice_cuda_graphs", True):
+        return None
+    if predictor in _GRAPH_FAILURES or torch.cuda.is_current_stream_capturing() or _has_hooks(predictor):
+        return None
+    graphs = _GRAPHS.get(predictor)
+    if graphs is None:
+        graphs = _GRAPHS[predictor] = _Graphs()
+    fingerprint = _weights_fingerprint(predictor)
+    if graphs.fingerprint != fingerprint:
+        graphs.clear()  # the weights moved (or this is the first frame): every graph is stale
+        graphs.fingerprint = fingerprint
+    key = (tuple(inputs_embeds.shape), inputs_embeds.dtype, inputs_embeds.device, count,
+           predictor.config._attn_implementation, _sampling_key(config))
+    graph = graphs.get(key)
+    if graph is None:
+        try:
+            graph = _CodebookGraph(predictor, inputs_embeds, count, processors, config.do_sample)
+        except Exception as error:  # capture is an optimization: fall back, never fail the request
+            _GRAPH_FAILURES[predictor] = f"{type(error).__name__}: {error}"
+            logger.warning_once("#FALLBACK Qwen codebook CUDA graph unavailable, using the eager loop: %s",
+                                _GRAPH_FAILURES[predictor])
+            return None
+        graphs[key] = graph
+        while len(graphs) > _GRAPHS_PER_PREDICTOR:
+            graphs.popitem(last=False)
+    graphs.move_to_end(key)
+    return graph(inputs_embeds)
+
+
+def cuda_graph_state(predictor):
+    """``"captured"``, ``"failed: <reason>"`` or ``"unused"``: whether this model replays CUDA graphs."""
+    if predictor in _GRAPH_FAILURES:
+        return f"failed: {_GRAPH_FAILURES[predictor]}"
+    return "captured" if _GRAPHS.get(predictor) else "unused"
+
+
 @torch.no_grad()
 def generate_codebooks(
     predictor, *, inputs_embeds, max_new_tokens, do_sample, top_p, top_k, temperature,
@@ -114,6 +299,9 @@ def generate_codebooks(
     without retrying an already consumed random sequence. The opt-in exponential
     sampler validates before returning the complete frame; a failed request can
     consume more RNG/work than stock multinomial, but never emits invalid codes.
+    On CUDA the frame replays a captured CUDA graph of this same loop (see
+    above); both samplers then draw by the exponential race and validate per
+    frame, with the IDs and RNG consumption of the eager loop.
     """
     kwargs = dict(
         inputs_embeds=inputs_embeds, max_new_tokens=max_new_tokens,
@@ -138,35 +326,18 @@ def generate_codebooks(
         if config.top_p is not None and config.top_p < 1.0:
             processors.append(TopPLogitsWarper(config.top_p))
 
-    cache = DynamicCache(config=predictor.config)
-    token = None
-    tokens = []
-    pending_probabilities = []
     sampler = getattr(predictor, "_abstractvoice_sampler", "multinomial")
     if sampler not in {"multinomial", "exponential"}:
         raise ValueError("Qwen codebook sampler must be multinomial or exponential")
-    for step in range(max_new_tokens):
-        result = predictor(
-            input_ids=token, inputs_embeds=inputs_embeds if step == 0 else None,
-            past_key_values=cache, generation_steps=step, use_cache=True,
-            output_hidden_states=False, output_attentions=False, return_dict=True,
-        )
-        cache = result.past_key_values
-        scores = processors(None, result.logits[:, -1, :].float())
-        if config.do_sample:
-            probabilities = scores.softmax(dim=-1)
-            if sampler == "exponential":
-                token = _sample_exponential_unchecked(probabilities)
-                pending_probabilities.append(probabilities)
-            else:
-                token = torch.multinomial(probabilities, num_samples=1)
-        else:
-            token = scores.argmax(dim=-1, keepdim=True)
-        tokens.append(token)
+    ids = _graphed_frame(predictor, inputs_embeds, max_new_tokens, processors, config)
+    if ids is not None:
+        return ids
+    ids, pending_probabilities, _ = _frame(
+        predictor, inputs_embeds, max_new_tokens, processors, config.do_sample, sampler,
+    )
     # A 16-codebook, batch-one frame retains only 15 * 2048 * 4 = 120 KiB.
     # One batched check avoids both per-step synchronization and many tiny
     # reduction kernels. Nothing from this frame escapes before validation.
     if pending_probabilities and not bool(_valid_probabilities(torch.stack(pending_probabilities))):
-        raise RuntimeError("Qwen codebook sampling failed: probability tensor contains inf, nan, "
-                           "a negative value, or a zero-probability distribution")
-    return torch.cat(tokens, dim=-1)
+        _raise_invalid_probabilities()
+    return ids

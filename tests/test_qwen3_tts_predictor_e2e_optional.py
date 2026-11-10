@@ -16,6 +16,7 @@ import pytest
 torch = pytest.importorskip("torch")
 pytest.importorskip("transformers")
 
+from abstractvoice.qwen3_tts import predictor as predictor_module
 from abstractvoice.qwen3_tts.predictor import generate_codebooks
 from abstractvoice.qwen3_tts.runtime import KNOWN_MODEL_IDS, Qwen3TTSRuntime
 
@@ -106,6 +107,20 @@ def test_real_predictor_and_whole_utterance_parity(model_id, reference_voice):
                     assert len(logits) == len(expected_logits) == 15
                     for a, b in zip(logits, expected_logits):
                         torch.testing.assert_close(a, b, atol=0, rtol=0)
+                    if predictor.device.type == "cuda":
+                        # The hook kept that call eager; unobserved, the frame replays a CUDA
+                        # graph, whose own step logits are compared (a replay runs no hooks).
+                        hook.remove()
+                        for _ in range(2):  # the capturing call, then a replay
+                            torch.manual_seed(31415 + index)
+                            actual = generate_codebooks(predictor, **kw)
+                            graph = next(reversed(predictor_module._GRAPHS[predictor].values()))
+                            assert predictor_module.cuda_graph_state(predictor) == "captured"
+                            assert torch.equal(actual, expected)
+                            assert all(torch.equal(a, b) for a, b in zip(rng_states(), expected_rng))
+                            assert len(graph.logits) == 15
+                            for a, b in zip(graph.logits, expected_logits):
+                                torch.testing.assert_close(a, b, atol=0, rtol=0)
                 finally:
                     predictor.generate = original_generate
                     hook.remove()

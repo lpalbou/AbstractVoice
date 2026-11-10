@@ -329,3 +329,138 @@ def test_codec_decoder_transformer_runs_on_installed_transformers(sliding_window
     with torch.no_grad():
         hidden = model(inputs_embeds=torch.randn(1, 10, 8)).last_hidden_state
     assert hidden.shape == (1, 10, 8) and torch.isfinite(hidden).all()
+
+
+# ------------------------------------------------------------------ CUDA graphs
+
+needs_cuda = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA hardware required")
+SETTINGS = [
+    dict(do_sample=False, temperature=1.0, top_k=0, top_p=1.0),
+    dict(do_sample=True, temperature=0.7, top_k=7, top_p=0.8),
+    dict(do_sample=True, temperature=1.0, top_k=0, top_p=1.0),
+    dict(do_sample=True, temperature=1.5, top_k=1, top_p=0.2),
+]
+
+
+def last_graph(predictor):
+    from abstractvoice.qwen3_tts import predictor as module
+    return next(reversed(module._GRAPHS[predictor].values()))
+
+
+def test_cpu_frames_never_capture_a_graph(predictor):
+    from abstractvoice.qwen3_tts import predictor as module
+    generate_codebooks(predictor, **arguments(predictor))
+    assert module.cuda_graph_state(predictor) == "unused" and not module._GRAPHS.get(predictor)
+
+
+@needs_cuda
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
+@pytest.mark.parametrize("sampler", ["multinomial", "exponential"])
+@pytest.mark.parametrize("batch", [1, 3])
+@pytest.mark.parametrize("settings", SETTINGS)
+def test_cuda_graph_replays_reference_logits_tokens_and_rng(predictor, dtype, batch, settings, sampler):
+    """The capturing call and the replays after it: IDs, every step's logits and the RNG equal the reference."""
+    from abstractvoice.qwen3_tts import predictor as module
+    predictor.to("cuda", dtype=dtype)
+    predictor._abstractvoice_sampler = sampler
+    original = predictor.generate
+    for seed in [0, 17, 17, 23]:
+        torch.manual_seed(seed + 1000)
+        kwargs = arguments(predictor, batch)  # fresh inputs: the static input buffer must follow them
+        kwargs.update(settings)
+        logits = []
+        hook = predictor.register_forward_hook(lambda m, a, result: logits.append(result.logits[:, -1].clone()))
+        try:
+            torch.manual_seed(seed)
+            expected = reference(predictor, kwargs)
+        finally:
+            hook.remove()
+        expected_rng = (torch.get_rng_state(), torch.cuda.get_rng_state())
+        predictor.generate = Mock(side_effect=AssertionError("unexpected reference fallback"))
+        try:
+            torch.manual_seed(seed)
+            actual = generate_codebooks(predictor, **kwargs)
+        finally:
+            predictor.generate = original
+        assert module.cuda_graph_state(predictor) == "captured"
+        assert torch.equal(actual, expected)
+        assert torch.equal(torch.get_rng_state(), expected_rng[0])
+        assert torch.equal(torch.cuda.get_rng_state(), expected_rng[1])
+        assert len(last_graph(predictor).logits) == len(logits) == 3
+        for a, b in zip(last_graph(predictor).logits, logits):
+            torch.testing.assert_close(a, b, rtol=0, atol=0)
+    assert len(module._GRAPHS[predictor]) == 1  # one capture per shape and setting, then replays
+
+
+@needs_cuda
+def test_cuda_graph_capture_failure_falls_back_once_with_rng_intact(predictor, monkeypatch):
+    from abstractvoice.qwen3_tts import predictor as module
+    predictor.to("cuda")
+    kwargs = arguments(predictor)
+    torch.manual_seed(5)
+    expected = reference(predictor, kwargs)
+    expected_rng = torch.cuda.get_rng_state()
+    attempts = []
+    def broken_graph(*_a, **_kw):
+        attempts.append(1)
+        raise RuntimeError("capture refused")
+    monkeypatch.setattr(module.torch.cuda, "graph", broken_graph)
+    warning = Mock()
+    monkeypatch.setattr(module.logger, "warning_once", warning)
+    for _ in range(2):
+        torch.manual_seed(5)  # the warm-up pass ran and drew; its draws must be rolled back
+        assert torch.equal(generate_codebooks(predictor, **kwargs), expected)
+        assert torch.equal(torch.cuda.get_rng_state(), expected_rng)
+    assert len(attempts) == 1 and warning.call_count == 1
+    assert "#FALLBACK" in warning.call_args.args[0]
+    assert module.cuda_graph_state(predictor).startswith("failed: RuntimeError: capture refused")
+
+
+@needs_cuda
+def test_cuda_graph_is_skipped_for_hooks_and_the_off_switch(predictor):
+    from abstractvoice.qwen3_tts import predictor as module
+    predictor.to("cuda")
+    hook = predictor.model.layers[0].register_forward_hook(lambda *_a: None)
+    try:
+        generate_codebooks(predictor, **arguments(predictor))
+    finally:
+        hook.remove()
+    predictor._abstractvoice_cuda_graphs = False
+    generate_codebooks(predictor, **arguments(predictor))
+    assert module.cuda_graph_state(predictor) == "unused"
+    predictor._abstractvoice_cuda_graphs = True
+    generate_codebooks(predictor, **arguments(predictor))
+    assert module.cuda_graph_state(predictor) == "captured"
+
+
+@needs_cuda
+def test_cuda_graph_recaptures_after_the_weights_move(predictor):
+    from abstractvoice.qwen3_tts import predictor as module
+    predictor.to("cuda")
+    kwargs = arguments(predictor)
+    kwargs.update(SETTINGS[0])  # greedy: the comparison needs no seeding
+    generate_codebooks(predictor, **kwargs)
+    first = last_graph(predictor)
+    predictor.to(torch.bfloat16)
+    kwargs["inputs_embeds"] = kwargs["inputs_embeds"].to(torch.bfloat16)
+    assert torch.equal(generate_codebooks(predictor, **kwargs), reference(predictor, kwargs))
+    assert last_graph(predictor) is not first and len(module._GRAPHS[predictor]) == 1
+    with torch.no_grad():  # same storage, new values: a replay reads them
+        predictor.lm_head[0].weight.mul_(-1)
+    assert torch.equal(generate_codebooks(predictor, **kwargs), reference(predictor, kwargs))
+
+
+@needs_cuda
+@pytest.mark.parametrize("sampler", ["multinomial", "exponential"])
+@pytest.mark.parametrize("step", [0, 2])
+def test_cuda_graph_invalid_probabilities_fail_the_frame(predictor, sampler, step):
+    predictor.to("cuda")
+    predictor._abstractvoice_sampler = sampler
+    kwargs = arguments(predictor, batch=2)
+    generate_codebooks(predictor, **kwargs)  # captured with valid weights
+    predictor.generate = Mock(side_effect=AssertionError("must never retry after sampling"))
+    with torch.no_grad():
+        predictor.lm_head[step].weight.fill_(float("nan"))
+    with pytest.raises(RuntimeError, match="probability tensor"):
+        generate_codebooks(predictor, **kwargs)
+    predictor.generate.assert_not_called()
