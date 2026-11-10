@@ -88,6 +88,28 @@ def test_option_parity_between_scripts():
     assert "[CmdletBinding()]" in ps1 and "$VerbosePreference -eq 'Continue'" in ps1  # -Verbose
 
 
+def test_install_ps1_inline_python_has_no_double_quotes():
+    """Windows PowerShell 5.1 strips double quotes inside native arguments, so inline Python code in
+    install.ps1 must contain none: no `python -c` argument with an inner double quote, and the
+    provider check's code (run from a file) has none either."""
+    ps1 = _ps1()
+
+    def body(literal: str) -> str:  # a PowerShell string literal without its delimiters
+        literal = literal.strip()
+        assert literal[0] in "'\"" and literal[-1] == literal[0], f"not a string literal: {literal}"
+        return literal[1:-1]
+
+    pattern = r"""(?:\$toolPy|\$Python|python(?:\.exe)?)\b[^\n]*?(?:'-c'|\s-c)\s*,?\s*(\$\w+|'[^']*'|"[^"]*")"""
+    for m in re.finditer(pattern, ps1):
+        arg = m.group(1)
+        if arg.startswith("$"):
+            arg = _one(rf"^\s*\{arg} = (.+)$", ps1, f"the definition of {arg}")
+        assert '"' not in body(arg), f"python -c code with an inner double quote: {m.group(0)}"
+    code = _one(r"^\s*\$chk = (.+)$", ps1, "the provider check's code ($chk)")
+    assert '"' not in body(code), f"the provider check's code contains a double quote: {code}"
+    assert "provider-check.py" in ps1 and "$toolPy $chkFile" in ps1  # it runs from a file
+
+
 @pytest.mark.skipif(shutil.which("pwsh") is None, reason="no PowerShell")
 def test_install_ps1_parses():
     cmd = (

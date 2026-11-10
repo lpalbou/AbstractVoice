@@ -335,22 +335,22 @@ function Main {
     if ($cuda) {
         Write-Step "ONNX Runtime's CUDA build for Supertonic and Piper"
         $toolPy = [IO.Path]::Combine($toolDir, 'abstractvoice', 'Scripts', 'python.exe')
-        $ortGpu = '<the installed version>'
-        if (-not $script:DryRun) {
-            $ortGpu = ''
-            foreach ($l in @(& $uv pip freeze --python $toolPy 2>$null | ForEach-Object { "$_" })) { if ($l -match '^onnxruntime-gpu==(\S+)') { $ortGpu = $Matches[1] } }
-        }
-        $chk = 'import onnxruntime as o; print(",".join(o.get_available_providers()))'
+        $ortGpu = if ($script:DryRun) { '<the installed version>' } else { '' }
+        if (-not $script:DryRun) { foreach ($l in @(& $uv pip freeze --python $toolPy 2>$null | ForEach-Object { "$_" })) { if ($l -match '^onnxruntime-gpu==(\S+)') { $ortGpu = $Matches[1] } } }
+        # From a file, never `python -c`: PowerShell 5.1 strips inner double quotes from native arguments (and the code has none).
+        $chk = "import onnxruntime as o`nprint(','.join(o.get_available_providers()))`n"
+        $chkFile = [IO.Path]::Combine($work, 'provider-check.py')
         if (-not $ortGpu) { $cudaResult = "not installed: onnxruntime-gpu is missing from the environment (log: $($script:LogFile))"; Write-Warn2 $cudaResult }
         elseif (-not (Invoke-Native -Description "write onnxruntime-gpu's files over the CPU build's" -Soft `
                 -Argv @($uv, 'pip', 'install', '--python', $toolPy, '--no-deps', '--reinstall-package', 'onnxruntime-gpu', "onnxruntime-gpu==$ortGpu"))) {
             $cudaResult = "not installed: rewriting onnxruntime-gpu failed (log: $($script:LogFile)); Supertonic and Piper may run on the processor"
         } else {
-            Write-Host "  `$ $(Format-Cmd @($toolPy, '-c', $chk))" -ForegroundColor DarkGray
+            Write-Host "  `$ $(Format-Cmd @($toolPy, $chkFile))   # $($chk.Trim() -replace "`n", '; ')" -ForegroundColor DarkGray
             if ($script:DryRun) { $cudaResult = 'planned (onnxruntime-gpu, then the check that its CUDA build is in place)' }
             else {
+                [IO.File]::WriteAllText($chkFile, $chk, (New-Object System.Text.UTF8Encoding($false)))
                 $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-                try { $prov = "$(& $toolPy -c $chk 2>$null | Select-Object -Last 1)" } catch { $prov = '' } finally { $ErrorActionPreference = $old }
+                try { $prov = "$(& $toolPy $chkFile 2>$null | Select-Object -Last 1)" } catch { $prov = '' } finally { $ErrorActionPreference = $old }
                 if ((",$prov,") -like '*,CUDAExecutionProvider,*') { $cudaResult = "onnxruntime-gpu ${ortGpu}: the CUDA build of ONNX Runtime is in place; Supertonic and Piper report the provider they run on at first use"; Write-Ok $cudaResult }
                 else { $cudaResult = "onnxruntime-gpu $ortGpu installed but the CPU build's files are in place (providers: $(if ($prov) { $prov } else { 'none' }); log: $($script:LogFile)); $cpu"; Write-Warn2 $cudaResult }
             }
