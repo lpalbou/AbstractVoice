@@ -249,8 +249,10 @@ Optional dependency groups (see `pyproject.toml`):
   transcription needs no TTS runtime or credentials; the AbstractCore audio capability uses it.
 - faster-whisper file transcription needs PyAV 18 or older: every extra that installs faster-whisper
   (`stt`, `apple`, `gpu`, `all-apple`, `all-gpu`) pins `av<19`.
-- NVIDIA GPUs: `abstractvoice[gpu]` installs CUDA 12 cuBLAS, runtime and cuDNN 9 wheels on Linux and
-  Windows; faster-whisper runs on CUDA only when both cuBLAS 12 and cuDNN 9 load
+- NVIDIA GPUs: `abstractvoice[gpu]` installs CUDA 12 cuBLAS and runtime wheels on Linux and Windows,
+  and cuDNN 9 on Windows only (on Linux torch's CUDA wheel carries cuDNN 9; a second cuDNN wheel in
+  the same folder broke every CUDA convolution with CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH, fixed
+  in 0.21.1); faster-whisper runs on CUDA only when both cuBLAS 12 and cuDNN 9 load
   (`abstractvoice.compute.resolve_faster_whisper_device()`), with the GPU's best compute type, else on the
   CPU with the reason recorded; `ABSTRACTVOICE_WHISPER_DEVICE=cuda` without a usable GPU is refused. See [Installation](docs/installation.md#nvidia-gpus-linux-and-windows).
 

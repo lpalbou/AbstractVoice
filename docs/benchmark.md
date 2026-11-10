@@ -193,6 +193,12 @@ runs on the processor. Methodology: one sentence, clean virtual environments, mo
 by the package itself, `nvidia-smi` sampled during the GPU runs (Supertonic peaked at 38 % of the
 card, Qwen3-TTS at 69 %).
 
+Same host, 0.21.1 installed together with the rest of the framework's `gpu` profile (abstractcore
+2.35.0 with vllm, torch 2.13.0+cu130): Supertonic on CUDA 0.70 s then 0.13 s warm, Whisper
+large-v3-turbo 1.0 s then 0.6 s, Qwen3-TTS 0.6B 1.19 of real time first call then 0.90 warm. With
+0.21.0 the same environment failed every CUDA convolution (two cuDNN wheels in one folder, see the
+changelog).
+
 ## Subjective note (voice cloning)
 
 This benchmark does **not** measure voice cloning.

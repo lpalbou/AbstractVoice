@@ -229,8 +229,20 @@ the PyTorch backend with `VoiceManager(qwen3_tts_backend="torch")` or
 `FasterWhisperAdapter.execution_device()` (and `get_info()["device_reason"]`) says why: no CUDA GPU
 visible to CTranslate2, CUDA 12 cuBLAS or cuDNN 9 not loadable, a refused
 `ABSTRACTVOICE_WHISPER_DEVICE=cuda`, or a CUDA failure at load or first transcription that fell back
-to the CPU. Install `abstractvoice[gpu]` (it carries the CUDA 12 cuBLAS, runtime and cuDNN 9 wheels)
-and see [NVIDIA GPUs](installation.md#nvidia-gpus-linux-and-windows).
+to the CPU. Install `abstractvoice[gpu]` (it carries the CUDA 12 cuBLAS and runtime wheels, plus
+cuDNN 9 on Windows; on Linux cuDNN 9 comes with a CUDA build of torch) and see
+[NVIDIA GPUs](installation.md#nvidia-gpus-linux-and-windows).
+
+### Every CUDA convolution fails with `CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH`
+
+Qwen3-TTS, Supertonic on the CUDA provider and torch convolutions in general stop with that
+message when `site-packages/nvidia/cudnn` holds files of two cuDNN 9 versions: the
+`nvidia-cudnn-cu12` and `nvidia-cudnn-cu13` wheels unpack into the same folder, and the last one
+installed overwrites only the files it shares. AbstractVoice 0.21.0 and older added
+`nvidia-cudnn-cu12` on Linux next to torch's own cuDNN; 0.21.1 does not. Repair an existing
+environment with `pip uninstall nvidia-cudnn-cu12` followed by
+`pip install --force-reinstall --no-deps nvidia-cudnn-cu13==<the version torch pinned>` (or the
+`-cu12` wheel torch pinned, for a CUDA 12 torch), then upgrade AbstractVoice.
 
 ### Streamed speech takes long to start
 

@@ -24,8 +24,11 @@ from those folders with ``RTLD_GLOBAL`` (the way torch does), so a later load by
 them, and `cublas12_available()` asks the loader whether ``libcublas.so.12`` loads.
 
 cuDNN 9 is the third library CTranslate2 needs on the GPU (the Whisper encoder's convolutions run
-through it): the extras add ``nvidia-cudnn-cu12`` on Windows and Linux, Linux preloads its
-dispatcher with the others, and `cudnn9_available()` checks it the same way (round 16).
+through it): the extras add ``nvidia-cudnn-cu12`` on Windows; on Linux torch's CUDA wheel already
+carries cuDNN 9 (the ``nvidia-cudnn-cu12`` or ``-cu13`` wheel of its CUDA family) in the same
+``site-packages/nvidia/cudnn`` folder, and a second cuDNN wheel there mixes two versions (every
+CUDA convolution then fails with CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH, 0.21.1). Linux preloads
+the dispatcher with the others, and `cudnn9_available()` checks it the same way (round 16).
 
 Everything here is a no-op off Windows and Linux and never imports torch or CTranslate2.
 """
@@ -57,7 +60,8 @@ LINUX_CU12_PRELOAD = (
     ("cuda_runtime", "libcudart.so.12"),
     ("cublas", "libcublasLt.so.12"),
     ("cublas", "libcublas.so.12"),
-    # cuDNN 9 dispatcher (nvidia-cudnn-cu12); it finds its sub-libraries next to itself.
+    # cuDNN 9 dispatcher (torch's nvidia-cudnn-cu12 or -cu13 wheel); it finds its sub-libraries
+    # next to itself.
     ("cudnn", "libcudnn.so.9"),
 )
 
@@ -204,9 +208,11 @@ def cudnn9_available() -> bool:
         _cudnn9 = load(name)
         if not _cudnn9:
             logger.warning(
-                "faster-whisper runs on the CPU: CUDA was found but %s (cuDNN 9 for CUDA 12, needed by "
-                "the Whisper encoder on the GPU) does not load. Install AbstractVoice's gpu extra, which adds it.",
+                "faster-whisper runs on the CPU: CUDA was found but %s (cuDNN 9, needed by the Whisper "
+                "encoder on the GPU) does not load. %s",
                 name,
+                "Install AbstractVoice's gpu extra, which adds it." if sys.platform == "win32"
+                else "A CUDA build of torch carries it (torch's nvidia-cudnn wheel); a CPU-only torch does not.",
             )
     return bool(_cudnn9)
 

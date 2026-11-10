@@ -57,7 +57,7 @@ param(
 )
 
 # The release this script ships with = abstractvoice/_version.py (tests/test_install_scripts.py).
-$AvPinDefault = '0.21.0'
+$AvPinDefault = '0.21.1'
 $AvPython = '3.12'; $AvCommands = @('abstractvoice', 'abstractvoice-prefetch')
 $AvLightExtras = 'supertonic,stt,audio-io'
 $AvLightExtrasArm64 = 'supertonic'

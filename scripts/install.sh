@@ -56,7 +56,7 @@ set -eu
 
 # The release this script ships with = abstractvoice/_version.py (tests/test_install_scripts.py
 # fails on drift), so an install lands on the version the script was tested with.
-AV_PIN_DEFAULT="0.21.0"
+AV_PIN_DEFAULT="0.21.1"
 AV_PYTHON="3.12"
 AV_LIGHT_EXTRAS="supertonic,stt,audio-io"
 AV_SCRIPT_URL="https://abstractframework.ai/voice/install.sh"

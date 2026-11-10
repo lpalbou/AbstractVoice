@@ -323,12 +323,16 @@ provider disappears and Supertonic's reason names the repair: `pip install --for
 0.09 s warm on CUDA against 1.6 s on the CPU; Piper's model is small enough that CUDA and the CPU
 are within a few tenths of a second.
 
-On Linux and Windows, `abstractvoice[gpu]` and `[all-gpu]` also install NVIDIA's CUDA 12 cuBLAS,
-runtime and cuDNN 9 wheels (`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`, `nvidia-cudnn-cu12`).
-faster-whisper's CTranslate2 loads CUDA 12 cuBLAS (`libcublas.so.12` / `cublas64_12.dll`) and runs
-the Whisper encoder's convolutions through cuDNN 9; a CUDA 13 PyTorch build carries neither for
-CUDA 12. Before faster-whisper runs, AbstractVoice preloads those libraries on Linux and adds their
-folders to the DLL search on Windows. It picks CUDA only when CTranslate2 sees a CUDA GPU and both
+On Linux and Windows, `abstractvoice[gpu]` and `[all-gpu]` also install NVIDIA's CUDA 12 cuBLAS and
+runtime wheels (`nvidia-cublas-cu12`, `nvidia-cuda-runtime-cu12`), and on Windows cuDNN 9
+(`nvidia-cudnn-cu12`). faster-whisper's CTranslate2 loads CUDA 12 cuBLAS (`libcublas.so.12` /
+`cublas64_12.dll`) and runs the Whisper encoder's convolutions through cuDNN 9; a CUDA 13 PyTorch
+build carries no CUDA 12 cuBLAS. On Linux, cuDNN 9 comes from torch's own CUDA wheel (its
+`nvidia-cudnn-cu12` or `-cu13` dependency, in `site-packages/nvidia/cudnn`); AbstractVoice no longer
+adds a second cuDNN wheel there, because two cuDNN versions in that one folder made every CUDA
+convolution fail (`CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH`, fixed in 0.21.1). Before
+faster-whisper runs, AbstractVoice preloads those libraries on Linux and adds their folders to the
+DLL search on Windows. It picks CUDA only when CTranslate2 sees a CUDA GPU and both
 libraries load, with the best compute type the GPU supports (`int8_float16` on most cards);
 otherwise it runs on the CPU and records why. A CUDA failure while loading or at the first
 transcription falls back to the CPU with the reason recorded. `ABSTRACTVOICE_WHISPER_DEVICE=cpu|cuda`

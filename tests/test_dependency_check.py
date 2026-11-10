@@ -155,8 +155,9 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
 CUDA12_WHEELS = (
     "nvidia-cublas-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
     "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
-    # Round 16: cuDNN 9 for CUDA 12 (the Whisper encoder's convolutions on the GPU).
-    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
+    # Round 16: cuDNN 9 for CUDA 12 (the Whisper encoder's convolutions on the GPU). Windows only
+    # since 0.21.1: see test_gpu_profiles_never_add_a_second_cudnn_on_linux.
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32'",
 )
 
 # The opt-in CUDA build of ONNX Runtime (Supertonic, Piper), installed after a profile. onnxruntime-gpu
@@ -182,6 +183,22 @@ def test_apple_gpu_whisper_ships_with_every_local_profile_on_apple_silicon_only(
         for dep in deps:
             if dep.startswith("mlx-whisper"):
                 assert dep == MLX_WHISPER, (name, dep)
+
+
+def test_gpu_profiles_never_add_a_second_cudnn_on_linux() -> None:
+    # 0.21.1: on Linux torch's CUDA wheel carries cuDNN 9 (nvidia-cudnn-cu12 or -cu13, its CUDA
+    # family) in site-packages/nvidia/cudnn; a second cuDNN wheel from these extras unpacked into
+    # the same folder and mixed two versions, after which every convolution on CUDA (torch and
+    # ONNX Runtime alike, so Qwen3-TTS, Supertonic and abstractvision) failed with
+    # CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH (abstractcore[gpu] + abstractvoice[gpu] on an
+    # NVIDIA Linux host, 2026-11-10). cuDNN stays a Windows-only extra dependency.
+    extras = tomllib.loads(Path("pyproject.toml").read_text())["project"]["optional-dependencies"]
+    for name, deps in extras.items():
+        for dep in deps:
+            if dep.startswith("nvidia-cudnn"):
+                marker = dep.split(";", 1)[1].strip() if ";" in dep else ""
+                assert marker == "sys_platform == 'win32'", (name, dep)
+    assert "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32'" in extras["gpu"]
 
 
 def test_gpu_profiles_add_cuda12_cublas_on_windows_and_linux_only() -> None:

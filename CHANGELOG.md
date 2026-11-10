@@ -10,8 +10,31 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-11-10
+
+### Fixed
+
+- **Linux NVIDIA: every CUDA convolution failed with `CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH`**
+  when `abstractvoice[gpu]` was installed next to a torch whose cuDNN wheel is another version
+  (the framework's `gpu` profile: abstractcore 2.35.0 pulls vllm, which pins torch 2.13.0 and
+  `nvidia-cudnn-cu13` 9.20; the extra added `nvidia-cudnn-cu12` 9.28). Both wheels unpack into
+  `site-packages/nvidia/cudnn`, so the folder held two cuDNN versions and cuDNN refused to run:
+  Qwen3-TTS and Supertonic's CUDA provider died, and abstractvision's generation with them;
+  faster-whisper alone survived. Cause: the `gpu` and `all-gpu` extras listed `nvidia-cudnn-cu12`
+  on Linux although torch's CUDA wheel already carries cuDNN 9 in that folder. Fix: cuDNN stays
+  a Windows-only extra dependency (CTranslate2 finds it on PATH there, and torch's Windows wheel
+  bundles its own copy elsewhere); on Linux CTranslate2 loads torch's cuDNN from the same folder
+  as before. Measured on the Quadro RTX 5000 with the full `gpu` profile: Supertonic 0.13 s warm
+  on CUDA, Whisper large-v3-turbo 0.6 s on CUDA `int8_float16`, Qwen3-TTS 0.90 of real time warm,
+  abstractvision FLUX.2-klein-4B 4 steps at 768x768 in 17.6 s; the same environment with 0.21.0
+  failed every one of them. Repair for an existing environment in `docs/troubleshooting.md`.
+  Test: no extra may list a `nvidia-cudnn` wheel outside `sys_platform == 'win32'`.
+
+### Changed
+
 - Docs: a platform check of 0.21.0 on Linux without a GPU, Linux with an NVIDIA card and Apple silicon
-  (`docs/benchmark.md`), with the measured speed of Qwen3-TTS, Supertonic and Whisper on each.
+  (`docs/benchmark.md`), with the measured speed of Qwen3-TTS, Supertonic and Whisper on each, and
+  the 0.21.1 numbers with the full framework `gpu` profile.
 
 ## [0.21.0] - 2026-11-09
 

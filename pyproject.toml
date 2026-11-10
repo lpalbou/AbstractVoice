@@ -96,9 +96,12 @@ gpu = [
     # it (and CUDA 13 cuBLAS has no Windows wheel). Framework backlogs 0988/0989.
     "nvidia-cublas-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
     "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
-    # cuDNN 9 for CUDA 12: CTranslate2 runs the Whisper encoder's convolutions through it on the
-    # GPU; torch's CUDA 13 build carries cuDNN for CUDA 13 only (round 16).
-    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
+    # cuDNN 9: CTranslate2 runs the Whisper encoder's convolutions through it on the GPU. Windows
+    # only: on Linux torch's CUDA wheel already carries cuDNN 9 (`nvidia-cudnn-cu12` or `-cu13`,
+    # the family of its CUDA build) and CTranslate2 loads it from the same folder; a second cuDNN
+    # wheel unpacks into that folder and mixes two versions, after which every convolution on
+    # CUDA (torch, ONNX Runtime) fails with CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH (0.21.1).
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32'",
     # Same profile on an Apple Silicon Mac: Whisper on its GPU (MLX). No-op elsewhere.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
     # Qwen3-TTS on the Apple GPU (MLX, ADR 0008) with its tokenizer from `tokenizers`. No-op elsewhere.
@@ -324,9 +327,12 @@ all-gpu = [
     # it (and CUDA 13 cuBLAS has no Windows wheel). Framework backlogs 0988/0989.
     "nvidia-cublas-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
     "nvidia-cuda-runtime-cu12>=12.4; sys_platform == 'win32' or sys_platform == 'linux'",
-    # cuDNN 9 for CUDA 12: CTranslate2 runs the Whisper encoder's convolutions through it on the
-    # GPU; torch's CUDA 13 build carries cuDNN for CUDA 13 only (round 16).
-    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
+    # cuDNN 9: CTranslate2 runs the Whisper encoder's convolutions through it on the GPU. Windows
+    # only: on Linux torch's CUDA wheel already carries cuDNN 9 (`nvidia-cudnn-cu12` or `-cu13`,
+    # the family of its CUDA build) and CTranslate2 loads it from the same folder; a second cuDNN
+    # wheel unpacks into that folder and mixes two versions, after which every convolution on
+    # CUDA (torch, ONNX Runtime) fails with CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH (0.21.1).
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32'",
     # Same profile on an Apple Silicon Mac: Whisper on its GPU (MLX). No-op elsewhere.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
     # Qwen3-TTS on the Apple GPU (MLX, ADR 0008) with its tokenizer from `tokenizers`. No-op elsewhere.
