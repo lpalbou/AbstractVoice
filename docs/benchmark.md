@@ -173,6 +173,26 @@ Interpretation:
 - Transcription parity (Whisper `large-v3-turbo`, 1.7B, 3 samples each): WER 0.17 on PyTorch,
   0.14 on MLX, both close to Whisper's own normalisation floor on this text.
 
+## Platform check: Linux processor, Linux NVIDIA, Apple silicon (2026-11-10)
+
+Release 0.21.0 was installed from scratch on three machines and asked to speak and transcribe the
+same sentence (about 8 to 9 s of audio). "Warm" is the second call with the model resident.
+
+| Engine, model | Linux, processor only (6 cores, no GPU, Python 3.14) | Linux NVIDIA (Quadro RTX 5000 16 GB, Turing, 4 vCPU) | Apple silicon laptop (MLX) |
+|---|---|---|---|
+| Qwen3-TTS 0.6B CustomVoice | processor, float32: 4.6 to 4.8 times slower than real time (4 vCPU) | cuda, float32, CUDA graph: 1.05 of real time first call, 0.82 warm | MLX 8-bit on Metal: 0.15 of real time, model loads in 1.1 s |
+| Supertonic 3 (ONNX) | CPU provider: 3.1 s | CUDA provider (`abstractvoice[onnx-cuda]`): 0.73 s, 0.10 s warm; CPU provider: 1.5 s | CPU provider: 1.9 to 2.3 s |
+| Whisper large-v3-turbo | base model on CPU int8: 2.5 s | faster-whisper CUDA int8_float16: 0.8 s, 0.5 s warm; CPU int8: 10 s | mlx-whisper on Metal: 0.6 s, 0.2 s warm |
+
+What the table says: every engine picks its device on its own and reports the reason
+(`runtime_info()` / `execution_device()`); on a card without native bfloat16 the torch engines
+run in float32; Qwen3-TTS on CUDA replays its codebook predictor as a CUDA graph; Supertonic
+and Piper reach the NVIDIA card through the `onnx-cuda` extra; a processor-only host runs
+everything, slower, with the same API. The `gpu` profile installs on a host without a card and
+runs on the processor. Methodology: one sentence, clean virtual environments, models downloaded
+by the package itself, `nvidia-smi` sampled during the GPU runs (Supertonic peaked at 38 % of the
+card, Qwen3-TTS at 69 %).
+
 ## Subjective note (voice cloning)
 
 This benchmark does **not** measure voice cloning.

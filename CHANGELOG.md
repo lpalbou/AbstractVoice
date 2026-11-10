@@ -10,6 +10,9 @@ Older changelog entries may reference historical CLI commands or model choices.
 
 ## [Unreleased]
 
+- Docs: a platform check of 0.21.0 on Linux without a GPU, Linux with an NVIDIA card and Apple silicon
+  (`docs/benchmark.md`), with the measured speed of Qwen3-TTS, Supertonic and Whisper on each.
+
 ## [0.21.0] - 2026-11-09
 
 ### Added

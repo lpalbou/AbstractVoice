@@ -36,6 +36,9 @@ beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
   pip install "abstractvoice[gpu]"     # NVIDIA or AMD GPU
   ```
 
+  Checked on Linux without a GPU, Linux with an NVIDIA card and Apple silicon; the measured
+  numbers per engine are in [docs/benchmark.md](docs/benchmark.md#platform-check-linux-processor-linux-nvidia-apple-silicon-2026-11-10).
+
 The script detects the machine (Apple Silicon with macOS 14+: the MLX engines; an NVIDIA or ROCm
 card: the GPU stack, plus ONNX Runtime's CUDA build on NVIDIA; anything else: local voice on the
 processor) and installs AbstractVoice alone with uv and Python 3.12, giving you the `abstractvoice`

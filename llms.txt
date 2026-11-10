@@ -52,6 +52,7 @@ Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skip
 ## Start here
 - One-line install: `curl -LsSf https://abstractframework.ai/voice/install.sh | sh` (macOS/Linux), `powershell -ExecutionPolicy ByPass -c "irm https://abstractframework.ai/voice/install.ps1 | iex"` (Windows), or `pip install "abstractvoice[apple]"` / `"abstractvoice[gpu]"`; the script detects the platform (Apple Silicon -> apple, NVIDIA/ROCm -> gpu + the onnx-cuda step, else light) and installs an isolated user tool; see [Installation](docs/installation.md)
 - [README](README.md): install + smoke tests + ecosystem diagram
+- [Platform check](docs/benchmark.md#platform-check-linux-processor-linux-nvidia-apple-silicon-2026-11-10): 0.21.0 measured on Linux without a GPU, Linux NVIDIA (Quadro RTX 5000) and Apple silicon: Qwen3-TTS 0.6B at 4.7x / 0.82x / 0.15x of real time, Supertonic 3.1 s / 0.10 s warm on CUDA / 2 s, Whisper large-v3-turbo 2.5 s (base) / 0.5 s / 0.2 s for ~8 s of audio
 - [Docs index](docs/README.md): map of user-facing vs internal docs
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests, including Qwen3-TTS, the built-in voices and mlx-whisper on Apple silicon
 - [API (integrator contract)](docs/api.md): supported surface (incl. AbstractFramework integrations)
