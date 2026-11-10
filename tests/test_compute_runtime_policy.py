@@ -3,6 +3,8 @@ import sys
 
 import pytest
 
+from abstractvoice.compute.dtype import TorchDtypeChoice
+
 
 def test_resolve_torch_runtime_auto_uses_best_device(monkeypatch: pytest.MonkeyPatch) -> None:
     from abstractvoice.compute import torch_runtime as runtime_module
@@ -88,7 +90,7 @@ def test_resolve_torch_runtime_keeps_legacy_auto_dtype_behavior(monkeypatch: pyt
     from abstractvoice.compute import torch_runtime as runtime_module
 
     monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
-    monkeypatch.setattr(runtime_module, "best_torch_dtype_name", lambda *, device: "float16")
+    monkeypatch.setattr(runtime_module, "best_torch_dtype_choice", lambda *, device: TorchDtypeChoice("float16", "test"))
     monkeypatch.setattr(runtime_module, "resolve_torch_dtype", lambda *, device, dtype_name=None: "torch.float16")
 
     runtime = runtime_module.resolve_torch_runtime(device="mps", dtype_name="auto")
@@ -243,7 +245,7 @@ def test_resolve_torch_runtime_on_mps_makes_transformers_load_weights_sequential
 
     monkeypatch.delenv("HF_DEACTIVATE_ASYNC_LOAD", raising=False)
     monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
-    monkeypatch.setattr(runtime_module, "best_torch_dtype_name", lambda *, device: "float16")
+    monkeypatch.setattr(runtime_module, "best_torch_dtype_choice", lambda *, device: TorchDtypeChoice("float16", "test"))
     monkeypatch.setattr(runtime_module, "resolve_torch_dtype", lambda *, device, dtype_name=None: "torch.float16")
 
     runtime_module.resolve_torch_runtime(device="mps")
@@ -259,7 +261,7 @@ def test_resolve_torch_runtime_leaves_transformers_loading_alone_off_mps(
 
     monkeypatch.delenv("HF_DEACTIVATE_ASYNC_LOAD", raising=False)
     monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
-    monkeypatch.setattr(runtime_module, "best_torch_dtype_name", lambda *, device: "float32")
+    monkeypatch.setattr(runtime_module, "best_torch_dtype_choice", lambda *, device: TorchDtypeChoice("float32", "test"))
     monkeypatch.setattr(runtime_module, "resolve_torch_dtype", lambda *, device, dtype_name=None: "torch.float32")
 
     runtime_module.resolve_torch_runtime(device=device)
@@ -272,10 +274,101 @@ def test_resolve_torch_runtime_respects_an_explicit_async_load_choice(monkeypatc
 
     monkeypatch.setenv("HF_DEACTIVATE_ASYNC_LOAD", "0")
     monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
-    monkeypatch.setattr(runtime_module, "best_torch_dtype_name", lambda *, device: "float16")
+    monkeypatch.setattr(runtime_module, "best_torch_dtype_choice", lambda *, device: TorchDtypeChoice("float16", "test"))
     monkeypatch.setattr(runtime_module, "resolve_torch_dtype", lambda *, device, dtype_name=None: "torch.float16")
 
     assert runtime_module.guard_metal_weight_loading("mps") is False
     runtime_module.resolve_torch_runtime(device="mps")
 
     assert os.environ["HF_DEACTIVATE_ASYNC_LOAD"] == "0"
+
+
+def _fake_cuda_torch(monkeypatch: pytest.MonkeyPatch, capability, name="Quadro RTX 5000"):
+    """A `torch` stand-in with one CUDA device of `capability`; the device counts as available."""
+    import types
+    from types import SimpleNamespace
+
+    import abstractvoice.compute.torch_runtime as runtime_module
+
+    torch = types.ModuleType("torch")
+    torch.cuda = SimpleNamespace(
+        get_device_capability=lambda device=None: capability,
+        get_device_name=lambda device=None: name,
+        is_bf16_supported=lambda including_emulation=True: True,
+    )
+    torch.float16, torch.bfloat16, torch.float32 = "torch.float16", "torch.bfloat16", "torch.float32"
+    monkeypatch.setitem(sys.modules, "torch", torch)
+    monkeypatch.setattr(runtime_module, "_device_available", lambda device: (True, None))
+    monkeypatch.delenv("ABSTRACTVOICE_TORCH_DTYPE", raising=False)
+    # Recorded so a test on "mps" cannot leak the variable its guard sets.
+    monkeypatch.setenv("HF_DEACTIVATE_ASYNC_LOAD", "0")
+
+
+def test_turing_runtime_is_float32_and_says_why(monkeypatch: pytest.MonkeyPatch) -> None:
+    from abstractvoice.compute import resolve_torch_runtime
+
+    _fake_cuda_torch(monkeypatch, (7, 5))
+    runtime = resolve_torch_runtime(device="cuda")
+    info = runtime.to_runtime_info()
+
+    assert runtime.resolved_dtype_name == "float32"
+    assert info["resolved_dtype"] == "float32"
+    assert "compute capability 7.5) has no native bfloat16" in info["dtype_reason"]
+
+
+@pytest.mark.parametrize("capability", [(8, 0), (8, 9)])
+def test_ampere_and_newer_runtime_is_bfloat16(monkeypatch: pytest.MonkeyPatch, capability) -> None:
+    from abstractvoice.compute import resolve_torch_runtime
+
+    _fake_cuda_torch(monkeypatch, capability, name="NVIDIA A100")
+    runtime = resolve_torch_runtime(device="cuda:0")
+
+    assert runtime.resolved_device == "cuda:0"
+    assert runtime.resolved_dtype_name == "bfloat16"
+    assert "has native bfloat16" in runtime.to_runtime_info()["dtype_reason"]
+
+
+def test_runtime_dtype_reason_for_requests_overrides_and_the_cpu(monkeypatch: pytest.MonkeyPatch) -> None:
+    from abstractvoice.compute import resolve_torch_runtime
+
+    _fake_cuda_torch(monkeypatch, (7, 5))
+    explicit = resolve_torch_runtime(device="cuda", dtype_name="bfloat16")
+    assert (explicit.resolved_dtype_name, explicit.dtype_reason) == ("bfloat16", "requested")
+
+    cpu = resolve_torch_runtime(device="cpu")
+    assert (cpu.resolved_dtype_name, cpu.dtype_reason) == ("float32", "default on the CPU")
+
+    monkeypatch.setenv("ABSTRACTVOICE_TORCH_DTYPE", "bf16")
+    forced = resolve_torch_runtime(device="cuda")
+    assert (forced.resolved_dtype_name, forced.dtype_reason) == ("bfloat16", "set by ABSTRACTVOICE_TORCH_DTYPE=bf16")
+
+
+@pytest.mark.parametrize(
+    "device, capability, dtype_name, expected",
+    [
+        ("cuda", (7, 5), None, "float32"),  # Turing: the shared policy's float32
+        ("cuda", (8, 9), None, "bfloat16"),  # Ada: native bf16
+        ("cpu", (7, 5), None, "float32"),
+        ("mps", (7, 5), None, "bfloat16"),  # unchanged: the shared fp16 default overflows Qwen3-TTS
+        ("cuda", (7, 5), "float16", "float16"),  # an explicit pin is the caller's choice
+        ("cuda", (8, 9), "auto", "bfloat16"),
+    ],
+)
+def test_qwen3_tts_takes_the_shared_dtype_policy(
+    monkeypatch: pytest.MonkeyPatch, device, capability, dtype_name, expected
+) -> None:
+    from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime
+
+    _fake_cuda_torch(monkeypatch, capability)
+    runtime = Qwen3TTSRuntime(device=device, dtype_name=dtype_name, backend="torch")._resolve_runtime()
+
+    assert runtime.resolved_device == device
+    assert runtime.resolved_dtype_name == expected
+
+
+def test_qwen3_tts_never_defaults_to_float16_even_when_the_environment_asks(monkeypatch: pytest.MonkeyPatch) -> None:
+    from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime
+
+    _fake_cuda_torch(monkeypatch, (8, 9))
+    monkeypatch.setenv("ABSTRACTVOICE_TORCH_DTYPE", "fp16")
+    assert Qwen3TTSRuntime(device="cuda", backend="torch")._resolve_runtime().resolved_dtype_name == "bfloat16"

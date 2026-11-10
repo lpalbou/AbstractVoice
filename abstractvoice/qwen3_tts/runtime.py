@@ -451,19 +451,23 @@ class Qwen3TTSRuntime:
             raise
 
     def _resolve_runtime(self):
-        default_dtype = self._dtype_pref
-        if not default_dtype:
-            probe = resolve_torch_runtime(
-                device=self._device_pref,
-                dtype_name=None,
-                allow_cpu_fallback=self._device_pref == "auto",
-            )
-            default_dtype = "float32" if str(probe.resolved_device) == "cpu" else "bfloat16"
+        # The shared policy picks the default dtype (ADR 0005): float32 on the CPU and on
+        # NVIDIA cards without native bfloat16 (before Ampere), bfloat16 on newer ones. A float16
+        # answer (its MPS/XPU default, or ABSTRACTVOICE_TORCH_DTYPE) becomes bfloat16: fp16
+        # overflows this model (see __init__); only an explicit dtype_name pins float16.
+        allow_cpu_fallback = self._device_pref == "auto"
         runtime = resolve_torch_runtime(
             device=self._device_pref,
-            dtype_name=default_dtype,
-            allow_cpu_fallback=self._device_pref == "auto",
+            dtype_name=self._dtype_pref,
+            allow_cpu_fallback=allow_cpu_fallback,
         )
+        pinned = str(self._dtype_pref or "").strip().lower() not in ("", "auto")
+        if not pinned and runtime.resolved_dtype_name == "float16":
+            runtime = resolve_torch_runtime(
+                device=self._device_pref,
+                dtype_name="bfloat16",
+                allow_cpu_fallback=allow_cpu_fallback,
+            )
         self._resolved_device = str(runtime.resolved_device)
         self._resolved_dtype = str(runtime.resolved_dtype_name)
         return runtime

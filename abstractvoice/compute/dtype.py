@@ -7,6 +7,23 @@ behave consistently across platforms.
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
+
+# NVIDIA GPUs compute natively in bfloat16 from Ampere (compute capability 8.0)
+# on. Older cards (Turing 7.5, Volta 7.0, Pascal 6.x) run bfloat16 emulated:
+# measured on a Quadro RTX 5000 (7.5), Qwen3-TTS 0.6B took 2.2x real time in
+# bfloat16 (emulated `magma_sgemmEx` matmuls, math-only attention) and 1.6x in
+# float32 (efficient attention kernel). float16 is not the answer there either:
+# it crashed that generation (a device-side assert in the rotary embedding).
+NATIVE_BF16_MIN_CUDA_CAPABILITY = (8, 0)
+
+
+@dataclass(frozen=True)
+class TorchDtypeChoice:
+    """A recommended dtype name and the short reason it was chosen."""
+
+    name: str
+    reason: str
 
 
 def _device_base(device: str) -> str:
@@ -20,32 +37,77 @@ def _device_base(device: str) -> str:
     return text
 
 
-def best_torch_dtype_name(*, device: str) -> str:
-    """Return a recommended torch dtype name for `device`.
+def _cuda_ordinal(device: str) -> int | None:
+    """The explicit ordinal of `cuda:N`, or None for plain `cuda` (the current device)."""
+    text = str(device or "").strip().lower()
+    if ":" not in text:
+        return None
+    try:
+        return int(text.split(":", 1)[1])
+    except ValueError:
+        return None
 
-    Honors env var `ABSTRACTVOICE_TORCH_DTYPE` when set.
+
+def _cuda_bf16_choice(device: str) -> TorchDtypeChoice:
+    index = _cuda_ordinal(device)
+    try:
+        import torch
+
+        major, minor = (int(part) for part in torch.cuda.get_device_capability(index))
+    except Exception as e:  # noqa: BLE001 - no torch, no CUDA runtime, bad ordinal
+        return TorchDtypeChoice(
+            "float32",
+            f"CUDA compute capability unknown ({type(e).__name__}: {e}); "
+            "bfloat16 is chosen only on GPUs with native bfloat16",
+        )
+    try:
+        label = str(torch.cuda.get_device_name(index))
+    except Exception:  # noqa: BLE001 - the name is decoration only
+        label = "CUDA device"
+    capability = f"{label} (compute capability {major}.{minor})"
+    if (major, minor) >= NATIVE_BF16_MIN_CUDA_CAPABILITY:
+        return TorchDtypeChoice("bfloat16", f"{capability} has native bfloat16")
+    return TorchDtypeChoice(
+        "float32",
+        f"{capability} has no native bfloat16 (8.0, Ampere, and newer have it): "
+        "float32 runs faster than emulated bfloat16, and float16 is unstable",
+    )
+
+
+def best_torch_dtype_choice(*, device: str) -> TorchDtypeChoice:
+    """Return the recommended torch dtype for `device` with the reason.
+
+    Honors env var `ABSTRACTVOICE_TORCH_DTYPE` when set. On CUDA, bfloat16 only
+    when the device (`cuda:N` or the current one) computes it natively, else
+    float32; never float16.
     """
-    forced = (os.environ.get("ABSTRACTVOICE_TORCH_DTYPE") or "").strip().lower()
+    raw = (os.environ.get("ABSTRACTVOICE_TORCH_DTYPE") or "").strip()
+    forced = raw.lower()
     if forced:
+        reason = f"set by ABSTRACTVOICE_TORCH_DTYPE={raw}"
         # normalize common spellings
         if forced in ("fp16", "float16", "half"):
-            return "float16"
+            return TorchDtypeChoice("float16", reason)
         if forced in ("bf16", "bfloat16"):
-            return "bfloat16"
+            return TorchDtypeChoice("bfloat16", reason)
         if forced in ("fp32", "float32"):
-            return "float32"
-        return forced
+            return TorchDtypeChoice("float32", reason)
+        return TorchDtypeChoice(forced, reason)
 
     dev = _device_base(str(device or ""))
     if dev == "cuda":
-        # Prefer bf16 on modern NVIDIA GPUs, but allow fallback.
-        return "bfloat16"
+        return _cuda_bf16_choice(str(device))
     if dev == "mps":
-        return "float16"
+        return TorchDtypeChoice("float16", "default on the Apple GPU (MPS)")
     if dev == "xpu":
         # Conservative; engine can override.
-        return "float16"
-    return "float32"
+        return TorchDtypeChoice("float16", "default on Intel XPU")
+    return TorchDtypeChoice("float32", "default on the CPU")
+
+
+def best_torch_dtype_name(*, device: str) -> str:
+    """Return a recommended torch dtype name for `device` (see `best_torch_dtype_choice`)."""
+    return best_torch_dtype_choice(device=device).name
 
 
 def resolve_torch_dtype(*, device: str, dtype_name: str | None = None):
@@ -73,11 +135,12 @@ def resolve_torch_dtype(*, device: str, dtype_name: str | None = None):
 
     dt = mapping[name]
 
-    # CUDA bf16 support varies; fall back to fp16 if needed.
+    # A CUDA device that cannot run bfloat16 at all (not even emulated) gets
+    # float32: float16 is unstable for these models (see above).
     if _device_base(str(device)) == "cuda" and dt == torch.bfloat16:
         try:
             if hasattr(torch.cuda, "is_bf16_supported") and not torch.cuda.is_bf16_supported():
-                return torch.float16
+                return torch.float32
         except Exception:
             # Best-effort; keep requested dtype.
             return dt

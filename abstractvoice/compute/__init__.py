@@ -1,7 +1,7 @@
 """Compute helpers (device selection, acceleration notes)."""
 
 from .device import WhisperDevice, best_faster_whisper_device, best_torch_device, resolve_faster_whisper_device
-from .dtype import best_torch_dtype_name, resolve_torch_dtype
+from .dtype import TorchDtypeChoice, best_torch_dtype_choice, best_torch_dtype_name, resolve_torch_dtype
 from .torch_runtime import TorchRuntimeResolution, looks_like_torch_device_error, resolve_torch_runtime
 
 __all__ = [
@@ -9,6 +9,8 @@ __all__ = [
     "best_faster_whisper_device",
     "resolve_faster_whisper_device",
     "WhisperDevice",
+    "TorchDtypeChoice",
+    "best_torch_dtype_choice",
     "best_torch_dtype_name",
     "resolve_torch_dtype",
     "TorchRuntimeResolution",

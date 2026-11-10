@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .device import best_torch_device
-from .dtype import best_torch_dtype_name, resolve_torch_dtype
+from .dtype import best_torch_dtype_choice, resolve_torch_dtype
 
 
 def _norm_device_name(value: Any) -> str:
@@ -117,6 +117,8 @@ class TorchRuntimeResolution:
     torch_dtype: Any
     used_fallback: bool = False
     fallback_reason: str | None = None
+    # Why `resolved_dtype_name` (e.g. a pre-Ampere NVIDIA card gets float32, not bfloat16).
+    dtype_reason: str | None = None
 
     def to_runtime_info(self) -> dict[str, Any]:
         return {
@@ -124,6 +126,7 @@ class TorchRuntimeResolution:
             "resolved_device": self.resolved_device,
             "requested_dtype": self.requested_dtype,
             "resolved_dtype": self.resolved_dtype_name,
+            "dtype_reason": self.dtype_reason,
             "used_fallback": bool(self.used_fallback),
             "fallback_reason": self.fallback_reason,
         }
@@ -178,15 +181,20 @@ def resolve_torch_runtime(
         )
 
     dtype_choice = None if requested_dtype in {None, "", "auto"} else requested_dtype
+    if dtype_choice:
+        chosen_dtype, dtype_reason = dtype_choice, "requested"
+    else:
+        best = best_torch_dtype_choice(device=str(resolved))
+        chosen_dtype, dtype_reason = best.name, best.reason
     try:
-        resolved_dtype = resolve_torch_dtype(
-            device=str(resolved),
-            dtype_name=dtype_choice or best_torch_dtype_name(device=str(resolved)),
-        )
+        resolved_dtype = resolve_torch_dtype(device=str(resolved), dtype_name=chosen_dtype)
         resolved_dtype_name = str(resolved_dtype).replace("torch.", "")
+        if resolved_dtype_name != chosen_dtype:
+            dtype_reason = f"{chosen_dtype} is not supported on {resolved}"
     except Exception:
         resolved_dtype = None
         resolved_dtype_name = requested_dtype or "auto"
+        dtype_reason = None
 
     guard_metal_weight_loading(resolved)
 
@@ -198,4 +206,5 @@ def resolve_torch_runtime(
         torch_dtype=resolved_dtype,
         used_fallback=used_fallback,
         fallback_reason=fallback_reason,
+        dtype_reason=dtype_reason,
     )
