@@ -236,6 +236,7 @@ def test_transformers_asr_records_unavailable_reason_from_init_failure(monkeypat
     assert adapter.is_available() is False
     assert adapter.get_unavailable_reason() == "MPS load failed"
     assert adapter.get_info()["runtime"]["load_error"] == "MPS load failed"
+    assert "dtype_reason" in adapter.get_info()["runtime"]
 
 
 def test_resolve_torch_runtime_on_mps_makes_transformers_load_weights_sequentially(
@@ -372,3 +373,30 @@ def test_qwen3_tts_never_defaults_to_float16_even_when_the_environment_asks(monk
     _fake_cuda_torch(monkeypatch, (8, 9))
     monkeypatch.setenv("ABSTRACTVOICE_TORCH_DTYPE", "fp16")
     assert Qwen3TTSRuntime(device="cuda", backend="torch")._resolve_runtime().resolved_dtype_name == "bfloat16"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="OmniVoice is unsupported on Python < 3.10")
+@pytest.mark.parametrize("engine", ["omnivoice", "audiodit"])
+def test_engine_runtime_info_says_why_its_dtype(monkeypatch: pytest.MonkeyPatch, engine: str) -> None:
+    import importlib
+
+    from abstractvoice.compute.torch_runtime import TorchRuntimeResolution
+
+    module = importlib.import_module(f"abstractvoice.{engine}.runtime")
+    resolution = TorchRuntimeResolution(
+        requested_device="auto",
+        resolved_device="cuda",
+        requested_dtype=None,
+        resolved_dtype_name="float32",
+        torch_dtype="torch.float32",
+        dtype_reason="Quadro RTX 5000 (compute capability 7.5) has no native bfloat16",
+    )
+    monkeypatch.setattr(module, "resolve_torch_runtime", lambda **kwargs: resolution)
+    runtime = module.OmniVoiceRuntime() if engine == "omnivoice" else module.AudioDiTRuntime()
+
+    assert runtime.runtime_info()["dtype_reason"] is None  # before any resolution
+    runtime._resolve_runtime()
+    info = runtime.runtime_info()
+
+    assert info["resolved_dtype"] == "float32"
+    assert info["dtype_reason"] == "Quadro RTX 5000 (compute capability 7.5) has no native bfloat16"

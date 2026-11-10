@@ -286,6 +286,7 @@ class AudioDiTRuntime:
         self._tokenizer = None
         self._resolved_device: str | None = None
         self._resolved_dtype: str | None = None
+        self._dtype_reason: str | None = None
         self._used_fallback = False
         self._fallback_reason: str | None = None
 
@@ -297,6 +298,7 @@ class AudioDiTRuntime:
             "resolved_device": self._resolved_device,
             "requested_dtype": self._dtype_pref,
             "resolved_dtype": self._resolved_dtype,
+            "dtype_reason": self._dtype_reason,
             "used_fallback": bool(self._used_fallback),
             "fallback_reason": self._fallback_reason,
             "allow_downloads": bool(self.allow_downloads),
@@ -310,6 +312,7 @@ class AudioDiTRuntime:
         )
         self._resolved_device = str(runtime.resolved_device)
         self._resolved_dtype = str(runtime.resolved_dtype_name)
+        self._dtype_reason = runtime.dtype_reason
         self._used_fallback = bool(runtime.used_fallback)
         self._fallback_reason = runtime.fallback_reason
         return runtime
@@ -410,6 +413,7 @@ class AudioDiTRuntime:
                 model.to(device="cpu", dtype=cpu_runtime.torch_dtype)
                 self._resolved_device = "cpu"
                 self._resolved_dtype = str(cpu_runtime.resolved_dtype_name)
+                self._dtype_reason = cpu_runtime.dtype_reason
                 self._used_fallback = True
                 self._fallback_reason = (
                     f"AudioDiT failed to move the model to '{device}': {e}. "

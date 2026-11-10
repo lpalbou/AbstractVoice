@@ -225,6 +225,7 @@ class TransformersASRAdapter(STTAdapter):
         self._current_language: str | None = None
         self._resolved_device: str | None = None
         self._resolved_dtype: str | None = None
+        self._dtype_reason: str | None = None
         self._used_fallback = False
         self._fallback_reason: str | None = None
         self._load_error: str | None = None
@@ -270,6 +271,7 @@ class TransformersASRAdapter(STTAdapter):
             "resolved_device": self._resolved_device,
             "requested_dtype": self._dtype_pref,
             "resolved_dtype": self._resolved_dtype,
+            "dtype_reason": self._dtype_reason,
             "used_fallback": bool(self._used_fallback),
             "fallback_reason": self._fallback_reason,
             "load_error": self._load_error,
@@ -315,6 +317,7 @@ class TransformersASRAdapter(STTAdapter):
             runtime = self._resolve_runtime()
             self._resolved_device = str(runtime.resolved_device)
             self._resolved_dtype = str(runtime.resolved_dtype_name)
+            self._dtype_reason = runtime.dtype_reason
             self._used_fallback = bool(runtime.used_fallback)
             self._fallback_reason = runtime.fallback_reason
             if runtime.used_fallback and runtime.fallback_reason:
@@ -355,6 +358,7 @@ class TransformersASRAdapter(STTAdapter):
                     warnings.warn(retry_reason)
                     self._resolved_device = str(cpu_runtime.resolved_device)
                     self._resolved_dtype = str(cpu_runtime.resolved_dtype_name)
+                    self._dtype_reason = cpu_runtime.dtype_reason
                     self._used_fallback = True
                     self._fallback_reason = retry_reason
                     self._load_backend(

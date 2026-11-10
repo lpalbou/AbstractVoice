@@ -105,6 +105,7 @@ class OmniVoiceRuntime:
 
         self._resolved_device: str | None = None
         self._resolved_dtype: str | None = None
+        self._dtype_reason: str | None = None
         self._used_fallback = False
         self._fallback_reason: str | None = None
 
@@ -119,6 +120,7 @@ class OmniVoiceRuntime:
             "requested_dtype": self._dtype_pref,
             "resolved_device": self._resolved_device,
             "resolved_dtype": self._resolved_dtype,
+            "dtype_reason": self._dtype_reason,
             "used_fallback": bool(self._used_fallback),
             "fallback_reason": self._fallback_reason,
             "allow_downloads": bool(self.allow_downloads),
@@ -131,6 +133,7 @@ class OmniVoiceRuntime:
             allow_cpu_fallback=str(self._device_pref or "auto") == "auto",
         )
         self._resolved_dtype = str(runtime.resolved_dtype_name)
+        self._dtype_reason = runtime.dtype_reason
         self._used_fallback = bool(runtime.used_fallback)
         self._fallback_reason = runtime.fallback_reason
         return runtime
@@ -291,6 +294,7 @@ class OmniVoiceRuntime:
                 warnings.warn(str(self._fallback_reason), RuntimeWarning)
                 self._resolved_device = "cpu"
                 self._resolved_dtype = str(cpu_runtime.resolved_dtype_name)
+                self._dtype_reason = cpu_runtime.dtype_reason
                 model = _load_model("cpu", cpu_runtime.torch_dtype)
         except Exception as e:
             raise RuntimeError(f"Failed to load OmniVoice model: {e}") from e
