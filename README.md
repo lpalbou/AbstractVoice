@@ -15,6 +15,33 @@ for the AbstractFramework ecosystem. It does not force you to run a daemon:
 embed `VoiceManager` directly when you want an in-process library; install it
 beside AbstractCore when you want OpenAI-compatible HTTP audio endpoints.
 
+**Install in one line** (no admin rights, no Python needed):
+
+- **macOS / Linux:**
+
+  ```bash
+  curl -LsSf https://abstractframework.ai/voice/install.sh | sh
+  ```
+
+- **Windows 10 / 11** (PowerShell):
+
+  ```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://abstractframework.ai/voice/install.ps1 | iex"
+  ```
+
+- **With pip**, in your own Python environment:
+
+  ```bash
+  pip install "abstractvoice[apple]"   # Apple Silicon Mac
+  pip install "abstractvoice[gpu]"     # NVIDIA or AMD GPU
+  ```
+
+The script detects the machine (Apple Silicon with macOS 14+: the MLX engines; an NVIDIA or ROCm
+card: the GPU stack, plus ONNX Runtime's CUDA build on NVIDIA; anything else: local voice on the
+processor) and installs AbstractVoice alone with uv and Python 3.12, giving you the `abstractvoice`
+and `abstractvoice-prefetch` commands; run it again to upgrade. Options and details:
+[One-line install](docs/installation.md#one-line-install).
+
 - **Remote audio (base install)**: OpenAI/OpenAI-compatible TTS, STT, profile listing, and compatible clone endpoints
 - **Platform local stacks (`abstractvoice[apple]`, `abstractvoice[gpu]`)**: Piper, Supertonic 3, faster-whisper (CUDA on NVIDIA GPUs), mlx-whisper (Apple GPU, Apple Silicon), microphone/playback, AEC, and local cloning/TTS engines
 - **Hardware profile aliases**: `abstractvoice[apple]` and `abstractvoice[gpu]` install the local stack; `abstractvoice[all-apple]` and `abstractvoice[all-gpu]` add the lightweight web example dependencies.
@@ -280,7 +307,9 @@ If you’re using the full AbstractFramework stack, install and run via the umbr
 
 ## Install
 
-Requires Python `>=3.9` (see `pyproject.toml`).
+No Python yet? The one-line installers at the top of this page set everything up
+([One-line install](docs/installation.md#one-line-install)). With pip, AbstractVoice
+requires Python `>=3.9` (see `pyproject.toml`).
 
 ```bash
 pip install abstractvoice

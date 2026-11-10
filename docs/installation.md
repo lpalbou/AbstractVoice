@@ -6,6 +6,82 @@ AbstractVoice has a lightweight remote-first base install plus explicit local ex
 - **Base install**: OpenAI/OpenAI-compatible TTS/STT/profile/clone adapters and AbstractCore plugin discovery
 - **Platform/local extras**: Piper TTS, Supertonic 3 ONNX TTS, faster-whisper STT, audio I/O, AEC where supported, and local cloning/TTS engines
 
+## One-line install
+
+No admin rights and no Python needed: the installer gets [uv](https://docs.astral.sh/uv) when it is
+missing, Python 3.12 through uv, and installs AbstractVoice alone (no gateway, no services) in its
+own environment, with the `abstractvoice` and `abstractvoice-prefetch` commands in `~/.local/bin`.
+
+```bash
+# macOS / Linux
+curl -LsSf https://abstractframework.ai/voice/install.sh | sh
+```
+
+```powershell
+# Windows 10 / 11
+powershell -ExecutionPolicy ByPass -c "irm https://abstractframework.ai/voice/install.ps1 | iex"
+```
+
+```bash
+# With pip, in your own Python environment
+pip install "abstractvoice[apple]"   # Apple Silicon Mac
+pip install "abstractvoice[gpu]"     # NVIDIA or AMD GPU
+```
+
+It picks the profile from the machine (`--profile` chooses another one):
+
+| Machine | Profile | What it installs |
+|---|---|---|
+| Apple Silicon Mac, macOS 14 or later | `apple` | `abstractvoice[apple]`: the MLX engines on the Apple GPU (echo cancellation is left out: it has no macOS wheel, and the installer never starts a compiler) |
+| NVIDIA card (`nvidia-smi -L` works) or, on Linux, ROCm (`rocminfo`) | `gpu` | `abstractvoice[gpu]`; with NVIDIA, also ONNX Runtime's CUDA build (below); on Windows, PyTorch's CUDA build for the driver (`--torch-backend cu130` or `cu126`) |
+| Anything else (an Intel Mac, an older macOS, no GPU) | `light` | processor only: the base package with Supertonic speech, faster-whisper transcription and speaker/microphone I/O (Windows on ARM: Supertonic only) |
+
+`--profile gpu` on a machine without a card installs the same GPU stack, whose engines then run on
+the processor. Every step prints its command, and so does the summary: the version, the profile,
+where the commands are, the CUDA step's result and what to try first:
+
+```bash
+abstractvoice-prefetch --supertonic   # the Supertonic voice, once (about 380 MB)
+abstractvoice --tts-engine supertonic --prompt "Hello from AbstractVoice." --output hello.wav
+```
+
+| macOS / Linux | Windows | |
+|---|---|---|
+| `--print` | `-Print` | show the plan and every command; change nothing |
+| `--profile auto\|light\|apple\|gpu` | `-Profile auto\|light\|gpu` | the profile (default `auto`; `AV_PROFILE`) |
+| `--pin VERSION\|latest` | `-Pin` | the version: by default the release the script ships with, `latest` = the newest on PyPI (`AV_PIN`) |
+| `--from PATH` | `-From` | install from a checkout, sdist or wheel, for testing (`AV_FROM`) |
+| `--no-modify-path` | `-NoModifyPath` | do not run `uv tool update-shell` |
+
+Options go after `sh -s --` (`curl -LsSf https://abstractframework.ai/voice/install.sh | sh -s -- --print`)
+or into a script block on Windows
+(`& ([scriptblock]::Create((irm https://abstractframework.ai/voice/install.ps1))) -Print`).
+
+**Upgrade**: run the same line again. It finds the install, says
+`AbstractVoice 0.20.1 found: upgrading to AbstractVoice 0.21.0` (or `already up to date`), keeps the profile
+unless `--profile` says otherwise, ends with `abstractvoice 0.20.1 -> 0.21.0`, runs the CUDA step
+again, and reinstalls in place when the command no longer starts. Remove it with
+`uv tool uninstall abstractvoice`. AbstractFramework's installer already includes AbstractVoice and
+its commands: on such a machine this script stops and says so, and nothing is changed.
+
+**The CUDA step (NVIDIA)**: with an NVIDIA driver 580 or newer and compute capability 7.5 or newer
+(ONNX Runtime's CUDA build is a CUDA 13 build), the installer runs Supertonic and Piper on the
+card. ONNX Runtime's CPU build (`onnxruntime`, which piper-tts and faster-whisper require) and its
+CUDA build (`onnxruntime-gpu`) write the same files, and installed together the CPU build's won
+(measured on Ubuntu 24.04 with a Quadro RTX 5000), so the step is two commands:
+
+```bash
+uv tool install --python 3.12 "abstractvoice[gpu,onnx-cuda]==<version>"
+uv pip install --python "$(uv tool dir)/abstractvoice/bin/python" --no-deps \
+    --reinstall-package onnxruntime-gpu "onnxruntime-gpu==<the version just installed>"
+```
+
+The second one rewrites the CUDA build's files alone, after everything else; then the installer
+checks that `import onnxruntime; onnxruntime.get_available_providers()` lists
+`CUDAExecutionProvider` and prints the result. With an older driver or no NVIDIA card it says why
+and Supertonic and Piper run on the processor. If the CPU build ever comes back on top (Supertonic's
+reason says so), running the installer again repairs it.
+
 ## Install
 
 ```bash
