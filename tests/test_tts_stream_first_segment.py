@@ -72,6 +72,12 @@ def test_supertonic_reports_cpu_with_reason_and_bounded_threads():
     rt = SupertonicRuntime(allow_downloads=False, providers=["CPUExecutionProvider"])
     info = rt.execution_device()
     assert info["device"] == "cpu"
-    assert "CoreML" in info["reason"]
+    # Why the CPU: CoreML measured slower (macOS), no CUDA provider in this ONNX Runtime, or the
+    # CPU asked for while CUDA is there (each case: tests/test_supertonic_execution_providers.py).
+    assert info["reason"] in (
+        SupertonicRuntime.CPU_REASON,
+        SupertonicRuntime.NO_CUDA_REASON,
+        SupertonicRuntime.CPU_REQUESTED_REASON,
+    )
     assert 1 <= info["threads"] <= SupertonicRuntime.DEFAULT_INTRA_OP_THREADS
     assert SupertonicRuntime(allow_downloads=False, intra_op_num_threads=7)._intra_op_threads() == 7

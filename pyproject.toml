@@ -88,7 +88,10 @@ apple = [
 
 gpu = [
     "piper-tts>=1.2.0",
-    "onnxruntime>=1.19.0",
+    # ONNX Runtime with its CUDA provider on Windows and Linux, so Supertonic and Piper run on the
+    # NVIDIA GPU; the CPU build on macOS. (The supertonic and piper extras keep the CPU build.)
+    "onnxruntime>=1.19.0; sys_platform == 'darwin'",
+    "onnxruntime-gpu>=1.19.0; sys_platform == 'linux' or sys_platform == 'win32'",
     # Supertonic speaks one language per call: the reply's language, identified once.
     "py3langid>=0.3.0",
     "faster-whisper>=0.10.0",
@@ -99,6 +102,10 @@ gpu = [
     # cuDNN 9 for CUDA 12: CTranslate2 runs the Whisper encoder's convolutions through it on the
     # GPU; torch's CUDA 13 build carries cuDNN for CUDA 13 only (round 16).
     "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
+    # onnxruntime-gpu (1.27+) is built for CUDA 13. torch's CUDA 13 wheels carry the cuBLAS, cudart,
+    # cuFFT and cuDNN it loads, not cuRAND: without it the CUDA provider fails to load
+    # (libcurand.so.10) and Supertonic runs on the CPU (Ubuntu 24.04 NVIDIA host, 2026-11-10).
+    "nvidia-curand>=10.4,<11; sys_platform == 'win32' or sys_platform == 'linux'",
     # Same profile on an Apple Silicon Mac: Whisper on its GPU (MLX). No-op elsewhere.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
     # Qwen3-TTS on the Apple GPU (MLX, ADR 0008) with its tokenizer from `tokenizers`. No-op elsewhere.
@@ -134,10 +141,12 @@ gpu = [
 
 # Granular local engine extras remain available for smaller custom installs.
 piper = [
+    # piper-tts requires the CPU onnxruntime; the gpu profiles add onnxruntime-gpu (CUDA) on Linux and Windows.
     "piper-tts>=1.2.0",
 ]
 
 supertonic = [
+    # CPU build everywhere; the gpu profiles bring onnxruntime-gpu (CUDA) on Linux and Windows.
     "onnxruntime>=1.19.0",
     # Supertonic speaks one language per call: the reply's language, identified once.
     "py3langid>=0.3.0",
@@ -307,7 +316,10 @@ all-apple = [
 
 all-gpu = [
     "piper-tts>=1.2.0",
-    "onnxruntime>=1.19.0",
+    # ONNX Runtime with its CUDA provider on Windows and Linux, so Supertonic and Piper run on the
+    # NVIDIA GPU; the CPU build on macOS. (The supertonic and piper extras keep the CPU build.)
+    "onnxruntime>=1.19.0; sys_platform == 'darwin'",
+    "onnxruntime-gpu>=1.19.0; sys_platform == 'linux' or sys_platform == 'win32'",
     # Supertonic speaks one language per call: the reply's language, identified once.
     "py3langid>=0.3.0",
     "faster-whisper>=0.10.0",
@@ -318,6 +330,10 @@ all-gpu = [
     # cuDNN 9 for CUDA 12: CTranslate2 runs the Whisper encoder's convolutions through it on the
     # GPU; torch's CUDA 13 build carries cuDNN for CUDA 13 only (round 16).
     "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
+    # onnxruntime-gpu (1.27+) is built for CUDA 13. torch's CUDA 13 wheels carry the cuBLAS, cudart,
+    # cuFFT and cuDNN it loads, not cuRAND: without it the CUDA provider fails to load
+    # (libcurand.so.10) and Supertonic runs on the CPU (Ubuntu 24.04 NVIDIA host, 2026-11-10).
+    "nvidia-curand>=10.4,<11; sys_platform == 'win32' or sys_platform == 'linux'",
     # Same profile on an Apple Silicon Mac: Whisper on its GPU (MLX). No-op elsewhere.
     "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
     # Qwen3-TTS on the Apple GPU (MLX, ADR 0008) with its tokenizer from `tokenizers`. No-op elsewhere.

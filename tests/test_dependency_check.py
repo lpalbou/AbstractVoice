@@ -141,15 +141,16 @@ def test_local_voice_extras_include_expected_runtime_stacks() -> None:
         assert f5 == ["f5-tts>=1.1.0; python_version >= '3.11'"], (name, f5)
     assert _has_marked_dep(platform, "omnivoice>=0.1.5", "python_version >= '3.10'")
     assert _has_marked_dep(platform, "aec-audio-processing>=1.0.1", "python_version >= '3.11'")
-    # gpu = apple + the Windows/Linux CUDA 12 cuBLAS wheels for CTranslate2 (framework backlogs 0988/0989).
-    assert [d for d in extras["gpu"] if d not in CUDA12_WHEELS] == platform
+    # gpu = apple with ONNX Runtime's CUDA build on Windows/Linux, plus the Windows/Linux CUDA wheels
+    # (CUDA 12 for CTranslate2, framework backlogs 0988/0989; cuRAND for onnxruntime-gpu).
+    assert _without_gpu_deltas(extras["gpu"]) == _without_gpu_deltas(platform)
 
     all_apple = extras["all-apple"]
     for dep in platform:
         assert dep in all_apple
     for dep in extras["web"]:
         assert dep in all_apple
-    assert [d for d in extras["all-gpu"] if d not in CUDA12_WHEELS] == all_apple
+    assert _without_gpu_deltas(extras["all-gpu"]) == _without_gpu_deltas(all_apple)
 
 
 CUDA12_WHEELS = (
@@ -158,6 +159,24 @@ CUDA12_WHEELS = (
     # Round 16: cuDNN 9 for CUDA 12 (the Whisper encoder's convolutions on the GPU).
     "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
 )
+
+# onnxruntime-gpu 1.27+ is a CUDA 13 build; torch's CUDA 13 wheels lack its cuRAND (libcurand.so.10),
+# without which its CUDA provider does not load (Ubuntu 24.04 NVIDIA host, 2026-11-10).
+ORT_CUDA_WHEELS = ("nvidia-curand>=10.4,<11; sys_platform == 'win32' or sys_platform == 'linux'",)
+
+# The gpu profiles' ONNX Runtime: the CUDA build where an NVIDIA GPU can run it, the CPU build on macOS.
+ORT_GPU_PROFILE = (
+    "onnxruntime>=1.19.0; sys_platform == 'darwin'",
+    "onnxruntime-gpu>=1.19.0; sys_platform == 'linux' or sys_platform == 'win32'",
+)
+ORT_CPU = "onnxruntime>=1.19.0"
+
+
+def _without_gpu_deltas(deps: list[str]) -> list[str]:
+    """A profile minus what only the gpu profiles carry (CUDA wheels, either ONNX Runtime line)."""
+    skip = set(CUDA12_WHEELS) | set(ORT_CUDA_WHEELS) | set(ORT_GPU_PROFILE) | {ORT_CPU}
+    return [d for d in deps if d not in skip]
+
 
 MLX_WHISPER = "mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'"
 
@@ -180,12 +199,30 @@ def test_gpu_profiles_add_cuda12_cublas_on_windows_and_linux_only() -> None:
     pyproject = tomllib.loads(Path("pyproject.toml").read_text())
     extras = pyproject["project"]["optional-dependencies"]
     for name in ("gpu", "all-gpu"):
-        for dep in CUDA12_WHEELS:
+        for dep in CUDA12_WHEELS + ORT_CUDA_WHEELS:
             assert dep in extras[name], (name, dep)
     for name, deps in extras.items():
         if name in ("gpu", "all-gpu"):
             continue
         assert not [d for d in deps if d.startswith("nvidia-")], name
+
+
+def test_gpu_profiles_install_onnxruntime_with_cuda_on_windows_and_linux_only() -> None:
+    # Supertonic and Piper use the NVIDIA GPU only through onnxruntime-gpu's CUDA provider; the CPU
+    # `onnxruntime` the gpu profiles installed before had none (server, 2026-11-10). macOS keeps
+    # the CPU build (no CUDA; CoreML measured slower than the CPU for Supertonic).
+    extras = tomllib.loads(Path("pyproject.toml").read_text())["project"]["optional-dependencies"]
+    for name in ("gpu", "all-gpu"):
+        ort = [d for d in extras[name] if d.startswith("onnxruntime")]
+        assert ort == list(ORT_GPU_PROFILE), (name, ort)
+    # Every other extra that names ONNX Runtime takes the plain CPU build, unmarked.
+    for name in ("apple", "all-apple", "supertonic"):
+        ort = [d for d in extras[name] if d.startswith("onnxruntime")]
+        assert ort == [ORT_CPU], (name, ort)
+    for name, deps in extras.items():
+        if name in ("gpu", "all-gpu"):
+            continue
+        assert not [d for d in deps if d.startswith("onnxruntime-gpu")], name
 
 
 def test_remote_and_heavy_engine_extras_are_self_contained() -> None:

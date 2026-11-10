@@ -12,12 +12,15 @@ https://huggingface.co/Supertone/supertonic-3
 
 from __future__ import annotations
 
+import contextlib
+import functools
 import io
 import json
 import logging
 import math
 import os
 import re
+import sys
 import tempfile
 import wave
 from dataclasses import dataclass
@@ -124,6 +127,18 @@ def get_supertonic_cache_dir(cache_dir: str | os.PathLike[str] | None = None) ->
             root = Path.home() / ".cache" / "abstractvoice" / "supertonic-3"
     root.mkdir(parents=True, exist_ok=True)
     return root
+
+
+@functools.lru_cache(maxsize=1)
+def _onnxruntime_gpu_installed() -> bool:
+    """True when the onnxruntime-gpu distribution is installed (read once per process)."""
+    from importlib import metadata
+
+    try:
+        metadata.version("onnxruntime-gpu")
+    except metadata.PackageNotFoundError:
+        return False
+    return True
 
 
 def _required_paths(cache_dir: Path) -> list[Path]:
@@ -367,28 +382,89 @@ class SupertonicRuntime:
     # Execution device on this host (round 6, measured on an M5 Max under load):
     # ONNX Runtime's CoreML provider runs Supertonic SLOWER than the CPU
     # provider (real-time factor 0.61 vs 0.39-0.53, plus ~9 s of CoreML
-    # compilation at load), so the CPU provider stays the default and the
+    # compilation at load), so CoreML is never requested by default and the
     # reason is reported with every synthesis (`execution_device`).
     CPU_REASON = (
         "CPU: ONNX Runtime's CoreML provider measured slower than the CPU for Supertonic on Apple Silicon "
         "(real-time factor 0.61 vs 0.39, plus ~9 s to compile at load)"
+    )
+    # An NVIDIA GPU is used when this ONNX Runtime has the CUDA provider
+    # (onnxruntime-gpu, which the gpu install profiles bring on Linux and
+    # Windows); the CPU otherwise.
+    DEFAULT_PROVIDERS = ("CUDAExecutionProvider", "CPUExecutionProvider")
+    CUDA_REASON = "NVIDIA GPU (ONNX Runtime CUDA execution provider)"
+    NO_CUDA_REASON = (
+        "CPU: this ONNX Runtime has no CUDA execution provider "
+        "(the gpu install profile brings onnxruntime-gpu on Linux and Windows)"
+    )
+    CUDA_FAILED_REASON = (
+        "CPU: ONNX Runtime's CUDA execution provider did not load (its CUDA libraries were not found; see the log)"
+    )
+    CPU_REQUESTED_REASON = "CPU: requested (providers / ABSTRACTVOICE_SUPERTONIC_ONNX_PROVIDERS)"
+    # Both distributions install the same `onnxruntime` package; pip installs the CPU one that
+    # piper-tts and faster-whisper require AFTER onnxruntime-gpu, so its files win (clean
+    # `pip install abstractvoice[gpu]`, Ubuntu 24.04, 2026-11-10).
+    CUDA_OVERWRITTEN_REASON = (
+        "CPU: onnxruntime-gpu is installed but the CPU onnxruntime (required by piper-tts and faster-whisper) "
+        "replaced its files; fix: pip install --force-reinstall --no-deps onnxruntime-gpu"
     )
     # Intra-op threads when none is given: all cores oversubscribe a busy
     # machine (measured: 35-char sentence 1.52 s with all 18 cores, 0.99 s with
     # 4; 96 chars 2.43 s vs 1.79 s) and starve the host process.
     DEFAULT_INTRA_OP_THREADS = 4
 
+    @property
+    def execution_providers(self) -> list[str] | None:
+        """The ONNX Runtime providers the loaded sessions run on (None before loading).
+
+        Read from the sessions, not from the request: ONNX Runtime falls back to
+        the CPU when a requested provider cannot load (missing CUDA libraries).
+        """
+        if not self._loaded:
+            return None
+        in_use: list[str] = []
+        for session in (self._dp, self._text_encoder, self._vector_estimator, self._vocoder):
+            for name in session.get_providers() if session is not None else ():
+                if name not in in_use:
+                    in_use.append(name)
+        return in_use
+
     def execution_device(self) -> dict:
-        """`{"device": "cpu"|"coreml", "reason": str|None, "providers": [...], "threads": n}` for metadata."""
+        """`{"device": "cuda"|"coreml"|"cpu", "reason", "providers", "execution_providers", "threads"}`.
+
+        `providers` is the request filtered by availability; `execution_providers`
+        what the loaded sessions actually run on (None before loading).
+        """
         try:
+            import onnxruntime as ort  # type: ignore
+
+            available = set(ort.get_available_providers() or [])
             providers = list(self._resolve_providers())
         except Exception:
-            providers = ["CPUExecutionProvider"]
-        coreml = bool(providers) and providers[0] == "CoreMLExecutionProvider"
+            available, providers = set(), ["CPUExecutionProvider"]
+        in_use = self.execution_providers
+        lead = (in_use or providers or ["CPUExecutionProvider"])[0]
+        if lead == "CUDAExecutionProvider":
+            device, reason = "cuda", self.CUDA_REASON
+        elif lead == "CoreMLExecutionProvider":
+            device, reason = "coreml", None
+        else:
+            device = "cpu"
+            if "CUDAExecutionProvider" in providers:
+                reason = self.CUDA_FAILED_REASON
+            elif "CUDAExecutionProvider" in available:
+                reason = self.CPU_REQUESTED_REASON
+            elif sys.platform == "darwin":
+                reason = self.CPU_REASON
+            elif _onnxruntime_gpu_installed():
+                reason = self.CUDA_OVERWRITTEN_REASON
+            else:
+                reason = self.NO_CUDA_REASON
         return {
-            "device": "coreml" if coreml else "cpu",
-            "reason": None if coreml else self.CPU_REASON,
+            "device": device,
+            "reason": reason,
             "providers": providers,
+            "execution_providers": in_use,
             "threads": self._intra_op_threads(),
         }
 
@@ -403,10 +479,34 @@ class SupertonicRuntime:
         requested = self.providers
         if requested is None:
             raw = os.environ.get("ABSTRACTVOICE_SUPERTONIC_ONNX_PROVIDERS", "")
-            requested = [p.strip() for p in raw.split(",") if p.strip()] if raw else ["CPUExecutionProvider"]
+            requested = [p.strip() for p in raw.split(",") if p.strip()] if raw else list(self.DEFAULT_PROVIDERS)
         available = set(ort.get_available_providers() or [])
         selected = [p for p in list(requested or []) if p in available]
         return selected or ["CPUExecutionProvider"]
+
+    @staticmethod
+    def _preload_cuda_libraries(ort) -> None:
+        """Load the CUDA libraries pip installed (nvidia-* wheels) before a CUDA session.
+
+        onnxruntime-gpu does not search the nvidia-* wheel directories itself:
+        without this its CUDA provider fails to load even with every library
+        installed, and the sessions run on the CPU (measured: Ubuntu 24.04,
+        onnxruntime-gpu 1.31.1, with and without `import torch` first).
+        `preload_dlls` (ONNX Runtime 1.21+) prints what it cannot find; that is
+        logged, never written to stdout (an MCP stdio server's channel).
+        """
+        preload = getattr(ort, "preload_dlls", None)
+        if not callable(preload):
+            return
+        printed = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(printed):
+                preload()
+        except Exception as e:  # noqa: BLE001 - the session falls back to the CPU and says so
+            logger.warning("ONNX Runtime could not preload its CUDA libraries: %s", e)
+        text = printed.getvalue().strip()
+        if text:
+            logger.warning("ONNX Runtime CUDA libraries: %s", text)
 
     def _ensure_loaded(self) -> None:
         if self._loaded:
@@ -450,6 +550,8 @@ class SupertonicRuntime:
             opts.inter_op_num_threads = int(self.inter_op_num_threads)
 
         providers = self._resolve_providers()
+        if "CUDAExecutionProvider" in providers:
+            self._preload_cuda_libraries(ort)
 
         def _session(rel: Path):
             path = self.cache_dir / rel
@@ -458,6 +560,10 @@ class SupertonicRuntime:
             return ort.InferenceSession(str(path), sess_options=opts, providers=providers)
 
         self._dp = _session(_ONNX_DIR / "duration_predictor.onnx")
+        # A provider that failed to load for the first session fails for every
+        # session: request only what the first one got (one load error, not four).
+        loaded = set(self._dp.get_providers())
+        providers = [p for p in providers if p in loaded] or ["CPUExecutionProvider"]
         self._text_encoder = _session(_ONNX_DIR / "text_encoder.onnx")
         self._vector_estimator = _session(_ONNX_DIR / "vector_estimator.onnx")
         self._vocoder = _session(_ONNX_DIR / "vocoder.onnx")
