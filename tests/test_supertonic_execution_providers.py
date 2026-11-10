@@ -112,12 +112,12 @@ def test_cuda_absent_runs_on_the_cpu_only(use_ort, tmp_path, monkeypatch) -> Non
     assert all(s.requested == [CPU] for s in ort.sessions)
     assert runtime.execution_providers == [CPU]
     monkeypatch.setattr(rt.sys, "platform", "linux")
-    monkeypatch.setattr(rt, "_onnxruntime_gpu_installed", lambda: False)
+    monkeypatch.setattr(rt, "onnxruntime_gpu_installed", lambda: False)
     linux = runtime.execution_device()
     assert linux["device"] == "cpu" and linux["reason"] == runtime.NO_CUDA_REASON
     # The gpu profile installed onnxruntime-gpu, then the CPU onnxruntime (piper-tts, faster-whisper)
     # overwrote its files: say so, with the fix.
-    monkeypatch.setattr(rt, "_onnxruntime_gpu_installed", lambda: True)
+    monkeypatch.setattr(rt, "onnxruntime_gpu_installed", lambda: True)
     overwritten = runtime.execution_device()["reason"]
     assert overwritten == runtime.CUDA_OVERWRITTEN_REASON
     assert "pip install --force-reinstall --no-deps onnxruntime-gpu" in overwritten
@@ -129,7 +129,7 @@ def test_cuda_provider_that_fails_to_load_is_reported_as_cpu(use_ort, tmp_path, 
     # onnxruntime-gpu without its CUDA libraries: listed as available, but each session gets the CPU.
     ort = use_ort(_fake_ort([CUDA, CPU], loadable=[CPU], preload_prints="Failed to load libcurand.so.10"))
     runtime = _runtime(tmp_path)
-    caplog.set_level("WARNING", logger="abstractvoice.supertonic.runtime")
+    caplog.set_level("WARNING", logger="abstractvoice.compute.onnx_cuda")
 
     runtime._ensure_loaded()
 

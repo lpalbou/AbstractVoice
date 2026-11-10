@@ -12,8 +12,6 @@ https://huggingface.co/Supertone/supertonic-3
 
 from __future__ import annotations
 
-import contextlib
-import functools
 import io
 import json
 import logging
@@ -29,6 +27,8 @@ from typing import Iterable
 from unicodedata import category, normalize
 
 import numpy as np
+
+from ..compute.onnx_cuda import REINSTALL_CUDA_BUILD, onnxruntime_gpu_installed, preload_cuda_libraries
 
 logger = logging.getLogger(__name__)
 
@@ -127,18 +127,6 @@ def get_supertonic_cache_dir(cache_dir: str | os.PathLike[str] | None = None) ->
             root = Path.home() / ".cache" / "abstractvoice" / "supertonic-3"
     root.mkdir(parents=True, exist_ok=True)
     return root
-
-
-@functools.lru_cache(maxsize=1)
-def _onnxruntime_gpu_installed() -> bool:
-    """True when the onnxruntime-gpu distribution is installed (read once per process)."""
-    from importlib import metadata
-
-    try:
-        metadata.version("onnxruntime-gpu")
-    except metadata.PackageNotFoundError:
-        return False
-    return True
 
 
 def _required_paths(cache_dir: Path) -> list[Path]:
@@ -389,24 +377,22 @@ class SupertonicRuntime:
         "(real-time factor 0.61 vs 0.39, plus ~9 s to compile at load)"
     )
     # An NVIDIA GPU is used when this ONNX Runtime has the CUDA provider
-    # (onnxruntime-gpu, which the gpu install profiles bring on Linux and
-    # Windows); the CPU otherwise.
+    # (onnxruntime-gpu: the onnx-cuda extra, installed after a profile on
+    # Linux or Windows); the CPU otherwise.
     DEFAULT_PROVIDERS = ("CUDAExecutionProvider", "CPUExecutionProvider")
     CUDA_REASON = "NVIDIA GPU (ONNX Runtime CUDA execution provider)"
     NO_CUDA_REASON = (
         "CPU: this ONNX Runtime has no CUDA execution provider "
-        "(the gpu install profile brings onnxruntime-gpu on Linux and Windows)"
+        '(on Linux or Windows with an NVIDIA GPU: pip install "abstractvoice[onnx-cuda]" after the gpu profile)'
     )
     CUDA_FAILED_REASON = (
         "CPU: ONNX Runtime's CUDA execution provider did not load (its CUDA libraries were not found; see the log)"
     )
     CPU_REQUESTED_REASON = "CPU: requested (providers / ABSTRACTVOICE_SUPERTONIC_ONNX_PROVIDERS)"
-    # Both distributions install the same `onnxruntime` package; pip installs the CPU one that
-    # piper-tts and faster-whisper require AFTER onnxruntime-gpu, so its files win (clean
-    # `pip install abstractvoice[gpu]`, Ubuntu 24.04, 2026-11-10).
+    # The CPU onnxruntime (piper-tts, faster-whisper) was (re)installed after onnxruntime-gpu.
     CUDA_OVERWRITTEN_REASON = (
         "CPU: onnxruntime-gpu is installed but the CPU onnxruntime (required by piper-tts and faster-whisper) "
-        "replaced its files; fix: pip install --force-reinstall --no-deps onnxruntime-gpu"
+        f"replaced its files; fix: {REINSTALL_CUDA_BUILD}"
     )
     # Intra-op threads when none is given: all cores oversubscribe a busy
     # machine (measured: 35-char sentence 1.52 s with all 18 cores, 0.99 s with
@@ -456,7 +442,7 @@ class SupertonicRuntime:
                 reason = self.CPU_REQUESTED_REASON
             elif sys.platform == "darwin":
                 reason = self.CPU_REASON
-            elif _onnxruntime_gpu_installed():
+            elif onnxruntime_gpu_installed():
                 reason = self.CUDA_OVERWRITTEN_REASON
             else:
                 reason = self.NO_CUDA_REASON
@@ -483,30 +469,6 @@ class SupertonicRuntime:
         available = set(ort.get_available_providers() or [])
         selected = [p for p in list(requested or []) if p in available]
         return selected or ["CPUExecutionProvider"]
-
-    @staticmethod
-    def _preload_cuda_libraries(ort) -> None:
-        """Load the CUDA libraries pip installed (nvidia-* wheels) before a CUDA session.
-
-        onnxruntime-gpu does not search the nvidia-* wheel directories itself:
-        without this its CUDA provider fails to load even with every library
-        installed, and the sessions run on the CPU (measured: Ubuntu 24.04,
-        onnxruntime-gpu 1.31.1, with and without `import torch` first).
-        `preload_dlls` (ONNX Runtime 1.21+) prints what it cannot find; that is
-        logged, never written to stdout (an MCP stdio server's channel).
-        """
-        preload = getattr(ort, "preload_dlls", None)
-        if not callable(preload):
-            return
-        printed = io.StringIO()
-        try:
-            with contextlib.redirect_stdout(printed):
-                preload()
-        except Exception as e:  # noqa: BLE001 - the session falls back to the CPU and says so
-            logger.warning("ONNX Runtime could not preload its CUDA libraries: %s", e)
-        text = printed.getvalue().strip()
-        if text:
-            logger.warning("ONNX Runtime CUDA libraries: %s", text)
 
     def _ensure_loaded(self) -> None:
         if self._loaded:
@@ -551,7 +513,7 @@ class SupertonicRuntime:
 
         providers = self._resolve_providers()
         if "CUDAExecutionProvider" in providers:
-            self._preload_cuda_libraries(ort)
+            preload_cuda_libraries(ort)
 
         def _session(rel: Path):
             path = self.cache_dir / rel

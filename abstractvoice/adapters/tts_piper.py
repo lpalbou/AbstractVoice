@@ -20,6 +20,7 @@ from typing import Optional, Dict, Any
 import wave
 import struct
 
+from ..compute.onnx_cuda import preload_cuda_libraries
 from ..voice_profiles import VoiceProfile
 from .base import TTSAdapter
 
@@ -153,6 +154,9 @@ class PiperTTSAdapter(TTSAdapter):
         self._allow_downloads = bool(allow_downloads)
         # Track whether we requested CUDA for ONNX runtime (best-effort).
         self._use_cuda: bool = False
+        # What the loaded voice's ONNX session actually runs on (None before a load): ONNX
+        # Runtime falls back to the CPU, with a log line only, when CUDA cannot load.
+        self._execution_providers: Optional[list[str]] = None
         
         # Set model directory
         if model_dir is None:
@@ -458,6 +462,8 @@ class PiperTTSAdapter(TTSAdapter):
         try:
             logger.debug(f"Loading Piper voice: {model_path}")
             use_cuda = bool(self._resolve_use_cuda())
+            if use_cuda:
+                preload_cuda_libraries()
             espeak_kwargs = self._espeak_load_kwargs()
             try:
                 self._voice = self._PiperVoice.load(
@@ -481,6 +487,10 @@ class PiperTTSAdapter(TTSAdapter):
                 else:
                     raise
             self._current_language = language
+            try:
+                self._execution_providers = list(self._voice.session.get_providers())
+            except Exception:  # noqa: BLE001 - metadata only (an older piper without `session`)
+                self._execution_providers = None
             
             # Update sample rate from config
             if hasattr(self._voice, 'config') and hasattr(self._voice.config, 'sample_rate'):
@@ -768,6 +778,7 @@ class PiperTTSAdapter(TTSAdapter):
             'requires_system_deps': False,
             'cross_platform': True,
             'use_cuda': bool(getattr(self, "_use_cuda", False)),
+            'execution_providers': getattr(self, "_execution_providers", None),
         })
         # Best-effort: expose available ONNX Runtime providers for debugging.
         try:
