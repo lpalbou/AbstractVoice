@@ -1012,6 +1012,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#every-cuda-convolution-fails-with-cudnn_status_sublibrary_version_mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Every CUDA convolution fails with CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#streamed-speech-takes-long-to-start" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1760,6 +1771,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#every-cuda-convolution-fails-with-cudnn_status_sublibrary_version_mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Every CUDA convolution fails with CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#streamed-speech-takes-long-to-start" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1991,8 +2013,18 @@ the PyTorch backend with <code>VoiceManager(qwen3_tts_backend="torch")</code> or
 <p><code>FasterWhisperAdapter.execution_device()</code> (and <code>get_info()["device_reason"]</code>) says why: no CUDA GPU
 visible to CTranslate2, CUDA 12 cuBLAS or cuDNN 9 not loadable, a refused
 <code>ABSTRACTVOICE_WHISPER_DEVICE=cuda</code>, or a CUDA failure at load or first transcription that fell back
-to the CPU. Install <code>abstractvoice[gpu]</code> (it carries the CUDA 12 cuBLAS, runtime and cuDNN 9 wheels)
-and see <a href="../installation/#nvidia-gpus-linux-and-windows">NVIDIA GPUs</a>.</p>
+to the CPU. Install <code>abstractvoice[gpu]</code> (it carries the CUDA 12 cuBLAS and runtime wheels, plus
+cuDNN 9 on Windows; on Linux cuDNN 9 comes with a CUDA build of torch) and see
+<a href="../installation/#nvidia-gpus-linux-and-windows">NVIDIA GPUs</a>.</p>
+<h3 id="every-cuda-convolution-fails-with-cudnn_status_sublibrary_version_mismatch">Every CUDA convolution fails with <code>CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH</code><a class="headerlink" href="#every-cuda-convolution-fails-with-cudnn_status_sublibrary_version_mismatch" title="Permanent link">&para;</a></h3>
+<p>Qwen3-TTS, Supertonic on the CUDA provider and torch convolutions in general stop with that
+message when <code>site-packages/nvidia/cudnn</code> holds files of two cuDNN 9 versions: the
+<code>nvidia-cudnn-cu12</code> and <code>nvidia-cudnn-cu13</code> wheels unpack into the same folder, and the last one
+installed overwrites only the files it shares. AbstractVoice 0.21.0 and older added
+<code>nvidia-cudnn-cu12</code> on Linux next to torch's own cuDNN; 0.21.1 does not. Repair an existing
+environment with <code>pip uninstall nvidia-cudnn-cu12</code> followed by
+<code>pip install --force-reinstall --no-deps nvidia-cudnn-cu13==&lt;the version torch pinned&gt;</code> (or the
+<code>-cu12</code> wheel torch pinned, for a CUDA 12 torch), then upgrade AbstractVoice.</p>
 <h3 id="streamed-speech-takes-long-to-start">Streamed speech takes long to start<a class="headerlink" href="#streamed-speech-takes-long-to-start" title="Permanent link">&para;</a></h3>
 <p>Streamed delivery synthesizes the first sentence alone and plays it while the rest is synthesized;
 a reply that opens with one long sentence starts once that sentence is ready.

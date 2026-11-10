@@ -1038,6 +1038,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#platform-check-linux-processor-linux-nvidia-apple-silicon-2026-11-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platform check: Linux processor, Linux NVIDIA, Apple silicon (2026-11-10)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subjective-note-voice-cloning" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1498,6 +1509,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#platform-check-linux-processor-linux-nvidia-apple-silicon-2026-11-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platform check: Linux processor, Linux NVIDIA, Apple silicon (2026-11-10)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subjective-note-voice-cloning" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1809,6 +1831,52 @@ compare figures only from an idle machine.</p>
 - 8-bit is the right default: bf16 weights make the 1.7B memory-bound (RTF 0.92).
 - Transcription parity (Whisper <code>large-v3-turbo</code>, 1.7B, 3 samples each): WER 0.17 on PyTorch,
   0.14 on MLX, both close to Whisper's own normalisation floor on this text.</p>
+<h2 id="platform-check-linux-processor-linux-nvidia-apple-silicon-2026-11-10">Platform check: Linux processor, Linux NVIDIA, Apple silicon (2026-11-10)<a class="headerlink" href="#platform-check-linux-processor-linux-nvidia-apple-silicon-2026-11-10" title="Permanent link">&para;</a></h2>
+<p>Release 0.21.0 was installed from scratch on three machines and asked to speak and transcribe the
+same sentence (about 8 to 9 s of audio). "Warm" is the second call with the model resident.</p>
+<table>
+<thead>
+<tr>
+<th>Engine, model</th>
+<th>Linux, processor only (6 cores, no GPU, Python 3.14)</th>
+<th>Linux NVIDIA (Quadro RTX 5000 16 GB, Turing, 4 vCPU)</th>
+<th>Apple silicon laptop (MLX)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen3-TTS 0.6B CustomVoice</td>
+<td>processor, float32: 4.6 to 4.8 times slower than real time (4 vCPU)</td>
+<td>cuda, float32, CUDA graph: 1.05 of real time first call, 0.82 warm</td>
+<td>MLX 8-bit on Metal: 0.15 of real time, model loads in 1.1 s</td>
+</tr>
+<tr>
+<td>Supertonic 3 (ONNX)</td>
+<td>CPU provider: 3.1 s</td>
+<td>CUDA provider (<code>abstractvoice[onnx-cuda]</code>): 0.73 s, 0.10 s warm; CPU provider: 1.5 s</td>
+<td>CPU provider: 1.9 to 2.3 s</td>
+</tr>
+<tr>
+<td>Whisper large-v3-turbo</td>
+<td>base model on CPU int8: 2.5 s</td>
+<td>faster-whisper CUDA int8_float16: 0.8 s, 0.5 s warm; CPU int8: 10 s</td>
+<td>mlx-whisper on Metal: 0.6 s, 0.2 s warm</td>
+</tr>
+</tbody>
+</table>
+<p>What the table says: every engine picks its device on its own and reports the reason
+(<code>runtime_info()</code> / <code>execution_device()</code>); on a card without native bfloat16 the torch engines
+run in float32; Qwen3-TTS on CUDA replays its codebook predictor as a CUDA graph; Supertonic
+and Piper reach the NVIDIA card through the <code>onnx-cuda</code> extra; a processor-only host runs
+everything, slower, with the same API. The <code>gpu</code> profile installs on a host without a card and
+runs on the processor. Methodology: one sentence, clean virtual environments, models downloaded
+by the package itself, <code>nvidia-smi</code> sampled during the GPU runs (Supertonic peaked at 38 % of the
+card, Qwen3-TTS at 69 %).</p>
+<p>Same host, 0.21.1 installed together with the rest of the framework's <code>gpu</code> profile (abstractcore
+2.35.0 with vllm, torch 2.13.0+cu130): Supertonic on CUDA 0.70 s then 0.13 s warm, Whisper
+large-v3-turbo 1.0 s then 0.6 s, Qwen3-TTS 0.6B 1.19 of real time first call then 0.90 warm. With
+0.21.0 the same environment failed every CUDA convolution (two cuDNN wheels in one folder, see the
+changelog).</p>
 <h2 id="subjective-note-voice-cloning">Subjective note (voice cloning)<a class="headerlink" href="#subjective-note-voice-cloning" title="Permanent link">&para;</a></h2>
 <p>This benchmark does <strong>not</strong> measure voice cloning.</p>
 <p>Maintainer note (subjective): for <strong>voice cloning</strong>, OmniVoice tends to produce <strong>impressively high quality</strong> in practice and is often the best choice when cloning is the priority.</p>
