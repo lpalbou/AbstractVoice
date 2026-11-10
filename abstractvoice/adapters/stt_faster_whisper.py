@@ -120,8 +120,9 @@ class FasterWhisperAdapter(STTAdapter):
             logger.warning(f"⚠️  Faster-Whisper not available: {e}")
             logger.info(
                 "To install Faster-Whisper:\n"
-                "  pip install faster-whisper>=0.10.0\n"
-                "This will enable 4x faster STT with same accuracy."
+                "  pip install \"abstractvoice[stt]\"\n"
+                "(faster-whisper with PyAV 18 or older, which its file decoding needs; a bare "
+                "`pip install faster-whisper` resolves PyAV 19 and transcription then fails)."
             )
     
     def _load_model(self, model_size: str, device: str = "auto", compute_type: str = "int8") -> bool:
@@ -337,7 +338,7 @@ class FasterWhisperAdapter(STTAdapter):
         """
         if not self.is_available():
             raise RuntimeError(
-                "Faster-Whisper is not available. Install with: pip install faster-whisper>=0.10.0"
+                "Faster-Whisper is not available. Install with: pip install \"abstractvoice[stt]\" (a bare pip install of faster-whisper resolves PyAV 19, which breaks its file decoding)"
             )
         
         try:
@@ -438,7 +439,7 @@ class FasterWhisperAdapter(STTAdapter):
         # lightweightly if needed.
         if not self.is_available():
             raise RuntimeError(
-                "Faster-Whisper is not available. Install with: pip install faster-whisper>=0.10.0"
+                "Faster-Whisper is not available. Install with: pip install \"abstractvoice[stt]\" (a bare pip install of faster-whisper resolves PyAV 19, which breaks its file decoding)"
             )
         try:
             import numpy as _np

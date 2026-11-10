@@ -29,6 +29,11 @@ Older changelog entries may reference historical CLI commands or model choices.
   abstractvision FLUX.2-klein-4B 4 steps at 768x768 in 17.6 s; the same environment with 0.21.0
   failed every one of them. Repair for an existing environment in `docs/troubleshooting.md`.
   Test: no extra may list a `nvidia-cudnn` wheel outside `sys_platform == 'win32'`.
+- The Whisper adapter's install hint said `pip install faster-whisper>=0.10.0`; followed as written it
+  resolves PyAV 19 and the first transcription fails (`open() got an unexpected keyword argument
+  'metadata_errors'`), and typed in a shell the `>=` redirects into a file. The hint is now
+  `pip install "abstractvoice[stt]"`, the extra that pins `av<19` (found on the processor-only Linux host
+  during the 0.14.0 profile proof).
 
 ### Changed
 
