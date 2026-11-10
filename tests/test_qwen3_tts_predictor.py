@@ -464,3 +464,109 @@ def test_cuda_graph_invalid_probabilities_fail_the_frame(predictor, sampler, ste
     with pytest.raises(RuntimeError, match="probability tensor"):
         generate_codebooks(predictor, **kwargs)
     predictor.generate.assert_not_called()
+
+
+@needs_cuda
+@pytest.mark.parametrize("exit_order", ["installed", "before-torch-2.15"])
+def test_cuda_graph_failing_inside_the_capture_restores_stream_and_rng(predictor, monkeypatch, exit_order):
+    """A capture that breaks mid-body (the real torch.cuda.graph) leaves the caller's stream and RNG as they were."""
+    from abstractvoice.qwen3_tts import predictor as module
+    predictor.to("cuda")
+    kwargs = arguments(predictor)
+    torch.manual_seed(5)
+    expected = reference(predictor, kwargs)
+    expected_rng = torch.cuda.get_rng_state()
+    real_frame = module._frame
+    def frame(*args, **kw):
+        result = real_frame(*args, **kw)
+        if torch.cuda.is_current_stream_capturing():
+            torch.cuda.synchronize()  # a host sync inside the body invalidates the capture
+        return result
+    monkeypatch.setattr(module, "_frame", frame)
+    if exit_order == "before-torch-2.15":
+        class ExitBefore215(torch.cuda.graph):
+            # torch < 2.15 runs capture_end before unwinding the stream context: when
+            # capture_end raises, the graph's private stream stays current.
+            def __exit__(self, *args):
+                try:
+                    return super().__exit__(*args)
+                except BaseException:
+                    torch.cuda.set_stream(self.capture_stream)
+                    raise
+        monkeypatch.setattr(module.torch.cuda, "graph", ExitBefore215)
+    warning = Mock()
+    monkeypatch.setattr(module.logger, "warning_once", warning)
+    caller = torch.cuda.current_stream()
+    torch.manual_seed(5)
+    actual = generate_codebooks(predictor, **kwargs)
+    assert torch.cuda.current_stream() == caller
+    assert torch.equal(actual, expected)
+    assert torch.equal(torch.cuda.get_rng_state(), expected_rng)
+    assert module.cuda_graph_state(predictor).startswith("failed: ") and warning.call_count == 1
+
+
+def load_faked_torch_runtime(monkeypatch, **settings):
+    """A Qwen3TTSRuntime "loaded" on the PyTorch backend (CPU) without weights."""
+    from types import SimpleNamespace
+
+    from abstractvoice.qwen3_tts import orchestration
+    from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime, Qwen3TTSSettings
+
+    code_predictor = SimpleNamespace()
+    inner = SimpleNamespace(
+        talker=SimpleNamespace(code_predictor=code_predictor),
+        speech_tokenizer=SimpleNamespace(model=SimpleNamespace(to=lambda **_kw: "codec")),
+        device="cpu", tts_model_type="custom_voice", to=lambda _device: None, eval=lambda: None,
+    )
+    monkeypatch.setattr(
+        orchestration.Qwen3TTSModel, "from_pretrained", classmethod(lambda cls, *_a, **_kw: SimpleNamespace(model=inner))
+    )
+    monkeypatch.setattr("abstractvoice.transformers_floor.require_transformers", lambda *_a, **_kw: None)
+    runtime = Qwen3TTSRuntime(
+        allow_downloads=False, device="cpu", settings=Qwen3TTSSettings(backend="torch", **settings)
+    )
+    runtime.snapshot_dir = Mock(return_value="/nonexistent-snapshot")
+    runtime._ensure_loaded()
+    return runtime
+
+
+@pytest.mark.parametrize("settings,graphs,expected", [
+    ({}, "unused", "multinomial"),
+    ({}, "captured", "multinomial (cuda graph: exponential race, per-frame validation)"),
+    ({}, "failed: RuntimeError: x", "multinomial"),
+    ({"sampler": "exponential"}, "captured", "exponential"),
+    ({"predictor": "reference"}, "unused", "multinomial"),
+    ({"predictor": "reference"}, "captured", "multinomial"),  # the reference path never replays
+])
+def test_runtime_info_reports_the_graph_state_and_the_effective_sampler(monkeypatch, settings, graphs, expected):
+    from abstractvoice.qwen3_tts import predictor as module
+    runtime = load_faked_torch_runtime(monkeypatch, **settings)
+    # Unpatched, the real lookup handles the weights-free stand-in model.
+    assert runtime.runtime_info()["cuda_graphs"] == "unused"
+    monkeypatch.setattr(module, "cuda_graph_state", lambda _predictor: graphs)
+    info = runtime.runtime_info()
+    assert (info["cuda_graphs"], info["sampler"]) == (graphs, expected)
+
+
+def test_runtime_info_says_why_its_dtype(monkeypatch):
+    from abstractvoice.compute.torch_runtime import TorchRuntimeResolution
+    from abstractvoice.qwen3_tts import runtime as module
+    from abstractvoice.qwen3_tts.runtime import Qwen3TTSRuntime
+
+    unloaded = Qwen3TTSRuntime(allow_downloads=False, device="cpu", backend="torch").runtime_info()
+    assert unloaded["dtype_reason"] is None and unloaded["cuda_graphs"] is None
+    assert load_faked_torch_runtime(monkeypatch).runtime_info()["dtype_reason"] == "default on the CPU"
+    pinned = Qwen3TTSRuntime(allow_downloads=False, device="cpu", dtype_name="float32", backend="torch")
+    pinned._resolve_runtime()
+    assert pinned.runtime_info()["dtype_reason"] == "requested"
+
+    def resolve(*, device, dtype_name, allow_cpu_fallback):  # a device whose policy default is float16
+        name, reason = ("float16", "default on mps") if dtype_name is None else (dtype_name, "requested")
+        return TorchRuntimeResolution(requested_device=device, resolved_device="mps", requested_dtype=dtype_name,
+                                      resolved_dtype_name=name, torch_dtype=None, dtype_reason=reason)
+    monkeypatch.setattr(module, "resolve_torch_runtime", resolve)
+    runtime = Qwen3TTSRuntime(allow_downloads=False, device="mps", backend="torch")
+    runtime._resolve_runtime()
+    info = runtime.runtime_info()
+    assert info["dtype"] == "bfloat16"
+    assert info["dtype_reason"] == "float16 overflows Qwen3-TTS, so bfloat16 (the policy chose float16: default on mps)"

@@ -201,6 +201,7 @@ class _CodebookGraph:
         with torch.inference_mode(False):  # writable by later calls in any grad mode
             self.embeds = inputs_embeds.detach().clone()  # the static input every replay reads
         rng = torch.cuda.get_rng_state(device)
+        previous = torch.cuda.current_stream(device)
         stream = torch.cuda.Stream(device=device)
         try:
             # One eager pass on the capture stream initializes lazy library
@@ -213,7 +214,8 @@ class _CodebookGraph:
             self.graph = torch.cuda.CUDAGraph()
             # No cyclic garbage collection while capturing: collecting another
             # model's graphs frees device memory, which invalidates a capture.
-            # (torch.cuda.graph collects once before the capture begins.)
+            # (torch.cuda.graph does not collect first; since torch 2.8 only
+            # torch.compiler.config.force_cudagraph_gc makes it.)
             collecting = gc.isenabled()
             gc.disable()
             try:
@@ -226,6 +228,10 @@ class _CodebookGraph:
                 if collecting:
                     gc.enable()
         finally:
+            # Before torch 2.15, a capture_end that raises in torch.cuda.graph's
+            # exit skips restoring the stream: the caller's later work would run
+            # on the graph's private stream. Put the caller's stream back.
+            torch.cuda.set_stream(previous)
             # A capture launches nothing; this undoes the warm-up's draws (and
             # anything a failed capture might have consumed).
             torch.cuda.set_rng_state(rng, device)
@@ -283,9 +289,9 @@ def _graphed_frame(predictor, inputs_embeds, count, processors, config):
 
 def cuda_graph_state(predictor):
     """``"captured"``, ``"failed: <reason>"`` or ``"unused"``: whether this model replays CUDA graphs."""
-    if predictor in _GRAPH_FAILURES:
+    if predictor in _GRAPH_FAILURES:  # `in` is False (never raises) for objects without weak references
         return f"failed: {_GRAPH_FAILURES[predictor]}"
-    return "captured" if _GRAPHS.get(predictor) else "unused"
+    return "captured" if predictor in _GRAPHS and _GRAPHS[predictor] else "unused"
 
 
 @torch.no_grad()

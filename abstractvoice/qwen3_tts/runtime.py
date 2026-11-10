@@ -364,6 +364,7 @@ class Qwen3TTSRuntime:
         self._backend: Optional[str] = None  # resolved at load
         self._resolved_device: Optional[str] = None
         self._resolved_dtype: Optional[str] = None
+        self._resolved_dtype_reason: Optional[str] = None  # the shared policy's why (PyTorch backend)
         self._predictor_mode: Optional[str] = None
         self._sampler: Optional[str] = None
         self._lock = threading.Lock()
@@ -462,14 +463,17 @@ class Qwen3TTSRuntime:
             allow_cpu_fallback=allow_cpu_fallback,
         )
         pinned = str(self._dtype_pref or "").strip().lower() not in ("", "auto")
+        reason = runtime.dtype_reason
         if not pinned and runtime.resolved_dtype_name == "float16":
             runtime = resolve_torch_runtime(
                 device=self._device_pref,
                 dtype_name="bfloat16",
                 allow_cpu_fallback=allow_cpu_fallback,
             )
+            reason = f"float16 overflows Qwen3-TTS, so bfloat16 (the policy chose float16: {reason})"
         self._resolved_device = str(runtime.resolved_device)
         self._resolved_dtype = str(runtime.resolved_dtype_name)
+        self._resolved_dtype_reason = reason
         return runtime
 
     def _ensure_loaded(self) -> None:
@@ -648,6 +652,17 @@ class Qwen3TTSRuntime:
         return sorted(str(name).lower() for name in names)
 
     def runtime_info(self) -> dict:
+        sampler = "multinomial" if self._predictor_mode == "reference" else self._sampler
+        # PyTorch on CUDA: "captured" once the codebook frame replays a CUDA graph
+        # (after the first generation), "failed: <reason>" when it fell back to eager.
+        cuda_graphs = None
+        if self._backend == "torch" and self._model is not None:
+            from .predictor import cuda_graph_state
+
+            cuda_graphs = cuda_graph_state(self._model.model.talker.code_predictor)
+            if cuda_graphs == "captured" and sampler == "multinomial" and self._predictor_mode != "reference":
+                # Same IDs and RNG use as torch.multinomial; validated per frame, not per step.
+                sampler = "multinomial (cuda graph: exponential race, per-frame validation)"
         info = {
             "model_id": self.model_id,
             "loaded": self.is_loaded,
@@ -655,11 +670,13 @@ class Qwen3TTSRuntime:
             "backend_requested": self.settings.backend,
             "device": self._resolved_device,
             "dtype": self._resolved_dtype,
+            "dtype_reason": self._resolved_dtype_reason,
             "codec_dtype": "float32",
             "model_type": self.model_type() if self.is_loaded else None,
             "quality_preset": self.settings.quality_preset,
             "predictor_mode": self._predictor_mode,
-            "sampler": "multinomial" if self._predictor_mode == "reference" else self._sampler,
+            "sampler": sampler,
+            "cuda_graphs": cuda_graphs,
         }
         if self._backend is None:
             info["backend_selection"] = describe_backend_selection(self.settings.backend)
