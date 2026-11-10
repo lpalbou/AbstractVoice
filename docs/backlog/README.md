@@ -6,7 +6,7 @@ This folder is the **single source of truth** for planned and completed work in 
 
 - Updated: 2026-11-09
 - Planned: 16
-- Proposed: 14
+- Proposed: 15
 - Completed: 45
 - Deprecated: 1
 - Recurrent: 1
@@ -98,6 +98,8 @@ Rationale:
 
 ## Other current proposed items
 
+- [0072 The one-shot TTS command does not fetch Supertonic on first use](proposed/0072_one_shot_tts_cli_does_not_fetch_supertonic.md):
+  P2; found by the standalone installer check on a fresh host; the installer prefetches as a workaround.
 - [0071 Qwen3-TTS raises on a full GPU where faster-whisper falls back and says why](proposed/0071_qwen3_tts_cuda_out_of_memory_has_no_fallback.md):
   P2; one behaviour for the local torch engines when the card has no free memory (reason recorded, explicit device
   keeps raising).

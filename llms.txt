@@ -50,6 +50,7 @@ CI/release tests use `python -m pytest -q` (defaults to skipping `integration`, 
 Format: follows the [llms.txt spec](https://llmstxt.org/) (`## Optional` is skippable when context is tight).
 
 ## Start here
+- One-line install: `curl -LsSf https://abstractframework.ai/voice/install.sh | sh` (macOS/Linux), `powershell -ExecutionPolicy ByPass -c "irm https://abstractframework.ai/voice/install.ps1 | iex"` (Windows), or `pip install "abstractvoice[apple]"` / `"abstractvoice[gpu]"`; the script detects the platform (Apple Silicon -> apple, NVIDIA/ROCm -> gpu + the onnx-cuda step, else light) and installs an isolated user tool; see [Installation](docs/installation.md)
 - [README](README.md): install + smoke tests + ecosystem diagram
 - [Docs index](docs/README.md): map of user-facing vs internal docs
 - [Getting started](docs/getting-started.md): recommended setup + first smoke tests, including Qwen3-TTS, the built-in voices and mlx-whisper on Apple silicon
