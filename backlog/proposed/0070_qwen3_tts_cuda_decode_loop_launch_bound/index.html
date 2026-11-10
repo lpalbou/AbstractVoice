@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/proposed/0067_explicit_clone_validation_and_segment_retry_policy/">
+        <link rel="canonical" href="https://www.lpalbou.info/AbstractVoice/backlog/proposed/0070_qwen3_tts_cuda_decode_loop_launch_bound/">
       
       
       
@@ -19,11 +19,11 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
-        <title>0067-abstractvoice: [IMPROVEMENT] Make clone validation and segment retries explicit - AbstractVoice</title>
+        <title>0070 qwen3 tts cuda decode loop launch bound - AbstractVoice</title>
       
     
     
@@ -63,11 +63,6 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
-        
-        <a href="#0067-abstractvoice-improvement-make-clone-validation-and-segment-retries-explicit" class="md-skip">
-          Skip to content
-        </a>
-      
     </div>
     <div data-md-component="announce">
       
@@ -100,7 +95,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              0067-abstractvoice: [IMPROVEMENT] Make clone validation and segment retries explicit
+              0070 qwen3 tts cuda decode loop launch bound
             
           </span>
         </div>
@@ -1114,170 +1109,6 @@
   
   
   
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#main-goals" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Main goals
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#secondary-goals" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Secondary goals
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#context-problem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context / problem
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#current-code-reality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Current code reality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#constraints" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Constraints
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#research-options-and-references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Research, options, and references
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dependencies-and-adr-status" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dependencies and ADR status
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#implementation-plan" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Implementation plan
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#acceptance-criteria" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Acceptance Criteria
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#testing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Testing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#promotion-criteria" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Promotion criteria
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#report" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Report
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
   
 </nav>
                   </div>
@@ -1297,137 +1128,18 @@
   
 
 
-<h1 id="0067-abstractvoice-improvement-make-clone-validation-and-segment-retries-explicit">0067-abstractvoice: [IMPROVEMENT] Make clone validation and segment retries explicit<a class="headerlink" href="#0067-abstractvoice-improvement-make-clone-validation-and-segment-retries-explicit" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p>Created: 2026-11-06
-Type: improvement
-Priority: P2
-Labels: voice, cloning, latency</p>
-</blockquote>
-<p><strong>Date</strong>: 2026-11-06<br />
-<strong>Status</strong>: Proposed<br />
-<strong>Priority</strong>: P2</p>
-<ul>
-<li>Work-item id: abstractvoice-0067</li>
-<li>Owner: framework (intake; implementation belongs to AbstractVoice)</li>
-<li>Thread: Unavailable; agora connection refused at intake.</li>
-<li>Hub refs: None; mirror registration pending hub availability.</li>
-</ul>
-<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
-<p>Expose a package-owned, request-scoped policy for clone similarity checking and
-same-clone segment regeneration. Let callers explicitly choose retry behavior
-instead of incurring hidden regeneration or substituting a default voice.
-Calibrate marginal and short-utterance scores before choosing policy defaults.</p>
-<h2 id="main-goals">Main goals<a class="headerlink" href="#main-goals" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Make validation and retry decisions separately configurable and discoverable.</li>
-<li>Retry only the failed, not-yet-delivered segment with the original clone when
-  regeneration is explicitly enabled; bound attempts and cancellation latency.</li>
-</ul>
-<h2 id="secondary-goals">Secondary goals<a class="headerlink" href="#secondary-goals" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Distinguish a failed similarity check from proven perceptual voice mismatch.</li>
-<li>Report attempt count, generation latency, scores and the effective policy.</li>
-</ul>
-<h2 id="context-problem">Context / problem<a class="headerlink" href="#context-problem" title="Permanent link">&para;</a></h2>
-<p>On 2026-11-05, a short Assistant reply beginning “Hey! Yeah, I'm here and working”
-scored 0.945 and 0.941 against an opening threshold of 0.950 using Qwen3-TTS
-0.6B Base. Both attempts were rejected. The app then dropped voice pins and
-generated a default voice, adding latency and losing the requested identity.
-Assistant commit <code>270f37f</code> removed that app fallback: selected-voice failures now
-wait for explicit Play. It does not change the engine's two attempts.
-The scores alone do not establish that the generated voice sounded wrong.</p>
-<h2 id="current-code-reality">Current code reality<a class="headerlink" href="#current-code-reality" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>abstractvoice/cloning/engine_qwen3_tts.py</code>: <code>SPEAKER_RETRIES = 1</code> means two
-  attempts; <code>_checked_generation</code> already regenerates the same clone segment on an
-  opening rejection. Do not implement that behavior a second time.</li>
-<li>Engine construction already honors <code>ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK</code> and
-  <code>ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY</code>. Missing: a supported,
-  discoverable request-scoped check/retry policy across public synthesis paths.</li>
-<li><code>ClonedVoiceNotAppliedError</code> carries segment index/count, scores, threshold,
-  mid-segment state and segment records. Its prose currently claims another
-  voice from the score; new diagnostics should distinguish measurement/inference.</li>
-<li><code>abstractvoice/integrations/abstractcore_plugin.py::tts_stream</code> emits segment
-  offsets and <code>segment_end</code> (completed item 0066, ADR 0009). Boundary resume
-  exists. A failed opening may have delivered no audio; a mid-segment failure
-  can have delivered audio and must not be treated as an untouched segment.</li>
-</ul>
-<h2 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h2>
-<ul>
-<li>No implementation is authorized by this proposal; the operator deferred work
-  at Gateway level and below on 2026-11-06.</li>
-<li>Keep voice/profile/provider/model identity fixed through retries. No automatic
-  stock-voice substitution; no whole-reply regeneration to retry one segment.</li>
-<li>Keep settings per request; shared cached engines must not leak policy between users.</li>
-<li>Do not globally lower 0.950 or disable checks based on this single incident.</li>
-</ul>
-<h2 id="research-options-and-references">Research, options, and references<a class="headerlink" href="#research-options-and-references" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Explicit retry budget</strong>: zero automatic retries versus a bounded number of
-  same-clone retries; both expose attempts and time spent. Prefer a clear budget
-  over coupling retry to a general quality preset.</li>
-<li><strong>Validation modes to evaluate</strong>: enforce, report-only, and disabled. Report-only
-  could deliver the original generated audio with uncertainty metadata, avoiding
-  needless recomputation; it needs explicit caller choice and clear semantics.</li>
-<li>Keep similarity policy distinct from silence, invalid audio and runaway/repetition
-  protection. Investigate short clips, languages, reference quality and backend
-  calibration using real weights; do not infer a mismatch probability from cosine scores.</li>
-<li>Read completed <code>056_cloned_voice_checked_per_generation.md</code>,
-  <code>057_clone_speaker_check_streams_continuously.md</code>, and
-  <code>0066_tts_stream_text_segments_for_exact_resume.md</code> before changing behavior.</li>
-</ul>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>Proposed, not committed. Agree defaults and compatibility behavior before promotion.
-The operator's desired direction is optional regeneration of the failed segment
-with the same clone. Whether report-only delivery is desirable needs evaluation.</p>
-<h2 id="dependencies-and-adr-status">Dependencies and ADR status<a class="headerlink" href="#dependencies-and-adr-status" title="Permanent link">&para;</a></h2>
-<ul>
-<li>ADRs 0004 (streaming/cancellation), 0006 (package-owned selectors), 0007
-  (package-owned requests), 0008 (Qwen backend), 0009 (segment resume).</li>
-<li>ADR impact: document explicit validation/retry policy before implementation
-  closure; revise ADR 0009 only if its delivery/resume semantics actually change.</li>
-<li>Gateway follow-up: <a href="../../../../abstractgateway/docs/backlog/proposed/1010_typed_clone_failures_and_explicit_segment_retry.md">abstractgateway-1010</a>.
-  Public forwarding needs Core/Runtime integration;
-  Gateway must not import the engine or own its thresholds.</li>
-</ul>
-<h2 id="implementation-plan">Implementation plan<a class="headerlink" href="#implementation-plan" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Reproduce/calibrate borderline and clearly wrong-voice cases with real weights.</li>
-<li>Specify request policy, defaults, capabilities and typed failure/outcome metadata.</li>
-<li>Implement opt-in bounded segment retry and policy isolation in package-owned paths.</li>
-<li>Integrate through Core/Runtime; document adoption and compatibility.</li>
-</ol>
-<h2 id="acceptance-criteria">Acceptance Criteria<a class="headerlink" href="#acceptance-criteria" title="Permanent link">&para;</a></h2>
-<ul>
-<li>[ ] Disabled automatic retry generates once; enabled retry regenerates only the
-  failed segment with the same clone and respects its documented budget.</li>
-<li>[ ] Accepted prior segments are not regenerated; cancellation prevents new attempts;
-  mid-segment delivery has an explicit, tested replay policy.</li>
-<li>[ ] Report-only/disabled checking, if adopted, is explicit and returns honest
-  validation metadata; invalid-audio protections remain separately defined.</li>
-<li>[ ] Concurrent requests with different policies do not affect each other.</li>
-<li>[ ] Real-weight evidence records false rejection/mismatch cases, attempts,
-  first-audio latency and total latency across representative clones and short replies.</li>
-</ul>
-<h2 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>python -m pytest tests/test_qwen3_tts_clone_speaker_check.py tests/test_qwen3_tts_clone_stream_continuity.py tests/test_tts_stream_segments.py -q</code></li>
-<li>Add policy/default/cancellation/concurrency regression coverage. Run an explicitly
-  configured real-weight Qwen harness; mocked scores alone cannot justify new defaults.</li>
-</ul>
-<h2 id="promotion-criteria">Promotion criteria<a class="headerlink" href="#promotion-criteria" title="Permanent link">&para;</a></h2>
-<p>Operator schedules lower-level work, package owners agree the policy/defaults,
-and calibration plus the integration boundary are specified. Expected outcome:
-callers control extra computation without silently losing voice identity.</p>
-<h2 id="report">Report<a class="headerlink" href="#report" title="Permanent link">&para;</a></h2>
-<p>Not implemented. Intake records current code and desired follow-up only.</p>
+  <h1>0070 qwen3 tts cuda decode loop launch bound</h1>
+
+<p><code>docs/backlog/completed/0070_qwen3_tts_cuda_decode_loop_launch_bound.md</code>. This file can be deleted.</p>
 
 
 
 
 
 
+
+  
+  
 
 
 
@@ -1480,7 +1192,7 @@ callers control extra computation without silently losing voice identity.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

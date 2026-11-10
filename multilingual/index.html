@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -549,6 +549,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#stt-speech-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT (speech → text)
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#tts-remote-default-piper-and-supertonic-local" class="md-nav__link">
@@ -1232,6 +1243,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#stt-speech-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT (speech → text)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tts-remote-default-piper-and-supertonic-local" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1307,6 +1329,21 @@
 
 
 <h1 id="multilingual-support">Multilingual support<a class="headerlink" href="#multilingual-support" title="Permanent link">&para;</a></h1>
+<h2 id="stt-speech-text">STT (speech → text)<a class="headerlink" href="#stt-speech-text" title="Permanent link">&para;</a></h2>
+<p>Every STT method takes <code>language</code>: <code>None</code> (the default) lets the engine detect the spoken
+language; a code such as <code>"fr"</code> fixes it and skips detection. The supported codes are the one list
+in <code>abstractvoice.stt.languages</code> (<code>en</code>, <code>fr</code>, <code>de</code>, <code>es</code>, <code>ru</code>, <code>zh</code>, <code>it</code>, <code>pt</code>, <code>ja</code>, <code>ko</code>, <code>ar</code>,
+<code>hi</code>, <code>nl</code>, <code>pl</code>, <code>vi</code>, <code>el</code>); <code>normalize_language("FR")</code> gives <code>"fr"</code> and refuses an unknown code
+with a sentence. <code>transcribe_detailed(...)</code> tells you what the engine was told and what it detected
+(see <a href="../api/#spoken-languages-and-the-engines-report">api.md</a>).</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoiceManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abstractvoice.stt</span><span class="w"> </span><span class="kn">import</span> <span class="n">languages</span>
+
+<span class="n">vm</span> <span class="o">=</span> <span class="n">VoiceManager</span><span class="p">(</span><span class="n">stt_engine</span><span class="o">=</span><span class="s2">"faster-whisper"</span><span class="p">,</span> <span class="n">whisper_model</span><span class="o">=</span><span class="s2">"base"</span><span class="p">,</span> <span class="n">allow_downloads</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">"clip.wav"</span><span class="p">))</span>                 <span class="c1"># auto: the engine detects the language</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">vm</span><span class="o">.</span><span class="n">transcribe_file</span><span class="p">(</span><span class="s2">"clip.wav"</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s2">"fr"</span><span class="p">))</span>  <span class="c1"># fixed: detection skipped</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">languages</span><span class="o">.</span><span class="n">choices</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>                        <span class="c1"># {'value': 'auto', 'label': 'Auto (detected)'}</span>
+</code></pre></div>
 <h2 id="tts-remote-default-piper-and-supertonic-local">TTS (remote default, Piper and Supertonic local)<a class="headerlink" href="#tts-remote-default-piper-and-supertonic-local" title="Permanent link">&para;</a></h2>
 <p><code>VoiceManager()</code> uses OpenAI remote audio by default and treats <code>language</code> as a
 provider hint. The local Piper engine ships a small curated mapping for these
@@ -1439,7 +1476,7 @@ abstractvoice-prefetch<span class="w"> </span>--omnivoice
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

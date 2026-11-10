@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -475,6 +475,17 @@
   
     <nav class="md-nav" aria-label="STT (audio → text)">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spoken-languages-and-the-engines-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spoken languages and the engine's report
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#qwen3-asr-transformers-asr" class="md-nav__link">
@@ -1642,6 +1653,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#spoken-languages-and-the-engines-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spoken languages and the engine's report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#qwen3-asr-transformers-asr" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2002,7 +2024,7 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <li>Plays audio locally (non-blocking playback; synthesis time depends on backend).</li>
 <li>If <code>voice</code> is provided, it is treated as a cloned <code>voice_id</code> (requires a cloning backend extra such as <code>abstractvoice[omnivoice]</code>; <code>abstractvoice[cloning]</code> is the explicit OpenF5 backend).</li>
 <li>
-<p>By default, common Markdown syntax is stripped from spoken output (headers + emphasis). Set <code>sanitize_syntax=False</code> to speak raw text.</p>
+<p>By default, Markdown is spoken as its words (<code>abstractvoice.text_sanitize</code>): fenced code blocks are not read, inline code is read without its backticks, headings and list items are sentences, list/quote/table markers are dropped, links read as their text, arrows are a pause. One line of plain text is spoken as written. Set <code>sanitize_syntax=False</code> to speak raw text.</p>
 </li>
 <li>
 <p><code>set_speed(speed: float) -&gt; bool</code>, <code>get_speed() -&gt; float</code></p>
@@ -2039,7 +2061,7 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <li><strong>Remote OpenAI note</strong>: hosted built-in voices are always exposed as profiles (for example <code>vm.set_profile("alloy")</code>), and the adapter also tries OpenAI voice discovery for account/org-specific voices such as <code>voice_...</code>. <code>tts_engine="openai"</code> defaults to <code>https://api.openai.com/v1</code> and reads <code>OPENAI_API_KEY</code>.</li>
 <li><strong>Remote compatible note</strong>: compatible endpoints may expose <code>GET /v1/audio/voices</code> (adapter path: <code>GET /audio/voices</code>) returning <code>profiles</code>, <code>voices</code>, <code>cloned_voices</code>, or OpenAI-style <code>data</code>. Returned ids are exposed as <code>VoiceProfile</code>s and used as the request <code>voice</code> for <code>/audio/speech</code>.</li>
 <li>The <code>voice=</code> argument on <code>speak_to_bytes(...)</code> remains the cloned-voice handle path for backward compatibility; select base-provider voices with <code>set_profile(...)</code>.</li>
-<li><strong>Supertonic note</strong>: <code>tts_engine="supertonic"</code> exposes fixed local profiles <code>M1</code>-<code>M5</code> and <code>F1</code>-<code>F5</code>. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or <code>allow_downloads=True</code>. By default Supertonic runs on ONNX Runtime's CPU provider with 4 intra-op threads (fewer on smaller machines), which keeps a busy host responsive; on Apple Silicon the CoreML provider measured slower than the CPU for this model. <code>SupertonicRuntime(intra_op_num_threads=...)</code> sets another thread count, and the adapter's <code>execution_device()</code> (also in <code>get_info()</code>) reports <code>device</code>, <code>reason</code>, <code>providers</code> and <code>threads</code>.</li>
+<li><strong>Supertonic note</strong>: <code>tts_engine="supertonic"</code> exposes fixed local profiles <code>M1</code>-<code>M5</code> and <code>F1</code>-<code>F5</code>. Listing or selecting profiles does not download the model; synthesis requires cached artifacts or <code>allow_downloads=True</code>. Supertonic requests ONNX Runtime's CUDA provider first and the CPU provider second when a usable CUDA device exists (<code>torch.cuda.is_available()</code>, or the CUDA runtime's device count without torch; a CUDA build with no device runs on the CPU and says so, and nothing is ever printed to standard output): on an NVIDIA host with <code>abstractvoice[onnx-cuda]</code> installed after the profile (see Installation) it runs on the card (Quadro RTX 5000: 8 s of speech in 0.85 s, 0.09 s warm), otherwise on the CPU with 4 intra-op threads (fewer on smaller machines), which keeps a busy host responsive; on Apple Silicon the CoreML provider measured slower than the CPU for this model. The CUDA libraries pip installed are preloaded before a session opens. <code>SupertonicRuntime(providers=[...], intra_op_num_threads=...)</code> chooses otherwise, and the adapter's <code>execution_device()</code> (also in <code>get_info()</code>) reports <code>device</code>, <code>reason</code> (including the repair when the CPU build of ONNX Runtime replaced the CUDA one), <code>execution_providers</code> the sessions actually run on, and <code>threads</code>. Piper does the same: CUDA when the provider exists, <code>get_info()["execution_providers"]</code> from its session.</li>
 <li>
 <p><strong>OmniVoice notes</strong>:</p>
 <ul>
@@ -2084,7 +2106,7 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <p><code>speak_to_bytes(text: str, format: str = "wav", voice: str | None = None, *, instructions: str | None = None, sanitize_syntax: bool = True, one_shot: bool = False) -&gt; bytes</code></p>
 </li>
 <li><code>one_shot=True</code> synthesizes the whole text as <strong>one generation</strong>: no sentence segmentation, no truncation, so one voice from the first word to the last. Use it for voice references, designed voices and any take that must sound like one person throughout. Available for <code>qwen3-tts</code> (preset speakers, VoiceDesign and Qwen clones) up to 1000 characters; a longer text, or another engine, raises <code>ValueError</code> instead of being cut. The default (<code>one_shot=False</code>) splits long text at sentence boundaries (200 characters per generation on the PyTorch backend, 800 on MLX), and each generation samples the voice afresh.</li>
-<li>Qwen3-TTS clones: every generation is checked against the clone before it is delivered (the 0.6B Base checkpoint occasionally samples a whole generation in a stock-sounding voice), so a reply is in one voice or fails loudly. The reply's opening is held back (released at 2 s when clearly the clone, else decided at 4 s; first audio waits for it). After that, delivery is continuous: each chunk is released once the 4 s window starting at it scores as the clone (a delay line at the generation's cadence), and the next segment's opening is checked while the previous one plays. A generation that opens in another voice is run again once; a second miss or a voice change part-way raises <code>ClonedVoiceNotAppliedError</code> (<code>abstractvoice.cloning.engine_qwen3_tts</code>) naming the text segment. When synthesis is slower than playback and the listener has less than 1.5 s of audio in hand, a chunk is released before its score (<code>provisional_s</code> in the segment record) and still scored: up to one 4 s window of another voice can then be heard before the reply stops; at ordinary speed nothing unverified plays. <code>ABSTRACTVOICE_QWEN3_TTS_SPEAKER_CHECK=0</code> disables the check; <code>ABSTRACTVOICE_QWEN3_TTS_MIN_SPEAKER_SIMILARITY</code> retunes the opening threshold (default 0.95). Each text segment leaves a record (model, backend, reference, attempts, speaker scores, audio seconds, status) in the streamed-speech metrics as <code>segments</code> and on <code>ClonedVoiceNotAppliedError.segments</code>; cloned-voice records carry <code>reference_seconds</code> (length of the reference recording; <code>tags.reference_seconds</code> in plugin listings).</li>
+<li>Qwen3-TTS clones: every generation is checked against the clone before it is delivered (the 0.6B Base checkpoint occasionally samples a whole generation in a stock-sounding voice), so a reply stays in the cloned voice: an opening under the clone bar is regenerated once and, if the second take still scores a little under it, that take is spoken anyway (a small difference beats another voice or an unspoken reply); nothing stops a reply after its opening. The reply's opening is held back (released at 2 s when clearly the clone, else decided at 4 s; first audio waits for it). After that, delivery is continuous: each chunk is released once the 4 s window starting at it scores as the clone (a delay line at the generation's cadence), and the next segment's opening is checked while the previous one plays. A generation that opens in another voice is run again once; a second miss is spoken anyway (segment status <code>kept_below_threshold</code>), and a later 4 s window that scores under the block bar (0.93, or a kept take's own bar) is recorded in the segment's <code>low_windows</code> (time, score, limit) while playback continues. <code>ClonedVoiceNotAppliedError</code> (<code>abstractvoice.cloning.engine_qwen3_tts</code>) stays importable for callers that catch it; the Qwen3 clone engine no longer raises it. When synthesis is slower than playback and the listener has less than 1.5 s of audio in hand, a chunk is released before its score (<code>provisional_s</code> in the segment record) and still scored for the record. The check is a setting, never an environment variable: <code>VoiceManager(qwen3_tts_speaker_check=False)</code> disables it and <code>VoiceManager(qwen3_tts_min_speaker_similarity=0.9)</code> retunes the opening bar (default 0.95, must be in (0, 1]); the AbstractCore plugin settings are <code>voice_qwen3_tts_speaker_check</code> and <code>voice_qwen3_tts_min_speaker_similarity</code>; <code>VoiceCloner(qwen3_tts_speaker_check=, qwen3_tts_min_speaker_similarity=)</code> and <code>Qwen3TTSVoiceCloningEngine(speaker_check=, min_speaker_similarity=)</code> take the same. A generation that misses its end of speech is ended where it went quiet: once 90 % of its last 4 s are quiet (-40 dBFS frames) it stops as its EOS would have and the reply goes on with its next segment, instead of running to its length cap; the segment record reports <code>ended</code> (<code>eos</code> | <code>quiet_runaway</code> | <code>cap</code>) and <code>quiet_from_s</code>. Each text segment leaves a record (model, backend, reference, attempts, speaker scores, audio seconds, status, <code>ended</code>) in the streamed-speech metrics as <code>segments</code>; cloned-voice records carry <code>reference_seconds</code> (length of the reference recording; <code>tags.reference_seconds</code> in plugin listings).</li>
 <li>
 <p>Headless/server‑friendly: returns encoded audio bytes.</p>
 </li>
@@ -2100,7 +2122,7 @@ servers, or <code>--tts-engine &lt;local-provider&gt;</code> for installed local
 <p><code>speak_to_audio_segments(text: str, *, voice: str | None = None, instructions: str | None = None, sanitize_syntax: bool = True, language: str | None = None) -&gt; Iterator</code> (since 0.20.0)</p>
 </li>
 <li>The same synthesis as <code>speak_to_audio_chunks</code>, with each text segment marked (ADR 0009): it yields <code>SegmentStart</code>, that segment's <code>(audio_chunk, sample_rate)</code> tuples, then <code>SegmentEnd</code>, segment after segment (<code>abstractvoice.tts.segments</code>; <code>audio_only(...)</code> drops the markers).</li>
-<li><code>SegmentStart</code> carries <code>index</code> (from 0), <code>text</code> (what the engine speaks) and <code>text_start</code> / <code>text_end</code>: the segment's span <code>[start, end)</code> of <code>text</code> as you passed it, in code points (Python <code>str</code> indexes, Swift <code>unicodeScalars</code>, JavaScript <code>Array.from(text)</code>). The Markdown markers the sanitizer removes and collapsed whitespace are mapped back, so <code>text[text_end:]</code> is exactly the text not yet spoken.</li>
+<li><code>SegmentStart</code> carries <code>index</code> (from 0), <code>text</code> (what the engine speaks) and <code>text_start</code> / <code>text_end</code>: the segment's span <code>[start, end)</code> of <code>text</code> as you passed it, in code points (Python <code>str</code> indexes, Swift <code>unicodeScalars</code>, JavaScript <code>Array.from(text)</code>). What the sanitizer removes or inserts (Markdown syntax, code blocks, a sentence's full stop) and collapsed whitespace are mapped back, so <code>text[text_end:]</code> is exactly the text not yet spoken.</li>
 <li>A segment is one independent synthesis: a base engine's sentence group, one Qwen3-TTS clone generation (a take regenerated by the speaker check is still that segment, and only the accepted take is delivered). A native-streaming engine and clone engines other than Qwen3-TTS speak the whole text as segment 0.</li>
 <li>
 <p>A segment cancelled part-way has no <code>SegmentEnd</code>.</p>
@@ -2259,6 +2281,26 @@ specialized codebook predictor by default, retaining PyTorch's multinomial
 sampler. No additional vendor SDK is required. Unsupported generation settings
 use the original Transformers path with a <code>#FALLBACK</code> warning. The MLX backend
 accepts these two settings and ignores them (see above).</p>
+<p>Dtype on CUDA follows the card: bfloat16 on GPUs that compute it natively
+(compute capability 8.0, Ampere, and newer), float32 before that, where bfloat16
+is emulated and slower (a Turing Quadro RTX 5000: 0.6B custom voice at 0.94 of
+real time in bfloat16 against 0.81 in float32). <code>runtime_info()["dtype"]</code> and
+<code>["dtype_reason"]</code> say what was chosen and why; <code>ABSTRACTVOICE_TORCH_DTYPE</code> or an
+explicit <code>dtype_name=</code> override it.</p>
+<p>On CUDA the specialized predictor captures its fixed-depth frame (the 15-step
+codebook loop) as a CUDA graph once per input shape and sampling setting and
+replays it for every frame. The replay records the eager loop's own kernels, so
+logits, IDs and random-number consumption are unchanged and the audio is
+bitwise identical to the eager loop with the same seed; probabilities are still
+validated once per frame before any ID is used. Measured on a Quadro RTX 5000 in
+float32, 9 s of speech, model warm: 0.8 of real time (1.6 before), the predictor
+at 26 ms per frame (89 before). The first utterance after a load pays the
+capture (0.2-0.4 s). The graph is skipped, with one <code>#FALLBACK</code> line, when
+hooks are registered on the model, when the weights move or change dtype (then
+recaptured), inside another capture, or when the capture fails; CPU and MPS keep
+the eager loop; <code>reference</code> is untouched. <code>runtime_info()["cuda_graphs"]</code> reads
+<code>captured</code>, <code>failed: &lt;reason&gt;</code> or <code>unused</code> (<code>None</code> off PyTorch), and <code>["sampler"]</code>
+names the effective sampler while a graph replays.</p>
 <p>Every surface can choose both settings; the runtime reads them when it loads the
 model:</p>
 <table>
@@ -2434,6 +2476,30 @@ not resident).</p>
 <p><code>transcribe_from_bytes(audio_bytes: bytes, language: str | None = None) -&gt; str</code></p>
 </li>
 <li>Transcribes audio sent over the network.</li>
+</ul>
+<p><code>language=None</code> means auto on every engine: the engine detects the spoken language. Only an explicit
+code (<code>"fr"</code>) fixes it, which skips detection — short phrases and speech mixing two languages
+transcribe reliably and a little faster. The manager's own <code>language</code> is the voice's (TTS) and never
+stands in for a missing STT language.</p>
+<h3 id="spoken-languages-and-the-engines-report">Spoken languages and the engine's report<a class="headerlink" href="#spoken-languages-and-the-engines-report" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>abstractvoice.stt.languages</code> is the one list of spoken languages the local engines support:
+  <code>SUPPORTED_LANGUAGES</code> (ISO 639-1 codes: <code>en</code>, <code>fr</code>, <code>de</code>, <code>es</code>, <code>ru</code>, <code>zh</code>, <code>it</code>, <code>pt</code>, <code>ja</code>, <code>ko</code>,
+  <code>ar</code>, <code>hi</code>, <code>nl</code>, <code>pl</code>, <code>vi</code>, <code>el</code>), <code>LANGUAGE_LABELS</code> (display names), <code>normalize_language(value)</code>
+  (<code>None</code>/<code>""</code>/<code>"auto"</code> → <code>None</code>; a supported code, any case, <code>fr-FR</code> accepted → <code>"fr"</code>; anything else
+  raises <code>ValueError</code> with one user-readable sentence), <code>choices()</code> (<code>[{"value": "auto", "label":
+  "Auto (detected)"}, {"value": "en", "label": "English"}, …]</code>) and <code>language_label(code)</code>. Every local
+  adapter's <code>get_supported_languages()</code> returns this list; remote OpenAI-compatible engines pass the
+  code through.</li>
+<li><code>STTAdapter.transcribe_detailed(audio_path, language=None) -&gt; Transcription</code> and
+  <code>transcribe_from_bytes_detailed(audio_bytes, language=None) -&gt; Transcription</code>
+  (<code>abstractvoice.adapters.base.Transcription</code>: <code>text</code>, <code>language</code> — what the engine was told,
+  <code>None</code> = auto — and <code>detected_language</code>, the code the engine reported, or <code>None</code> when it reports
+  none). faster-whisper reports it from its segment info, mlx-whisper from its result, an
+  OpenAI-compatible endpoint only when its answer carries <code>language</code> (verbose formats); the
+  Transformers ASR pipeline reports none. The AbstractCore audio plugin's <code>transcribe_detailed</code>
+  answers the same three facts as a dict, which is how AbstractCore and AbstractGateway show
+  "Detected: fr" and let an account choose its spoken language once, server-side.</li>
 </ul>
 <h3 id="qwen3-asr-transformers-asr">Qwen3-ASR (Transformers ASR)<a class="headerlink" href="#qwen3-asr-transformers-asr" title="Permanent link">&para;</a></h3>
 <p><code>stt_engine="transformers-asr"</code> with a Qwen3-ASR checkpoint (for example
@@ -2802,7 +2868,7 @@ integration code:
   - Yields <code>audio</code> events (<code>schema: "abstractvoice.tts_stream.audio.v1"</code>), each a standalone mono 16-bit WAV segment in <code>audio</code> (<code>content_type: "audio/wav"</code>, <code>sample_rate</code>, <code>size_bytes</code>, <code>sequence</code> from 0), then one final event: <code>done</code> or, when <code>cancel_event</code> was set, <code>cancelled</code> (<code>schema: "abstractvoice.tts_stream.done.v1"</code>, <code>ok</code>, <code>chunks</code>, <code>single_chunk</code>, <code>metrics</code>). Only <code>format="wav"</code> is streamed; any other format raises <code>ValueError</code>.
   - Each <code>audio</code> event carries at most 2 s of audio (<code>STREAM_LINE_MAX_SECONDS</code> in <code>abstractvoice.integrations.abstractcore_plugin</code>): a longer engine segment (base engines hand over a whole sentence group) is sent as consecutive slices that concatenate to the segment's exact PCM, so a client can start playing before the whole segment has downloaded. Qwen3-TTS clone chunks (about 1 s) pass unchanged. <code>chunks</code> counts the <code>audio</code> events sent; <code>metrics</code> carries the engine's own counts (<code>chunks</code>, <code>segments</code>, per-segment clone records).
   - Text segments (ADR 0009, since 0.20.0): every <code>audio</code> event carries <code>segment</code> (its text segment, from 0) and that segment's <code>text_start</code> / <code>text_end</code> (code-point offsets <code>[start, end)</code> into the request <code>text</code>, as for <code>speak_to_audio_segments</code>); all slices of one segment share them. After a segment's last slice comes <code>{"type": "segment_end", "schema": "abstractvoice.tts_stream.segment_end.v1", "segment", "text_start", "text_end"}</code>. <code>done.segments</code> counts the segments ended. Skip event types you do not know.
-  - Resuming a broken stream: play audio as it arrives and keep all of it. After a break, request the text again from <code>text_end</code> of the last <code>segment_end</code> you received (from the start when there is none); the retried stream's offsets index the retried text (add the resume offset to map them back to yours). When the break fell inside a segment, also skip the first seconds of the new stream's audio, as many as you already received of that unfinished segment. At a segment boundary the seam is exact: each segment is one synthesis of exactly its text, so no word is repeated or missed, whatever the engine samples. Inside a segment the seam is approximate: a sampling engine (Qwen3-TTS, cloned voices above all) speaks the same text with different timing on the retry, so the seam can land a few words early or late. Nothing is ever replayed whole. The skip matters because one segment can be long: a Qwen3-TTS clone reply of up to 800 characters is one generation on MLX (one voice per reply, ADR 0008). Offsets are exact for plain text. The sanitizer removes <code>#</code> to <code>#####</code> headers at the start of a line, <code>**bold**</code> and <code>*italic*</code> markers; such a marker spanning two segments (<code>*first. second.*</code>) leaves its closing marker in the remaining text, so send plain text when you resume.</p>
+  - Resuming a broken stream: play audio as it arrives and keep all of it. After a break, request the text again from <code>text_end</code> of the last <code>segment_end</code> you received (from the start when there is none); the retried stream's offsets index the retried text (add the resume offset to map them back to yours). When the break fell inside a segment, also skip the first seconds of the new stream's audio, as many as you already received of that unfinished segment. At a segment boundary the seam is exact: each segment is one synthesis of exactly its text, so no word is repeated or missed, whatever the engine samples. Inside a segment the seam is approximate: a sampling engine (Qwen3-TTS, cloned voices above all) speaks the same text with different timing on the retry, so the seam can land a few words early or late. Nothing is ever replayed whole. The skip matters because one segment can be long: a Qwen3-TTS clone reply of up to 800 characters is one generation on MLX (one voice per reply, ADR 0008). Offsets are exact. Resumed Markdown speaks the same words as the segments not yet spoken (an emphasis split by the resume point loses its unpaired marker; a remaining text that starts with <code>3.</code> reads it as a list number, <code>3:</code>).</p>
 <p><div class="highlight"><pre><span></span><code><span class="n">resume_at</span> <span class="o">=</span> <span class="mi">0</span>         <span class="c1"># text_end of the last segment received whole</span>
 <span class="n">partial_s</span> <span class="o">=</span> <span class="mf">0.0</span>       <span class="c1"># seconds received of the segment in progress</span>
 <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">core</span><span class="o">.</span><span class="n">voice</span><span class="o">.</span><span class="n">tts_stream</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
@@ -3045,6 +3111,9 @@ different provider:
   (see <a href="#qwen3-tts-checkpoints">Qwen3-TTS checkpoints</a>); a typo is a <code>ValueError</code>
 - <code>voice_qwen3_tts_mlx_quantization</code>: <code>auto</code> (default, 8-bit) | <code>bf16</code> | <code>8bit</code> | <code>4bit</code> —
   talker precision on the MLX backend
+- <code>voice_qwen3_tts_speaker_check</code>: <code>true</code> (default) | <code>false</code> — the per-generation speaker
+  check on Qwen3-TTS clones (see <code>speak_to_bytes</code>); <code>voice_qwen3_tts_min_speaker_similarity</code>:
+  the opening bar, default <code>0.95</code>, in (0, 1]; a value out of range is a <code>ValueError</code>
 - <code>voice_whisper_model</code>: faster-whisper model size (e.g. <code>"base"</code>, <code>"small"</code>)
 - <code>voice_cloning_engine</code>: default cloning provider (<code>"omnivoice"</code> by default; also <code>"f5_tts"|"chroma"|"audiodit"|"openai"|"openai-compatible"</code>)
 - <code>voice_cloned_tts_streaming</code>: stream cloned-voice chunks for faster time-to-first-audio (bool). Used when <code>voice_tts_delivery_mode</code> is unset.
@@ -3281,7 +3350,7 @@ compatibility remains the capability/plugin contract: clients may pass a
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

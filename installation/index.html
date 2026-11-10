@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -338,6 +338,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#one-line-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One-line install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#install" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -409,6 +420,17 @@
     <span class="md-ellipsis">
       
         Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux
       
     </span>
   </a>
@@ -1302,6 +1324,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#one-line-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One-line install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#install" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1373,6 +1406,17 @@
     <span class="md-ellipsis">
       
         Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux
       
     </span>
   </a>
@@ -1455,6 +1499,121 @@
 <li><strong>Base install</strong>: OpenAI/OpenAI-compatible TTS/STT/profile/clone adapters and AbstractCore plugin discovery</li>
 <li><strong>Platform/local extras</strong>: Piper TTS, Supertonic 3 ONNX TTS, faster-whisper STT, audio I/O, AEC where supported, and local cloning/TTS engines</li>
 </ul>
+<h2 id="one-line-install">One-line install<a class="headerlink" href="#one-line-install" title="Permanent link">&para;</a></h2>
+<p>No admin rights and no Python needed: the installer gets <a href="https://docs.astral.sh/uv">uv</a> when it is
+missing, Python 3.12 through uv, and installs AbstractVoice alone (no gateway, no services) in its
+own environment, with the <code>abstractvoice</code> and <code>abstractvoice-prefetch</code> commands in <code>~/.local/bin</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># macOS / Linux</span>
+curl<span class="w"> </span>-LsSf<span class="w"> </span>https://abstractframework.ai/voice/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c"># Windows 10 / 11</span>
+<span class="n">powershell</span> <span class="n">-ExecutionPolicy</span> <span class="n">ByPass</span> <span class="n">-c</span> <span class="s2">"irm https://abstractframework.ai/voice/install.ps1 | iex"</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># With pip, in your own Python environment</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[apple]"</span><span class="w">   </span><span class="c1"># Apple Silicon Mac</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[gpu]"</span><span class="w">     </span><span class="c1"># NVIDIA or AMD GPU</span>
+</code></pre></div>
+<p>It picks the profile from the machine (<code>--profile</code> chooses another one):</p>
+<table>
+<thead>
+<tr>
+<th>Machine</th>
+<th>Profile</th>
+<th>What it installs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Apple Silicon Mac, macOS 14 or later</td>
+<td><code>apple</code></td>
+<td><code>abstractvoice[apple]</code>: the MLX engines on the Apple GPU (echo cancellation is left out: it has no macOS wheel, and the installer never starts a compiler)</td>
+</tr>
+<tr>
+<td>NVIDIA card (<code>nvidia-smi -L</code> works) or, on Linux, ROCm (<code>rocminfo</code>)</td>
+<td><code>gpu</code></td>
+<td><code>abstractvoice[gpu]</code>; with NVIDIA, also ONNX Runtime's CUDA build (below); on Windows, PyTorch's CUDA build for the driver (<code>--torch-backend cu130</code> or <code>cu126</code>)</td>
+</tr>
+<tr>
+<td>Anything else (an Intel Mac, an older macOS, no GPU)</td>
+<td><code>light</code></td>
+<td>processor only: the base package with Supertonic speech, faster-whisper transcription and speaker/microphone I/O (Windows on ARM: Supertonic only)</td>
+</tr>
+</tbody>
+</table>
+<p><code>--profile gpu</code> on a machine without a card installs the same GPU stack, whose engines then run on
+the processor. Every step prints its command, and so does the summary: the version, the profile,
+where the commands are, the CUDA step's result and what to try first:</p>
+<div class="highlight"><pre><span></span><code>abstractvoice-prefetch<span class="w"> </span>--supertonic<span class="w">   </span><span class="c1"># the Supertonic voice, once (about 380 MB)</span>
+abstractvoice<span class="w"> </span>--tts-engine<span class="w"> </span>supertonic<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"Hello from AbstractVoice."</span><span class="w"> </span>--output<span class="w"> </span>hello.wav
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>macOS / Linux</th>
+<th>Windows</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--print</code> (or <code>--dry-run</code>, <code>-n</code>)</td>
+<td><code>-Print</code> (or <code>-DryRun</code>)</td>
+<td>show the plan and every command; change nothing</td>
+</tr>
+<tr>
+<td><code>--profile auto\|light\|apple\|gpu</code></td>
+<td><code>-Profile auto\|light\|gpu</code></td>
+<td>the profile (default <code>auto</code>; <code>AV_PROFILE</code>)</td>
+</tr>
+<tr>
+<td><code>--pin VERSION\|latest</code></td>
+<td><code>-Pin VERSION\|latest</code></td>
+<td>the version: by default the release the script ships with, <code>latest</code> = the newest on PyPI (<code>AV_PIN</code>)</td>
+</tr>
+<tr>
+<td><code>--from PATH</code></td>
+<td><code>-From PATH</code></td>
+<td>install from a checkout, sdist or wheel, for testing (<code>AV_FROM</code>)</td>
+</tr>
+<tr>
+<td><code>--no-modify-path</code></td>
+<td><code>-NoModifyPath</code></td>
+<td>do not run <code>uv tool update-shell</code></td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--verbose</code></td>
+<td><code>-Verbose</code></td>
+<td>show the full output of every command</td>
+</tr>
+</tbody>
+</table>
+<p>Options go after <code>sh -s --</code> (<code>curl -LsSf https://abstractframework.ai/voice/install.sh | sh -s -- --print</code>)
+or into a script block on Windows
+(<code>&amp; ([scriptblock]::Create((irm https://abstractframework.ai/voice/install.ps1))) -Print</code>).</p>
+<p><strong>Upgrade</strong>: run the same line again. It finds the install, says
+<code>AbstractVoice 0.20.1 found: upgrading to AbstractVoice 0.21.0</code> (or <code>already up to date</code>), keeps the profile
+unless <code>--profile</code> says otherwise, ends with <code>abstractvoice 0.20.1 -&gt; 0.21.0</code>, runs the CUDA step
+again, and reinstalls in place when the command no longer starts. Remove it with
+<code>uv tool uninstall abstractvoice</code>. AbstractFramework's installer already includes AbstractVoice and
+its commands: on such a machine this script stops and says so, and nothing is changed. A standalone
+AbstractVoice beside the framework's gateway tool is not supported (there is no <code>--force</code>: both
+would own the same commands); upgrade AbstractFramework instead.</p>
+<p><strong>The CUDA step (NVIDIA)</strong>: with an NVIDIA driver 580 or newer and compute capability 7.5 or newer
+(ONNX Runtime's CUDA build is a CUDA 13 build), the installer runs Supertonic and Piper on the
+card. ONNX Runtime's CPU build (<code>onnxruntime</code>, which piper-tts and faster-whisper require) and its
+CUDA build (<code>onnxruntime-gpu</code>) write the same files, and installed together the CPU build's won
+(measured on Ubuntu 24.04 with a Quadro RTX 5000), so the step is two commands:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.12<span class="w"> </span><span class="s2">"abstractvoice[gpu,onnx-cuda]==&lt;version&gt;"</span>
+uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--python<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>uv<span class="w"> </span>tool<span class="w"> </span>dir<span class="k">)</span><span class="s2">/abstractvoice/bin/python"</span><span class="w"> </span>--no-deps<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--reinstall-package<span class="w"> </span>onnxruntime-gpu<span class="w"> </span><span class="s2">"onnxruntime-gpu==&lt;the version just installed&gt;"</span>
+</code></pre></div>
+<p>The second one rewrites the CUDA build's files alone, after everything else; then the installer
+checks that <code>import onnxruntime; onnxruntime.get_available_providers()</code> lists
+<code>CUDAExecutionProvider</code>, which shows the CUDA build is in place; whether its provider loads on the
+card is what Supertonic and Piper report at first use (<code>execution_device()</code>, <code>get_info()</code>). With an
+older driver, no NVIDIA card, or an <code>nvidia-smi</code> that does not answer (driver not loaded), it says
+why and Supertonic and Piper run on the processor. If the CPU build ever comes back on top (Supertonic's
+reason says so), running the installer again repairs it.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>abstractvoice
 </code></pre></div>
@@ -1479,7 +1638,7 @@ runtimes explicitly:</p>
 AbstractVoice is discovered as the voice/audio capability backend.</p>
 <h2 id="optional-extras">Optional extras<a class="headerlink" href="#optional-extras" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[apple]"</span><span class="w">     </span><span class="c1"># Apple Silicon local stack: Piper, Supertonic, faster-whisper + mlx-whisper (Apple GPU), AEC, cloning/TTS engines</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[gpu]"</span><span class="w">       </span><span class="c1"># GPU local stack: Piper, Supertonic, faster-whisper, AEC, cloning/TTS engines</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[gpu]"</span><span class="w">       </span><span class="c1"># GPU local stack: Piper, Supertonic, faster-whisper, cloning/TTS engines (AEC on macOS and Windows)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-apple]"</span><span class="w"> </span><span class="c1"># Apple stack + local FastAPI browser example</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[all-gpu]"</span><span class="w">   </span><span class="c1"># GPU stack + local FastAPI browser example</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[piper]"</span><span class="w">     </span><span class="c1"># Local Piper TTS only</span>
@@ -1496,6 +1655,7 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abst
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[openai]"</span><span class="w">    </span><span class="c1"># Hosted OpenAI intent extra (no extra deps today)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[openai-compatible]"</span><span class="w"> </span><span class="c1"># Generic compatible provider intent extra</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[aec]"</span><span class="w">       </span><span class="c1"># Optional echo cancellation (true barge-in)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[onnx-cuda]"</span><span class="w"> </span><span class="c1"># After a profile, on Linux/Windows with an NVIDIA card: Supertonic and Piper on the GPU</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[audio-fx]"</span><span class="w">  </span><span class="c1"># Speed change without pitch change (librosa)</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web]"</span><span class="w">       </span><span class="c1"># Local FastAPI browser example</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[web,supertonic]"</span><span class="w"> </span><span class="c1"># Web example + Supertonic dependency</span>
@@ -1549,8 +1709,15 @@ ids through <code>VoiceManager.get_profiles()</code>. Static ids can be configur
   OpenF5/F5-TTS only on Python 3.11+, because on 3.10 <code>f5-tts</code> pins
   <code>numpy&lt;=1.26.4</code> and would block NumPy 2 stacks (AbstractVision, MLX). On 3.10,
   install <code>abstractvoice[cloning]</code> separately if you need F5-TTS.</li>
-<li>AEC requires Python 3.11+ because <code>aec-audio-processing</code> declares that floor.</li>
+<li>AEC requires Python 3.11+ because <code>aec-audio-processing</code> declares that floor. The platform
+  profiles include it on macOS and Windows only: on Linux the package has no wheel and its source
+  build does not succeed on x86_64, so a Linux server installs the profile without echo
+  cancellation (a server has no microphone to cancel for).</li>
 </ul>
+<p>Note (Qwen3-TTS on PyTorch): the platform profiles and <code>abstractvoice[qwen3-tts]</code> keep
+<code>transformers</code> below 5.21. Transformers 5.21 split its Mimi codec into encoder and decoder
+sub-models, and the Qwen3-TTS speech tokenizer that AbstractVoice ships (a subclass of that codec)
+does not construct on it. The pin lifts when the tokenizer is ported.</p>
 <p>Note (OmniVoice): OmniVoice uses the torch/torchaudio/torchvision stack. If you
 already have an incompatible <code>torchvision</code> installed (common after changing
 torch-backed extras), you may see import errors like:</p>
@@ -1612,7 +1779,29 @@ sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w
 <h3 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h3>
 <p>Usually works out of the box. If device access fails, check OS microphone permissions and installed audio drivers.</p>
 <p>AEC (<code>aec-audio-processing</code>) has Windows wheels for Python 3.11 to 3.13.</p>
+<h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
+<p><code>abstractvoice[gpu]</code> and <code>[all-gpu]</code> install without echo cancellation on Linux (see the AEC note
+above); everything else in the profile has Linux wheels, so a clean Ubuntu host needs no compiler.</p>
 <h3 id="nvidia-gpus-linux-and-windows">NVIDIA GPUs (Linux and Windows)<a class="headerlink" href="#nvidia-gpus-linux-and-windows" title="Permanent link">&para;</a></h3>
+<p>The torch engines (Qwen3-TTS, OmniVoice, AudioDiT, F5, Transformers ASR) pick the card's native
+dtype: bfloat16 on compute capability 8.0 (Ampere) and newer, float32 on older cards such as
+Turing, where bfloat16 is emulated and slower; each engine's <code>runtime_info()</code> reports <code>dtype</code> and
+<code>dtype_reason</code>. Qwen3-TTS on CUDA replays its codebook predictor as a CUDA graph and speaks faster
+than real time on a mid-range card (Quadro RTX 5000: 0.8 of real time at float32, model warm).</p>
+<p>Supertonic and Piper run on ONNX Runtime. Its CUDA build (<code>onnxruntime-gpu</code>) and its CPU build
+(<code>onnxruntime</code>, which piper-tts and faster-whisper require) are two packages that write the same
+files, so the profiles install the CPU build and the card is a second, explicit step:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[gpu]"</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"abstractvoice[onnx-cuda]"</span><span class="w">   </span><span class="c1"># onnxruntime-gpu + nvidia-curand; empty on macOS</span>
+</code></pre></div>
+<p>The second command writes the CUDA build over the CPU one. Supertonic then requests the CUDA
+provider first (then the CPU) and Piper enables CUDA when the provider exists; both preload the
+pip-installed CUDA libraries before opening a session and report the providers the session runs
+on (<code>execution_device()</code> / <code>get_info()</code>). If the CPU build is installed on top later, the CUDA
+provider disappears and Supertonic's reason names the repair: <code>pip install --force-reinstall
+--no-deps onnxruntime-gpu</code>. Measured on the Quadro RTX 5000, 8 s of speech: Supertonic 0.85 s then
+0.09 s warm on CUDA against 1.6 s on the CPU; Piper's model is small enough that CUDA and the CPU
+are within a few tenths of a second.</p>
 <p>On Linux and Windows, <code>abstractvoice[gpu]</code> and <code>[all-gpu]</code> also install NVIDIA's CUDA 12 cuBLAS,
 runtime and cuDNN 9 wheels (<code>nvidia-cublas-cu12</code>, <code>nvidia-cuda-runtime-cu12</code>, <code>nvidia-cudnn-cu12</code>).
 faster-whisper's CTranslate2 loads CUDA 12 cuBLAS (<code>libcublas.so.12</code> / <code>cublas64_12.dll</code>) and runs
@@ -1747,7 +1936,7 @@ figures are in <a href="../benchmark/"><code>docs/benchmark.md</code></a> and
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

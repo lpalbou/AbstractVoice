@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1285,11 +1285,11 @@
 <p>This folder is the <strong>single source of truth</strong> for planned and completed work in AbstractVoice.</p>
 <h2 id="current-snapshot">Current snapshot<a class="headerlink" href="#current-snapshot" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Updated: 2026-11-06</li>
+<li>Updated: 2026-11-09</li>
 <li>Planned: 16</li>
-<li>Proposed: 12</li>
-<li>Completed: 44</li>
-<li>Deprecated: 0</li>
+<li>Proposed: 15</li>
+<li>Completed: 45</li>
+<li>Deprecated: 1</li>
 <li>Recurrent: 1</li>
 </ul>
 <p>Counts include topic folders. Intake 0067 found existing duplicate legacy numeric
@@ -1364,6 +1364,9 @@ the main stop/go gate. Recommended reading order:</p>
 </ul>
 <h2 id="recently-completed">Recently completed<a class="headerlink" href="#recently-completed" title="Permanent link">&para;</a></h2>
 <ul>
+<li><code>docs/backlog/completed/0070_qwen3_tts_cuda_decode_loop_launch_bound.md</code> (0.21.0): Qwen3-TTS on
+  CUDA replays its codebook predictor as a CUDA graph; Quadro RTX 5000 at float32 from 1.6 to 0.8 of
+  real time, audio bitwise identical to the eager loop. (The <code>proposed/</code> copy is a redirect to delete.)</li>
 <li><code>docs/backlog/completed/0063_cloned_voices_record_no_language.md</code> (0.19.0): a cloned voice records
   its language, stated or identified from its transcript.</li>
 <li><code>docs/backlog/completed/0065_personal_voice_stores_and_a_shared_library.md</code> (0.19.0): personal
@@ -1371,10 +1374,22 @@ the main stop/go gate. Recommended reading order:</p>
 </ul>
 <h2 id="other-current-proposed-items">Other current proposed items<a class="headerlink" href="#other-current-proposed-items" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="proposed/0067_explicit_clone_validation_and_segment_retry_policy/">0067 Explicit clone validation and segment retry policy</a>:
-  P2; make extra same-clone computation optional and calibrate borderline scores.
-  Promote after operator scheduling and agreement on package-owned policy/defaults;
-  Gateway follow-up 1010 depends on that contract.</li>
+<li><a href="proposed/0072_one_shot_tts_cli_does_not_fetch_supertonic/">0072 The one-shot TTS command does not fetch Supertonic on first use</a>:
+  P2; found by the standalone installer check on a fresh host; the installer prefetches as a workaround.</li>
+<li><a href="proposed/0071_qwen3_tts_cuda_out_of_memory_has_no_fallback/">0071 Qwen3-TTS raises on a full GPU where faster-whisper falls back and says why</a>:
+  P2; one behaviour for the local torch engines when the card has no free memory (reason recorded, explicit device
+  keeps raising).</li>
+<li><a href="proposed/0069_port_qwen3_tts_speech_tokenizer_to_transformers_5_21_mimi/">0069 Port the Qwen3-TTS speech tokenizer to Transformers 5.21's Mimi layout</a>:
+  P1; Transformers 5.21 split <code>MimiModel</code> and made <code>upsample</code> read-only, so the vendored tokenizer (a subclass) no
+  longer constructs and no Qwen3-TTS loads on PyTorch; 0.21.0 pins <code>transformers&lt;5.21</code>, this item lifts it by
+  composing the encoder from Mimi blocks instead of subclassing.</li>
+<li><a href="proposed/0068_qwen3_tts_predictor_parity_test_on_apple_silicon/">0068 Qwen3-TTS predictor parity test on Apple silicon</a>:
+  P2; the opt-in real-checkpoint predictor test assumes the PyTorch backend (fails on the MLX default) and its
+  whole-utterance exact-parity check is not reproducible on MPS with Transformers 5.20 (also on v0.20.1); make it
+  select its backend and measure before asserting.</li>
+<li><a href="deprecated/0067_explicit_clone_validation_and_segment_retry_policy/">0067 Explicit clone validation and segment retry policy</a>:
+  DEPRECATED 2026-11-07, superseded by the operator's ruling (retry once, then speak the cloned voice; later windows
+  recorded, never a stop) implemented on main (14da7d3, d0abd24); the check is a setting, not an environment variable.</li>
 <li><code>docs/backlog/proposed/0055_elevenlabs_music_backend_boundary_learnings.md</code>: captures lessons
   from AbstractMusic's ElevenLabs Music backend so any future ElevenLabs voice work stays scoped to
   AbstractVoice and does not couple to music runtime code.</li>
@@ -1491,7 +1506,7 @@ duplicating them.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

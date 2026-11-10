@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1445,6 +1445,13 @@ authoritative.</p>
 <li>Automatic torch dtype selection starts from
   <code>abstractvoice/compute/dtype.py</code> and its <code>best_torch_dtype_name()</code> /
   <code>resolve_torch_dtype()</code> helpers.</li>
+<li>On CUDA the automatic dtype follows the card's native support, never the
+  vendor name: bfloat16 on compute capability 8.0 (Ampere) and newer, float32
+  before that, where bfloat16 is emulated (matmuls through a fallback library,
+  attention on the math path) and float16 is unstable for the vendored models
+  (amended 2026-11-10 after measuring a Turing card: bfloat16 1.2x slower than
+  float32 on Qwen3-TTS, float16 crashing). The resolved dtype carries its reason
+  (<code>dtype_reason</code>) in the runtime resolution and in engine <code>runtime_info()</code>.</li>
 <li>Environment overrides remain first-class:</li>
 <li><code>ABSTRACTVOICE_TORCH_DEVICE</code></li>
 <li><code>ABSTRACTVOICE_TORCH_DTYPE</code></li>
@@ -1561,7 +1568,7 @@ authoritative.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>
