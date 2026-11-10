@@ -7,16 +7,14 @@
 #   curl -LsSf https://abstractframework.ai/voice/install.sh | sh
 #   curl -LsSf https://abstractframework.ai/voice/install.sh | sh -s -- --profile gpu
 #
-# It installs AbstractVoice alone: the `abstractvoice` and `abstractvoice-prefetch`
-# commands, no gateway, no services. (AbstractFramework's own installer,
-# https://abstractframework.ai/install.sh, already includes AbstractVoice.)
+# AbstractVoice alone (the abstractvoice and abstractvoice-prefetch commands, no gateway, no
+# services); AbstractFramework's installer, https://abstractframework.ai/install.sh, includes it.
 #
-# Steps (each prints its command; --print shows them and changes nothing): preflight (OS,
-# arch, profile, disk, pypi.org); uv (https://docs.astral.sh/uv) into ~/.local/bin when missing;
-# Python 3.12 through uv; `uv tool install --python 3.12 "abstractvoice[<extras>]==<version>"`
-# (isolated, user-scoped, prebuilt wheels only: no C compiler or Xcode tools, so the apple
-# profile leaves out echo cancellation, which has no macOS wheel); on Linux with an NVIDIA
-# card the CUDA step below; `uv tool update-shell` when the command folder is not on PATH.
+# Steps (each prints its command; --print shows them and changes nothing): preflight; uv
+# (https://docs.astral.sh/uv) into ~/.local/bin when missing; Python 3.12 through uv; `uv tool
+# install --python 3.12 "abstractvoice[<extras>]==<version>"` (user-scoped, prebuilt wheels only:
+# no compiler, so the apple profile drops echo cancellation, which has no macOS wheel); the CUDA
+# step on Linux with an NVIDIA card; `uv tool update-shell` when the command folder is not on PATH.
 #
 # Profiles (--profile auto|light|apple|gpu; auto takes the first that fits):
 #   apple  Apple Silicon, macOS 14+: abstractvoice[apple] (MLX engines on the Apple GPU)
@@ -25,18 +23,18 @@
 #   light  anything else, processor only: Supertonic speech, faster-whisper transcription and
 #          speaker/microphone I/O (abstractvoice[supertonic,stt,audio-io])
 #
-# The CUDA step (gpu profile on Linux; nvidia-smi answers with driver 580+ and compute capability
-# 7.5+, as onnxruntime-gpu 1.27+ is a CUDA 13 build). onnxruntime (CPU, which piper-tts and
-# faster-whisper require) and onnxruntime-gpu write the same files. Installed in one uv transaction
-# (`abstractvoice[gpu,onnx-cuda]`, or --with onnxruntime-gpu) the CPU build's binding won 3 times
-# out of 3 (Ubuntu 24.04, uv 0.13.7: CPUExecutionProvider only). The verified sequence:
+# The CUDA step (gpu profile, Linux, driver 580+ and compute capability 7.5+: onnxruntime-gpu 1.27+
+# is CUDA 13). onnxruntime (CPU; piper-tts and faster-whisper require it) and onnxruntime-gpu write
+# the same files; in one uv transaction (the extra, or --with onnxruntime-gpu) the CPU build's
+# binding won 3 times out of 3 (Ubuntu 24.04, uv 0.13.7). The verified sequence:
 #   uv tool install --python 3.12 "abstractvoice[gpu,onnx-cuda]==<version>"
 #   uv pip install --python "$(uv tool dir)/abstractvoice/bin/python" --no-deps \
 #       --reinstall-package onnxruntime-gpu "onnxruntime-gpu==<the version just installed>"
-# The second command rewrites onnxruntime-gpu's files alone, last, so the CUDA build wins; then
+# The second rewrites onnxruntime-gpu's files alone, last, so the CUDA build wins; then
 # `python -c "import onnxruntime as o; print(o.get_available_providers())"` lists
-# CUDAExecutionProvider. The extra is in the tool's own requirement, so `uv tool upgrade` keeps
-# it. The same two commands fit any uv tool environment carrying abstractvoice[onnx-cuda].
+# CUDAExecutionProvider: proof the CUDA build is in place, not that its provider loads (Supertonic
+# and Piper report that at first use). `uv tool upgrade` keeps the extra (it is in the tool's
+# requirement); the two commands fit any uv tool environment carrying abstractvoice[onnx-cuda].
 #
 # Upgrade: run the same line again: "AbstractVoice <old> found: upgrading to <new>" (or "already
 # up to date"); the previous profile is kept unless --profile says otherwise; the CUDA step runs
@@ -48,7 +46,7 @@
 #                            ships with, below; latest = the newest on PyPI)    [AV_PIN]
 #   --from PATH              install from a checkout, sdist or wheel (testing)  [AV_FROM]
 #   --no-modify-path         do not run `uv tool update-shell`
-#   --print, --dry-run       show the plan and the commands; change nothing
+#   --print, --dry-run, -n   show the plan and the commands; change nothing
 #   -v, --verbose            show the full output of every command
 #   -h, --help               this help
 # =============================================================================
@@ -65,27 +63,12 @@ AV_SCRIPT_URL="https://abstractframework.ai/voice/install.sh"
 AV_DOCS="https://github.com/lpalbou/abstractvoice/blob/main/docs/installation.md#one-line-install"
 AV_COMMANDS="abstractvoice abstractvoice-prefetch"
 
-PROFILE="${AV_PROFILE:-auto}"; PIN="${AV_PIN:-}"; FROM="${AV_FROM:-}"
-NO_MODIFY_PATH=0; PRINT=0; VERBOSE=0
 usage() {  # the header above when this runs as a file; a short form through curl | sh
     if [ -f "$0" ] && head -n 3 "$0" 2>/dev/null | grep -q "AbstractVoice standalone installer"; then
         awk 'NR > 4 && /^# =+$/ { exit } NR > 4 { sub(/^# ?/, ""); print }' "$0"
     else printf 'Usage: install.sh [--profile auto|light|apple|gpu] [--pin VERSION|latest] [--from PATH] [--print]\nFull help: %s\n' "$AV_DOCS"; fi
 }
 need_arg() { [ $# -ge 2 ] && [ -n "$2" ] || { echo "ERROR: $1 needs a value" >&2; exit 2; }; }
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --profile) need_arg "$@"; PROFILE="$2"; shift ;;  --profile=*) PROFILE="${1#*=}" ;;
-        --pin) need_arg "$@"; PIN="$2"; shift ;;          --pin=*) PIN="${1#*=}" ;;
-        --from) need_arg "$@"; FROM="$2"; shift ;;        --from=*) FROM="${1#*=}" ;;
-        --no-modify-path) NO_MODIFY_PATH=1 ;;
-        --print|--dry-run|-n) PRINT=1 ;;
-        -v|--verbose) VERBOSE=1 ;;
-        -h|--help) usage; exit 0 ;;
-        *) echo "ERROR: unknown argument: $1" >&2; usage >&2; exit 2 ;;
-    esac
-    shift
-done
 
 C_B=""; C_D=""; C_R=""; C_G=""; C_Y=""; C_C=""; C_0=""
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != "dumb" ]; then E="$(printf '\033')"
@@ -97,10 +80,7 @@ warn() { printf '  %s!%s %s\n' "$C_Y" "$C_0" "$1"; }
 die()  { printf '\n%sERROR: %s%s\n' "$C_R" "$1" "$C_0" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 q() {  # shell-quote one word for display
-    case "$1" in
-        ''|*[!A-Za-z0-9_./:=@,+%-]*) printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")" ;;
-        *) printf '%s' "$1" ;;
-    esac
+    case "$1" in ''|*[!A-Za-z0-9_./:=@,+%-]*) printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")" ;; *) printf '%s' "$1" ;; esac
 }
 show_cmd() { _l=""; for _w in "$@"; do _l="$_l $(q "$_w")"; done; printf '%s' "${_l# }"; }
 
@@ -131,15 +111,15 @@ http() {  # http URL: the body on stdout; non-zero unless the answer is 2xx
 UV=""; find_uv() {
     if have uv; then UV="$(command -v uv)"; return 0; fi
     for _c in "${UV_INSTALL_DIR:-}/uv" "${XDG_BIN_HOME:-}/uv" "$HOME/.local/bin/uv" "$HOME/.cargo/bin/uv"; do
-        if [ -x "$_c" ]; then UV="$_c"; return 0; fi
-    done
-    return 1
+        if [ -x "$_c" ]; then UV="$_c"; return 0; fi; done; return 1
 }
 # The framework installer's nvidia_info: NV_OK (1 when nvidia-smi answers), NV_DRIVER, NV_MAJOR,
-# NV_CC10 (the lowest compute capability x10, empty when the driver cannot report it), NV_NAME.
+# NV_CC10 (the lowest compute capability x10, empty when the driver cannot report it), NV_NAME,
+# NV_ERR (why an installed nvidia-smi gives no GPU; empty when there is no nvidia-smi at all).
 nvidia_info() {
-    NV_OK=0; NV_DRIVER=""; NV_MAJOR=0; NV_CC10=""; NV_NAME=""
-    have nvidia-smi && nvidia-smi -L >/dev/null 2>&1 || return 0
+    NV_OK=0; NV_DRIVER=""; NV_MAJOR=0; NV_CC10=""; NV_NAME=""; NV_ERR=""
+    have nvidia-smi || return 0
+    nvidia-smi -L >/dev/null 2>&1 || { NV_ERR="nvidia-smi is installed but does not answer (driver not loaded?)"; return 0; }
     _nv="$(nvidia-smi --query-gpu=driver_version,compute_cap,name --format=csv,noheader 2>/dev/null)" || _nv=""
     if [ -n "$_nv" ]; then NV_NAME="$(printf '%s\n' "$_nv" | head -n 1 | cut -d, -f3- | sed 's/^ *//')"
         NV_CC10="$(printf '%s\n' "$_nv" | cut -d, -f2 | tr -d ' ' | awk -F. '$1 ~ /^[0-9]+$/ { v = $1 * 10 + ($2 == "" ? 0 : substr($2, 1, 1)); if (m == "" || v < m) m = v } END { print m }')"
@@ -147,8 +127,27 @@ nvidia_info() {
         _nv="$(nvidia-smi --query-gpu=driver_version,name --format=csv,noheader 2>/dev/null)" || _nv=""
         NV_NAME="$(printf '%s\n' "$_nv" | head -n 1 | cut -d, -f2- | sed 's/^ *//')"; fi
     NV_DRIVER="$(printf '%s\n' "$_nv" | head -n 1 | cut -d, -f1 | tr -d ' ')"; NV_MAJOR="${NV_DRIVER%%.*}"
-    case "$NV_MAJOR" in ''|*[!0-9]*) NV_MAJOR=0 ;; *) NV_OK=1 ;; esac
+    case "$NV_MAJOR" in ''|*[!0-9]*) NV_MAJOR=0; NV_ERR="nvidia-smi gave no driver version" ;; *) NV_OK=1 ;; esac
 }
+
+# The install is one function called on the last line, so a `curl | sh` cut mid-download runs
+# nothing (the body is not indented, so multi-line messages stay flush).
+main() {
+PROFILE="${AV_PROFILE:-auto}"; PIN="${AV_PIN:-}"; FROM="${AV_FROM:-}"
+NO_MODIFY_PATH=0; PRINT=0; VERBOSE=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --profile) need_arg "$@"; PROFILE="$2"; shift ;;  --profile=*) PROFILE="${1#*=}" ;;
+        --pin) need_arg "$@"; PIN="$2"; shift ;;          --pin=*) PIN="${1#*=}" ;;
+        --from) need_arg "$@"; FROM="$2"; shift ;;        --from=*) FROM="${1#*=}" ;;
+        --no-modify-path) NO_MODIFY_PATH=1 ;;
+        --print|--dry-run|-n) PRINT=1 ;;
+        -v|--verbose) VERBOSE=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "ERROR: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    esac
+    shift
+done
 
 # --- 1. Preflight -------------------------------------------------------------
 OS="$(uname -s)"; ARCH="$(uname -m)"
@@ -163,8 +162,7 @@ if [ "$OS_ID" = macos ] && [ "$(sysctl -n sysctl.proc_translated 2>/dev/null || 
     die "this Terminal runs in Intel (Rosetta) mode on an Apple Silicon Mac, so the installer would set up the
 slow Intel version without the Apple Silicon engines. Run it natively: curl -LsSf $AV_SCRIPT_URL | arch -arm64 sh"
 fi
-MACOS_VERSION=""; MACOS_MAJOR=0
-[ "$OS_ID" = macos ] && { MACOS_VERSION="$(sw_vers -productVersion 2>/dev/null || echo 0)"; MACOS_MAJOR="${MACOS_VERSION%%.*}"; }
+MACOS_VERSION=""; MACOS_MAJOR=0; [ "$OS_ID" = macos ] && { MACOS_VERSION="$(sw_vers -productVersion 2>/dev/null || echo 0)"; MACOS_MAJOR="${MACOS_VERSION%%.*}"; }
 MUSL=0; [ "$OS_ID" = linux ] && ldd --version 2>&1 | grep -qi musl && MUSL=1
 
 printf '%sAbstractVoice installer%s  %s%s%s\n' "$C_B" "$C_0" "$C_D" \
@@ -195,6 +193,7 @@ case "$PROFILE" in
             _why="macOS $MACOS_VERSION: the Apple Silicon engines (MLX) need macOS 14 or later; update macOS and run the installer again"
         elif [ "$HAS_NVIDIA" = 1 ]; then PROFILE=gpu; _why="nvidia-smi found ${NV_NAME:-a GPU}"
         elif [ "$HAS_ROCM" = 1 ]; then PROFILE=gpu; _why="rocminfo found a GPU"
+        elif [ -n "$NV_ERR" ]; then PROFILE=light; _why="$NV_ERR, so processor only; once the driver works, run the installer again"
         else PROFILE=light; _why="no GPU found, so processor only"; fi
         ok "profile: $PROFILE ($_why; override with --profile)" ;;
     light) ok "profile: light (processor only)" ;;
@@ -204,7 +203,7 @@ case "$PROFILE" in
         ok "profile: apple (MLX engines on the Apple GPU)" ;;
     gpu)
         [ "$OS_ID" = linux ] || die "the gpu profile targets Linux (Windows: install.ps1); on a Mac use --profile apple"
-        [ "$HAS_NVIDIA" = 1 ] || [ "$HAS_ROCM" = 1 ] || warn "gpu profile requested but neither nvidia-smi nor rocminfo works: its engines will run on the processor"
+        [ "$HAS_NVIDIA" = 1 ] || [ "$HAS_ROCM" = 1 ] || warn "gpu profile requested, but ${NV_ERR:-neither nvidia-smi nor rocminfo works}: its engines will run on the processor"
         ok "profile: gpu (CUDA/ROCm engines when a card works, else the processor)" ;;
     *) die "unknown profile '$PROFILE' (expected auto, light, apple or gpu)" ;;
 esac
@@ -218,7 +217,7 @@ elif [ "$PROFILE" = light ] && [ "$OS_ID" = macos ] && [ "$MACOS_MAJOR" -lt 13 ]
 CUDA=0; CUDA_RESULT="not applicable ($PROFILE profile)"
 if [ "$PROFILE" = gpu ]; then
     _cpu="Supertonic and Piper run on the processor"
-    if [ "$HAS_NVIDIA" = 0 ]; then CUDA_RESULT="skipped: no NVIDIA GPU answers nvidia-smi; $_cpu"
+    if [ "$HAS_NVIDIA" = 0 ]; then CUDA_RESULT="skipped: ${NV_ERR:-no NVIDIA GPU answers nvidia-smi}; $_cpu"
     elif [ "$NV_MAJOR" -lt 580 ]; then CUDA_RESULT="skipped: onnxruntime-gpu is a CUDA 13 build, which needs NVIDIA driver 580 or newer (this one is $NV_DRIVER); $_cpu"
     elif [ -n "$NV_CC10" ] && [ "$NV_CC10" -lt 75 ]; then CUDA_RESULT="skipped: CUDA 13 needs compute capability 7.5 or newer; $_cpu"
     else CUDA=1; CUDA_RESULT="planned"; ok "NVIDIA: ${NV_NAME:-GPU}, driver $NV_DRIVER: ONNX Runtime's CUDA build is added (onnx-cuda)"; fi
@@ -254,7 +253,7 @@ if [ -z "$BEFORE" ]; then
         [ -e "$TOOL_BIN/$_n" ] || [ -L "$TOOL_BIN/$_n" ] || continue
         _owner="$([ -z "$UV" ] || "$UV" tool list 2>/dev/null | awk -v n="$_n" '/^[^ -]/ { t = $1 } $1 == "-" && $2 == n { print t; exit }')"
         _msg="$TOOL_BIN/$_n already exists ($([ -n "$_owner" ] && echo "from the uv tool '$_owner'" || echo "another program's"))"
-        [ "$_owner" != abstractgateway ] || _msg="$_msg: AbstractFramework is installed here and already includes AbstractVoice; upgrade it with: curl -LsSf https://abstractframework.ai/install.sh | sh"
+        [ "$_owner" != abstractgateway ] || _msg="$_msg: AbstractFramework is installed here and already includes AbstractVoice; upgrade it with: curl -LsSf https://abstractframework.ai/install.sh | sh. A standalone AbstractVoice beside the framework's gateway tool is not supported (there is no --force: both would own the same commands)"
         [ "$PRINT" = 1 ] && { warn "$_msg (the real run stops here; nothing is changed)"; break; }
         die "$_msg
 Nothing was changed."
@@ -274,8 +273,7 @@ if [ -z "$FROM" ] && [ "$PIN" != latest ] && ! http "https://pypi.org/pypi/abstr
     _m="abstractvoice $PIN is not on PyPI (yet): use --pin latest for the newest published version"
     if [ "$PRINT" = 1 ]; then warn "$_m"; else die "$_m. Nothing was changed."; fi
 fi
-DL=""; if have curl; then DL="curl -LsSf"; elif have wget; then DL="wget -qO-"; fi
-[ -n "$UV" ] || [ -n "$DL" ] || die "neither curl nor wget is installed, so uv cannot be downloaded"
+[ -n "$UV" ] || have curl || have wget || die "neither curl nor wget is installed, so uv cannot be downloaded"
 WORK="${XDG_CACHE_HOME:-$HOME/.cache}/abstractvoice/installer"
 [ "$PRINT" = 1 ] || { mkdir -p "$WORK"; LOG="$WORK/install.log"; : >"$LOG"; }
 
@@ -284,8 +282,9 @@ step "uv (Python toolchain manager)"
 if [ -n "$UV" ]; then ok "uv found: $UV ($("$UV" --version 2>/dev/null | awk '{print $2}'))"
 else
     info "installing uv from astral.sh into ~/.local/bin (no admin)"
-    RUN_SHOW="$DL https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh"
-    run "install uv" sh -c "$DL https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh"
+    if have curl; then run "download uv's installer" curl -LsSf https://astral.sh/uv/install.sh -o "$WORK/uv-install.sh"
+    else run "download uv's installer" wget -qO "$WORK/uv-install.sh" https://astral.sh/uv/install.sh; fi
+    run "install uv" env UV_NO_MODIFY_PATH=1 sh "$WORK/uv-install.sh"
     if [ "$PRINT" = 1 ]; then UV=uv
     else find_uv || die "uv was installed but cannot be found (looked in \$UV_INSTALL_DIR, \$XDG_BIN_HOME, ~/.local/bin)"
         ok "uv installed: $UV"; TOOL_BIN="$("$UV" tool dir --bin)"; TOOL_DIR="$("$UV" tool dir)"; fi
@@ -351,13 +350,13 @@ if [ "$CUDA" = 1 ]; then
             --no-deps --reinstall-package onnxruntime-gpu "onnxruntime-gpu==$ORT_GPU"; then
         CUDA_RESULT="not installed: rewriting onnxruntime-gpu failed (log: $LOG); Supertonic and Piper may run on the processor"
     elif [ "$PRINT" = 1 ]; then
-        printf '  %s$ %s%s\n' "$C_D" "$(show_cmd "$TOOL_PY" -c "$_chk")" "$C_0"; CUDA_RESULT="planned (onnxruntime-gpu, then the provider check)"
+        printf '  %s$ %s%s\n' "$C_D" "$(show_cmd "$TOOL_PY" -c "$_chk")" "$C_0"; CUDA_RESULT="planned (onnxruntime-gpu, then the check that its CUDA build is in place)"
     else
         printf '  %s$ %s%s\n' "$C_D" "$(show_cmd "$TOOL_PY" -c "$_chk")" "$C_0"
         _prov="$("$TOOL_PY" -c "$_chk" 2>>"$LOG" | tail -n 1)" || _prov=""
         case ",$_prov," in
-            *,CUDAExecutionProvider,*) CUDA_RESULT="onnxruntime-gpu $ORT_GPU: CUDAExecutionProvider available, Supertonic and Piper run on the GPU"; ok "$CUDA_RESULT" ;;
-            *) CUDA_RESULT="onnxruntime-gpu $ORT_GPU installed but ONNX Runtime offers ${_prov:-no providers} (log: $LOG); Supertonic and Piper run on the processor"; warn "$CUDA_RESULT" ;;
+            *,CUDAExecutionProvider,*) CUDA_RESULT="onnxruntime-gpu $ORT_GPU: the CUDA build of ONNX Runtime is in place; Supertonic and Piper report the provider they run on at first use"; ok "$CUDA_RESULT" ;;
+            *) CUDA_RESULT="onnxruntime-gpu $ORT_GPU installed but the CPU build's files are in place (providers: ${_prov:-none}; log: $LOG); Supertonic and Piper run on the processor"; warn "$CUDA_RESULT" ;;
         esac
     fi
 fi
@@ -368,8 +367,11 @@ case ":$PATH:" in
     *":$TOOL_BIN:"*) ok "$TOOL_BIN is on PATH" ;;
     *)
         _hand="add it yourself: export PATH=\"$TOOL_BIN:\$PATH\" in your shell's startup file"
-        if grep -qsF "$TOOL_BIN" "$HOME/.zshenv" "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" \
-            "$HOME/.profile" "${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/uv.env.fish"; then
+        # The startup files may name it as written here, as $HOME/..., ${HOME}/... or ~/..., or through
+        # uv's `. "$HOME/.local/bin/env"` (which contains $HOME/.local/bin).
+        _rel="${TOOL_BIN#"$HOME"}"; [ "$_rel" != "$TOOL_BIN" ] || _rel="//none"
+        if grep -qsF -e "$TOOL_BIN" -e "\$HOME$_rel" -e "\${HOME}$_rel" -e "~$_rel" "$HOME/.zshenv" "$HOME/.zshrc" "$HOME/.bashrc" \
+            "$HOME/.bash_profile" "$HOME/.profile" "${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/uv.env.fish"; then
             ok "$TOOL_BIN is already on PATH in your shell profile (new terminals have it)"
         elif [ "$NO_MODIFY_PATH" = 1 ]; then warn "$TOOL_BIN is not on PATH (--no-modify-path); $_hand"
         elif RUN_SOFT=1 run "add $TOOL_BIN to PATH in your shell profile" "$UV" tool update-shell; then
@@ -384,14 +386,14 @@ echo "  profile:   $PROFILE ($(spec "$FULL_EXTRAS"))"
 echo "  commands:  $TOOL_BIN/abstractvoice, $TOOL_BIN/abstractvoice-prefetch"
 echo "  CUDA step: $CUDA_RESULT"
 [ -z "$LOCAL_WHY" ] || echo "  local engines: skipped ($LOCAL_WHY)"
-if [ "$OS_ID" = linux ] && have ldconfig && ! ldconfig -p 2>/dev/null | grep -q libportaudio; then
-    echo "  speakers/microphone: need PortAudio (Debian/Ubuntu: sudo apt-get install libportaudio2); audio files work without it"
-fi
+[ "$OS_ID" != linux ] || ! have ldconfig || ldconfig -p 2>/dev/null | grep -q libportaudio \
+    || echo "  speakers/microphone: need PortAudio (Debian/Ubuntu: sudo apt-get install libportaudio2); audio files work without it"
 [ "$PRINT" = 1 ] || echo "  log:       $LOG"
 echo
-if [ -n "$EXTRAS" ]; then
-    echo "Try it (the first command downloads the Supertonic voice once, about 380 MB):"
-    echo "  abstractvoice-prefetch --supertonic"
-    echo "  abstractvoice --tts-engine supertonic --prompt \"Hello from AbstractVoice.\" --output hello.wav"
+if [ -n "$EXTRAS" ]; then echo "Try it (the first command downloads the Supertonic voice once, about 380 MB):"
+    echo "  abstractvoice-prefetch --supertonic"; echo "  abstractvoice --tts-engine supertonic --prompt \"Hello from AbstractVoice.\" --output hello.wav"
 else echo "Try it: abstractvoice --help"; fi
 echo "Docs: $AV_DOCS"
+}
+
+main "$@"

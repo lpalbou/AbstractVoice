@@ -47,11 +47,12 @@ abstractvoice --tts-engine supertonic --prompt "Hello from AbstractVoice." --out
 
 | macOS / Linux | Windows | |
 |---|---|---|
-| `--print` | `-Print` | show the plan and every command; change nothing |
+| `--print` (or `--dry-run`, `-n`) | `-Print` (or `-DryRun`) | show the plan and every command; change nothing |
 | `--profile auto\|light\|apple\|gpu` | `-Profile auto\|light\|gpu` | the profile (default `auto`; `AV_PROFILE`) |
-| `--pin VERSION\|latest` | `-Pin` | the version: by default the release the script ships with, `latest` = the newest on PyPI (`AV_PIN`) |
-| `--from PATH` | `-From` | install from a checkout, sdist or wheel, for testing (`AV_FROM`) |
+| `--pin VERSION\|latest` | `-Pin VERSION\|latest` | the version: by default the release the script ships with, `latest` = the newest on PyPI (`AV_PIN`) |
+| `--from PATH` | `-From PATH` | install from a checkout, sdist or wheel, for testing (`AV_FROM`) |
 | `--no-modify-path` | `-NoModifyPath` | do not run `uv tool update-shell` |
+| `-v`, `--verbose` | `-Verbose` | show the full output of every command |
 
 Options go after `sh -s --` (`curl -LsSf https://abstractframework.ai/voice/install.sh | sh -s -- --print`)
 or into a script block on Windows
@@ -62,7 +63,9 @@ or into a script block on Windows
 unless `--profile` says otherwise, ends with `abstractvoice 0.20.1 -> 0.21.0`, runs the CUDA step
 again, and reinstalls in place when the command no longer starts. Remove it with
 `uv tool uninstall abstractvoice`. AbstractFramework's installer already includes AbstractVoice and
-its commands: on such a machine this script stops and says so, and nothing is changed.
+its commands: on such a machine this script stops and says so, and nothing is changed. A standalone
+AbstractVoice beside the framework's gateway tool is not supported (there is no `--force`: both
+would own the same commands); upgrade AbstractFramework instead.
 
 **The CUDA step (NVIDIA)**: with an NVIDIA driver 580 or newer and compute capability 7.5 or newer
 (ONNX Runtime's CUDA build is a CUDA 13 build), the installer runs Supertonic and Piper on the
@@ -78,8 +81,10 @@ uv pip install --python "$(uv tool dir)/abstractvoice/bin/python" --no-deps \
 
 The second one rewrites the CUDA build's files alone, after everything else; then the installer
 checks that `import onnxruntime; onnxruntime.get_available_providers()` lists
-`CUDAExecutionProvider` and prints the result. With an older driver or no NVIDIA card it says why
-and Supertonic and Piper run on the processor. If the CPU build ever comes back on top (Supertonic's
+`CUDAExecutionProvider`, which shows the CUDA build is in place; whether its provider loads on the
+card is what Supertonic and Piper report at first use (`execution_device()`, `get_info()`). With an
+older driver, no NVIDIA card, or an `nvidia-smi` that does not answer (driver not loaded), it says
+why and Supertonic and Piper run on the processor. If the CPU build ever comes back on top (Supertonic's
 reason says so), running the installer again repairs it.
 
 ## Install

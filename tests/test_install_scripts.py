@@ -66,6 +66,28 @@ def test_install_sh_parses_and_prints_help():
         assert opt in out
 
 
+@pytest.mark.skipif(shutil.which("sh") is None, reason="no POSIX sh")
+def test_install_sh_cut_mid_download_runs_nothing():
+    """The body is one function called on the last line: a truncated `curl | sh` stream executes nothing."""
+    text = SH.read_text(encoding="utf-8")
+    assert text.rstrip().splitlines()[-1] == 'main "$@"'
+    data = text.encode("utf-8")
+    for frac in (0.2, 0.5, 0.8, 0.99):
+        cut = data[: int(len(data) * frac)]
+        out = subprocess.run(["sh", "-s", "--", "--print"], input=cut, capture_output=True).stdout
+        assert b"AbstractVoice installer" not in out, f"a stream cut at {frac:.0%} ran the installer"
+
+
+def test_option_parity_between_scripts():
+    sh, ps1 = _sh(), _ps1()
+    for opt in ("--profile", "--pin", "--from", "--no-modify-path", "--print", "--dry-run", "--verbose"):
+        assert opt in sh, f"install.sh lacks {opt}"
+    assert "[Alias('Profile')]" in ps1 and "[Alias('DryRun')]" in ps1
+    for param in ("$Pin", "$From", "$NoModifyPath", "$Print"):
+        assert f"]{param}" in ps1, f"install.ps1 lacks {param}"
+    assert "[CmdletBinding()]" in ps1 and "$VerbosePreference -eq 'Continue'" in ps1  # -Verbose
+
+
 @pytest.mark.skipif(shutil.which("pwsh") is None, reason="no PowerShell")
 def test_install_ps1_parses():
     cmd = (
