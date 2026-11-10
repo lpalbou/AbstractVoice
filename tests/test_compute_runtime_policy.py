@@ -380,6 +380,8 @@ def test_qwen3_tts_never_defaults_to_float16_even_when_the_environment_asks(monk
 def test_engine_runtime_info_says_why_its_dtype(monkeypatch: pytest.MonkeyPatch, engine: str) -> None:
     import importlib
 
+    pytest.importorskip("torch")
+    pytest.importorskip("transformers")  # the AudioDiT runtime imports it at module import (CI's base job has neither)
     from abstractvoice.compute.torch_runtime import TorchRuntimeResolution
 
     module = importlib.import_module(f"abstractvoice.{engine}.runtime")
